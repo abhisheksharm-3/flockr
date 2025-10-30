@@ -1,0 +1,182 @@
+package `in`.xroden.flockr.data.repository
+
+import `in`.xroden.flockr.data.model.Notification
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class NotificationRepository @Inject constructor(
+    private val supabase: SupabaseClient
+) {
+    private val userId: String?
+        get() = supabase.auth.currentUserOrNull()?.id
+
+    fun getNotificationsFlow(): Flow<List<Notification>> {
+        val currentUserId = userId ?: return kotlinx.coroutines.flow.flowOf(emptyList())
+
+        return kotlinx.coroutines.flow.flow {
+            val initialList = supabase.from("notifications")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("user_id", currentUserId)
+                    }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<Notification>()
+
+            emit(initialList)
+
+            val channel = supabase.realtime.channel("notifications_$currentUserId")
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "notifications"
+                filter = "user_id=eq.$currentUserId"
+            }.collect {
+                emit(getNotifications())
+            }
+        }
+    }
+
+    suspend fun getNotifications(): List<Notification> {
+        return try {
+            val currentUserId = userId ?: return emptyList()
+
+            supabase.from("notifications")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("user_id", currentUserId)
+                    }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<Notification>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun createNotificationForHouse(
+        houseId: String,
+        title: String,
+        message: String,
+        type: String,
+        data: Map<String, String>? = null
+    ): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            supabase.postgrest.rpc(
+                "create_notification_for_house",
+                mapOf(
+                    "p_house_id" to houseId,
+                    "p_title" to title,
+                    "p_message" to message,
+                    "p_type" to type,
+                    "p_data" to (data ?: emptyMap<String, String>()),
+                    "p_exclude_user_id" to currentUserId
+                )
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createNotificationForUser(
+        targetUserId: String,
+        houseId: String,
+        title: String,
+        message: String,
+        type: String,
+        data: Map<String, String>? = null
+    ): Result<Unit> {
+        return try {
+            supabase.from("notifications")
+                .insert(
+                    mapOf(
+                        "user_id" to targetUserId,
+                        "house_id" to houseId,
+                        "title" to title,
+                        "message" to message,
+                        "type" to type,
+                        "is_read" to false,
+                        "data" to (data ?: emptyMap<String, String>())
+                    )
+                )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markAllAsRead(): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            supabase.from("notifications")
+                .update(
+                    mapOf("is_read" to true)
+                ) {
+                    filter {
+                        eq("user_id", currentUserId)
+                        eq("is_read", false)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUnreadCount(): Int {
+        return try {
+            val currentUserId = userId ?: return 0
+
+            val notifications = supabase.from("notifications")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("user_id", currentUserId)
+                        eq("is_read", false)
+                    }
+                }
+                .decodeList<Notification>()
+
+            notifications.size
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    suspend fun markAsRead(notificationId: String): Result<Unit> {
+        return try {
+            supabase.from("notifications")
+                .update(
+                    mapOf("is_read" to true)
+                ) {
+                    filter {
+                        eq("id", notificationId)
+                    }
+                }
+
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
+
