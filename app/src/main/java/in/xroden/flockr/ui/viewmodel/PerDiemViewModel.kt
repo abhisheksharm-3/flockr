@@ -1,0 +1,95 @@
+package `in`.xroden.flockr.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.data.model.*
+import `in`.xroden.flockr.data.repository.ExpenseRepository
+import `in`.xroden.flockr.data.repository.PerDiemRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class PerDiemViewModel @Inject constructor(
+    private val expenseRepository: ExpenseRepository,
+    private val perDiemRepository: PerDiemRepository
+) : ViewModel() {
+
+    private val _configs = MutableStateFlow<List<PerDiemConfig>>(emptyList())
+    val configs: StateFlow<List<PerDiemConfig>> = _configs.asStateFlow()
+
+    private val _entries = MutableStateFlow<List<PerDiemEntry>>(emptyList())
+    val entries: StateFlow<List<PerDiemEntry>> = _entries.asStateFlow()
+
+    private val _perDiemBillItemized = MutableStateFlow<List<PerDiemBillItemized>>(emptyList())
+    val perDiemBillItemized: StateFlow<List<PerDiemBillItemized>> = _perDiemBillItemized.asStateFlow()
+
+    private val _perDiemBillByMember = MutableStateFlow<List<PerDiemBillByMember>>(emptyList())
+    val perDiemBillByMember: StateFlow<List<PerDiemBillByMember>> = _perDiemBillByMember.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    fun loadPerDiemConfigs(houseId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val configs = perDiemRepository.getPerDiemConfigs(houseId)
+                _configs.value = configs
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load per-diem configurations"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadPerDiemReports(houseId: String, month: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val itemized = expenseRepository.getPerDiemBillItemized(houseId, month)
+                val byMember = expenseRepository.getPerDiemBillByMember(houseId, month)
+
+                _perDiemBillItemized.value = itemized
+                _perDiemBillByMember.value = byMember
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load per-diem reports"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun createPerDiemEntry(
+        configId: String,
+        houseId: String,
+        quantity: Double,
+        date: String,
+        notes: String?,
+        itemName: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            expenseRepository.createPerDiemEntry(
+                configId, houseId, quantity, date, notes, itemName
+            ).fold(
+                onSuccess = { onSuccess() },
+                onFailure = { _error.value = it.message }
+            )
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+}
+
