@@ -3,12 +3,18 @@ package `in`.xroden.flockr.ui.screens.home
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.ui.components.FlockrCard
+import `in`.xroden.flockr.ui.components.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.FlockrTextField
 import `in`.xroden.flockr.ui.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,23 +36,35 @@ fun CreateHouseScreen(
         if (uiState is `in`.xroden.flockr.ui.viewmodel.HomeUiState.Error) {
             val msg = (uiState as `in`.xroden.flockr.ui.viewmodel.HomeUiState.Error).message
             isCreating = false
-            android.util.Log.d("CreateHouseScreen", "Showing error snackbar: $msg")
-            // LaunchedEffect runs in a coroutine scope, so we can call suspend functions directly
             snackbarHostState.showSnackbar(msg)
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Create Household") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Create Household",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
@@ -54,39 +72,61 @@ fun CreateHouseScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Create a new household",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 32.dp)
+                text = "Create New Household",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            OutlinedTextField(
+            Text(
+                text = "Set up a new household to manage together",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 48.dp)
+            )
+
+            FlockrTextField(
                 value = houseName,
                 onValueChange = { houseName = it },
-                label = { Text("Household Name") },
+                label = "Household Name",
+                placeholder = "e.g., Smith Family",
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("e.g., Smith Family") }
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
+            FlockrTextField(
                 value = address,
                 onValueChange = { address = it },
-                label = { Text("Address (Optional)") },
+                label = "Address (Optional)",
+                placeholder = "123 Main St, City, State",
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("123 Main St, City, State") }
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
+            FlockrPrimaryButton(
+                text = "Create Household",
                 onClick = {
-                    android.util.Log.d("CreateHouseScreen", "Create button clicked - name='$houseName', address='$address'")
                     isCreating = true
                     viewModel.createHouse(
                         name = houseName,
@@ -94,21 +134,15 @@ fun CreateHouseScreen(
                         latitude = null,
                         longitude = null,
                         onSuccess = { houseId ->
-                            android.util.Log.d("CreateHouseScreen", "House created successfully - id=$houseId")
                             isCreating = false
                             onHouseCreated(houseId)
                         }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = houseName.isNotBlank() && !isCreating
-            ) {
-                if (isCreating) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text("Create Household")
-                }
-            }
+                enabled = houseName.isNotBlank(),
+                isLoading = isCreating
+            )
         }
     }
 }

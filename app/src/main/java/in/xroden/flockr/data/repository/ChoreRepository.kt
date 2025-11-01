@@ -24,13 +24,20 @@ class ChoreRepository @Inject constructor(
         get() = supabase.auth.currentUserOrNull()?.id
 
     fun getChoresFlow(houseId: String): Flow<List<Chore>> {
-        val channel = supabase.realtime.channel("chores_$houseId")
+        return kotlinx.coroutines.flow.flow {
+            // Emit initial value immediately
+            android.util.Log.d("ChoreRepository", "Emitting initial chores list for house: $houseId")
+            emit(getChores(houseId))
 
-        return channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-            table = "chores"
-            filter = "house_id=eq.$houseId"
-        }.map {
-            getChores(houseId)
+            // Then listen for realtime updates
+            val channel = supabase.realtime.channel("chores_$houseId")
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "chores"
+                filter = "house_id=eq.$houseId"
+            }.collect {
+                android.util.Log.d("ChoreRepository", "Realtime update received, fetching chores")
+                emit(getChores(houseId))
+            }
         }
     }
 

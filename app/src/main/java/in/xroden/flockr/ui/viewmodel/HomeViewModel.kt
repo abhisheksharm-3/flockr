@@ -61,6 +61,28 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun joinHouseByInviteCode(inviteCode: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("HomeViewModel", "joinHouseByInviteCode called - code='$inviteCode'")
+                houseRepository.joinHouseByInviteCode(inviteCode).fold(
+                    onSuccess = { house ->
+                        android.util.Log.d("HomeViewModel", "joinHouseByInviteCode succeeded - joined house: ${house.name}")
+                        loadHouses()
+                        onSuccess(house.id)
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e("HomeViewModel", "joinHouseByInviteCode failed", error)
+                        onError(error.message ?: "Failed to join household")
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Exception in joinHouseByInviteCode", e)
+                onError(e.message ?: "Failed to join household")
+            }
+        }
+    }
 }
 
 sealed class HomeUiState {

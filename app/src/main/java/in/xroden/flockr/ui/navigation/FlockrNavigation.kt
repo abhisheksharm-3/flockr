@@ -84,19 +84,13 @@ fun FlockrNavigation(
                 ) {
                     composable(Screen.Login.route) {
                         LoginScreen(
-                            onNavigateToSignup = { navController.navigate(Screen.Signup.route) },
-                            onLoginSuccess = {
-                                // Navigation will be handled by recomposition
-                            }
+                            onNavigateToSignup = { navController.navigate(Screen.Signup.route) }
                         )
                     }
 
                     composable(Screen.Signup.route) {
                         SignupScreen(
-                            onNavigateToLogin = { navController.popBackStack() },
-                            onSignupSuccess = {
-                                // Navigation will be handled by recomposition
-                            }
+                            onNavigateToLogin = { navController.popBackStack() }
                         )
                     }
                 }
@@ -138,6 +132,9 @@ fun FlockrNavigation(
                         },
                         onCreateHouseClick = {
                             navController.navigate(Screen.CreateHouse.route)
+                        },
+                        onJoinHouseClick = {
+                            navController.navigate(Screen.JoinHouse.route)
                         }
                     )
                 }
@@ -145,6 +142,17 @@ fun FlockrNavigation(
                 composable(Screen.CreateHouse.route) {
                     CreateHouseScreen(
                         onHouseCreated = { houseId ->
+                            navController.navigate(Screen.HouseDetails.createRoute(houseId)) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        },
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Screen.JoinHouse.route) {
+                    `in`.xroden.flockr.ui.screens.home.JoinHouseScreen(
+                        onHouseJoined = { houseId ->
                             navController.navigate(Screen.HouseDetails.createRoute(houseId)) {
                                 popUpTo(Screen.Home.route)
                             }
@@ -165,7 +173,11 @@ fun FlockrNavigation(
                         onNavigateToShopping = { navController.navigate(Screen.ShoppingList.createRoute(houseId)) },
                         onNavigateToChores = { navController.navigate(Screen.Chores.createRoute(houseId)) },
                         onNavigateToChat = { navController.navigate(Screen.Chat.createRoute(houseId)) },
-                        onNavigateToDocuments = { navController.navigate(Screen.Documents.createRoute(houseId)) }
+                        onNavigateToDocuments = { navController.navigate(Screen.Documents.createRoute(houseId)) },
+                        onNavigateToManageMembers = {
+                            android.util.Log.d("FlockrNavigation", "Navigating to ManageMembers for house: $houseId")
+                            navController.navigate(Screen.ManageMembers.createRoute(houseId))
+                        }
                     )
                 }
 
@@ -262,6 +274,21 @@ fun FlockrNavigation(
                     )
                 }
 
+                composable(
+                    route = Screen.ManageMembers.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    android.util.Log.d("FlockrNavigation", "ManageMembers screen loaded for house: $houseId")
+                    `in`.xroden.flockr.ui.screens.house.ManageMembersScreen(
+                        houseId = houseId,
+                        onNavigateBack = {
+                            android.util.Log.d("FlockrNavigation", "Navigating back from ManageMembers")
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
                 //
                 // 3. FIXED: All the scrambled composable routes from the
                 //    end of the original file are now correctly placed
@@ -297,17 +324,37 @@ fun FlockrNavigation(
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     ExpenseDashboardScreen(
                         houseId = houseId,
-                        onNavigateBack = { navController.popBackStack() }
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToPerDiemConfig = { navController.navigate(Screen.PerDiemConfig.createRoute(houseId)) }
                     )
                 }
 
                 composable(
-                    route = Screen.AddPerDiemEntry.route,
+                    route = Screen.PerDiemConfig.route,
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    `in`.xroden.flockr.ui.screens.expenses.PerDiemConfigScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAddEntry = { configId ->
+                            navController.navigate("add_per_diem_entry/$houseId/$configId")
+                        }
+                    )
+                }
+
+                composable(
+                    route = "add_per_diem_entry/{houseId}/{configId}",
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("configId") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val configId = backStackEntry.arguments?.getString("configId") ?: return@composable
                     AddPerDiemEntryScreen(
                         houseId = houseId,
+                        configId = configId,
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
@@ -315,11 +362,18 @@ fun FlockrNavigation(
                 composable(Screen.Settings.route) {
                     SettingsScreen(
                         onNavigateBack = { navController.popBackStack() },
+                        onNavigateToProfile = { navController.navigate(Screen.EditProfile.route) },
                         onLogout = {
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
                         }
+                    )
+                }
+
+                composable(Screen.EditProfile.route) {
+                    `in`.xroden.flockr.ui.screens.profile.EditProfileScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
                 }

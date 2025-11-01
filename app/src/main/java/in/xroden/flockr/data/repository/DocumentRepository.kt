@@ -10,6 +10,7 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.util.Objects.isNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,12 +29,13 @@ class DocumentRepository @Inject constructor(
                 .select(Columns.ALL) {
                     filter {
                         eq("user_id", currentUserId)
-                        eq("house_id", "null")
+                        isNull("house_id")
                     }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<Document>()
         } catch (e: Exception) {
+            android.util.Log.e("DocumentRepository", "Error getting personal documents", e)
             emptyList()
         }
     }
@@ -62,15 +64,19 @@ class DocumentRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            // Upload to storage
-            val bucket = if (houseId != null) "house_documents" else "personal_documents"
+            android.util.Log.d("DocumentRepository", "Starting upload: fileName=$fileName, size=${fileData.size}, houseId=$houseId")
+
+            // Upload to storage - use documents bucket for both
+            val bucket = "documents"
             val path = if (houseId != null) {
-                "$houseId/$currentUserId/$fileName"
+                "house/$houseId/$currentUserId/$fileName"
             } else {
-                "$currentUserId/$fileName"
+                "personal/$currentUserId/$fileName"
             }
 
-            supabase.storage.from(bucket).upload(path, fileData)
+            android.util.Log.d("DocumentRepository", "Uploading to bucket=$bucket, path=$path")
+            supabase.storage.from(bucket).upload(path, fileData, upsert = false)
+            android.util.Log.d("DocumentRepository", "Upload successful")
 
             // Create document record
             val document = supabase.from("documents")
@@ -88,6 +94,8 @@ class DocumentRepository @Inject constructor(
                 }
                 .decodeSingle<Document>()
 
+            android.util.Log.d("DocumentRepository", "Document record created: ${document.id}")
+
             // Create notification if house document
             if (houseId != null) {
                 supabase.postgrest.rpc(
@@ -96,6 +104,7 @@ class DocumentRepository @Inject constructor(
                         "p_house_id" to houseId,
                         "p_title" to "New Document Uploaded",
                         "p_message" to "Uploaded a new document: $fileName.",
+                        "p_type" to "document",
                         "p_data" to mapOf("type" to "document", "id" to document.id),
                         "p_exclude_user_id" to currentUserId
                     )
@@ -104,6 +113,7 @@ class DocumentRepository @Inject constructor(
 
             Result.success(document)
         } catch (e: Exception) {
+            android.util.Log.e("DocumentRepository", "Error uploading document", e)
             Result.failure(e)
         }
     }

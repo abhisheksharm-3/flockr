@@ -12,6 +12,8 @@ data class Message(
     val userId: String,
     val content: String,
     @SerialName("created_at")
-    val createdAt: String
+    val createdAt: String,
+    @SerialName("sender_name")
+    val senderName: String? = null
 )
 

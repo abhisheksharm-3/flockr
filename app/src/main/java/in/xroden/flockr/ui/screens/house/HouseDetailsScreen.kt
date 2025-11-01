@@ -1,24 +1,36 @@
 package `in`.xroden.flockr.ui.screens.house
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.model.House
 import `in`.xroden.flockr.data.repository.HouseRepository
-import kotlinx.coroutines.launch
+import `in`.xroden.flockr.ui.components.FlockrCard
+import `in`.xroden.flockr.ui.components.FlockrSectionHeader
+import javax.inject.Inject
+
+// ViewModel for house details
+@HiltViewModel
+class HouseDetailsViewModel @Inject constructor(
+    private val houseRepository: HouseRepository
+) : ViewModel() {
+    suspend fun getHouseById(houseId: String): House? {
+        return houseRepository.getHouseById(houseId)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,171 +42,192 @@ fun HouseDetailsScreen(
     onNavigateToChores: () -> Unit,
     onNavigateToChat: () -> Unit,
     onNavigateToDocuments: () -> Unit,
-    viewModel: `in`.xroden.flockr.ui.viewmodel.HouseManagementViewModel = hiltViewModel()
+    onNavigateToManageMembers: () -> Unit,
+    viewModel: HouseDetailsViewModel = hiltViewModel()
 ) {
     var house by remember { mutableStateOf<House?>(null) }
-    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(houseId) {
-        scope.launch {
-            viewModel.loadHouse(houseId)
-        }
-    }
-
-    LaunchedEffect(viewModel.currentHouse.value) {
-        house = viewModel.currentHouse.value
+        isLoading = true
+        house = viewModel.getHouseById(houseId)
+        isLoading = false
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Household Details") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        house?.name ?: "House Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Map section (top 20%)
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    // TODO: Add Google Maps Composable here when ready
-                    // For now, placeholder
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Map View",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-
-                    // Gradient overlay
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.6f)
-                                    ),
-                                    startY = 0f,
-                                    endY = 500f
-                                )
-                            )
-                    )
-
-                    // House name and address overlay
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp)
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToManageMembers) {
+                        Icon(
+                            Icons.Default.Person,
+                            "Manage Members",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // House Info Card
+                if (house != null) {
+                    FlockrCard(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        house?.let {
-                            Text(
-                                text = it.name,
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = Color.White
-                            )
-                            it.address?.let { addr ->
+                        Text(
+                            text = house?.name ?: "",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (house?.address?.isNotEmpty() == true) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Place,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                                 Text(
-                                    text = addr,
+                                    text = house?.address ?: "",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            // Navigation items
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    NavigationCard(
-                        title = "Expenses",
-                        description = "Track bills, IOUs, and monthly reports",
-                        onClick = onNavigateToExpenses
-                    )
+                // Feature Cards Section
+                FlockrSectionHeader(
+                    text = "Features",
+                    modifier = Modifier.padding(top = 8.dp)
+                )
 
-                    NavigationCard(
-                        title = "Chores",
-                        description = "Manage household tasks and to-dos",
-                        onClick = onNavigateToChores
-                    )
+                FeatureCard(
+                    title = "Expenses",
+                    description = "Track and split household expenses",
+                    icon = Icons.Default.Star,
+                    onClick = onNavigateToExpenses
+                )
 
-                    NavigationCard(
-                        title = "Shopping List",
-                        description = "Shared grocery and shopping items",
-                        onClick = onNavigateToShopping
-                    )
+                FeatureCard(
+                    title = "Shopping List",
+                    description = "Shared shopping lists for the house",
+                    icon = Icons.Default.ShoppingCart,
+                    onClick = onNavigateToShopping
+                )
 
-                    NavigationCard(
-                        title = "Chat",
-                        description = "Group messaging for the household",
-                        onClick = onNavigateToChat
-                    )
+                FeatureCard(
+                    title = "Chores",
+                    description = "Organize household tasks",
+                    icon = Icons.Default.CheckCircle,
+                    onClick = onNavigateToChores
+                )
 
-                    NavigationCard(
-                        title = "Documents",
-                        description = "Store and share important files",
-                        onClick = onNavigateToDocuments
-                    )
-                }
+                FeatureCard(
+                    title = "Chat",
+                    description = "House group chat",
+                    icon = Icons.Default.Email,
+                    onClick = onNavigateToChat
+                )
+
+                FeatureCard(
+                    title = "Documents",
+                    description = "Shared files and documents",
+                    icon = Icons.Default.Info,
+                    onClick = onNavigateToDocuments
+                )
             }
         }
     }
 }
 
 @Composable
-fun NavigationCard(
+private fun FeatureCard(
     title: String,
     description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    FlockrCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
+

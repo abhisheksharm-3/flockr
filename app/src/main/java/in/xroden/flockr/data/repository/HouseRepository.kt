@@ -10,7 +10,10 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -237,6 +240,159 @@ class HouseRepository @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHouseMembers(houseId: String): List<`in`.xroden.flockr.data.model.MemberWithProfile> {
+        return try {
+            android.util.Log.d("HouseRepository", "Fetching house members for houseId: $houseId")
+
+            val response = supabase.from("house_members")
+                .select(Columns.raw("user_id, joined_at, profiles!inner(id, email, full_name)")) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                }
+
+            android.util.Log.d("HouseRepository", "Response received, attempting to decode")
+
+            val result = response.decodeAs<JsonArray>()
+
+            android.util.Log.d("HouseRepository", "Successfully decoded ${result.size} members")
+
+            val members = result.mapNotNull { element ->
+                val obj = element.jsonObject
+                val userId = obj["user_id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val joinedAt = obj["joined_at"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val profiles = obj["profiles"]?.jsonObject ?: return@mapNotNull null
+                val email = profiles["email"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val fullName = profiles["full_name"]?.jsonPrimitive?.content
+
+                android.util.Log.d("HouseRepository", "Parsed member: userId=$userId, fullName=$fullName, email=$email")
+
+                `in`.xroden.flockr.data.model.MemberWithProfile(
+                    userId = userId,
+                    fullName = fullName,
+                    email = email,
+                    joinedAt = joinedAt
+                )
+            }
+
+            android.util.Log.d("HouseRepository", "Returning ${members.size} members")
+            members
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error fetching house members for houseId: $houseId", e)
+            android.util.Log.e("HouseRepository", "Exception type: ${e.javaClass.name}")
+            android.util.Log.e("HouseRepository", "Exception message: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun removeMemberFromHouse(houseId: String, userId: String): Result<Unit> {
+        return try {
+            supabase.from("house_members")
+                .delete {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("user_id", userId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            supabase.from("house_invitations")
+                .insert(
+                    mapOf(
+                        "house_id" to houseId,
+                        "inviter_id" to currentUserId,
+                        "invitee_email" to email,
+                        "status" to "pending"
+                    )
+                )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPendingInvitations(houseId: String): List<`in`.xroden.flockr.data.model.HouseInvitation> {
+        return try {
+            supabase.from("house_invitations")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("status", "pending")
+                    }
+                }
+                .decodeList<`in`.xroden.flockr.data.model.HouseInvitation>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getHouseByInviteCode(inviteCode: String): House? {
+        return try {
+            android.util.Log.d("HouseRepository", "Looking up house by invite code: $inviteCode")
+            val house = supabase.from("houses")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("invite_code", inviteCode.uppercase().trim())
+                    }
+                }
+                .decodeSingleOrNull<House>()
+
+            android.util.Log.d("HouseRepository", "House found: ${house?.name}")
+            house
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error looking up house by invite code", e)
+            null
+        }
+    }
+
+    suspend fun joinHouseByInviteCode(inviteCode: String): Result<House> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            android.util.Log.d("HouseRepository", "Attempting to join house with code: $inviteCode")
+
+            // Find house by invite code
+            val house = getHouseByInviteCode(inviteCode)
+                ?: return Result.failure(Exception("Invalid invite code"))
+
+            // Check if user is already a member
+            val existingMember = supabase.from("house_members")
+                .select(Columns.list("id")) {
+                    filter {
+                        eq("house_id", house.id)
+                        eq("user_id", currentUserId)
+                    }
+                }
+                .decodeSingleOrNull<Map<String, String>>()
+
+            if (existingMember != null) {
+                android.util.Log.d("HouseRepository", "User is already a member of this house")
+                return Result.failure(Exception("You are already a member of this household"))
+            }
+
+            // Add user as member
+            android.util.Log.d("HouseRepository", "Adding user as member to house: ${house.id}")
+            addMemberToHouse(house.id, currentUserId).getOrThrow()
+
+            android.util.Log.d("HouseRepository", "Successfully joined house: ${house.name}")
+            Result.success(house)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error joining house by invite code", e)
             Result.failure(e)
         }
     }

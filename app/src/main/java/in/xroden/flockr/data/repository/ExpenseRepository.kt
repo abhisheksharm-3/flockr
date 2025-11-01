@@ -7,6 +7,10 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +33,43 @@ class ExpenseRepository @Inject constructor(
                 .decodeList<OneTimeExpense>()
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    fun getOneTimeExpensesFlow(houseId: String): kotlinx.coroutines.flow.Flow<List<OneTimeExpense>> {
+        return kotlinx.coroutines.flow.flow {
+            // Emit initial value
+            emit(getOneTimeExpenses(houseId))
+
+            // Create and subscribe to realtime channel
+            val channelId = "expenses_${houseId}_${System.currentTimeMillis()}"
+            val channel = supabase.realtime.channel(channelId)
+
+            try {
+                // Configure realtime subscription BEFORE subscribing
+                val changeFlow = channel.postgresChangeFlow<io.github.jan.supabase.realtime.PostgresAction>(schema = "public") {
+                    table = "one_time_expenses"
+                    filter = "house_id=eq.$houseId"
+                }
+                
+                // Subscribe and wait for it to be ready
+                channel.subscribe(blockUntilSubscribed = true)
+
+                // Now listen for changes
+                changeFlow.collect {
+                    kotlinx.coroutines.delay(100)
+                    emit(getOneTimeExpenses(houseId))
+                }
+            } catch (e: Exception) {
+                // If realtime fails, just keep the initial value
+                android.util.Log.e("ExpenseRepository", "Error in realtime subscription", e)
+            } finally {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    android.util.Log.e("ExpenseRepository", "Error removing channel", e)
+                }
+            }
         }
     }
 

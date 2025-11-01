@@ -24,13 +24,20 @@ class ShoppingRepository @Inject constructor(
         get() = supabase.auth.currentUserOrNull()?.id
 
     fun getShoppingItemsFlow(houseId: String): Flow<List<ShoppingItem>> {
-        val channel = supabase.realtime.channel("shopping_$houseId")
+        return kotlinx.coroutines.flow.flow {
+            // Emit initial value immediately
+            android.util.Log.d("ShoppingRepository", "Emitting initial shopping items for house: $houseId")
+            emit(getShoppingItems(houseId))
 
-        return channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-            table = "shopping_items"
-            filter = "house_id=eq.$houseId"
-        }.map {
-            getShoppingItems(houseId)
+            // Then listen for realtime updates
+            val channel = supabase.realtime.channel("shopping_$houseId")
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "shopping_items"
+                filter = "house_id=eq.$houseId"
+            }.collect {
+                android.util.Log.d("ShoppingRepository", "Realtime update received, fetching shopping items")
+                emit(getShoppingItems(houseId))
+            }
         }
     }
 

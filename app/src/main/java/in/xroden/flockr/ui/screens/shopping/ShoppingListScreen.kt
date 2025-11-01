@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.model.ShoppingItem
@@ -30,6 +31,7 @@ fun ShoppingListScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var purchasedItem by remember { mutableStateOf<ShoppingItem?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
         viewModel.loadShoppingItems(houseId)
@@ -94,8 +96,8 @@ fun ShoppingListScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(state.items) { item ->
                             ShoppingItemCard(
@@ -107,6 +109,7 @@ fun ShoppingListScreen(
                                 onDelete = { viewModel.deleteItem(item.id) }
                             )
                         }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
                 }
             }
@@ -127,8 +130,22 @@ fun ShoppingListScreen(
         AddShoppingItemDialog(
             onDismiss = { showAddDialog = false },
             onAdd = { itemName, quantity ->
-                viewModel.addItem(houseId, itemName, quantity)
-                showAddDialog = false
+                viewModel.addItem(
+                    houseId = houseId,
+                    itemName = itemName,
+                    quantity = quantity,
+                    onSuccess = {
+                        showAddDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Item added successfully")
+                        }
+                    },
+                    onError = { error ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Error: $error")
+                        }
+                    }
+                )
             }
         )
     }
@@ -141,35 +158,57 @@ fun ShoppingItemCard(
     onDelete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.itemName,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                item.quantity?.let {
+                item.quantity?.let { qty ->
                     Text(
-                        text = it,
+                        text = qty,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                 }
             }
 
-            IconButton(onClick = onMarkPurchased) {
-                Icon(Icons.Default.Check, "Mark as purchased")
-            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilledTonalIconButton(
+                    onClick = onMarkPurchased,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Default.Check, "Mark as purchased")
+                }
 
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, "Delete")
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        "Delete",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

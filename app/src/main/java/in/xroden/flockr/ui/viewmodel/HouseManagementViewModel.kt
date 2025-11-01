@@ -21,8 +21,39 @@ class HouseManagementViewModel @Inject constructor(
 
     fun loadHouse(houseId: String) {
         viewModelScope.launch {
+            android.util.Log.d("HouseManagementViewModel", "Loading house: $houseId")
             _currentHouse.value = houseRepository.getHouseById(houseId)
+            android.util.Log.d("HouseManagementViewModel", "House loaded: ${_currentHouse.value?.name}")
         }
+    }
+
+    suspend fun getHouseMembers(houseId: String): List<`in`.xroden.flockr.data.model.MemberWithProfile> {
+        android.util.Log.d("HouseManagementViewModel", "Fetching members for house: $houseId")
+        val members = houseRepository.getHouseMembers(houseId)
+        android.util.Log.d("HouseManagementViewModel", "Fetched ${members.size} members")
+        return members
+    }
+
+    suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
+        android.util.Log.d("HouseManagementViewModel", "Removing member: userId=$userId from house=$houseId")
+        val result = houseRepository.removeMemberFromHouse(houseId, userId)
+        if (result.isSuccess) {
+            android.util.Log.d("HouseManagementViewModel", "Member removed successfully")
+        } else {
+            android.util.Log.e("HouseManagementViewModel", "Failed to remove member: ${result.exceptionOrNull()?.message}")
+        }
+        return result
+    }
+
+    suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
+        android.util.Log.d("HouseManagementViewModel", "Inviting member: email=$email to house=$houseId")
+        val result = houseRepository.inviteMember(houseId, email)
+        if (result.isSuccess) {
+            android.util.Log.d("HouseManagementViewModel", "Invitation sent successfully")
+        } else {
+            android.util.Log.e("HouseManagementViewModel", "Failed to invite member: ${result.exceptionOrNull()?.message}")
+        }
+        return result
     }
 }
 

@@ -21,6 +21,7 @@ class ChoreViewModel @Inject constructor(
 
     fun loadChores(houseId: String) {
         viewModelScope.launch {
+            _uiState.value = ChoreUiState.Loading
             try {
                 choreRepository.getChoresFlow(houseId).collect { chores ->
                     _uiState.value = ChoreUiState.Success(chores)
@@ -37,18 +38,38 @@ class ChoreViewModel @Inject constructor(
         description: String?,
         dueDate: String?,
         isRecurring: Boolean,
-        assignedTo: String?
+        assignedTo: String?,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            choreRepository.createChore(
-                houseId = houseId,
-                taskName = taskName,
-                description = description,
-                dueDate = dueDate,
-                isRecurring = isRecurring,
-                recurrencePattern = null,
-                assignedTo = assignedTo
-            )
+            try {
+                android.util.Log.d("ChoreViewModel", "Creating chore: $taskName for house: $houseId")
+                val result = choreRepository.createChore(
+                    houseId = houseId,
+                    taskName = taskName,
+                    description = description,
+                    dueDate = dueDate,
+                    isRecurring = isRecurring,
+                    recurrencePattern = null,
+                    assignedTo = assignedTo
+                )
+                result.fold(
+                    onSuccess = {
+                        android.util.Log.d("ChoreViewModel", "Chore created successfully")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        val errorMessage = error.message ?: "Failed to create chore"
+                        android.util.Log.e("ChoreViewModel", "Failed to create chore: $errorMessage", error)
+                        onError(errorMessage)
+                    }
+                )
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: "Failed to create chore"
+                android.util.Log.e("ChoreViewModel", "Exception creating chore: $errorMessage", e)
+                onError(errorMessage)
+            }
         }
     }
 

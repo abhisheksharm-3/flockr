@@ -7,9 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +28,8 @@ fun ChoresScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
         viewModel.loadChores(houseId)
@@ -46,7 +50,8 @@ fun ChoresScreen(
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, "Add Chore")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (val state = uiState) {
             is ChoreUiState.Loading -> {
@@ -74,8 +79,8 @@ fun ChoresScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(state.chores.filter { !it.isCompleted }) { chore ->
                             ChoreCard(
@@ -85,6 +90,7 @@ fun ChoresScreen(
                                 }
                             )
                         }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
                 }
             }
@@ -105,8 +111,25 @@ fun ChoresScreen(
         AddChoreDialog(
             onDismiss = { showAddDialog = false },
             onAdd = { taskName, description, dueDate ->
-                viewModel.createChore(houseId, taskName, description, dueDate, false, null)
-                showAddDialog = false
+                viewModel.createChore(
+                    houseId = houseId,
+                    taskName = taskName,
+                    description = description,
+                    dueDate = dueDate,
+                    isRecurring = false,
+                    assignedTo = null,
+                    onSuccess = {
+                        showAddDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Chore added successfully")
+                        }
+                    },
+                    onError = { error ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Error: $error")
+                        }
+                    }
+                )
             }
         )
     }
@@ -117,19 +140,18 @@ fun ChoreCard(
     chore: Chore,
     onComplete: () -> Unit
 ) {
-    Card(
+    `in`.xroden.flockr.ui.components.cards.FlockrCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = chore.taskName,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                 )
                 chore.description?.let {
                     Text(
