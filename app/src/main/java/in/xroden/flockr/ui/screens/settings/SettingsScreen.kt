@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
@@ -124,10 +125,15 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        authViewModel.signOut()
-                        showLogoutDialog = false
-                        onLogout()
-                    }
+                        scope.launch {
+                            showLogoutDialog = false
+                            authViewModel.signOut()
+                            // Navigation will be handled automatically by auth state change
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     Text("Logout")
                 }

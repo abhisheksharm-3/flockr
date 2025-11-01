@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended:1.7.5")
 
     // Hilt
     implementation(libs.hilt.android)
@@ -68,7 +69,7 @@ dependencies {
     implementation(libs.supabase.functions)
 
     // Ktor
-    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.utils)
 

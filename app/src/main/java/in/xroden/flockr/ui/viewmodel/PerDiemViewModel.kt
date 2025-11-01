@@ -76,20 +76,53 @@ class PerDiemViewModel @Inject constructor(
         date: String,
         notes: String?,
         itemName: String,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             expenseRepository.createPerDiemEntry(
                 configId, houseId, quantity, date, notes, itemName
             ).fold(
                 onSuccess = { onSuccess() },
-                onFailure = { _error.value = it.message }
+                onFailure = {
+                    val errorMessage = it.message ?: "Failed to create per-diem entry"
+                    _error.value = errorMessage
+                    onError(errorMessage)
+                }
             )
         }
     }
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun loadConfigs(houseId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val configs = perDiemRepository.getPerDiemConfigs(houseId)
+                _configs.value = configs
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    suspend fun createConfig(
+        houseId: String,
+        itemName: String,
+        rate: Double,
+        category: String,
+        unit: String
+    ): Result<PerDiemConfig> {
+        return perDiemRepository.createPerDiemConfig(houseId, itemName, rate, category, unit)
+    }
+
+    suspend fun deleteConfig(configId: String): Result<Unit> {
+        return perDiemRepository.deletePerDiemConfig(configId)
     }
 }
 

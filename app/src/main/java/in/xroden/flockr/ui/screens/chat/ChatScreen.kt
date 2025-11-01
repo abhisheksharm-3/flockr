@@ -29,6 +29,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(houseId) {
+        android.util.Log.d("ChatScreen", "Screen launched for house: $houseId")
         viewModel.loadMessages(houseId, "House")
     }
 
@@ -71,12 +72,14 @@ fun ChatScreen(
                     IconButton(
                         onClick = {
                             if (messageText.isNotBlank()) {
+                                android.util.Log.d("ChatScreen", "Send button clicked, message: $messageText")
                                 val houseName = if (uiState is ChatUiState.Success) {
                                     (uiState as ChatUiState.Success).houseName
                                 } else {
                                     "House"
                                 }
                                 viewModel.sendMessage(houseId, messageText, houseName)
+                                android.util.Log.d("ChatScreen", "Message sent to ViewModel, clearing text field")
                                 messageText = ""
                             }
                         },
@@ -90,6 +93,7 @@ fun ChatScreen(
     ) { padding ->
         when (val state = uiState) {
             is ChatUiState.Loading -> {
+                android.util.Log.d("ChatScreen", "UI State: Loading")
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -100,6 +104,7 @@ fun ChatScreen(
                 }
             }
             is ChatUiState.Success -> {
+                android.util.Log.d("ChatScreen", "UI State: Success with ${state.messages.size} messages")
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -129,25 +134,41 @@ fun ChatScreen(
 
 @Composable
 fun MessageBubble(message: Message) {
-    Card(
+    `in`.xroden.flockr.ui.components.cards.FlockrCard(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            Text(
-                text = message.content,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = message.createdAt,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
+        // Show sender name
+        Text(
+            text = message.senderName ?: "Unknown",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+        )
+        // Message content
+        Text(
+            text = message.content,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        // Timestamp
+        Text(
+            text = formatTimestamp(message.createdAt),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun formatTimestamp(timestamp: String): String {
+    return try {
+        // Format: 2025-10-31T09:44:23.228343+00:00
+        val instant = java.time.Instant.parse(timestamp)
+        val localTime = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+        localTime.format(formatter)
+    } catch (e: Exception) {
+        android.util.Log.e("ChatScreen", "Error formatting timestamp: $timestamp", e)
+        timestamp
     }
 }
 

@@ -21,6 +21,7 @@ class ShoppingViewModel @Inject constructor(
 
     fun loadShoppingItems(houseId: String) {
         viewModelScope.launch {
+            _uiState.value = ShoppingUiState.Loading
             try {
                 shoppingRepository.getShoppingItemsFlow(houseId).collect { items ->
                     _uiState.value = ShoppingUiState.Success(items)
@@ -31,9 +32,33 @@ class ShoppingViewModel @Inject constructor(
         }
     }
 
-    fun addItem(houseId: String, itemName: String, quantity: String?) {
+    fun addItem(
+        houseId: String,
+        itemName: String,
+        quantity: String?,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         viewModelScope.launch {
-            shoppingRepository.addShoppingItem(houseId, itemName, quantity)
+            try {
+                android.util.Log.d("ShoppingViewModel", "Adding item: $itemName for house: $houseId")
+                val result = shoppingRepository.addShoppingItem(houseId, itemName, quantity)
+                result.fold(
+                    onSuccess = {
+                        android.util.Log.d("ShoppingViewModel", "Item added successfully")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        val errorMessage = error.message ?: "Failed to add item"
+                        android.util.Log.e("ShoppingViewModel", "Failed to add item: $errorMessage", error)
+                        onError(errorMessage)
+                    }
+                )
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: "Failed to add item"
+                android.util.Log.e("ShoppingViewModel", "Exception adding item: $errorMessage", e)
+                onError(errorMessage)
+            }
         }
     }
 

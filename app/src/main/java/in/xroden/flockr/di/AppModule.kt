@@ -38,7 +38,7 @@ object AppModule {
         Log.d("AppModule", "Supabase Key length: ${SUPABASE_KEY.length}")
 
         return try {
-            val client = createSupabaseClient(
+            createSupabaseClient(
                 supabaseUrl = SUPABASE_URL,
                 supabaseKey = SUPABASE_KEY
             ) {
@@ -50,9 +50,9 @@ object AppModule {
                 install(Storage)
                 install(Realtime)
                 install(Functions)
+            }.also {
+                Log.d("AppModule", "✅ Supabase client created successfully")
             }
-            Log.d("AppModule", "✅ Supabase client created successfully")
-            client
         } catch (e: Exception) {
             Log.e("AppModule", "❌ Error creating Supabase client", e)
             throw e

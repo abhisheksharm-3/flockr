@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter
 fun ExpenseDashboardScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToPerDiemConfig: () -> Unit = {},
     expenseViewModel: ExpenseViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
@@ -136,6 +137,16 @@ fun ExpenseDashboardScreen(
                     label = { Text("Month (YYYY-MM)") },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            // Per-Diem Configuration Button
+            item {
+                OutlinedButton(
+                    onClick = onNavigateToPerDiemConfig,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Manage Per-Diem Items")
+                }
             }
 
             // Monthly Summary

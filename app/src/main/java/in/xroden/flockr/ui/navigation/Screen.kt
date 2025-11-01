@@ -38,4 +38,12 @@ sealed class Screen(val route: String) {
     }
     object Settings : Screen("settings")
     object CreateHouse : Screen("create_house")
+    object JoinHouse : Screen("join_house")
+    object ManageMembers : Screen("manage_members/{houseId}") {
+        fun createRoute(houseId: String) = "manage_members/$houseId"
+    }
+    object PerDiemConfig : Screen("per_diem_config/{houseId}") {
+        fun createRoute(houseId: String) = "per_diem_config/$houseId"
+    }
+    object EditProfile : Screen("edit_profile")
 }

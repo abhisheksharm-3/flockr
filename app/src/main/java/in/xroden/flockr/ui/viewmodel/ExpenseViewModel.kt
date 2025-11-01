@@ -41,8 +41,9 @@ class ExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = ExpenseUiState.Loading
             try {
-                val expenses = expenseRepository.getOneTimeExpenses(houseId)
-                _uiState.value = ExpenseUiState.Success(expenses)
+                expenseRepository.getOneTimeExpensesFlow(houseId).collect { expenses ->
+                    _uiState.value = ExpenseUiState.Success(expenses)
+                }
             } catch (e: Exception) {
                 _uiState.value = ExpenseUiState.Error(e.message ?: "Failed to load expenses")
             }
@@ -123,7 +124,8 @@ class ExpenseViewModel @Inject constructor(
         category: String,
         notes: String?,
         splits: List<Pair<String, Double>>?,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             expenseRepository.createOneTimeExpense(
@@ -134,7 +136,9 @@ class ExpenseViewModel @Inject constructor(
                     onSuccess()
                 },
                 onFailure = { error ->
-                    _uiState.value = ExpenseUiState.Error(error.message ?: "Failed to create expense")
+                    val errorMessage = error.message ?: "Failed to create expense"
+                    _uiState.value = ExpenseUiState.Error(errorMessage)
+                    onError(errorMessage)
                 }
             )
         }

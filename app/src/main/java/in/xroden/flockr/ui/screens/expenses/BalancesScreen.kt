@@ -52,11 +52,8 @@ fun BalancesScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text(
-                    text = "Who Owes Whom",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                `in`.xroden.flockr.ui.components.headers.FlockrSectionHeader(
+                    text = "Who Owes Whom"
                 )
             }
 
@@ -114,13 +111,11 @@ fun BalanceCard(
     balance: UserBalance,
     onSettleClick: () -> Unit
 ) {
-    Card(
+    `in`.xroden.flockr.ui.components.cards.FlockrCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
