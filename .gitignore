@@ -13,3 +13,28 @@ build
 .externalNativeBuild
 .cxx
 local.properties
+
+# Sensitive credentials
+secrets.properties
+google-services.json
+app/google-services.json
+
+# Build outputs
+*.apk
+*.ap_
+*.aab
+*.dex
+
+# Generated files
+bin/
+gen/
+out/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Backup files
+*~
+*.swp
+*.bak

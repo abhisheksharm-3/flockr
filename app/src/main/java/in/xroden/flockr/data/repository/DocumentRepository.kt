@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Document
+import `in`.xroden.flockr.util.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -20,12 +21,20 @@ class DocumentRepository @Inject constructor(
 ) {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
+    
+    companion object {
+        private const val TAG = "DocumentRepository"
+    }
 
     suspend fun getPersonalDocuments(): List<Document> {
+        FlockrLogger.repoStart(TAG, "getPersonalDocuments", emptyMap())
         return try {
-            val currentUserId = userId ?: return emptyList()
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "getPersonalDocuments: No user logged in")
+                return emptyList()
+            }
 
-            supabase.from("documents")
+            val documents = supabase.from("documents")
                 .select(Columns.ALL) {
                     filter {
                         eq("user_id", currentUserId)
@@ -34,15 +43,18 @@ class DocumentRepository @Inject constructor(
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<Document>()
+            FlockrLogger.repoSuccess(TAG, "getPersonalDocuments", "Found ${documents.size} documents")
+            documents
         } catch (e: Exception) {
-            android.util.Log.e("DocumentRepository", "Error getting personal documents", e)
+            FlockrLogger.repoError(TAG, "getPersonalDocuments", e)
             emptyList()
         }
     }
 
     suspend fun getHouseDocuments(houseId: String): List<Document> {
+        FlockrLogger.repoStart(TAG, "getHouseDocuments", mapOf("houseId" to houseId))
         return try {
-            supabase.from("documents")
+            val documents = supabase.from("documents")
                 .select(Columns.ALL) {
                     filter {
                         eq("house_id", houseId)
@@ -50,7 +62,10 @@ class DocumentRepository @Inject constructor(
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<Document>()
+            FlockrLogger.repoSuccess(TAG, "getHouseDocuments", "Found ${documents.size} documents")
+            documents
         } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "getHouseDocuments", e)
             emptyList()
         }
     }
@@ -61,10 +76,17 @@ class DocumentRepository @Inject constructor(
         fileData: ByteArray,
         mimeType: String
     ): Result<Document> {
+        FlockrLogger.repoStart(TAG, "uploadDocument", mapOf(
+            "fileName" to fileName,
+            "fileSize" to fileData.size,
+            "houseId" to houseId,
+            "mimeType" to mimeType
+        ))
         return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
-
-            android.util.Log.d("DocumentRepository", "Starting upload: fileName=$fileName, size=${fileData.size}, houseId=$houseId")
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "uploadDocument: No user logged in")
+                return Result.failure(Exception("No user logged in"))
+            }
 
             // Upload to storage - use documents bucket for both
             val bucket = "documents"
@@ -74,9 +96,9 @@ class DocumentRepository @Inject constructor(
                 "personal/$currentUserId/$fileName"
             }
 
-            android.util.Log.d("DocumentRepository", "Uploading to bucket=$bucket, path=$path")
+            FlockrLogger.d(TAG, "uploadDocument: Uploading to bucket=$bucket, path=$path")
             supabase.storage.from(bucket).upload(path, fileData, upsert = false)
-            android.util.Log.d("DocumentRepository", "Upload successful")
+            FlockrLogger.d(TAG, "uploadDocument: Upload to storage successful")
 
             // Create document record
             val document = supabase.from("documents")
@@ -94,7 +116,7 @@ class DocumentRepository @Inject constructor(
                 }
                 .decodeSingle<Document>()
 
-            android.util.Log.d("DocumentRepository", "Document record created: ${document.id}")
+            FlockrLogger.d(TAG, "uploadDocument: Document record created: ${document.id}")
 
             // Create notification if house document
             if (houseId != null) {
@@ -105,7 +127,7 @@ class DocumentRepository @Inject constructor(
                         "p_title" to "New Document Uploaded",
                         "p_message" to "Uploaded a new document: $fileName.",
                         "p_type" to "document",
-                        "p_data" to mapOf("type" to "document", "id" to document.id),
+                        "p_data" to mapOf("id" to document.id),
                         "p_exclude_user_id" to currentUserId
                     )
                 )

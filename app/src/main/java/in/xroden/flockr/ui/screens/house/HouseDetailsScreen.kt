@@ -1,25 +1,40 @@
 package `in`.xroden.flockr.ui.screens.house
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.model.House
+import `in`.xroden.flockr.data.model.HouseConfig
 import `in`.xroden.flockr.data.repository.HouseRepository
-import `in`.xroden.flockr.ui.components.FlockrCard
-import `in`.xroden.flockr.ui.components.FlockrSectionHeader
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // ViewModel for house details
@@ -27,8 +42,32 @@ import javax.inject.Inject
 class HouseDetailsViewModel @Inject constructor(
     private val houseRepository: HouseRepository
 ) : ViewModel() {
-    suspend fun getHouseById(houseId: String): House? {
-        return houseRepository.getHouseById(houseId)
+    
+    private val _house = MutableStateFlow<House?>(null)
+    val house: StateFlow<House?> = _house.asStateFlow()
+    
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+    
+    private val _currentUserRole = MutableStateFlow<String?>(null)
+    val currentUserRole: StateFlow<String?> = _currentUserRole.asStateFlow()
+    
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    fun loadHouse(houseId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _house.value = houseRepository.getHouseById(houseId)
+            _houseConfig.value = houseRepository.getHouseConfig(houseId)
+            
+            // Get current user's role in this house
+            val members = houseRepository.getHouseMembers(houseId)
+            val currentUserId = houseRepository.getCurrentUserId()
+            _currentUserRole.value = members.find { it.userId == currentUserId }?.role
+            
+            _isLoading.value = false
+        }
     }
 }
 
@@ -43,50 +82,19 @@ fun HouseDetailsScreen(
     onNavigateToChat: () -> Unit,
     onNavigateToDocuments: () -> Unit,
     onNavigateToManageMembers: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: HouseDetailsViewModel = hiltViewModel()
 ) {
-    var house by remember { mutableStateOf<House?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    val house by viewModel.house.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val currentUserRole by viewModel.currentUserRole.collectAsState()
 
     LaunchedEffect(houseId) {
-        isLoading = true
-        house = viewModel.getHouseById(houseId)
-        isLoading = false
+        viewModel.loadHouse(houseId)
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        house?.name ?: "House Details",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToManageMembers) {
-                        Icon(
-                            Icons.Default.Person,
-                            "Manage Members",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (isLoading) {
@@ -104,129 +112,322 @@ fun HouseDetailsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // House Info Card
-                if (house != null) {
-                    FlockrCard(
-                        modifier = Modifier.fillMaxWidth()
+                // Map Header (Top 25%)
+                house?.let { houseData ->
+                    MapHeader(
+                        house = houseData,
+                        currentUserRole = currentUserRole,
+                        onBackClick = onNavigateBack,
+                        onMembersClick = onNavigateToManageMembers,
+                        onSettingsClick = onNavigateToSettings
+                    )
+                }
+
+                // Modules Grid Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 24.dp)
+                ) {
+                    Text(
+                        text = "Household Modules",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Grid layout for modules (2 columns)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = house?.name ?: "",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (house?.address?.isNotEmpty() == true) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Place,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = house?.address ?: "",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        // Row 1
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ModuleCard(
+                                title = "Expenses",
+                                subtitle = "Split & Track",
+                                icon = Icons.Default.Star,
+                                onClick = onNavigateToExpenses,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ModuleCard(
+                                title = "Shopping",
+                                subtitle = "Shared Lists",
+                                icon = Icons.Default.ShoppingCart,
+                                onClick = onNavigateToShopping,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Row 2
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ModuleCard(
+                                title = "Chores",
+                                subtitle = "Task Manager",
+                                icon = Icons.Default.CheckCircle,
+                                onClick = onNavigateToChores,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ModuleCard(
+                                title = "Chat",
+                                subtitle = "Group Chat",
+                                icon = Icons.Default.Email,
+                                onClick = onNavigateToChat,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Row 3
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ModuleCard(
+                                title = "Documents",
+                                subtitle = "File Storage",
+                                icon = Icons.Default.Info,
+                                onClick = onNavigateToDocuments,
+                                modifier = Modifier.weight(1f)
+                            )
+                            // Placeholder for future module
+                            Box(modifier = Modifier.weight(1f))
                         }
                     }
                 }
-
-                // Feature Cards Section
-                FlockrSectionHeader(
-                    text = "Features",
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-
-                FeatureCard(
-                    title = "Expenses",
-                    description = "Track and split household expenses",
-                    icon = Icons.Default.Star,
-                    onClick = onNavigateToExpenses
-                )
-
-                FeatureCard(
-                    title = "Shopping List",
-                    description = "Shared shopping lists for the house",
-                    icon = Icons.Default.ShoppingCart,
-                    onClick = onNavigateToShopping
-                )
-
-                FeatureCard(
-                    title = "Chores",
-                    description = "Organize household tasks",
-                    icon = Icons.Default.CheckCircle,
-                    onClick = onNavigateToChores
-                )
-
-                FeatureCard(
-                    title = "Chat",
-                    description = "House group chat",
-                    icon = Icons.Default.Email,
-                    onClick = onNavigateToChat
-                )
-
-                FeatureCard(
-                    title = "Documents",
-                    description = "Shared files and documents",
-                    icon = Icons.Default.Info,
-                    onClick = onNavigateToDocuments
-                )
             }
         }
     }
 }
 
 @Composable
-private fun FeatureCard(
-    title: String,
-    description: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
+private fun MapHeader(
+    house: House,
+    currentUserRole: String?,
+    onBackClick: () -> Unit,
+    onMembersClick: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
-    FlockrCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp)
     ) {
+        // Map or placeholder
+        if (house.latitude != null && house.longitude != null) {
+            val location = LatLng(house.latitude!!, house.longitude!!)
+            val cameraPositionState = rememberCameraPositionState {
+                position = CameraPosition.fromLatLngZoom(location, 15f)
+            }
+
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false,
+                    compassEnabled = false,
+                    myLocationButtonEnabled = false
+                )
+            ) {
+                val markerState = rememberMarkerState(position = location)
+                Marker(
+                    state = markerState,
+                    title = house.name,
+                    snippet = house.address
+                )
+            }
+        } else {
+            // Placeholder with gradient
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(80.dp),
+                    tint = Color.White.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        // Gradient overlay for text readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.6f)
+                        )
+                    )
+                )
+        )
+
+        // Top bar with back, settings, and members buttons
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .align(Alignment.TopStart),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            FilledIconButton(
+                onClick = onBackClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.9f),
+                    contentColor = Color.Black
+                )
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Settings button - Only visible to Owners and Admins
+                if (currentUserRole == "Owner" || currentUserRole == "Admin") {
+                    FilledIconButton(
+                        onClick = onSettingsClick,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.9f),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Settings, "Settings")
+                    }
+                }
+
+                FilledIconButton(
+                    onClick = onMembersClick,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.White.copy(alpha = 0.9f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(Icons.Default.Person, "Members")
+                }
+            }
+        }
+
+        // House info at bottom
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomStart)
+                .padding(24.dp)
+        ) {
+            Text(
+                text = house.name,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            if (house.address?.isNotEmpty() == true) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Place,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = Color.White.copy(alpha = 0.9f)
+                    )
+                    Text(
+                        text = house.address ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModuleCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "module_card_scale"
+    )
+    
+    Card(
+        modifier = modifier
+            .aspectRatio(1f)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 4.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Icon without gradient background
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(56.dp)
             )
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+
+            // Text content
+            Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = description,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

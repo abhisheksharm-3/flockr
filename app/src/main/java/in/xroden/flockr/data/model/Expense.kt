@@ -12,6 +12,9 @@ data class RecurringExpense(
     val category: String,
     val createdBy: String,
     val isActive: Boolean = true,
+    val frequency: String = "Monthly",
+    val nextPaymentDate: String = "",
+    val isPaid: Boolean = false,
     val createdAt: String
 )
 

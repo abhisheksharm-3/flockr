@@ -39,16 +39,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun createHouse(name: String, address: String?, latitude: Double?, longitude: Double?, onSuccess: (String) -> Unit) {
+    fun createHouse(name: String, address: String?, latitude: Double?, longitude: Double?, onSuccess: (House) -> Unit) {
         viewModelScope.launch {
             try {
                 android.util.Log.d("HomeViewModel", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude")
                 _uiState.value = HomeUiState.Loading
                 houseRepository.createHouse(name, address, latitude, longitude).fold(
                     onSuccess = { house ->
-                        android.util.Log.d("HomeViewModel", "createHouse succeeded - id=${house.id}, name=${house.name}")
+                        android.util.Log.d("HomeViewModel", "createHouse succeeded - id=${house.id}, name=${house.name}, inviteCode=${house.inviteCode}")
                         loadHouses()
-                        onSuccess(house.id)
+                        onSuccess(house)
                     },
                     onFailure = { error ->
                         android.util.Log.e("HomeViewModel", "createHouse failed", error)
@@ -81,6 +81,18 @@ class HomeViewModel @Inject constructor(
                 android.util.Log.e("HomeViewModel", "Exception in joinHouseByInviteCode", e)
                 onError(e.message ?: "Failed to join household")
             }
+        }
+    }
+
+    suspend fun getHouseById(houseId: String): House? {
+        android.util.Log.d("HomeViewModel", "getHouseById called - id='$houseId'")
+        return try {
+            val house = houseRepository.getHouseById(houseId)
+            android.util.Log.d("HomeViewModel", "getHouseById succeeded - house=${house?.name}")
+            house
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "getHouseById failed", e)
+            null
         }
     }
 }

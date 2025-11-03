@@ -17,6 +17,8 @@ data class House(
     val latitude: Double? = null,
     @SerialName("longitude")
     val longitude: Double? = null,
+    @SerialName("header_image_url")
+    val headerImageUrl: String? = null,
     @SerialName("created_at")
     val createdAt: String? = null
 )
@@ -28,6 +30,8 @@ data class HouseMember(
     val houseId: String,
     @SerialName("user_id")
     val userId: String,
+    @SerialName("role")
+    val role: String = "Member", // Owner, Admin, Member
     @SerialName("joined_at")
     val joinedAt: String
 )
@@ -57,6 +61,7 @@ data class MemberWithProfile(
     val userId: String,
     val fullName: String?,
     val email: String,
+    val role: String = "Member",
     val joinedAt: String
 )
 

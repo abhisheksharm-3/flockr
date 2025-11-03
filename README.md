@@ -1,257 +1,458 @@
-# Flockr - Household Management Super-App
+# 🏠 Flockr - Modern Household Management Platform
 
 A full-stack, multi-tenant household management application built with Kotlin, Jetpack Compose, and Supabase.
 
 ## 🌟 Features
 
-### Core Functionality
-- **Multi-Household Support**: Users can be members of multiple households
-- **User Authentication**: Secure sign-up/sign-in with persistent sessions
-- **Onboarding Flow**: Guided setup for new users
+### 💰 Finance Suite
+- **Expense Tracking** - Track one-time and recurring expenses with automatic categorization
+- **Bill Splitting** - Split expenses among housemates with automated IOU calculations
+- **Per-Diem Billing** - Configure daily items (milk, newspapers) with monthly auto-billing
+- **Balance Management** - Real-time balance calculation and settlement tracking
+- **Monthly Reports** - Automated summaries by member and category with export/share functionality
+- **Multi-Currency** - Per-household currency configuration (USD, EUR, INR, etc.)
 
-### Finance Suite
-- **Expense Tracking**: Track one-time and recurring expenses
-- **Bill Splitting (IOUs)**: Split expenses among household members with automatic balance tracking
-- **Monthly Reports**: Automated expense summaries by member and category
-- **Per-Diem Billing**: Track daily items and generate itemized monthly bills
+### 🏠 Organization Suite
+- **Shared Shopping Lists** - Real-time collaborative shopping with purchase notifications
+- **Smart Chores** - Assign, track, and complete household tasks with due dates
+- **Task Assignment** - Assign chores to specific members with automatic notifications
+- **Completion Tracking** - Mark tasks complete with timestamps and member attribution
 
-### Organization Suite
-- **Shared Shopping Lists**: Real-time collaborative shopping with purchase notifications
-- **Chores & To-Dos**: Assign and track household tasks with due dates
-- **Smart Notifications**: Get notified when items are purchased or chores are completed
+### 💬 Communication Hub
+- **House Chat** - Real-time messaging for each household with sender identification
+- **Notification Center** - Unified inbox for all household activities
+- **Deep Linking** - Tap notifications to jump directly to relevant content
+- **Smart Alerts** - Get notified about purchases, bill splits, task completions, and more
 
-### Communication Suite
-- **House Chat**: Real-time messaging for each household
-- **Notification Center**: Centralized inbox with deep-linking to relevant content
-- **Push Notifications**: Stay informed even when the app is closed (via Supabase Functions)
+### 📁 Document Vault
+- **Personal Storage** - Secure private document storage
+- **House Documents** - Share important files (leases, receipts) with household members
+- **Upload/Download** - Easy file management with automatic notifications
 
-### Document Vault
-- **Personal Documents**: Store private files securely
-- **House Documents**: Share important files with household members
+### 🎨 Modern UI/UX
+- **Material 3 Design** - Beautiful, modern interface following latest design guidelines
+- **Finance Hub Design System** - Clean, data-rich design inspired by modern fintech apps
+- **Consistent Components** - Reusable DataCard, ModernListItem, and FlockrTextField components
+- **Theme Switcher** - Choose Light, Dark, or System-matched theme
+- **Custom Typography** - Clear hierarchy with SemiBold titles and readable body text
+- **Responsive Design** - Optimized for all screen sizes
+- **Smooth Animations** - Polished spring animations and micro-interactions
 
-### App Settings
-- **Theme Switcher**: Choose between Light, Dark, or System theme
-- **Profile Management**: Edit your name and preferences
+### 📐 Design System (NEW)
+The app follows a comprehensive design system inspired by modern fintech applications:
+- **Clean & Minimal** - Subtle borders (1dp, 0.3 alpha), minimal elevation (0-2dp)
+- **Data-Rich Display** - Clear visual hierarchy with compact stats and detailed information
+- **Consistent Spacing** - 24dp horizontal padding, 20dp item spacing throughout
+- **Component Library** - DataCard, CompactDataCard, ModernListItem, FlockrTextField, FlockrPrimaryButton
+
+**Documentation**:
+- See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for comprehensive guidelines
+
+### 🔔 Real-Time Updates
+Everything syncs instantly across all devices:
+- Shopping lists
+- Chores & tasks
+- Chat messages
+- Notifications
+- Balance changes
+- House membership
+
+---
 
 ## 🏗️ Architecture
 
 ### Tech Stack
-- **Frontend**: Kotlin with Jetpack Compose (Material 3)
-- **Backend**: Supabase (Auth, PostgREST, Storage, Realtime, Functions)
-- **Maps**: Google Maps SDK (placeholder ready)
+
+**Frontend**
+- **Language**: Kotlin 1.9+
+- **UI Framework**: Jetpack Compose with Material 3
 - **Architecture**: MVVM + Repository Pattern
-- **DI**: Hilt
+- **Dependency Injection**: Hilt
 - **Async**: Kotlin Coroutines & Flow
+- **Navigation**: Jetpack Navigation Compose
 
-### Design System
-- **Framework**: Material 3
-- **Font Pairing**:
-  - **Newsreader** (serif) for headings and titles
-  - **Inter** (sans-serif) for body text and UI elements
-- **Theme**: Full theme switcher with persistent preferences (DataStore)
+**Backend**
+- **BaaS**: Supabase (PostgreSQL, Auth, Storage, Realtime)
+- **Database**: PostgreSQL with Row Level Security
+- **Storage**: Supabase Storage with private buckets
+- **Realtime**: Supabase Realtime subscriptions
+- **Functions**: PostgreSQL RPC functions
 
-### Key Architectural Principles
-- **Persistent Auth**: Session-based authentication with automatic routing
-- **Multi-Household Design**: Built around the concept of multiple household membership
-- **Reactive-First (Realtime)**: All list data uses Flows with Supabase realtime subscriptions
-- **Server-Side Logic (RPC-First)**: Complex calculations done via Supabase database functions
-- **State Management**: ViewModels expose single `StateFlow<UiState>` for each screen
+**Additional**
+- **Maps**: Google Maps SDK (optional)
+- **Fonts**: Newsreader (serif), Inter (sans-serif)
+- **Theme**: DataStore for persistence
+
+### Architecture Highlights
+
+✅ **Clean Architecture** - Separation of concerns with data, domain, and presentation layers  
+✅ **Reactive Programming** - Flow-based data streams with real-time updates  
+✅ **Server-Side Logic** - Complex calculations done via PostgreSQL RPC functions  
+✅ **Persistent Auth** - Session-based authentication with automatic token refresh  
+✅ **Multi-Tenant** - Built from ground-up for multiple household support  
+✅ **Offline-First Ready** - Architecture supports future offline capabilities  
+
+---
 
 ## 📦 Project Structure
 
 ```
 app/src/main/java/in/xroden/flockr/
 ├── data/
-│   ├── model/                  # Data classes (House, Profile, Expense, etc.)
-│   ├── preferences/            # DataStore preferences (Theme)
-│   └── repository/             # Data repositories with Flow-based APIs
-│       ├── AuthRepository
-│       ├── HouseRepository
-│       ├── NotificationRepository
-│       ├── ExpenseRepository
-│       ├── ShoppingRepository
-│       ├── ChoreRepository
-│       ├── ChatRepository
-│       └── DocumentRepository
-├── di/                         # Dependency injection (Hilt modules)
+│   ├── model/              # Kotlin data classes
+│   │   ├── House.kt
+│   │   ├── HouseConfig.kt # NEW: Per-household settings
+│   │   ├── Expense.kt
+│   │   ├── Chore.kt
+│   │   └── ...
+│   ├── repository/         # Data access layer
+│   │   ├── AuthRepository
+│   │   ├── HouseRepository
+│   │   ├── ExpenseRepository
+│   │   ├── NotificationRepository
+│   │   └── ...
+│   └── preferences/        # DataStore preferences
+│       └── ThemePreferences
+├── di/                     # Hilt dependency injection
+│   └── AppModule
 ├── ui/
-│   ├── navigation/             # Navigation graph and routes
-│   ├── screens/                # Composable screens
-│   │   ├── auth/               # Login, Signup
-│   │   ├── onboarding/         # Onboarding flow
-│   │   ├── home/               # Multi-household home screen
-│   │   ├── house/              # House details with map
-│   │   ├── notifications/      # Notification center
-│   │   ├── expenses/           # Expense tracking
-│   │   ├── shopping/           # Shopping list
-│   │   ├── chores/             # Chore management
-│   │   ├── chat/               # House chat
-│   │   ├── documents/          # Document vault
-│   │   └── settings/           # App settings
-│   ├── theme/                  # Material 3 theme, colors, typography
-│   └── viewmodel/              # ViewModels for all screens
-├── FlockrApplication.kt        # Application class
-└── MainActivity.kt             # Entry point
+│   ├── components/         # Reusable UI components
+│   ├── navigation/         # Navigation graph
+│   ├── screens/           # Feature screens
+│   │   ├── auth/          # Login, Signup
+│   │   ├── home/          # Multi-household home
+│   │   ├── house/         # House details with map
+│   │   ├── expenses/      # Finance management
+│   │   ├── shopping/      # Shopping lists
+│   │   ├── chores/        # Task management
+│   │   ├── chat/          # Messaging
+│   │   ├── documents/     # File storage
+│   │   ├── notifications/ # Notification center
+│   │   └── settings/      # App settings
+│   ├── theme/             # Material 3 theme
+│   └── viewmodel/         # ViewModels
+├── utils/                 # Utilities
+│   └── PermissionHandler  # Runtime permissions
+└── MainActivity.kt        # Entry point
 ```
-
-## 🚀 Setup Instructions
-
-### 1. Prerequisites
-- Android Studio (latest stable version)
-- JDK 11 or higher
-- A Supabase account (free tier available)
-
-### 2. Supabase Setup
-
-#### Step 1: Create a Supabase Project
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Wait for the project to initialize
-
-#### Step 2: Run the Database Schema
-1. In your Supabase project, go to the SQL Editor
-2. Open the `supabase_schema.sql` file from this repository
-3. Copy and paste the entire contents into the SQL editor
-4. Click "Run" to execute the schema
-
-This will create:
-- All necessary tables (profiles, houses, expenses, chores, etc.)
-- Row Level Security (RLS) policies
-- Database functions for complex operations
-- Triggers for automated workflows
-
-#### Step 3: Configure Storage Buckets
-1. Go to Storage in your Supabase dashboard
-2. Create two buckets:
-   - `personal_documents` (private)
-   - `house_documents` (private with RLS)
-
-#### Step 4: Get Your Credentials
-1. Go to Project Settings → API
-2. Copy your:
-   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
-   - **Anon/Public Key**
-
-### 3. Android App Setup
-
-#### Step 1: Clone and Open
-```bash
-git clone <your-repo-url>
-cd Flockr
-```
-Open the project in Android Studio.
-
-#### Step 2: Configure Supabase Credentials
-1. Open `app/src/main/java/in/xroden/flockr/di/AppModule.kt`
-2. Replace the placeholder values:
-```kotlin
-private const val SUPABASE_URL = "YOUR_SUPABASE_URL"
-private const val SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"
-```
-
-#### Step 3: Install Fonts
-The app uses custom fonts for a premium look. Follow the instructions in `FONTS_SETUP.md`:
-
-1. Download **Newsreader** and **Inter** from Google Fonts
-2. Rename and place the font files in `app/src/main/res/font/`
-3. Or temporarily use fallback fonts (see `FONTS_SETUP.md`)
-
-#### Step 4: Build and Run
-1. Sync Gradle files
-2. Build the project
-3. Run on an emulator or physical device (API 29+)
-
-### 4. Optional: Google Maps Integration
-
-To enable the map view in HouseDetailsScreen:
-
-1. Get a Google Maps API key from [Google Cloud Console](https://console.cloud.google.com/)
-2. Add it to `local.properties`:
-```
-MAPS_API_KEY=YOUR_API_KEY_HERE
-```
-3. Update `AndroidManifest.xml` with the API key
-4. Uncomment the map implementation in `HouseDetailsScreen.kt`
-
-## 🔧 Configuration Files
-
-### Key Files to Update
-1. **`di/AppModule.kt`** - Add your Supabase credentials
-2. **`local.properties`** (optional) - Add Google Maps API key
-3. **Font files** - Download and add custom fonts (see `FONTS_SETUP.md`)
-
-## 📱 App Flow
-
-1. **Authentication**: User signs up or logs in
-2. **Onboarding**: New users set their name and preferences
-3. **Home Screen**: View all households you're a member of
-4. **House Details**: Access all features for a specific household
-   - Map view showing house location
-   - Navigation to Expenses, Chores, Shopping, Chat, Documents
-5. **Feature Screens**: Manage expenses, chores, shopping lists, etc.
-6. **Notifications**: Real-time updates for all household activities
-7. **Settings**: Change theme, edit profile, logout
-
-## 🔐 Security Features
-
-- **Row Level Security (RLS)**: All database tables are protected
-- **User Isolation**: Users can only access their own data and data from houses they're members of
-- **Secure Auth**: Supabase handles authentication with JWT tokens
-- **Storage Security**: Documents are stored with proper access controls
-
-## 🎨 Design Philosophy
-
-The app follows Material 3 design guidelines with a custom font pairing for elegance:
-- **Clean, data-rich interfaces** that prioritize information
-- **Real-time updates** to keep all household members in sync
-- **Clear notifications** so nothing falls through the cracks
-- **Intuitive navigation** with deep-linking from notifications
-
-## 🔄 Real-time Features
-
-The following features update in real-time using Supabase Realtime:
-- Shopping lists
-- Chores
-- Messages
-- Notifications
-- House membership changes
-
-## 🗄️ Database Functions (RPCs)
-
-Server-side functions handle complex operations:
-- `create_notification_for_house` - Notify all house members
-- `get_monthly_summary` - Calculate monthly expense totals
-- `get_spend_by_member` - Track spending per member
-- `get_spend_by_category` - Categorize expenses
-- `get_user_balances` - Calculate IOU balances
-- `get_per_diem_bill_itemized` - Generate per-diem bills
-- `get_per_diem_bill_by_member` - Per-member per-diem costs
-
-## 🚧 Future Enhancements
-
-- [ ] Google Maps integration for house locations
-- [ ] Full expense tracking UI with charts
-- [ ] Document upload and preview
-- [ ] House invitation system
-- [ ] Recurring chores
-- [ ] Budget planning tools
-- [ ] Export reports to PDF
-
-## 📄 License
-
-This project is built as a demonstration of modern Android development with Supabase.
-
-## 🤝 Contributing
-
-This is a comprehensive reference implementation. Feel free to use it as a foundation for your own projects!
-
-## 📞 Support
-
-For issues or questions about:
-- **Supabase setup**: Check [Supabase Documentation](https://supabase.com/docs)
-- **Android/Compose**: Check [Jetpack Compose Documentation](https://developer.android.com/jetpack/compose)
-- **Hilt**: Check [Hilt Documentation](https://dagger.dev/hilt/)
 
 ---
 
+## 🚀 Quick Start
+
+### Prerequisites
+- **Android Studio**: Hedgehog (2023.1.1) or later
+- **JDK**: 11 or higher
+- **Android SDK**: API 29+ (Android 10+)
+- **Supabase Account**: Free tier available at [supabase.com](https://supabase.com)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/abhisheksharm-3/flockr.git
+cd flockr
+```
+
+### Step 2: Set Up Supabase
+
+1. **Create a Supabase Project**
+   - Go to [supabase.com](https://supabase.com)
+   - Click "New Project"
+   - Wait for initialization (2-3 minutes)
+
+2. **Run Database Setup**
+   - Open Supabase Dashboard → SQL Editor
+   - Copy contents of `SUPABASE_RPC_FUNCTIONS.sql`
+   - Paste and click "Run"
+   - Verify all functions were created (check bottom of file)
+
+3. **Create Storage Bucket**
+   - Go to Storage → New Bucket
+   - Name: `documents`
+   - Privacy: Private
+   - Click "Create bucket"
+
+4. **Get Your Credentials**
+   - Settings → API
+   - Copy:
+     - **Project URL**: `https://xxxxx.supabase.co`
+     - **Anon Key**: `eyJhbG...`
+
+### Step 3: Configure the App
+
+1. **Add Supabase Credentials**
+
+Create/edit `local.properties`:
+```properties
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key-here
+```
+
+2. **(Optional) Add Google Maps**
+
+Get a Maps API key from [Google Cloud Console](https://console.cloud.google.com/):
+```properties
+MAPS_API_KEY=your-maps-api-key
+```
+
+### Step 4: Build & Run
+
+```bash
+./gradlew assembleDebug
+```
+
+Or in Android Studio:
+- Sync Gradle
+- Run on emulator (API 29+) or physical device
+
+---
+
+## 📸 Screenshots
+
+> *Coming Soon - Screenshots will be added here*
+
+---
+
+## 🔧 Configuration
+
+### Per-Household Settings
+
+Each household can be configured with:
+- **Currency Code** (USD, EUR, GBP, INR, etc.)
+- **Currency Symbol** ($, €, £, ₹)
+- **Date Format** (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY)
+- **First Day of Week** (Sunday=0, Monday=1)
+- **Timezone** (UTC, America/New_York, etc.)
+
+Configure via the `house_config` table or add a settings UI.
+
+### Runtime Permissions
+
+The app requests these permissions:
+- **POST_NOTIFICATIONS** (Android 13+) - For push notifications
+- **READ_MEDIA_IMAGES** (Android 13+) / **READ_EXTERNAL_STORAGE** (Android 12-) - For document uploads
+- **ACCESS_FINE_LOCATION** / **ACCESS_COARSE_LOCATION** - For house location (optional)
+
+Permissions are requested at runtime when needed.
+
+---
+
+## 🗄️ Database Schema
+
+### Core Tables
+- `profiles` - User profiles synced with Supabase Auth
+- `houses` - Household information with location data
+- `house_config` - **NEW**: Per-household settings
+- `house_members` - Junction table for multi-tenant membership
+- `house_invitations` - Invitation system with codes
+
+### Finance Tables
+- `one_time_expenses` - Individual purchases
+- `recurring_expenses` - Monthly bills (rent, utilities)
+- `expense_splits` - Bill splitting with IOU tracking
+- `transactions` - Settlement ledger
+- `per_diem_config` - Daily item templates
+- `per_diem_entries` - Daily usage logs
+- `payment_history` - Recurring expense payment tracking
+
+### Organization Tables
+- `shopping_items` - Shared shopping lists
+- `chores` - Tasks with assignment and recurrence
+
+### Communication Tables
+- `messages` - House group chat
+- `notifications` - Unified notification inbox
+
+### Storage
+- `documents` - File metadata with Supabase Storage integration
+
+### Server-Side Functions (RPC)
+- `create_notification_for_house` - Broadcast notifications
+- `get_user_balances` - Calculate IOU balances
+- `get_monthly_summary` - Monthly expense totals
+- `get_spend_by_member` - Member spending breakdown
+- `get_spend_by_category` - Category breakdown
+- `get_per_diem_bill_itemized` - Itemized per-diem bill
+- `get_per_diem_bill_by_member` - Per-member per-diem costs
+
+---
+
+## 🛡️ Security
+
+### Row Level Security (RLS)
+Every table has RLS policies ensuring:
+- Users can only access houses they're members of
+- Personal data is isolated per user
+- Documents respect house membership
+- Notifications are user-specific
+
+### Authentication
+- JWT-based authentication via Supabase Auth
+- Automatic token refresh
+- Secure password hashing
+- Optional email verification
+
+### Storage Security
+- Private buckets with RLS policies
+- Authenticated uploads/downloads
+- Automatic cleanup on document deletion
+
+---
+
+## 🎨 Design System
+
+### Typography
+- **Headings**: Newsreader (elegant serif)
+- **Body**: Inter (clean sans-serif)
+
+### Color Scheme
+- Material 3 dynamic color system
+- Supports Light and Dark themes
+- Accessible contrast ratios
+
+### Components
+Custom reusable components in `ui/components/`:
+- `FlockrPrimaryButton` - Main CTA button
+- `FlockrCard` - Content card with elevation
+- `FlockrSectionHeader` - Section title
+- `FlockrTextField` - Styled input field
+
+---
+
+## 📱 Features in Detail
+
+### Multi-Household Management
+- Users can join unlimited households
+- Each household has unique invite code
+- Owner can manage members
+- Leave household anytime
+
+### Real-Time Synchronization
+- Instant updates via Supabase Realtime
+- No manual refresh needed
+- WebSocket-based for efficiency
+- Automatic reconnection
+
+### Notification System
+- Unified notification center
+- Deep-linking to content
+- Mark as read/unread
+- Persistent across sessions
+
+### Expense Management
+- Multiple expense types (one-time, recurring, per-diem)
+- Automatic IOU calculations
+- Split bills equally or by amount
+- Settlement tracking
+- Export reports to share externally
+
+---
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+- [ ] Sign up and complete onboarding
+- [ ] Create a household
+- [ ] Generate invite code and join via code
+- [ ] Add expenses and split bills
+- [ ] View and settle balances
+- [ ] Create shopping list and mark items purchased
+- [ ] Assign and complete chores
+- [ ] Send chat messages
+- [ ] Upload documents
+- [ ] Generate expense report
+- [ ] Switch themes
+- [ ] Test notifications
+- [ ] Test with multiple households
+
+### Future: Automated Testing
+- Unit tests for repositories
+- ViewModel tests
+- UI tests with Compose Testing
+- Integration tests for RPC functions
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
+4. **Push to the branch** (`git push origin feature/amazing-feature`)
+5. **Open a Pull Request**
+
+### Development Guidelines
+- Follow Kotlin coding conventions
+- Use Material 3 design principles
+- Write clean, documented code
+- Test on multiple devices/API levels
+- Update README if adding features
+
+---
+
+## 📋 Roadmap
+
+### Planned Features
+- [ ] Expense charts and visualizations
+- [ ] Recurring chore scheduling
+- [ ] Budget planning and alerts
+- [ ] Export reports to PDF
+- [ ] Push notifications via Supabase Functions
+- [ ] Offline mode with local caching
+- [ ] House settings UI for currency/timezone
+- [ ] Member roles and permissions
+- [ ] Photo attachments for expenses
+- [ ] Receipt scanning with OCR
+
+### Nice-to-Have
+- [ ] Dark mode improvements
+- [ ] Tablet-optimized layout
+- [ ] Widget support
+- [ ] Wear OS companion app
+- [ ] Voice commands
+- [ ] Calendar integration
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Supabase** for the amazing backend platform
+- **Jetpack Compose** team for modern Android UI
+- **Material Design** for design guidelines
+- **Google Fonts** for beautiful typography
+
+---
+
+## 📞 Support
+
+### Documentation
+- [Supabase Docs](https://supabase.com/docs)
+- [Jetpack Compose Docs](https://developer.android.com/jetpack/compose)
+- [Hilt Docs](https://dagger.dev/hilt/)
+- [Material 3 Guidelines](https://m3.material.io/)
+
+### Issues
+Found a bug? [Open an issue](https://github.com/abhisheksharm-3/flockr/issues)
+
+### Questions
+Have questions? [Start a discussion](https://github.com/abhisheksharm-3/flockr/discussions)
+
+---
+
+<div align="center">
+
 **Built with ❤️ using Kotlin, Jetpack Compose, and Supabase**
 
+⭐ Star this repo if you find it helpful!
+
+[Report Bug](https://github.com/abhisheksharm-3/flockr/issues) · [Request Feature](https://github.com/abhisheksharm-3/flockr/issues) · [Documentation](https://github.com/abhisheksharm-3/flockr/wiki)
+
+</div>

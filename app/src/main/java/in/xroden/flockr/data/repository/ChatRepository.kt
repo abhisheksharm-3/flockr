@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Message
+import `in`.xroden.flockr.util.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -26,11 +27,18 @@ class ChatRepository @Inject constructor(
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
+    fun getCurrentUserId(): String? = userId
+    
+    companion object {
+        private const val TAG = "ChatRepository"
+    }
+
     fun getMessagesFlow(houseId: String): Flow<List<Message>> {
+        FlockrLogger.realtimeEvent(TAG, "getMessagesFlow", "Starting for house=$houseId")
         return kotlinx.coroutines.flow.flow {
             // Emit initial value immediately
-            android.util.Log.d("ChatRepository", "Emitting initial messages for house: $houseId")
             val initialMessages = getMessages(houseId)
+            FlockrLogger.d(TAG, "getMessagesFlow: Emitting initial ${initialMessages.size} messages")
             emit(initialMessages)
 
             // Create and subscribe to the channel
@@ -41,39 +49,39 @@ class ChatRepository @Inject constructor(
                 // Configure realtime subscription BEFORE subscribing
                 val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                     table = "messages"
-                    filter = "house_id=eq.$houseId"
                 }
                 
+                FlockrLogger.realtimeEvent(TAG, "getMessagesFlow", "Subscribing to channel $channelId")
                 // Subscribe and wait for it to be ready
                 channel.subscribe(blockUntilSubscribed = true)
-                android.util.Log.d("ChatRepository", "Channel subscribed successfully")
+                FlockrLogger.realtimeEvent(TAG, "getMessagesFlow", "Successfully subscribed")
 
                 // Now listen for changes
                 changeFlow.collect { change ->
-                    android.util.Log.d("ChatRepository", "Realtime update received: ${change.javaClass.simpleName}")
+                    FlockrLogger.realtimeEvent(TAG, "getMessagesFlow", "Received update: ${change.javaClass.simpleName}")
                     // Small delay to ensure database consistency
-                    kotlinx.coroutines.delay(200)
+                    kotlinx.coroutines.delay(100)
                     val updatedMessages = getMessages(houseId)
-                    android.util.Log.d("ChatRepository", "Emitting ${updatedMessages.size} messages after update")
+                    FlockrLogger.d(TAG, "getMessagesFlow: Emitting ${updatedMessages.size} messages after update")
                     emit(updatedMessages)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ChatRepository", "Error in realtime subscription", e)
+                FlockrLogger.repoError(TAG, "getMessagesFlow", e)
                 // Keep the initial messages visible even if realtime fails
             } finally {
                 try {
+                    FlockrLogger.d(TAG, "getMessagesFlow: Cleaning up channel")
                     supabase.realtime.removeChannel(channel)
                 } catch (e: Exception) {
-                    android.util.Log.e("ChatRepository", "Error removing channel", e)
+                    FlockrLogger.e(TAG, "getMessagesFlow: Error removing channel", e)
                 }
             }
         }
     }
 
     suspend fun getMessages(houseId: String): List<Message> {
+        FlockrLogger.repoStart(TAG, "getMessages", mapOf("houseId" to houseId))
         return try {
-            android.util.Log.d("ChatRepository", "Fetching messages for houseId: $houseId")
-
             // Fetch messages with sender name from profiles table
             val response = supabase.from("messages")
                 .select(Columns.raw("*, profiles!messages_user_id_fkey(full_name)")) {
@@ -83,11 +91,9 @@ class ChatRepository @Inject constructor(
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }
 
-            android.util.Log.d("ChatRepository", "Response received, decoding JSON")
-
+            FlockrLogger.d(TAG, "getMessages: Decoding JSON response")
             val result = response.decodeAs<JsonArray>()
-
-            android.util.Log.d("ChatRepository", "Successfully decoded ${result.size} messages")
+            FlockrLogger.d(TAG, "getMessages: Successfully decoded ${result.size} messages")
 
             val messages = result.mapNotNull { element ->
                 val obj = element.jsonObject
@@ -100,8 +106,6 @@ class ChatRepository @Inject constructor(
                 // Extract sender name from profiles
                 val senderName = obj["profiles"]?.jsonObject?.get("full_name")?.jsonPrimitive?.content
 
-                android.util.Log.d("ChatRepository", "Parsed message: id=$id, content=$content, sender=$senderName")
-
                 Message(
                     id = id,
                     houseId = houseId,
@@ -112,22 +116,24 @@ class ChatRepository @Inject constructor(
                 )
             }
 
-            android.util.Log.d("ChatRepository", "Returning ${messages.size} messages")
+            FlockrLogger.repoSuccess(TAG, "getMessages", "Returning ${messages.size} messages")
             messages
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Error fetching messages for houseId: $houseId", e)
-            android.util.Log.e("ChatRepository", "Exception type: ${e.javaClass.name}")
-            android.util.Log.e("ChatRepository", "Exception message: ${e.message}")
-            e.printStackTrace()
+            FlockrLogger.repoError(TAG, "getMessages", e)
             emptyList()
         }
     }
 
     suspend fun sendMessage(houseId: String, content: String, houseName: String): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "sendMessage", mapOf(
+            "houseId" to houseId,
+            "contentLength" to content.length
+        ))
         return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
-
-            android.util.Log.d("ChatRepository", "Sending message: houseId=$houseId, userId=$currentUserId, content=$content")
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "sendMessage: No user logged in")
+                return Result.failure(Exception("No user logged in"))
+            }
 
             supabase.from("messages")
                 .insert(
@@ -138,7 +144,7 @@ class ChatRepository @Inject constructor(
                     )
                 )
 
-            android.util.Log.d("ChatRepository", "Message inserted successfully")
+            FlockrLogger.d(TAG, "sendMessage: Message inserted successfully")
 
             // Create notification for house members
             val truncatedContent = if (content.length > 50) {
@@ -147,21 +153,23 @@ class ChatRepository @Inject constructor(
                 content
             }
 
+            FlockrLogger.d(TAG, "sendMessage: Creating notification")
             supabase.postgrest.rpc(
                 "create_notification_for_house",
                 mapOf(
                     "p_house_id" to houseId,
                     "p_title" to "New message in $houseName",
                     "p_message" to truncatedContent,
-                    "p_data" to mapOf("type" to "message", "houseId" to houseId),
+                    "p_type" to "message",
+                    "p_data" to mapOf("houseId" to houseId),
                     "p_exclude_user_id" to currentUserId
                 )
             )
 
-            android.util.Log.d("ChatRepository", "Message sent and notification created successfully")
+            FlockrLogger.repoSuccess(TAG, "sendMessage", "Message sent and notification created")
             Result.success(Unit)
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Error sending message", e)
+            FlockrLogger.repoError(TAG, "sendMessage", e)
             Result.failure(e)
         }
     }

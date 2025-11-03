@@ -1,42 +1,32 @@
 package `in`.xroden.flockr.ui.screens.home
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import `in`.xroden.flockr.data.model.House
+import `in`.xroden.flockr.data.repository.HouseRepository
+import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.ui.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,97 +38,172 @@ fun JoinHouseScreen(
 ) {
     var inviteCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var isValidating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var previewHouse by remember { mutableStateOf<House?>(null) }
+    
+    val scope = rememberCoroutineScope()
+
+    // Validate code when it's complete
+    LaunchedEffect(inviteCode) {
+        if (inviteCode.length == 6) {
+            isValidating = true
+            errorMessage = null
+            delay(300) // Debounce
+            // This would ideally call a repository function to validate and preview the house
+            // For now, we'll skip the preview
+            isValidating = false
+        } else {
+            previewHouse = null
+            errorMessage = null
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Join Household") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Join Household",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Icon
-            Surface(
-                modifier = Modifier.size(80.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.primaryContainer
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(
+                        2.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        RoundedCornerShape(20.dp)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title and description
+            // Title
             Text(
-                text = "Enter Invite Code",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                text = "Join a Household",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Ask a household member for the invite code to join their household",
+                text = "Enter the invite code shared by a household member",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Invite Code Input
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Invite Code",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                OutlinedTextField(
+                    value = inviteCode,
+                    onValueChange = {
+                        inviteCode = it.uppercase().take(6)
+                        errorMessage = null
+                    },
+                    placeholder = { Text("Enter 6-digit code") },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 4.sp
+                    ),
+                    isError = errorMessage != null,
+                    supportingText = {
+                        errorMessage?.let {
+                            Text(
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
+                    trailingIcon = {
+                        when {
+                            isValidating -> CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            inviteCode.length == 6 && errorMessage == null -> Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Valid",
+                                tint = PositiveGreen
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters
+                    ),
+                    singleLine = true,
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Text(
+                    text = "${inviteCode.length}/6 characters",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Invite code input
-            OutlinedTextField(
-                value = inviteCode,
-                onValueChange = {
-                    inviteCode = it.uppercase().take(6)
-                    errorMessage = null
-                },
-                label = { Text("Invite Code") },
-                placeholder = { Text("ABC123") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null,
-                supportingText = {
-                    errorMessage?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters
-                ),
-                singleLine = true,
-                enabled = !isLoading
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Join button
+            // Join Button
             Button(
                 onClick = {
                     if (inviteCode.length != 6) {
@@ -152,8 +217,12 @@ fun JoinHouseScreen(
                     viewModel.joinHouseByInviteCode(
                         inviteCode = inviteCode,
                         onSuccess = { houseId: String ->
-                            isLoading = false
-                            onHouseJoined(houseId)
+                            scope.launch {
+                                isLoading = false
+                                // Add a small delay for visual feedback
+                                delay(300)
+                                onHouseJoined(houseId)
+                            }
                         },
                         onError = { error: String ->
                             isLoading = false
@@ -164,44 +233,76 @@ fun JoinHouseScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !isLoading && inviteCode.length == 6
+                enabled = !isLoading && inviteCode.length == 6 && errorMessage == null,
+                shape = RoundedCornerShape(12.dp)
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Text("Joining...")
+                    }
                 } else {
-                    Text("Join Household")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            "Join Household",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Info card
+            // Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "💡 How it works",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Each household has a unique 6-character invite code. Members can share this code to invite others to join.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column {
+                        Text(
+                            text = "About Invite Codes",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Each household has a unique 6-character code. Ask a member to share their code from the household settings.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
     }
 }
-
