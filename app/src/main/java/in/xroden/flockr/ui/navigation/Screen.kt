@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.ui.navigation
 
 sealed class Screen(val route: String) {
+    object Welcome : Screen("welcome")
     object Login : Screen("login")
     object Signup : Screen("signup")
     object Onboarding : Screen("onboarding")
@@ -42,8 +43,36 @@ sealed class Screen(val route: String) {
     object ManageMembers : Screen("manage_members/{houseId}") {
         fun createRoute(houseId: String) = "manage_members/$houseId"
     }
+    object HouseSettings : Screen("house_settings/{houseId}") {
+        fun createRoute(houseId: String) = "house_settings/$houseId"
+    }
     object PerDiemConfig : Screen("per_diem_config/{houseId}") {
         fun createRoute(houseId: String) = "per_diem_config/$houseId"
     }
     object EditProfile : Screen("edit_profile")
+    
+    // Modern Finance Screens
+    object OneTimeExpenses : Screen("one_time_expenses/{houseId}") {
+        fun createRoute(houseId: String) = "one_time_expenses/$houseId"
+    }
+    object RecurringExpenses : Screen("recurring_expenses/{houseId}") {
+        fun createRoute(houseId: String) = "recurring_expenses/$houseId"
+    }
+    object MonthlyReports : Screen("monthly_reports/{houseId}") {
+        fun createRoute(houseId: String) = "monthly_reports/$houseId"
+    }
+    object AddExpenseModern : Screen("add_expense_modern/{houseId}") {
+        fun createRoute(houseId: String) = "add_expense_modern/$houseId"
+    }
+    object BalancesModern : Screen("balances_modern/{houseId}") {
+        fun createRoute(houseId: String) = "balances_modern/$houseId"
+    }
+    
+    // Modern Organization Screens
+    object ShoppingListModern : Screen("shopping_modern/{houseId}") {
+        fun createRoute(houseId: String) = "shopping_modern/$houseId"
+    }
+    object ChoresModern : Screen("chores_modern/{houseId}") {
+        fun createRoute(houseId: String) = "chores_modern/$houseId"
+    }
 }

@@ -1,17 +1,19 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.House
+import `in`.xroden.flockr.data.model.HouseConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -23,6 +25,8 @@ class HouseRepository @Inject constructor(
 ) {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
+
+    fun getCurrentUserId(): String? = userId
 
     fun getHousesFlow(): Flow<List<House>> {
         return kotlinx.coroutines.flow.flow {
@@ -50,16 +54,17 @@ class HouseRepository @Inject constructor(
 
             android.util.Log.d("HouseRepository", "Fetching houses for user: $currentUserId")
 
-            // Query houses where user is a member
-            val houseMembers = supabase.from("house_members")
-                .select(Columns.list("house_id")) {
-                    filter {
-                        eq("user_id", currentUserId)
-                    }
-                }
-                .decodeList<Map<String, String>>()
+            // Use RPC function to bypass RLS recursion issue
+            // Instead of querying house_members directly, use the SECURITY DEFINER function
+            @kotlinx.serialization.Serializable
+            data class HouseIdResult(val house_id: String)
 
-            val houseIds = houseMembers.mapNotNull { it["house_id"] }
+            val houseMembers = supabase.postgrest.rpc(
+                "get_user_house_ids",
+                mapOf("p_user_id" to currentUserId)
+            ).decodeList<HouseIdResult>()
+
+            val houseIds = houseMembers.map { it.house_id }
             android.util.Log.d("HouseRepository", "User is member of ${houseIds.size} houses: $houseIds")
 
             if (houseIds.isEmpty()) {
@@ -106,7 +111,10 @@ class HouseRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            android.util.Log.d("HouseRepository", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude, userId=$currentUserId")
+            // Generate unique invite code (6 characters, alphanumeric)
+            val inviteCode = generateInviteCode()
+
+            android.util.Log.d("HouseRepository", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude, userId=$currentUserId, inviteCode=$inviteCode")
 
             // Prepare insert payloads
             val responseList: List<Map<String, Any?>> = when {
@@ -115,12 +123,13 @@ class HouseRepository @Inject constructor(
                     data class HouseInsertFull(
                         val name: String,
                         val owner_id: String,
+                        val invite_code: String,
                         val address: String,
                         val latitude: Double,
                         val longitude: Double
                     )
                     supabase.from("houses")
-                        .insert(HouseInsertFull(name, currentUserId, address, latitude, longitude)) {
+                        .insert(HouseInsertFull(name, currentUserId, inviteCode, address, latitude, longitude)) {
                             select()
                         }
                         .decodeList()
@@ -130,10 +139,11 @@ class HouseRepository @Inject constructor(
                     data class HouseInsertWithAddress(
                         val name: String,
                         val owner_id: String,
+                        val invite_code: String,
                         val address: String
                     )
                     supabase.from("houses")
-                        .insert(HouseInsertWithAddress(name, currentUserId, address)) {
+                        .insert(HouseInsertWithAddress(name, currentUserId, inviteCode, address)) {
                             select()
                         }
                         .decodeList()
@@ -142,10 +152,11 @@ class HouseRepository @Inject constructor(
                     @kotlinx.serialization.Serializable
                     data class HouseInsertBasic(
                         val name: String,
-                        val owner_id: String
+                        val owner_id: String,
+                        val invite_code: String
                     )
                     supabase.from("houses")
-                        .insert(HouseInsertBasic(name, currentUserId)) {
+                        .insert(HouseInsertBasic(name, currentUserId, inviteCode)) {
                             select()
                         }
                         .decodeList()
@@ -177,6 +188,7 @@ class HouseRepository @Inject constructor(
                 else -> null
             }
             val createdAt = (row["created_at"] ?: row["createdAt"])?.toString()
+            val returnedInviteCode = (row["invite_code"] ?: row["inviteCode"])?.toString()
 
             if (id == null) {
                 android.util.Log.e("HouseRepository", "createHouse: returned row missing id: $row")
@@ -187,13 +199,23 @@ class HouseRepository @Inject constructor(
                 id = id,
                 name = returnedName,
                 ownerId = ownerIdFromRow,
+                inviteCode = returnedInviteCode,
                 address = addr,
                 latitude = lat,
                 longitude = lon,
                 createdAt = createdAt
             )
 
-            android.util.Log.d("HouseRepository", "createHouse success - created house id=${house.id}, name=${house.name}, ownerId=${house.ownerId}")
+            // Automatically add the creator as a member with Owner role
+            try {
+                addMemberToHouse(house.id, currentUserId, "Owner")
+                android.util.Log.d("HouseRepository", "Added creator as Owner to house")
+            } catch (e: Exception) {
+                android.util.Log.e("HouseRepository", "Failed to add creator as member", e)
+                // Continue anyway, the house was created
+            }
+
+            android.util.Log.d("HouseRepository", "createHouse success - created house id=${house.id}, name=${house.name}, inviteCode=${house.inviteCode}")
             Result.success(house)
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "createHouse failed", e)
@@ -228,13 +250,29 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun addMemberToHouse(houseId: String, userId: String): Result<Unit> {
+    suspend fun addMemberToHouse(houseId: String, userId: String, role: String = "Member"): Result<Unit> {
         return try {
+            // Check if member already exists to avoid duplicate key error
+            val existingMember = supabase.from("house_members")
+                .select(Columns.list("id")) {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("user_id", userId)
+                    }
+                }
+                .decodeSingleOrNull<Map<String, String>>()
+
+            if (existingMember != null) {
+                android.util.Log.d("HouseRepository", "Member already exists in house, skipping insert")
+                return Result.success(Unit)
+            }
+
             supabase.from("house_members")
                 .insert(
                     mapOf(
                         "house_id" to houseId,
-                        "user_id" to userId
+                        "user_id" to userId,
+                        "role" to role
                     )
                 )
 
@@ -249,7 +287,7 @@ class HouseRepository @Inject constructor(
             android.util.Log.d("HouseRepository", "Fetching house members for houseId: $houseId")
 
             val response = supabase.from("house_members")
-                .select(Columns.raw("user_id, joined_at, profiles!inner(id, email, full_name)")) {
+                .select(Columns.raw("user_id, role, joined_at, profiles!inner(id, email, full_name)")) {
                     filter {
                         eq("house_id", houseId)
                     }
@@ -264,17 +302,19 @@ class HouseRepository @Inject constructor(
             val members = result.mapNotNull { element ->
                 val obj = element.jsonObject
                 val userId = obj["user_id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val role = obj["role"]?.jsonPrimitive?.content ?: "Member"
                 val joinedAt = obj["joined_at"]?.jsonPrimitive?.content ?: return@mapNotNull null
                 val profiles = obj["profiles"]?.jsonObject ?: return@mapNotNull null
                 val email = profiles["email"]?.jsonPrimitive?.content ?: return@mapNotNull null
                 val fullName = profiles["full_name"]?.jsonPrimitive?.content
 
-                android.util.Log.d("HouseRepository", "Parsed member: userId=$userId, fullName=$fullName, email=$email")
+                android.util.Log.d("HouseRepository", "Parsed member: userId=$userId, role=$role, fullName=$fullName, email=$email")
 
                 `in`.xroden.flockr.data.model.MemberWithProfile(
                     userId = userId,
                     fullName = fullName,
                     email = email,
+                    role = role,
                     joinedAt = joinedAt
                 )
             }
@@ -395,5 +435,58 @@ class HouseRepository @Inject constructor(
             android.util.Log.e("HouseRepository", "Error joining house by invite code", e)
             Result.failure(e)
         }
+    }
+
+    suspend fun getHouseConfig(houseId: String): HouseConfig? {
+        return try {
+            supabase.from("house_config")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                }
+                .decodeSingleOrNull<HouseConfig>()
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error getting house config", e)
+            null
+        }
+    }
+
+    suspend fun updateHouseConfig(
+        houseId: String,
+        currencyCode: String? = null,
+        currencySymbol: String? = null,
+        dateFormat: String? = null,
+        firstDayOfWeek: Int? = null,
+        timezone: String? = null
+    ): Result<Unit> {
+        return try {
+            val updates = mutableMapOf<String, Any>()
+            currencyCode?.let { updates["currency_code"] = it }
+            currencySymbol?.let { updates["currency_symbol"] = it }
+            dateFormat?.let { updates["date_format"] = it }
+            firstDayOfWeek?.let { updates["first_day_of_week"] = it }
+            timezone?.let { updates["timezone"] = it }
+            updates["updated_at"] = "now()"
+
+            supabase.from("house_config")
+                .update(updates) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error updating house config", e)
+            Result.failure(e)
+        }
+    }
+
+    private fun generateInviteCode(): String {
+        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // Removed similar-looking characters
+        return (1..6)
+            .map { chars.random() }
+            .joinToString("")
     }
 }

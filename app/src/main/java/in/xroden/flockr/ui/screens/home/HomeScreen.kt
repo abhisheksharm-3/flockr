@@ -1,6 +1,10 @@
 package `in`.xroden.flockr.ui.screens.home
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,7 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,12 +46,12 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
                     Column {
                         Text(
                             "My Households",
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -58,24 +62,41 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    // Notification icon with badge
                     IconButton(onClick = onNotificationsClick) {
                         BadgedBox(
                             badge = {
                                 if (unreadCount > 0) {
-                                    Badge { Text(unreadCount.toString()) }
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ) {
+                                        Text(
+                                            unreadCount.toString(),
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
                                 }
                             }
                         ) {
-                            Icon(Icons.Default.Notifications, "Notifications")
+                            Icon(
+                                Icons.Default.Notifications,
+                                "Notifications",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, "Settings")
+                        Icon(
+                            Icons.Default.Settings,
+                            "Settings",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -87,60 +108,63 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Show individual buttons when menu is expanded
-                if (showMenu) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            showMenu = false
-                            onJoinHouseClick()
-                        },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                `in`.xroden.flockr.ui.components.ExpandableContent(expanded = showMenu) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        FloatingActionButton(
+                            onClick = {
+                                showMenu = false
+                                onJoinHouseClick()
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Join"
-                            )
-                            Text("Join")
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.Home, "Join")
+                                Text("Join", fontWeight = FontWeight.SemiBold)
+                            }
                         }
-                    }
 
-                    SmallFloatingActionButton(
-                        onClick = {
-                            showMenu = false
-                            onCreateHouseClick()
-                        },
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        FloatingActionButton(
+                            onClick = {
+                                showMenu = false
+                                onCreateHouseClick()
+                            },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Add, "Create")
-                            Text("Create")
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.Add, "Create")
+                                Text("Create", fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
 
-                // Main FAB
-                ExtendedFloatingActionButton(
+                // Main FAB with industrial styling
+                FloatingActionButton(
                     onClick = { showMenu = !showMenu },
-                    icon = {
-                        Icon(
-                            imageVector = if (showMenu) androidx.compose.material.icons.Icons.Default.Close else Icons.Default.Add,
-                            contentDescription = if (showMenu) "Close" else "Add Household"
-                        )
-                    },
-                    text = { Text(if (showMenu) "Close" else "Add Household") },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = if (showMenu) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = if (showMenu) "Close" else "Add"
+                    )
+                }
             }
         }
     ) { padding ->
@@ -260,10 +284,27 @@ fun HouseCard(
     house: House,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "house_card_scale"
+    )
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp,
             pressedElevation = 6.dp
@@ -279,24 +320,13 @@ fun HouseCard(
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // House icon with background
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            // House icon without gradient background
+            Icon(
+                imageVector = Icons.Default.Home,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -307,7 +337,7 @@ fun HouseCard(
                 Text(
                     text = house.name,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -334,11 +364,12 @@ fun HouseCard(
                 }
             }
 
-            // Chevron icon
+            // Arrow icon
             Icon(
-                imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Open",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }

@@ -20,7 +20,8 @@ class PerDiemRepository @Inject constructor(
 
     suspend fun getPerDiemConfigs(houseId: String): List<PerDiemConfig> {
         return try {
-            supabase.from("per_diem_configs")
+            android.util.Log.d("PerDiemRepository", "Getting per-diem configs for house: $houseId")
+            val configs = supabase.from("per_diem_config")
                 .select(Columns.ALL) {
                     filter {
                         eq("house_id", houseId)
@@ -28,7 +29,10 @@ class PerDiemRepository @Inject constructor(
                     }
                 }
                 .decodeList<PerDiemConfig>()
+            android.util.Log.d("PerDiemRepository", "Found ${configs.size} per-diem configs")
+            configs
         } catch (e: Exception) {
+            android.util.Log.e("PerDiemRepository", "Error getting per-diem configs", e)
             emptyList()
         }
     }
@@ -58,23 +62,26 @@ class PerDiemRepository @Inject constructor(
         unit: String
     ): Result<PerDiemConfig> {
         return try {
-            val config = supabase.from("per_diem_configs")
+            android.util.Log.d("PerDiemRepository", "Creating per-diem config: $itemName")
+            val config = supabase.from("per_diem_config")
                 .insert(
-                    mapOf(
-                        "house_id" to houseId,
-                        "item_name" to itemName,
-                        "rate" to rate,
-                        "category" to category,
-                        "unit" to unit,
-                        "is_active" to true
-                    )
+                    buildMap<String, Any> {
+                        put("house_id", houseId)
+                        put("item_name", itemName)
+                        put("rate", rate)
+                        put("category", category)
+                        put("unit", unit)
+                        put("is_active", true)
+                    }
                 ) {
                     select()
                 }
                 .decodeSingle<PerDiemConfig>()
 
+            android.util.Log.d("PerDiemRepository", "Per-diem config created with id: ${config.id}")
             Result.success(config)
         } catch (e: Exception) {
+            android.util.Log.e("PerDiemRepository", "Error creating per-diem config", e)
             Result.failure(e)
         }
     }
@@ -87,7 +94,7 @@ class PerDiemRepository @Inject constructor(
         unit: String
     ): Result<Unit> {
         return try {
-            supabase.from("per_diem_configs")
+            supabase.from("per_diem_config")
                 .update(
                     mapOf(
                         "item_name" to itemName,
@@ -109,7 +116,7 @@ class PerDiemRepository @Inject constructor(
 
     suspend fun deletePerDiemConfig(configId: String): Result<Unit> {
         return try {
-            supabase.from("per_diem_configs")
+            supabase.from("per_diem_config")
                 .update(
                     mapOf("is_active" to false)
                 ) {
@@ -155,7 +162,7 @@ class PerDiemRepository @Inject constructor(
                     "p_title" to "Per-Diem Entry Added",
                     "p_message" to "$itemName entry added: $quantity units.",
                     "p_type" to "per_diem",
-                    "p_data" to mapOf("type" to "per_diem", "id" to entry.id),
+                    "p_data" to mapOf("id" to entry.id),
                     "p_exclude_user_id" to currentUserId
                 )
             )

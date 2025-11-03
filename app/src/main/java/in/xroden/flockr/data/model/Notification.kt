@@ -9,7 +9,7 @@ data class Notification(
     @SerialName("user_id")
     val userId: String,
     @SerialName("house_id")
-    val houseId: String,
+    val houseId: String? = null,
     val title: String,
     val message: String,
     val type: String,

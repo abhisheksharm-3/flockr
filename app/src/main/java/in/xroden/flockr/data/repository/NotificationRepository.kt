@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Notification
+import `in`.xroden.flockr.util.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -23,10 +24,18 @@ class NotificationRepository @Inject constructor(
 ) {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
+    
+    companion object {
+        private const val TAG = "NotificationRepository"
+    }
 
     fun getNotificationsFlow(): Flow<List<Notification>> {
-        val currentUserId = userId ?: return kotlinx.coroutines.flow.flowOf(emptyList())
+        val currentUserId = userId ?: run {
+            FlockrLogger.e(TAG, "getNotificationsFlow: No user logged in")
+            return kotlinx.coroutines.flow.flowOf(emptyList())
+        }
 
+        FlockrLogger.realtimeEvent(TAG, "getNotificationsFlow", "Starting for user=$currentUserId")
         return kotlinx.coroutines.flow.flow {
             val initialList = supabase.from("notifications")
                 .select(Columns.ALL) {
@@ -37,23 +46,49 @@ class NotificationRepository @Inject constructor(
                 }
                 .decodeList<Notification>()
 
+            FlockrLogger.d(TAG, "getNotificationsFlow: Emitting initial ${initialList.size} notifications")
             emit(initialList)
 
-            val channel = supabase.realtime.channel("notifications_$currentUserId")
-            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "notifications"
-                filter = "user_id=eq.$currentUserId"
-            }.collect {
-                emit(getNotifications())
+            val channelId = "notifications_${currentUserId}_${System.currentTimeMillis()}"
+            val channel = supabase.realtime.channel(channelId)
+            
+            try {
+                val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "notifications"
+                }
+                
+                FlockrLogger.realtimeEvent(TAG, "getNotificationsFlow", "Subscribing to channel $channelId")
+                channel.subscribe(blockUntilSubscribed = true)
+                FlockrLogger.realtimeEvent(TAG, "getNotificationsFlow", "Successfully subscribed")
+                
+                changeFlow.collect { action ->
+                    FlockrLogger.realtimeEvent(TAG, "getNotificationsFlow", "Received update: $action")
+                    val updatedList = getNotifications()
+                    FlockrLogger.d(TAG, "getNotificationsFlow: Emitting ${updatedList.size} notifications after update")
+                    emit(updatedList)
+                }
+            } catch (e: Exception) {
+                FlockrLogger.repoError(TAG, "getNotificationsFlow", e)
+            } finally {
+                try {
+                    FlockrLogger.d(TAG, "getNotificationsFlow: Cleaning up channel")
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    FlockrLogger.e(TAG, "getNotificationsFlow: Error removing channel", e)
+                }
             }
         }
     }
 
     suspend fun getNotifications(): List<Notification> {
+        FlockrLogger.repoStart(TAG, "getNotifications", emptyMap())
         return try {
-            val currentUserId = userId ?: return emptyList()
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "getNotifications: No user logged in")
+                return emptyList()
+            }
 
-            supabase.from("notifications")
+            val notifications = supabase.from("notifications")
                 .select(Columns.ALL) {
                     filter {
                         eq("user_id", currentUserId)
@@ -61,7 +96,10 @@ class NotificationRepository @Inject constructor(
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<Notification>()
+            FlockrLogger.repoSuccess(TAG, "getNotifications", "Found ${notifications.size} notifications")
+            notifications
         } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "getNotifications", e)
             emptyList()
         }
     }
@@ -139,6 +177,22 @@ class NotificationRepository @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    fun getUnreadCountFlow(): Flow<Int> {
+        val currentUserId = userId ?: return kotlinx.coroutines.flow.flowOf(0)
+
+        return kotlinx.coroutines.flow.flow {
+            val initialCount = getUnreadCount()
+            emit(initialCount)
+
+            val channel = supabase.realtime.channel("notifications_count_$currentUserId")
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "notifications"
+            }.collect {
+                emit(getUnreadCount())
+            }
         }
     }
 

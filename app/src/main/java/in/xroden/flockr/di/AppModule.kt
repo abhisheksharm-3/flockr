@@ -26,7 +26,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    // TODO: Replace with your actual Supabase URL and Anon Key
     private const val SUPABASE_URL = BuildConfig.SUPABASE_URL
     private const val SUPABASE_KEY = BuildConfig.SUPABASE_KEY
 

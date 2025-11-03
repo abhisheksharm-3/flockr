@@ -1,20 +1,31 @@
 package `in`.xroden.flockr.ui.screens.notifications
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.model.Notification
+import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.ui.viewmodel.NotificationUiState
 import `in`.xroden.flockr.ui.viewmodel.NotificationViewModel
 
@@ -30,7 +41,13 @@ fun NotificationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notifications") },
+                title = {
+                    Text(
+                        "NOTIFICATIONS",
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -38,9 +55,26 @@ fun NotificationScreen(
                 },
                 actions = {
                     TextButton(onClick = { viewModel.markAllAsRead() }) {
-                        Text("Mark all read")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "MARK ALL",
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
@@ -52,7 +86,10 @@ fun NotificationScreen(
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp
+                    )
                 }
             }
             is NotificationUiState.Success -> {
@@ -63,16 +100,40 @@ fun NotificationScreen(
                             .padding(padding),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .border(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Notifications,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(40.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                             Text(
-                                text = "No notifications",
-                                style = MaterialTheme.typography.headlineSmall
+                                text = "NO NOTIFICATIONS",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
                             )
                             Text(
                                 text = "You're all caught up!",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -81,17 +142,21 @@ fun NotificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
-                            NotificationItem(
-                                notification = notification,
-                                onClick = {
-                                    viewModel.markAsRead(notification.id)
-                                    onNotificationClick(notification)
-                                }
-                            )
+                            FadeInListItem {
+                                IndustrialNotificationItem(
+                                    notification = notification,
+                                    onClick = {
+                                        viewModel.markAsRead(notification.id)
+                                        onNotificationClick(notification)
+                                    }
+                                )
+                            }
                         }
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
                 }
             }
@@ -102,10 +167,22 @@ fun NotificationScreen(
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "ERROR",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -113,54 +190,104 @@ fun NotificationScreen(
 }
 
 @Composable
-fun NotificationItem(
+private fun IndustrialNotificationItem(
     notification: Notification,
     onClick: () -> Unit
 ) {
-    Row(
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "notification_scale"
+    )
+    
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(
-                if (!notification.isRead) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-                } else {
-                    MaterialTheme.colorScheme.surface
-                }
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .border(
+                width = if (!notification.isRead) 2.dp else 1.dp,
+                color = if (!notification.isRead) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(8.dp)
+            ),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (!notification.isRead) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (!notification.isRead) 3.dp else 1.dp
+        )
     ) {
-        if (!notification.isRead) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-        } else {
-            Spacer(modifier = Modifier.width(20.dp))
-        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Unread indicator
+            if (!notification.isRead) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .size(10.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
+                        )
+                )
+            } else {
+                Spacer(modifier = Modifier.width(10.dp))
+            }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = notification.title,
-                style = if (!notification.isRead) {
-                    MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = notification.title.uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    letterSpacing = if (!notification.isRead) 0.5.sp else 0.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = notification.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+                // Optional: Add timestamp
+                notification.createdAt?.let { timestamp ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = formatTimestamp(timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
                     )
-                } else {
-                    MaterialTheme.typography.titleMedium
                 }
-            )
-            Text(
-                text = notification.message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-                maxLines = 2
-            )
+            }
         }
     }
 }
 
+private fun formatTimestamp(timestamp: String): String {
+    // TODO: Implement proper timestamp formatting
+    // For now, return placeholder
+    return "Just now"
+}

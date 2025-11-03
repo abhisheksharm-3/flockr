@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -13,12 +14,20 @@ import `in`.xroden.flockr.data.preferences.ThemeMode
 import `in`.xroden.flockr.ui.navigation.FlockrNavigation
 import `in`.xroden.flockr.ui.theme.FlockrTheme
 import `in`.xroden.flockr.ui.viewmodel.SettingsViewModel
+import `in`.xroden.flockr.utils.PermissionHandler
+import `in`.xroden.flockr.utils.PermissionManager
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    private lateinit var permissionManager: PermissionManager
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        permissionManager = PermissionManager(this)
+        
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val themeMode by settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
@@ -27,6 +36,15 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+
+            // Request notification permission on first launch
+            LaunchedEffect(Unit) {
+                if (!PermissionHandler.hasNotificationPermission(this@MainActivity)) {
+                    permissionManager.requestNotificationPermission { granted ->
+                        android.util.Log.d("MainActivity", "Notification permission: $granted")
+                    }
+                }
             }
 
             FlockrTheme(darkTheme = darkTheme) {

@@ -52,19 +52,56 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        mapOf(
-                            "house_id" to houseId,
-                            "name" to name,
-                            "amount" to amount,
-                            "due_day" to dueDay,
-                            "category" to category,
-                            "created_by" to userId
-                        )
+                        buildMap<String, Any> {
+                            put("house_id", houseId)
+                            put("name", name)
+                            put("amount", amount)
+                            put("due_day", dueDay)
+                            put("category", category)
+                            put("created_by", userId)
+                        }
                     )
 
                 loadRecurringExpenses(houseId)
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("RecurringExpenseViewModel", "Error adding expense", e)
+            }
+        }
+    }
+
+    fun createRecurringExpense(
+        houseId: String,
+        name: String,
+        amount: Double,
+        dueDay: Int,
+        category: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val userId = supabase.auth.currentUserOrNull()?.id ?: run {
+                    onError("No user logged in")
+                    return@launch
+                }
+
+                supabase.from("recurring_expenses")
+                    .insert(
+                        buildMap<String, Any> {
+                            put("house_id", houseId)
+                            put("name", name)
+                            put("amount", amount)
+                            put("due_day", dueDay)
+                            put("category", category)
+                            put("created_by", userId)
+                        }
+                    )
+
+                loadRecurringExpenses(houseId)
+                onSuccess()
+            } catch (e: Exception) {
+                android.util.Log.e("RecurringExpenseViewModel", "Error creating expense", e)
+                onError(e.message ?: "Failed to create recurring expense")
             }
         }
     }

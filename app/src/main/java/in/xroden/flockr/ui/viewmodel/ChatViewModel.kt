@@ -57,6 +57,8 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    fun getCurrentUserId(): String? = chatRepository.getCurrentUserId()
 }
 
 sealed class ChatUiState {
