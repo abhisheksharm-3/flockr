@@ -46,11 +46,10 @@ class ExpenseViewModel @Inject constructor(
     private val _recurringExpenses = MutableStateFlow<List<RecurringExpense>>(emptyList())
     val recurringExpenses: StateFlow<List<RecurringExpense>> = _recurringExpenses.asStateFlow()
 
+    fun getCurrentUserId(): String? = expenseRepository.getCurrentUserId()
+
     fun loadExpenses(houseId: String) {
-        Log.d(TAG, "loadExpenses() called for houseId=$houseId")
         viewModelScope.launch {
-            Log.d(TAG, "loadExpenses: Setting state to Loading")
-            _uiState.value = ExpenseUiState.Loading
             try {
                 Log.d(TAG, "loadExpenses: Collecting expenses flow from repository")
                 expenseRepository.getOneTimeExpensesFlow(houseId).collect { expenses ->
@@ -64,9 +63,6 @@ class ExpenseViewModel @Inject constructor(
         }
     }
 
-    companion object {
-        private const val TAG = "ExpenseViewModel"
-    }
 
     fun loadBalances(houseId: String) {
         Log.d(TAG, "loadBalances() called for houseId=$houseId")
@@ -247,6 +243,10 @@ class ExpenseViewModel @Inject constructor(
                 onError(e.message ?: "Unknown error")
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "ExpenseViewModel"
     }
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.ui.components.cards.SectionCard
+import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
 import `in`.xroden.flockr.ui.viewmodel.RecurringExpenseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,7 +27,8 @@ fun AddRecurringExpenseScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onExpenseAdded: () -> Unit,
-    viewModel: RecurringExpenseViewModel = hiltViewModel()
+    viewModel: RecurringExpenseViewModel = hiltViewModel(),
+    expenseViewModel: ExpenseViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -36,12 +38,17 @@ fun AddRecurringExpenseScreen(
     var isLoading by remember { mutableStateOf(false) }
 
     val categories = listOf(
-        "Utilities", "Rent", "Internet", "Phone", "Insurance",
-        "Subscriptions", "Loan Payment", "Healthcare", "Other"
+        "Utilities", "Rent", "Internet", "Insurance", "Subscription", "Other"
     )
+    val houseConfig by expenseViewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
-    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(houseId) {
+        expenseViewModel.loadHouseConfig(houseId)
+    }
 
     Scaffold(
         topBar = {
@@ -106,7 +113,7 @@ fun AddRecurringExpenseScreen(
                     value = amount,
                     onValueChange = { amount = it },
                     label = { Text("Amount *") },
-                    prefix = { Text("$") },
+                    prefix = { Text(currencySymbol) },
                     leadingIcon = { Icon(Icons.Default.AttachMoney, null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
@@ -114,7 +121,6 @@ fun AddRecurringExpenseScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )
-
                 // Due Day
                 OutlinedTextField(
                     value = dueDay,

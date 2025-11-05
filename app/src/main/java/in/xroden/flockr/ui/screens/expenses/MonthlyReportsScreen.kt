@@ -15,9 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.ui.components.data.BalanceDisplay
-import `in`.xroden.flockr.ui.components.data.StatDisplay
-import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -30,16 +27,18 @@ fun MonthlyReportsScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
-    val monthlySummary by viewModel.monthlySummary.collectAsState()
+    val perDiemItemized by viewModel.perDiemBillItemized.collectAsState()
     val spendByMember by viewModel.spendByMember.collectAsState()
     val spendByCategory by viewModel.spendByCategory.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
+    val monthlySummary by viewModel.monthlySummary.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
         val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
         viewModel.loadMonthlySummary(houseId, monthStr)
-        viewModel.loadSpendByMember(houseId, monthStr)
+        viewModel.loadPerDiemBillItemized(houseId, monthStr)
         viewModel.loadSpendByCategory(houseId, monthStr)
+        viewModel.loadSpendByMember(houseId, monthStr)
         viewModel.loadHouseConfig(houseId)
     }
 
@@ -127,8 +126,8 @@ fun MonthlyReportsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
                             text = "Monthly Overview",
@@ -137,38 +136,80 @@ fun MonthlyReportsScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
 
-                        Row(
+                        // Total Expenses - Prominent
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            StatDisplay(
-                                label = "Total Expenses",
-                                value = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
-                                accentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            Text(
+                                text = "Total Expenses",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
-                            StatDisplay(
-                                label = "One-Time",
-                                value = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
-                                accentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            Text(
+                                text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
 
+                        // Breakdown
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            StatDisplay(
-                                label = "Recurring",
-                                value = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
-                                accentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            StatDisplay(
-                                label = "Per Diem",
-                                value = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
-                                accentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "One-Time",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Recurring",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Per Diem",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
                 }
@@ -190,7 +231,7 @@ fun MonthlyReportsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(180.dp)
+                                    .height(120.dp)
                                     .background(
                                         MaterialTheme.colorScheme.surfaceVariant,
                                         RoundedCornerShape(8.dp)
@@ -208,7 +249,7 @@ fun MonthlyReportsScreen(
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        "Chart Visualization",
+                                        "Bar Chart Visualization",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -273,7 +314,7 @@ fun MonthlyReportsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(180.dp)
+                                    .height(120.dp)
                                     .background(
                                         MaterialTheme.colorScheme.surfaceVariant,
                                         RoundedCornerShape(8.dp)
@@ -318,11 +359,11 @@ fun MonthlyReportsScreen(
                                         Icon(
                                             imageVector = Icons.Default.Category,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.secondary,
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Text(
-                                            text = spend.category,
+                                            text = spend.category ?: "Uncategorized",
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -331,7 +372,7 @@ fun MonthlyReportsScreen(
                                         text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", spend.totalAmount)}",
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -340,26 +381,117 @@ fun MonthlyReportsScreen(
                 }
             }
 
-            // Export Options
+            // Per Diem Itemized
             item {
-                SectionCard(title = "Export & Actions") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ModernListItem(
-                            title = "Export as PDF",
-                            subtitle = "Generate a detailed PDF report",
-                            icon = Icons.Default.PictureAsPdf,
-                            onClick = { /* TODO: Export PDF */ }
+                SectionCard(title = "Per Diem Usage by Item") {
+                    if (perDiemItemized.isEmpty()) {
+                        Text(
+                            text = "No per diem items used this month",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp)
                         )
-                        ModernListItem(
-                            title = "Share Report",
-                            subtitle = "Share with household members",
-                            icon = Icons.Default.Share,
-                            onClick = { /* TODO: Share */ }
-                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            perDiemItemized.forEach { item ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Item name and amount
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = item.itemName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Text(
+                                                text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.totalAmount)}",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                                        )
+
+                                        // Quantity and rate details
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ShoppingBag,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                                )
+                                                Text(
+                                                    text = "Quantity: ${String.format("%.1f", item.totalQuantity)} ${item.unit}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Text(
+                                                text = "@${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.rate)}/${item.unit}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Total per diem
+                            if (monthlySummary?.perDiemExpenses != null && monthlySummary!!.perDiemExpenses > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Total Per Diem",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", monthlySummary!!.perDiemExpenses)}",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
-

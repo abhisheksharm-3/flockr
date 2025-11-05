@@ -189,11 +189,11 @@ data class GetPerDiemBillByMonthParams(
 
 @Serializable
 data class CreateHouseResponse(
-    @SerialName("house_id")
+    @SerialName("out_house_id")
     val houseId: String,
-    @SerialName("house_name")
+    @SerialName("out_house_name")
     val houseName: String,
-    @SerialName("invite_code")
+    @SerialName("out_invite_code")
     val inviteCode: String
 )
 

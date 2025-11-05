@@ -22,6 +22,8 @@ class ExpenseRepository @Inject constructor(
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
     
+    fun getCurrentUserId(): String? = userId
+    
     companion object {
         private const val TAG = "ExpenseRepository"
     }
@@ -151,10 +153,16 @@ class ExpenseRepository @Inject constructor(
                     data = """{"id":"${expense.id}","type":"expense"}""",
                     excludeUserId = currentUserId
                 )
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
+                try {
+                    supabase.postgrest.rpc(
+                        function = "create_notification_for_house",
+                        parameters = notificationParams
+                    ).decodeAs<Unit>()
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Split notification created successfully")
+                } catch (e: Exception) {
+                    // Ignore notification errors, they shouldn't fail the expense creation
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Notification failed (non-critical): ${e.message}")
+                }
             } else {
                 // Create notification for simple expense (not split)
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating simple notification")
@@ -165,10 +173,16 @@ class ExpenseRepository @Inject constructor(
                     data = """{"id":"${expense.id}","type":"expense"}""",
                     excludeUserId = currentUserId
                 )
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
+                try {
+                    supabase.postgrest.rpc(
+                        function = "create_notification_for_house",
+                        parameters = notificationParams
+                    ).decodeAs<Unit>()
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Simple notification created successfully")
+                } catch (e: Exception) {
+                    // Ignore notification errors, they shouldn't fail the expense creation
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Notification failed (non-critical): ${e.message}")
+                }
             }
 
             FlockrLogger.repoSuccess(TAG, "createOneTimeExpense", "expense_id=${expense.id}")
@@ -249,11 +263,13 @@ class ExpenseRepository @Inject constructor(
     suspend fun getMonthlySummary(houseId: String, month: String): MonthlySummary? {
         FlockrLogger.repoStart(TAG, "getMonthlySummary", mapOf("houseId" to houseId, "month" to month))
         return try {
+            // Ensure month is in yyyy-MM-dd format for date type parameter
+            val monthDate = if (month.length == 7) "$month-01" else month
             val result = supabase.postgrest.rpc(
                 "get_monthly_summary",
                 mapOf(
                     "p_house_id" to houseId,
-                    "p_month" to month
+                    "p_month" to monthDate
                 )
             ).decodeList<MonthlySummary>()
 
@@ -269,11 +285,13 @@ class ExpenseRepository @Inject constructor(
     suspend fun getSpendByMember(houseId: String, month: String): List<SpendByMember> {
         FlockrLogger.repoStart(TAG, "getSpendByMember", mapOf("houseId" to houseId, "month" to month))
         return try {
+            // Ensure month is in yyyy-MM-dd format for date type parameter
+            val monthDate = if (month.length == 7) "$month-01" else month
             val members = supabase.postgrest.rpc(
                 function = "get_spend_by_member",
                 parameters = buildMap {
                     put("p_house_id", houseId)
-                    put("p_month", month)
+                    put("p_month", monthDate)
                 }
             ).decodeList<SpendByMember>()
             FlockrLogger.repoSuccess(TAG, "getSpendByMember", "Found ${members.size} members")
@@ -287,11 +305,13 @@ class ExpenseRepository @Inject constructor(
     suspend fun getSpendByCategory(houseId: String, month: String): List<SpendByCategory> {
         FlockrLogger.repoStart(TAG, "getSpendByCategory", mapOf("houseId" to houseId, "month" to month))
         return try {
+            // Ensure month is in yyyy-MM-dd format for date type parameter
+            val monthDate = if (month.length == 7) "$month-01" else month
             val categories = supabase.postgrest.rpc(
                 function = "get_spend_by_category",
                 parameters = buildMap {
                     put("p_house_id", houseId)
-                    put("p_month", month)
+                    put("p_month", monthDate)
                 }
             ).decodeList<SpendByCategory>()
             FlockrLogger.repoSuccess(TAG, "getSpendByCategory", "Found ${categories.size} categories")
@@ -305,11 +325,13 @@ class ExpenseRepository @Inject constructor(
     suspend fun getPerDiemBillItemized(houseId: String, month: String): List<PerDiemBillItemized> {
         FlockrLogger.repoStart(TAG, "getPerDiemBillItemized", mapOf("houseId" to houseId, "month" to month))
         return try {
+            // Ensure month is in yyyy-MM-dd format for date type parameter
+            val monthDate = if (month.length == 7) "$month-01" else month
             val items = supabase.postgrest.rpc(
                 function = "get_per_diem_bill_itemized",
                 parameters = buildMap {
                     put("p_house_id", houseId)
-                    put("p_month", month)
+                    put("p_month", monthDate)
                 }
             ).decodeList<PerDiemBillItemized>()
             FlockrLogger.repoSuccess(TAG, "getPerDiemBillItemized", "Found ${items.size} items")
@@ -323,11 +345,13 @@ class ExpenseRepository @Inject constructor(
     suspend fun getPerDiemBillByMember(houseId: String, month: String): List<PerDiemBillByMember> {
         FlockrLogger.repoStart(TAG, "getPerDiemBillByMember", mapOf("houseId" to houseId, "month" to month))
         return try {
+            // Ensure month is in yyyy-MM-dd format for date type parameter
+            val monthDate = if (month.length == 7) "$month-01" else month
             val members = supabase.postgrest.rpc(
                 function = "get_per_diem_bill_by_member",
                 parameters = buildMap {
                     put("p_house_id", houseId)
-                    put("p_month", month)
+                    put("p_month", monthDate)
                 }
             ).decodeList<PerDiemBillByMember>()
             FlockrLogger.repoSuccess(TAG, "getPerDiemBillByMember", "Found ${members.size} members")

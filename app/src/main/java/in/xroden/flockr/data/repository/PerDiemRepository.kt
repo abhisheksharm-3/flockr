@@ -9,6 +9,7 @@ import `in`.xroden.flockr.data.model.PerDiemConfigInsert
 import `in`.xroden.flockr.data.model.PerDiemConfigUpdate
 import `in`.xroden.flockr.data.model.PerDiemEntry
 import `in`.xroden.flockr.data.model.PerDiemEntryInsert
+import `in`.xroden.flockr.data.model.PerDiemEntryWithDetails
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -174,6 +175,64 @@ class PerDiemRepository @Inject constructor(
             Result.success(entry)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun updatePerDiemEntry(
+        entryId: String,
+        quantity: Double,
+        date: String,
+        notes: String?
+    ): Result<Unit> {
+        return try {
+            val update = mapOf(
+                "quantity" to quantity,
+                "date" to date,
+                "notes" to notes
+            )
+            supabase.from("per_diem_entries")
+                .update(update) {
+                    filter {
+                        eq("id", entryId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deletePerDiemEntry(entryId: String): Result<Unit> {
+        return try {
+            supabase.from("per_diem_entries")
+                .delete {
+                    filter {
+                        eq("id", entryId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPerDiemEntriesWithDetails(houseId: String, month: String? = null): List<PerDiemEntryWithDetails> {
+        return try {
+            val monthDate = if (month != null && month.length == 7) "$month-01" else month
+            supabase.postgrest.rpc(
+                function = "get_per_diem_entries_with_details",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    if (monthDate != null) {
+                        put("p_month", monthDate)
+                    }
+                }
+            ).decodeList<PerDiemEntryWithDetails>()
+        } catch (e: Exception) {
+            android.util.Log.e("PerDiemRepository", "Error getting per diem entries with details", e)
+            emptyList()
         }
     }
 

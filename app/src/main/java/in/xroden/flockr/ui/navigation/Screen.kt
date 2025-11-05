@@ -58,11 +58,23 @@ sealed class Screen(val route: String) {
     object RecurringExpenses : Screen("recurring_expenses/{houseId}") {
         fun createRoute(houseId: String) = "recurring_expenses/$houseId"
     }
+    object AddRecurringExpense : Screen("add_recurring_expense/{houseId}") {
+        fun createRoute(houseId: String) = "add_recurring_expense/$houseId"
+    }
     object MonthlyReports : Screen("monthly_reports/{houseId}") {
         fun createRoute(houseId: String) = "monthly_reports/$houseId"
     }
-    object AddExpenseModern : Screen("add_expense_modern/{houseId}") {
-        fun createRoute(houseId: String) = "add_expense_modern/$houseId"
+    object AddExpenseModern : Screen("add_expense_modern/{houseId}?itemName={itemName}&quantity={quantity}") {
+        fun createRoute(houseId: String, itemName: String? = null, quantity: Int? = null): String {
+            var route = "add_expense_modern/$houseId"
+            if (itemName != null) {
+                route += "?itemName=${java.net.URLEncoder.encode(itemName, "UTF-8")}"
+                if (quantity != null) {
+                    route += "&quantity=$quantity"
+                }
+            }
+            return route
+        }
     }
     object BalancesModern : Screen("balances_modern/{houseId}") {
         fun createRoute(houseId: String) = "balances_modern/$houseId"

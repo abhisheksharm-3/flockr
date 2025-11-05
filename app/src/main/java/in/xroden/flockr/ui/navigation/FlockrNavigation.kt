@@ -349,11 +349,28 @@ fun FlockrNavigation(
 
                 composable(
                     route = Screen.AddExpenseModern.route,
-                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("itemName") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                        navArgument("quantity") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val itemName = backStackEntry.arguments?.getString("itemName")
+                    val quantityStr = backStackEntry.arguments?.getString("quantity")
+                    val quantity = quantityStr?.toIntOrNull()
                     `in`.xroden.flockr.ui.screens.expenses.AddExpenseScreenModern(
                         houseId = houseId,
+                        initialName = itemName,
+                        initialQuantity = quantity,
                         onNavigateBack = { navController.popBackStack() },
                         onExpenseAdded = { navController.popBackStack() }
                     )
@@ -377,7 +394,22 @@ fun FlockrNavigation(
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     `in`.xroden.flockr.ui.screens.expenses.RecurringExpensesScreen(
                         houseId = houseId,
-                        onNavigateBack = { navController.popBackStack() }
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAddBill = {
+                            navController.navigate(Screen.AddRecurringExpense.createRoute(houseId))
+                        }
+                    )
+                }
+
+                composable(
+                    route = Screen.AddRecurringExpense.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    `in`.xroden.flockr.ui.screens.expenses.AddRecurringExpenseScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onExpenseAdded = { navController.popBackStack() }
                     )
                 }
 
@@ -418,7 +450,10 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.ui.screens.shopping.ShoppingListScreenModern(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAddExpense = { navController.navigate(Screen.AddExpenseModern.createRoute(houseId)) }
+                        onNavigateToAddExpense = { navController.navigate(Screen.AddExpenseModern.createRoute(houseId)) },
+                        onNavigateToAddExpenseWithData = { itemName, quantity ->
+                            navController.navigate(Screen.AddExpenseModern.createRoute(houseId, itemName, quantity))
+                        }
                     )
                 }
 

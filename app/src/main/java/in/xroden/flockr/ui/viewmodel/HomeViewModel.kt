@@ -39,12 +39,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun createHouse(name: String, address: String?, latitude: Double?, longitude: Double?, onSuccess: (House) -> Unit) {
+    fun createHouse(name: String, address: String?, latitude: Double?, longitude: Double?, currencyCode: String = "USD", currencySymbol: String = "$", onSuccess: (House) -> Unit) {
         viewModelScope.launch {
             try {
-                android.util.Log.d("HomeViewModel", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude")
+                android.util.Log.d("HomeViewModel", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude, currency=$currencyCode")
                 _uiState.value = HomeUiState.Loading
-                houseRepository.createHouse(name, address, latitude, longitude).fold(
+                houseRepository.createHouse(name, address, latitude, longitude, currencyCode, currencySymbol).fold(
                     onSuccess = { house ->
                         android.util.Log.d("HomeViewModel", "createHouse succeeded - id=${house.id}, name=${house.name}, inviteCode=${house.inviteCode}")
                         loadHouses()

@@ -308,13 +308,16 @@ private fun CreateHouseScreenContent(
                             return@FlockrPrimaryButton
                         }
                         
-                        logScreenState(SCREEN_NAME, "Creating", "name=$houseName")
+                        logScreenState(SCREEN_NAME, "Creating", "name=$houseName, currency=$currency")
                         isCreating = true
+                        val currencySymbol = currencies.find { it.first == currency }?.second ?: "$"
                         viewModel.createHouse(
                             name = houseName,
                             address = address.takeIf { it.isNotBlank() },
                             latitude = null,
                             longitude = null,
+                            currencyCode = currency,
+                            currencySymbol = currencySymbol,
                             onSuccess = { house ->
                                 logScreenState(SCREEN_NAME, "Created Successfully", "houseId=${house.id}, inviteCode=${house.inviteCode}")
                                 isCreating = false

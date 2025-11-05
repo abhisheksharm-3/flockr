@@ -45,12 +45,16 @@ fun ExpenseDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val balances by viewModel.balances.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
+    val monthlySummary by viewModel.monthlySummary.collectAsState()
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
         viewModel.loadBalances(houseId)
         viewModel.loadHouseConfig(houseId)
+        // Load monthly summary for current month
+        val currentMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+        viewModel.loadMonthlySummary(houseId, currentMonth)
     }
 
     Scaffold(
@@ -108,16 +112,11 @@ fun ExpenseDashboardScreen(
 
             // Quick Stats Row
             item {
-                val totalThisMonth = when (val state = uiState) {
-                    is `in`.xroden.flockr.ui.viewmodel.ExpenseUiState.Success -> {
-                        val currentMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
-                        state.expenses.filter { it.date.startsWith(currentMonth) }
-                            .sumOf { it.amount }
-                    }
-                    else -> 0.0
-                }
+                // Use monthly summary which includes all expense types (one-time, recurring, per diem)
+                val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
 
-                val userBalance = balances.firstOrNull()?.balance ?: 0.0
+                val currentUserId = viewModel.getCurrentUserId()
+                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: 0.0
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

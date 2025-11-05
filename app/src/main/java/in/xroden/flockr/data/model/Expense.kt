@@ -85,22 +85,30 @@ data class UserBalance(
 
 @Serializable
 data class MonthlySummary(
+    @SerialName("total_expenses")
     val totalExpenses: Double,
+    @SerialName("recurring_expenses")
     val recurringExpenses: Double,
+    @SerialName("one_time_expenses")
     val oneTimeExpenses: Double,
+    @SerialName("per_diem_expenses")
     val perDiemExpenses: Double
 )
 
 @Serializable
 data class SpendByMember(
+    @SerialName("user_id")
     val userId: String,
+    @SerialName("full_name")
     val fullName: String?,
+    @SerialName("total_spent")
     val totalSpent: Double
 )
 
 @Serializable
 data class SpendByCategory(
     val category: String,
+    @SerialName("total_amount")
     val totalAmount: Double
 )
 

@@ -36,6 +36,7 @@ fun ShoppingListScreenModern(
     houseId: String,
     onNavigateBack: () -> Unit,
     onNavigateToAddExpense: () -> Unit = {},
+    onNavigateToAddExpenseWithData: (String, Int) -> Unit = { _, _ -> },
     viewModel: ShoppingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -70,8 +71,10 @@ fun ShoppingListScreenModern(
             item = item,
             onDismiss = { showConvertDialog = null },
             onConvert = {
+                val itemToConvert = item
                 showConvertDialog = null
-                onNavigateToAddExpense()
+                val qty = itemToConvert.quantity?.toIntOrNull() ?: 1
+                onNavigateToAddExpenseWithData(itemToConvert.itemName, qty)
             },
             onSkip = { showConvertDialog = null }
         )
