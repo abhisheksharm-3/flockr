@@ -30,6 +30,7 @@ import `in`.xroden.flockr.ui.viewmodel.HouseSettingsViewModel
 fun HouseSettingsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
+    onDeleteHouse: () -> Unit = {},
     viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
     var house by remember { mutableStateOf<House?>(null) }
@@ -713,13 +714,14 @@ fun HouseSettingsScreen(
                             isSaving = false
                             if (result.isSuccess) {
                                 snackbarHostState.showSnackbar("House deleted")
-                                onNavigateBack()
+                                showDeleteDialog = false
+                                onDeleteHouse()
                             } else {
                                 snackbarHostState.showSnackbar(
                                     result.exceptionOrNull()?.message ?: "Failed to delete house"
                                 )
+                                showDeleteDialog = false
                             }
-                            showDeleteDialog = false
                         }
                     },
                     colors = ButtonDefaults.buttonColors(

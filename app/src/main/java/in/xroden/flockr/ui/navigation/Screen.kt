@@ -82,6 +82,9 @@ sealed class Screen(val route: String) {
     object QuickPerDiemEntry : Screen("quick_per_diem/{houseId}") {
         fun createRoute(houseId: String) = "quick_per_diem/$houseId"
     }
+    object PerDiemTransactions : Screen("per_diem_transactions/{houseId}") {
+        fun createRoute(houseId: String) = "per_diem_transactions/$houseId"
+    }
 
     // Modern Organization Screens
     object ShoppingListModern : Screen("shopping_modern/{houseId}") {
