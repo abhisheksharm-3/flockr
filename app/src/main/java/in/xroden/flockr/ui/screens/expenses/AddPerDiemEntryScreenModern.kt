@@ -42,9 +42,12 @@ fun AddPerDiemEntryScreenModern(
 
     val configs by viewModel.configs.collectAsState()
     val config = configs.firstOrNull { it.id == configId }
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
@@ -114,7 +117,7 @@ fun AddPerDiemEntryScreenModern(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "$%.2f per ${config.unit}".format(config.rate),
+                                text = "$currencySymbol${"%.2f".format(config.rate)} per ${config.unit}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -174,7 +177,7 @@ fun AddPerDiemEntryScreenModern(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "$%.2f".format(quantityDouble * config.rate),
+                                    text = "$currencySymbol${"%.2f".format(quantityDouble * config.rate)}",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -212,7 +215,7 @@ fun AddPerDiemEntryScreenModern(
                                         quantity = quantityDouble,
                                         date = date,
                                         notes = notes.takeIf { it.isNotBlank() },
-                                        itemName = config?.itemName ?: "",
+                                        itemName = config.itemName,
                                         onSuccess = {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Usage logged successfully")

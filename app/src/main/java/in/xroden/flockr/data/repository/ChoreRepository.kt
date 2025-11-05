@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Chore
-import `in`.xroden.flockr.util.FlockrLogger
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -13,7 +13,9 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,14 +75,47 @@ class ChoreRepository @Inject constructor(
     suspend fun getChores(houseId: String): List<Chore> {
         FlockrLogger.repoStart(TAG, "getChores", mapOf("houseId" to houseId))
         return try {
-            val chores = supabase.from("chores")
-                .select(Columns.ALL) {
+            val response = supabase.from("chores")
+                .select(Columns.raw("""
+                    *,
+                    assigned_to_profile:profiles!chores_assigned_to_fkey(full_name),
+                    completed_by_profile:profiles!chores_completed_by_fkey(full_name),
+                    created_by_profile:profiles!chores_created_by_fkey(full_name)
+                """.trimIndent())) {
                     filter {
                         eq("house_id", houseId)
                     }
                     order("due_date", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }
-                .decodeList<Chore>()
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+
+            val chores = response.map { obj ->
+                val assignedToName = obj["assigned_to_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
+                val completedByName = obj["completed_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
+                val createdByName = obj["created_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
+
+                Chore(
+                    id = obj["id"]?.jsonPrimitive?.content ?: "",
+                    houseId = obj["house_id"]?.jsonPrimitive?.content ?: "",
+                    taskName = obj["task_name"]?.jsonPrimitive?.content ?: "",
+                    description = obj["description"]?.jsonPrimitive?.contentOrNull,
+                    assignedTo = obj["assigned_to"]?.jsonPrimitive?.contentOrNull,
+                    assignedToName = assignedToName,
+                    dueDate = obj["due_date"]?.jsonPrimitive?.contentOrNull,
+                    isCompleted = obj["is_completed"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    completedAt = obj["completed_at"]?.jsonPrimitive?.contentOrNull,
+                    completedBy = obj["completed_by"]?.jsonPrimitive?.contentOrNull,
+                    completedByName = completedByName,
+                    recurrencePattern = obj["recurrence_pattern"]?.jsonPrimitive?.contentOrNull,
+                    createdBy = obj["created_by"]?.jsonPrimitive?.contentOrNull,
+                    createdByName = createdByName,
+                    createdAt = obj["created_at"]?.jsonPrimitive?.content ?: ""
+                )
+            }
+            
             FlockrLogger.repoSuccess(TAG, "getChores", "Found ${chores.size} chores")
             chores
         } catch (e: Exception) {
@@ -98,45 +133,38 @@ class ChoreRepository @Inject constructor(
         recurrencePattern: String?,
         assignedTo: String?
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "createChore", mapOf(
-            "houseId" to houseId,
-            "taskName" to taskName,
-            "assignedTo" to assignedTo
-        ))
+        FlockrLogger.repoStart(TAG, "createChore", mapOf("houseId" to houseId, "taskName" to taskName))
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "createChore: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
+            val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
 
-            val insertData = buildMap<String, Any> {
-                put("house_id", houseId)
-                put("task_name", taskName)
-                description?.let { put("description", it) }
-                dueDate?.let { put("due_date", it) }
-                put("is_recurring", isRecurring)
-                recurrencePattern?.let { put("recurrence_pattern", it) }
-                assignedTo?.let { put("assigned_to", it) }
-                put("created_by", currentUserId)
-            }
-
+            FlockrLogger.d(TAG, "createChore: Inserting chore into database")
             supabase.from("chores")
-                .insert(insertData)
+                .insert(
+                    buildMap {
+                        put("house_id", houseId)
+                        put("task_name", taskName)
+                        put("description", description)
+                        put("due_date", dueDate)
+                        put("recurrence_pattern", recurrencePattern)
+                        put("assigned_to", assignedTo)
+                        put("created_by", currentUserId)
+                    }
+                )
 
             // Create notification if assigned to someone
             if (assignedTo != null && assignedTo != currentUserId) {
                 FlockrLogger.d(TAG, "createChore: Creating assignment notification")
-                supabase.from("notifications")
-                    .insert(
-                        buildMap<String, Any> {
-                            put("user_id", assignedTo)
-                            put("house_id", houseId)
-                            put("title", "New Chore Assigned")
-                            put("message", "You have been assigned a new chore: $taskName.")
-                            put("type", "chore")
-                            put("data", mapOf("taskName" to taskName))
-                        }
-                    )
+                supabase.postgrest.rpc(
+                    function = "create_notification",
+                    parameters = buildMap {
+                        put("user_id", assignedTo)
+                        put("house_id", houseId)
+                        put("title", "New Chore Assigned")
+                        put("message", "You have been assigned a new chore: $taskName.")
+                        put("type", "chore")
+                        put("data", """{"taskName":"$taskName"}""")
+                    }
+                ).decodeAs<Unit>()
             }
 
             FlockrLogger.repoSuccess(TAG, "createChore", "Chore created successfully")
@@ -148,23 +176,18 @@ class ChoreRepository @Inject constructor(
     }
 
     suspend fun completeChore(choreId: String, houseId: String, taskName: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "completeChore", mapOf(
-            "choreId" to choreId,
-            "taskName" to taskName
-        ))
+        FlockrLogger.repoStart(TAG, "completeChore", mapOf("choreId" to choreId))
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "completeChore: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
+            val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
 
+            FlockrLogger.d(TAG, "completeChore: Marking chore as completed")
             supabase.from("chores")
                 .update(
-                    mapOf(
-                        "is_completed" to true,
-                        "completed_by" to currentUserId,
-                        "completed_at" to "now()"
-                    )
+                    buildMap {
+                        put("is_completed", true)
+                        put("completed_by", currentUserId)
+                        put("completed_at", "now()")
+                    }
                 ) {
                     filter {
                         eq("id", choreId)
@@ -174,16 +197,16 @@ class ChoreRepository @Inject constructor(
             FlockrLogger.d(TAG, "completeChore: Creating completion notification")
             // Create notification for house
             supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to "Chore Completed",
-                    "p_message" to "Completed the chore: $taskName.",
-                    "p_type" to "chore",
-                    "p_data" to mapOf("id" to choreId),
-                    "p_exclude_user_id" to currentUserId
-                )
-            )
+                function = "create_notification_for_house",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_title", "Chore Completed")
+                    put("p_message", "Completed the chore: $taskName.")
+                    put("p_type", "chore")
+                    put("p_data", """{"id":"$choreId"}""")
+                    put("p_exclude_user_id", currentUserId)
+                }
+            ).decodeAs<Unit>()
 
             FlockrLogger.repoSuccess(TAG, "completeChore", "Chore marked as completed")
             Result.success(Unit)

@@ -34,6 +34,8 @@ fun BalancesScreenModern(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val balances by viewModel.balances.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
     var showSettleDialog by remember { mutableStateOf(false) }
     var selectedBalance by remember { mutableStateOf<UserBalance?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -44,6 +46,7 @@ fun BalancesScreenModern(
     LaunchedEffect(houseId) {
         isLoading = true
         viewModel.loadBalances(houseId)
+        viewModel.loadHouseConfig(houseId)
         isLoading = false
     }
 
@@ -51,6 +54,7 @@ fun BalancesScreenModern(
     if (showSettleDialog && selectedBalance != null) {
         SettleBalanceDialogModern(
             balance = selectedBalance!!,
+            currencySymbol = currencySymbol,
             houseId = houseId,
             onDismiss = { showSettleDialog = false },
             onSettle = { amount, description ->
@@ -79,6 +83,7 @@ fun BalancesScreenModern(
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -181,6 +186,7 @@ fun BalancesScreenModern(
                     items(balances) { balance ->
                         BalanceCardModern(
                             balance = balance,
+                            currencySymbol = currencySymbol,
                             onSettleClick = {
                                 selectedBalance = balance
                                 showSettleDialog = true
@@ -223,6 +229,7 @@ fun BalancesScreenModern(
 @Composable
 fun BalanceCardModern(
     balance: UserBalance,
+    currencySymbol: String = "$",
     onSettleClick: () -> Unit
 ) {
     val isPositive = balance.balance > 0
@@ -270,7 +277,7 @@ fun BalanceCardModern(
                         NegativeRed.copy(alpha = 0.1f)
                 ) {
                     Text(
-                        text = "${"$%.2f".format(amount)}",
+                        text = "$currencySymbol${"%.2f".format(amount)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isPositive) PositiveGreen else NegativeRed,
@@ -302,6 +309,7 @@ fun BalanceCardModern(
 @Composable
 fun SettleBalanceDialogModern(
     balance: UserBalance,
+    currencySymbol: String = "$",
     houseId: String,
     onDismiss: () -> Unit,
     onSettle: (Double, String?) -> Unit
@@ -347,7 +355,7 @@ fun SettleBalanceDialogModern(
                     value = amount,
                     onValueChange = { amount = it },
                     label = { Text("Amount") },
-                    prefix = { Text("$") },
+                    prefix = { Text(currencySymbol) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,

@@ -6,12 +6,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,14 +42,32 @@ fun SettingsScreen(
     onNavigateToProfile: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    profileViewModel: `in`.xroden.flockr.ui.viewmodel.ProfileViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val profile by profileViewModel.profile.collectAsState()
+    val isProfileLoading by profileViewModel.isLoading.collectAsState()
+    val profileError by profileViewModel.error.collectAsState()
+
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var editMode by remember { mutableStateOf(false) }
+    var editedName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        profileViewModel.loadProfile()
+    }
+
+    LaunchedEffect(profile) {
+        profile?.let {
+            editedName = it.fullName ?: ""
+        }
+    }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -74,22 +97,125 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Profile Section
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "App Settings",
-                    style = MaterialTheme.typography.displaySmall,
+                    text = "Profile",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    modifier = Modifier.padding(start = 4.dp)
                 )
-                Text(
-                    text = "Customize your experience",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Profile Picture Placeholder
+                        Surface(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .align(Alignment.CenterHorizontally),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        if (editMode) {
+                            // Edit Mode
+                            OutlinedTextField(
+                                value = editedName,
+                                onValueChange = { editedName = it },
+                                label = { Text("Full Name") },
+                                placeholder = { Text("Enter your name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+
+                            if (profileError != null) {
+                                Text(
+                                    text = profileError ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        editMode = false
+                                        editedName = profile?.fullName ?: ""
+                                        profileViewModel.clearError()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !isProfileLoading,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Cancel")
+                                }
+
+                                ModernButton(
+                                    onClick = {
+                                        profileViewModel.updateProfile(editedName)
+                                        editMode = false
+                                    },
+                                    text = if (isProfileLoading) "Saving..." else "Save",
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !isProfileLoading && editedName.isNotBlank()
+                                )
+                            }
+                        } else {
+                            // View Mode
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = profile?.fullName ?: "Loading...",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = profile?.email ?: "",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            ModernButton(
+                                onClick = { editMode = true },
+                                text = "Edit Profile",
+                                icon = Icons.Default.Edit,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
             }
 
             // Appearance Section
@@ -114,7 +240,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Account Section
+            // Account Actions
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "Account",

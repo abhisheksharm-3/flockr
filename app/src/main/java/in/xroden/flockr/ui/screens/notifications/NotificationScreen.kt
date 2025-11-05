@@ -39,6 +39,7 @@ fun NotificationScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             TopAppBar(
                 title = {

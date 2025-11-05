@@ -20,7 +20,9 @@ data class House(
     @SerialName("header_image_url")
     val headerImageUrl: String? = null,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("updated_at")
+    val updatedAt: String? = null
 )
 
 @Serializable

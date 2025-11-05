@@ -214,7 +214,7 @@ fun FlockrNavigation(
                             // Deep link navigation based on notification data
                             val houseId = notification.houseId
                             if (houseId != null) {
-                                when (notification.type) {
+                                when (notification.notificationType) {
                                     "expense", "settlement" -> {
                                         navController.navigate(Screen.Expenses.createRoute(houseId))
                                     }
@@ -299,6 +299,7 @@ fun FlockrNavigation(
                         onNavigateToRecurringExpenses = { navController.navigate(Screen.RecurringExpenses.createRoute(houseId)) },
                         onNavigateToBalances = { navController.navigate(Screen.BalancesModern.createRoute(houseId)) },
                         onNavigateToPerDiem = { navController.navigate(Screen.PerDiemConfig.createRoute(houseId)) },
+                        onNavigateToQuickPerDiem = { navController.navigate(Screen.QuickPerDiemEntry.createRoute(houseId)) },
                         onNavigateToReports = { navController.navigate(Screen.MonthlyReports.createRoute(houseId)) }
                     )
                 }
@@ -388,6 +389,23 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.ui.screens.expenses.MonthlyReportsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Screen.QuickPerDiemEntry.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    `in`.xroden.flockr.ui.screens.expenses.QuickPerDiemEntryScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAddEntry = { configId ->
+                            navController.navigate("add_per_diem_entry/$houseId/$configId")
+                        },
+                        onNavigateToConfig = {
+                            navController.navigate(Screen.PerDiemConfig.createRoute(houseId))
+                        }
                     )
                 }
 

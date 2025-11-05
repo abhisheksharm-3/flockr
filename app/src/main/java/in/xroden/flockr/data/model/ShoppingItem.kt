@@ -13,8 +13,16 @@ data class ShoppingItem(
     val quantity: String? = null,
     @SerialName("is_purchased")
     val isPurchased: Boolean = false,
-    @SerialName("created_by")
-    val createdBy: String,
+    @SerialName("added_by")
+    val addedBy: String?,
+    @SerialName("added_by_name")
+    val addedByName: String? = null,
+    @SerialName("purchased_by")
+    val purchasedBy: String? = null,
+    @SerialName("purchased_by_name")
+    val purchasedByName: String? = null,
+    @SerialName("purchased_at")
+    val purchasedAt: String? = null,
     @SerialName("created_at")
     val createdAt: String
 )
