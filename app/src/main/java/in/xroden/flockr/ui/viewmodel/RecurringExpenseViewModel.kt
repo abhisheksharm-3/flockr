@@ -52,14 +52,14 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        buildMap {
-                            put("house_id", houseId)
-                            put("name", name)
-                            put("amount", amount)
-                            put("due_day", dueDay)
-                            put("category", category)
-                            put("created_by", userId)
-                        }
+                        mapOf(
+                            "house_id" to houseId,
+                            "name" to name,
+                            "amount" to amount,
+                            "due_day" to dueDay,
+                            "category" to category,
+                            "created_by" to userId
+                        )
                     )
 
                 loadRecurringExpenses(houseId)
@@ -87,14 +87,14 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        buildMap {
-                            put("house_id", houseId)
-                            put("name", name)
-                            put("amount", amount)
-                            put("due_day", dueDay)
-                            put("category", category)
-                            put("created_by", userId)
-                        }
+                        mapOf(
+                            "house_id" to houseId,
+                            "name" to name,
+                            "amount" to amount,
+                            "due_day" to dueDay,
+                            "category" to category,
+                            "created_by" to userId
+                        )
                     )
 
                 loadRecurringExpenses(houseId)

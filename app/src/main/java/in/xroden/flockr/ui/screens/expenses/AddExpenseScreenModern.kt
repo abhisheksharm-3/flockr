@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,20 +29,24 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AddExpenseScreenModern(
     houseId: String,
+    initialName: String? = null,
+    initialQuantity: Int? = null,
     onNavigateBack: () -> Unit,
     onExpenseAdded: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel(),
     houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
         mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
     }
-    var category by remember { mutableStateOf("Groceries") }
-    var notes by remember { mutableStateOf("") }
+    var notes by remember {
+        mutableStateOf(if (initialQuantity != null) "Quantity: $initialQuantity" else "")
+    }
     var expandedCategory by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var category by remember { mutableStateOf("Groceries") }
     var enableSplitting by remember { mutableStateOf(false) }
     var splitEqually by remember { mutableStateOf(true) }
     var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
@@ -114,7 +119,7 @@ fun AddExpenseScreenModern(
                     onValueChange = { name = it },
                     label = { Text("Expense Name *") },
                     placeholder = { Text("e.g., Groceries, Electric Bill") },
-                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    leadingIcon = { Icon(Icons.Filled.Create, null) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
@@ -126,8 +131,8 @@ fun AddExpenseScreenModern(
                     value = amount,
                     onValueChange = { amount = it },
                     label = { Text("Amount *") },
-                    prefix = { Text("$") },
-                    leadingIcon = { Icon(Icons.Default.AttachMoney, null) },
+                    prefix = { Text(currencySymbol) },
+                    leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
@@ -141,7 +146,7 @@ fun AddExpenseScreenModern(
                     onValueChange = { date = it },
                     label = { Text("Date *") },
                     placeholder = { Text("YYYY-MM-DD") },
-                    leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                    leadingIcon = { Icon(Icons.Filled.DateRange, null) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
@@ -158,8 +163,8 @@ fun AddExpenseScreenModern(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category *") },
-                        leadingIcon = { Icon(Icons.Default.Category, null) },
-                        trailingIcon = { 
+                        leadingIcon = { Icon(Icons.Filled.ShoppingBag, null) },
+                        trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) 
                         },
                         modifier = Modifier
@@ -168,6 +173,7 @@ fun AddExpenseScreenModern(
                         enabled = !isLoading,
                         shape = RoundedCornerShape(12.dp)
                     )
+
                     ExposedDropdownMenu(
                         expanded = expandedCategory,
                         onDismissRequest = { expandedCategory = false }
@@ -190,7 +196,7 @@ fun AddExpenseScreenModern(
                     onValueChange = { notes = it },
                     label = { Text("Notes (Optional)") },
                     placeholder = { Text("Add any additional details...") },
-                    leadingIcon = { Icon(Icons.Default.Note, null) },
+                    leadingIcon = { Icon(Icons.Filled.Description, null) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     minLines = 3,
@@ -291,7 +297,7 @@ fun AddExpenseScreenModern(
                                     onValueChange = { value ->
                                         customSplits = customSplits + (member.userId to value)
                                     },
-                                    label = { Text("$") },
+                                    label = { Text(currencySymbol) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     modifier = Modifier.width(100.dp),
                                     enabled = !isLoading,

@@ -57,3 +57,25 @@ data class PerDiemBillByMember(
     val totalAmount: Double
 )
 
+@Serializable
+data class PerDiemEntryWithDetails(
+    @SerialName("entry_id")
+    val entryId: String,
+    @SerialName("item_name")
+    val itemName: String,
+    val category: String,
+    val unit: String,
+    val rate: Double,
+    val quantity: Double,
+    @SerialName("total_cost")
+    val totalCost: Double,
+    val date: String,
+    @SerialName("added_by")
+    val addedBy: String,
+    @SerialName("user_name")
+    val userName: String,
+    val notes: String?,
+    @SerialName("created_at")
+    val createdAt: String
+)
+

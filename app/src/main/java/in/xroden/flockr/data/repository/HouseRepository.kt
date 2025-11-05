@@ -21,6 +21,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -114,7 +115,9 @@ class HouseRepository @Inject constructor(
         name: String,
         address: String?,
         latitude: Double?,
-        longitude: Double?
+        longitude: Double?,
+        currencyCode: String = "USD",
+        currencySymbol: String = "$"
     ): Result<House> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
@@ -136,12 +139,35 @@ class HouseRepository @Inject constructor(
                 longitude = longitude
             )
 
-            val rpcResponse = supabase.postgrest.rpc(
+            // RPC returns a single object (not an array), so we need to handle the raw JSON
+            val rpcResponseRaw = supabase.postgrest.rpc(
                 function = "create_house_with_owner",
                 parameters = params
-            ).decodeSingle<CreateHouseResponse>()
+            ).data
+
+            // Decode the raw JSON string into our response object
+            val rpcResponse = Json.decodeFromString<CreateHouseResponse>(rpcResponseRaw)
 
             android.util.Log.d("HouseRepository", "House created successfully via RPC: ${rpcResponse.houseId}")
+
+            // Update house config with currency if not default USD
+            if (currencyCode != "USD" || currencySymbol != "$") {
+                android.util.Log.d("HouseRepository", "Updating house config with currency: $currencyCode ($currencySymbol)")
+                try {
+                    val configUpdate = HouseConfigUpdate(
+                        currencyCode = currencyCode,
+                        currencySymbol = currencySymbol
+                    )
+                    supabase.from("house_config")
+                        .update(configUpdate) {
+                            filter {
+                                eq("house_id", rpcResponse.houseId)
+                            }
+                        }
+                } catch (e: Exception) {
+                    android.util.Log.e("HouseRepository", "Failed to update currency config (non-critical)", e)
+                }
+            }
 
             // Fetch the full house object
             val house = supabase.from("houses")

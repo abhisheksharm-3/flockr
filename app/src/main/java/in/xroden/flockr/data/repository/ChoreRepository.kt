@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Chore
+import `in`.xroden.flockr.data.model.CreateNotificationParams
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -196,16 +197,16 @@ class ChoreRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "completeChore: Creating completion notification")
             // Create notification for house
+            val notificationParams = CreateNotificationParams(
+                houseId = houseId,
+                title = "Chore Completed",
+                message = "Completed the chore: $taskName.",
+                data = """{"id":"$choreId","type":"chore"}""",
+                excludeUserId = currentUserId
+            )
             supabase.postgrest.rpc(
                 function = "create_notification_for_house",
-                parameters = buildMap {
-                    put("p_house_id", houseId)
-                    put("p_title", "Chore Completed")
-                    put("p_message", "Completed the chore: $taskName.")
-                    put("p_type", "chore")
-                    put("p_data", """{"id":"$choreId"}""")
-                    put("p_exclude_user_id", currentUserId)
-                }
+                parameters = notificationParams
             ).decodeAs<Unit>()
 
             FlockrLogger.repoSuccess(TAG, "completeChore", "Chore marked as completed")

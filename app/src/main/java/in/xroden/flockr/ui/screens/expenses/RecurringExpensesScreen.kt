@@ -27,6 +27,7 @@ import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
 fun RecurringExpensesScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToAddBill: () -> Unit = {},
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,7 +63,7 @@ fun RecurringExpensesScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* TODO: Add recurring expense */ },
+                onClick = onNavigateToAddBill,
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Bill") },
                 containerColor = MaterialTheme.colorScheme.primary,
