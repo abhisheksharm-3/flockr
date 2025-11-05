@@ -36,6 +36,7 @@ fun RecurringExpensesScreen(
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {

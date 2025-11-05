@@ -43,11 +43,13 @@ fun PerDiemDailyEntryScreen(
     var isLoading by remember { mutableStateOf(false) }
     
     val configs by viewModel.configs.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
-        viewModel.loadPerDiemConfigs(houseId)
+        viewModel.loadConfigs(houseId)
     }
 
     Scaffold(
@@ -170,7 +172,7 @@ fun PerDiemDailyEntryScreen(
                                             }
                                         )
                                         Text(
-                                            text = "$%.2f per ${config.unit} • ${config.category}".format(config.rate),
+                                            text = "$currencySymbol${"%.2f".format(config.rate)} per ${config.unit} • ${config.category}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = if (isSelected) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
@@ -248,7 +250,7 @@ fun PerDiemDailyEntryScreen(
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
-                                            text = "$%.2f".format(quantityDouble * selectedConfig!!.rate),
+                                            text = "$currencySymbol${"%.2f".format(quantityDouble * selectedConfig!!.rate)}",
                                             style = MaterialTheme.typography.headlineSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary

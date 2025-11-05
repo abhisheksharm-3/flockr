@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Message
-import `in`.xroden.flockr.util.FlockrLogger
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -155,15 +155,15 @@ class ChatRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "sendMessage: Creating notification")
             supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to "New message in $houseName",
-                    "p_message" to truncatedContent,
-                    "p_type" to "message",
-                    "p_data" to mapOf("houseId" to houseId),
-                    "p_exclude_user_id" to currentUserId
-                )
+                function = "create_notification_for_house",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_title", "New message in $houseName")
+                    put("p_message", truncatedContent)
+                    put("p_type", "message")
+                    put("p_data", """{"houseId":"$houseId"}""")
+                    put("p_exclude_user_id", currentUserId)
+                }
             )
 
             FlockrLogger.repoSuccess(TAG, "sendMessage", "Message sent and notification created")

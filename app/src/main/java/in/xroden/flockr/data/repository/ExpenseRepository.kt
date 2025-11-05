@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.*
-import `in`.xroden.flockr.util.FlockrLogger
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -111,18 +111,18 @@ class ExpenseRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
-            val insertData = buildMap<String, Any> {
-                put("house_id", houseId)
-                put("name", name)
-                put("amount", amount)
-                put("date", date)
-                put("paid_by", currentUserId)
-                put("category", category)
-                notes?.let { put("notes", it) }
-            }
+            val expenseInsert = OneTimeExpenseInsert(
+                houseId = houseId,
+                name = name,
+                amount = amount,
+                date = date,
+                paidBy = currentUserId,
+                category = category,
+                notes = notes
+            )
 
             val expense = supabase.from("one_time_expenses")
-                .insert(insertData) {
+                .insert(expenseInsert) {
                     select()
                 }
                 .decodeSingle<OneTimeExpense>()
@@ -133,43 +133,42 @@ class ExpenseRepository @Inject constructor(
             if (splits != null && splits.isNotEmpty()) {
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${splits.size} splits")
                 splits.forEach { (splitUserId, amountOwed) ->
+                    val split = ExpenseSplitInsert(
+                        expenseId = expense.id,
+                        userId = splitUserId,
+                        amountOwed = amountOwed
+                    )
                     supabase.from("expense_splits")
-                        .insert(
-                            mapOf(
-                                "expense_id" to expense.id,
-                                "user_id" to splitUserId,
-                                "amount_owed" to amountOwed
-                            )
-                        )
+                        .insert(split)
                 }
 
                 // Create notification for house members about the split expense
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating split notification")
-                supabase.postgrest.rpc(
-                    "create_notification_for_house",
-                    mapOf(
-                        "p_house_id" to houseId,
-                        "p_title" to "New Expense Split",
-                        "p_message" to "Added a \$$amount expense for $name and split it.",
-                        "p_type" to "expense",
-                        "p_data" to mapOf("id" to expense.id),
-                        "p_exclude_user_id" to currentUserId
-                    )
+                val notificationParams = CreateNotificationParams(
+                    houseId = houseId,
+                    title = "New Expense Split",
+                    message = "Added a \$$amount expense for $name and split it.",
+                    data = """{"id":"${expense.id}","type":"expense"}""",
+                    excludeUserId = currentUserId
                 )
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                ).decodeAs<Unit>()
             } else {
                 // Create notification for simple expense (not split)
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating simple notification")
-                supabase.postgrest.rpc(
-                    "create_notification_for_house",
-                    mapOf(
-                        "p_house_id" to houseId,
-                        "p_title" to "New Expense",
-                        "p_message" to "Added a \$$amount expense for $name.",
-                        "p_type" to "expense",
-                        "p_data" to mapOf("id" to expense.id),
-                        "p_exclude_user_id" to currentUserId
-                    )
+                val notificationParams = CreateNotificationParams(
+                    houseId = houseId,
+                    title = "New Expense",
+                    message = "Added a \$$amount expense for $name.",
+                    data = """{"id":"${expense.id}","type":"expense"}""",
+                    excludeUserId = currentUserId
                 )
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                ).decodeAs<Unit>()
             }
 
             FlockrLogger.repoSuccess(TAG, "createOneTimeExpense", "expense_id=${expense.id}")
@@ -214,29 +213,29 @@ class ExpenseRepository @Inject constructor(
 
             supabase.from("transactions")
                 .insert(
-                    mapOf(
-                        "house_id" to houseId,
-                        "payer_id" to currentUserId,
-                        "payee_id" to payeeId,
-                        "amount" to amount,
-                        "is_settlement" to true,
-                        "description" to description
-                    )
+                    buildMap {
+                        put("house_id", houseId)
+                        put("payer_id", currentUserId)
+                        put("payee_id", payeeId)
+                        put("amount", amount)
+                        put("is_settlement", true)
+                        description?.let { put("description", it) }
+                    }
                 )
 
             FlockrLogger.d(TAG, "settleBalance: Creating notification for payee")
             // Create notification for payee
             supabase.from("notifications")
                 .insert(
-                    mapOf(
-                        "user_id" to payeeId,
-                        "house_id" to houseId,
-                        "title" to "Balance Settled",
-                        "message" to "Has settled their balance with you (\$$amount).",
-                        "type" to "settlement",
-                        "is_read" to false,
-                        "data" to mapOf("amount" to amount.toString())
-                    )
+                    buildMap {
+                        put("user_id", payeeId)
+                        put("house_id", houseId)
+                        put("title", "Balance Settled")
+                        put("message", "Has settled their balance with you (\$$amount).")
+                        put("type", "settlement")
+                        put("is_read", false)
+                        put("data", """{"amount":"${amount}"}""")
+                    }
                 )
 
             FlockrLogger.repoSuccess(TAG, "settleBalance", "Settlement completed")
@@ -271,11 +270,11 @@ class ExpenseRepository @Inject constructor(
         FlockrLogger.repoStart(TAG, "getSpendByMember", mapOf("houseId" to houseId, "month" to month))
         return try {
             val members = supabase.postgrest.rpc(
-                "get_spend_by_member",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
+                function = "get_spend_by_member",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_month", month)
+                }
             ).decodeList<SpendByMember>()
             FlockrLogger.repoSuccess(TAG, "getSpendByMember", "Found ${members.size} members")
             members
@@ -289,11 +288,11 @@ class ExpenseRepository @Inject constructor(
         FlockrLogger.repoStart(TAG, "getSpendByCategory", mapOf("houseId" to houseId, "month" to month))
         return try {
             val categories = supabase.postgrest.rpc(
-                "get_spend_by_category",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
+                function = "get_spend_by_category",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_month", month)
+                }
             ).decodeList<SpendByCategory>()
             FlockrLogger.repoSuccess(TAG, "getSpendByCategory", "Found ${categories.size} categories")
             categories
@@ -307,11 +306,11 @@ class ExpenseRepository @Inject constructor(
         FlockrLogger.repoStart(TAG, "getPerDiemBillItemized", mapOf("houseId" to houseId, "month" to month))
         return try {
             val items = supabase.postgrest.rpc(
-                "get_per_diem_bill_itemized",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
+                function = "get_per_diem_bill_itemized",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_month", month)
+                }
             ).decodeList<PerDiemBillItemized>()
             FlockrLogger.repoSuccess(TAG, "getPerDiemBillItemized", "Found ${items.size} items")
             items
@@ -325,11 +324,11 @@ class ExpenseRepository @Inject constructor(
         FlockrLogger.repoStart(TAG, "getPerDiemBillByMember", mapOf("houseId" to houseId, "month" to month))
         return try {
             val members = supabase.postgrest.rpc(
-                "get_per_diem_bill_by_member",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
+                function = "get_per_diem_bill_by_member",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_month", month)
+                }
             ).decodeList<PerDiemBillByMember>()
             FlockrLogger.repoSuccess(TAG, "getPerDiemBillByMember", "Found ${members.size} members")
             members
@@ -359,30 +358,34 @@ class ExpenseRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
+            val entryInsert = PerDiemEntryInsert(
+                configId = configId,
+                quantity = quantity,
+                date = date,
+                addedBy = currentUserId,
+                notes = notes
+            )
             supabase.from("per_diem_entries")
-                .insert(
-                    mapOf(
-                        "config_id" to configId,
-                        "quantity" to quantity,
-                        "date" to date,
-                        "added_by" to currentUserId,
-                        "notes" to notes
-                    )
-                )
+                .insert(entryInsert)
 
             FlockrLogger.d(TAG, "createPerDiemEntry: Creating notification")
             // Create notification
-            supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to "Per Diem Entry Added",
-                    "p_message" to "$itemName entry added: $quantity received.",
-                    "p_type" to "per_diem",
-                    "p_data" to emptyMap<String, String>(),
-                    "p_exclude_user_id" to currentUserId
+            try {
+                val notificationParams = CreateNotificationParams(
+                    houseId = houseId,
+                    title = "Per Diem Entry Added",
+                    message = "$itemName entry added: $quantity received.",
+                    data = """{"type":"per_diem"}""",
+                    excludeUserId = currentUserId
                 )
-            )
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                )
+            } catch (notificationError: Exception) {
+                FlockrLogger.e(TAG, "createPerDiemEntry: Failed to create notification (non-critical)", notificationError)
+                // Continue - notification failure shouldn't fail the entry creation
+            }
 
             FlockrLogger.repoSuccess(TAG, "createPerDiemEntry", "Entry created successfully")
             Result.success(Unit)

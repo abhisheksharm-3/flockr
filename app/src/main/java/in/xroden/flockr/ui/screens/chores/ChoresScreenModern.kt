@@ -52,15 +52,33 @@ fun ChoresScreenModern(
             onDismiss = { showAddDialog = false },
             onAdd = { taskName, description, dueDate, assignedTo ->
                 scope.launch {
-                    // TODO: Add chore via viewmodel
-                    showAddDialog = false
-                    snackbarHostState.showSnackbar("Chore added")
+                    android.util.Log.d("ChoresScreenModern", "Adding chore: $taskName")
+                    viewModel.createChore(
+                        houseId = houseId,
+                        taskName = taskName,
+                        description = description,
+                        dueDate = dueDate,
+                        isRecurring = false,
+                        assignedTo = assignedTo,
+                        onSuccess = {
+                            showAddDialog = false
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Chore added successfully")
+                            }
+                        },
+                        onError = { error ->
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Failed to add chore: $error")
+                            }
+                        }
+                    )
                 }
             }
         )
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -164,19 +182,15 @@ fun ChoresScreenModern(
                                 chore = chore,
                                 onToggleComplete = {
                                     scope.launch {
-                                        // TODO: Toggle complete via viewmodel
-                                        viewModel.loadChores(houseId)
-                                        val message = if (chore.isCompleted) {
-                                            "Chore marked as incomplete"
-                                        } else {
-                                            "Chore completed!"
+                                        if (!chore.isCompleted) {
+                                            viewModel.completeChore(chore.id, houseId, chore.taskName)
+                                            snackbarHostState.showSnackbar("Chore completed!")
                                         }
-                                        snackbarHostState.showSnackbar(message)
                                     }
                                 },
                                 onDelete = {
                                     scope.launch {
-                                        // TODO: Delete via viewmodel
+                                        viewModel.deleteChore(chore.id)
                                         snackbarHostState.showSnackbar("Chore deleted")
                                     }
                                 }
@@ -281,6 +295,83 @@ fun ChoreCard(
                     )
                 }
 
+                // User Info Row - Only show if at least one name is available
+                val hasUserInfo = chore.createdByName != null ||
+                                  chore.assignedToName != null ||
+                                  (chore.isCompleted && chore.completedByName != null)
+
+                if (hasUserInfo) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Created By
+                        chore.createdByName?.let { name ->
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "By $name",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Assigned To
+                        chore.assignedToName?.let { name ->
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PersonOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = "For $name",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Completed By
+                        if (chore.isCompleted) {
+                            chore.completedByName?.let { name ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = PositiveGreen.copy(alpha = 0.7f)
+                                    )
+                                    Text(
+                                        text = "Done by $name",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PositiveGreen.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Due Date Badge
                 chore.dueDate?.let { date ->
                     Surface(
@@ -288,47 +379,57 @@ fun ChoreCard(
                         color = if (isOverdue(date) && !chore.isCompleted) {
                             MaterialTheme.colorScheme.errorContainer
                         } else {
-                            MaterialTheme.colorScheme.secondaryContainer
+                            MaterialTheme.colorScheme.primaryContainer
                         }
                     ) {
-                        Row(
+                        Text(
+                            text = formatDate(date),
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Event,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = if (isOverdue(date) && !chore.isCompleted) {
-                                    MaterialTheme.colorScheme.onErrorContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                }
-                            )
-                            Text(
-                                text = formatDate(date),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isOverdue(date) && !chore.isCompleted) {
-                                    MaterialTheme.colorScheme.onErrorContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                }
-                            )
-                        }
+                            color = if (isOverdue(date) && !chore.isCompleted) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            }
+                        )
                     }
                 }
             }
 
-            // Delete Button
-            IconButton(
-                onClick = onDelete,
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+
+            // Action Buttons
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(Icons.Default.Delete, "Delete")
+                // Edit Button
+                IconButton(
+                    onClick = { /* TODO: Implement edit */ },
+                    modifier = Modifier.size(36.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "Edit",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Delete Button
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        "Delete",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -495,10 +596,14 @@ enum class ChoreFilter(val label: String) {
 
 private fun formatDate(dateString: String): String {
     return try {
-        val date = LocalDate.parse(dateString.substring(0, 10))
-        date.format(DateTimeFormatter.ofPattern("MMM d"))
+        // Handle short dates safely
+        if (dateString.length < 10) return dateString
+        val datePart = dateString.substring(0, 10)
+        val date = LocalDate.parse(datePart)
+        date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
     } catch (e: Exception) {
-        dateString.substring(0, 10)
+        // Return safe default if parsing fails
+        if (dateString.length >= 10) dateString.substring(0, 10) else dateString
     }
 }
 

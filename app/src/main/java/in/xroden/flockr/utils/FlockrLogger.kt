@@ -1,4 +1,4 @@
-package `in`.xroden.flockr.util
+package `in`.xroden.flockr.utils
 
 import android.util.Log
 
@@ -7,10 +7,10 @@ import android.util.Log
  * Provides structured logging with automatic tagging and performance monitoring
  */
 object FlockrLogger {
-    
+
     private const val APP_TAG = "Flockr"
     private var isDebugMode = true
-    
+
     /**
      * Debug log
      */
@@ -19,14 +19,14 @@ object FlockrLogger {
             Log.d("$APP_TAG:$tag", message)
         }
     }
-    
+
     /**
      * Info log
      */
     fun i(tag: String, message: String) {
         Log.i("$APP_TAG:$tag", message)
     }
-    
+
     /**
      * Warning log
      */
@@ -37,7 +37,7 @@ object FlockrLogger {
             Log.w("$APP_TAG:$tag", message)
         }
     }
-    
+
     /**
      * Error log with optional exception
      */
@@ -48,7 +48,7 @@ object FlockrLogger {
             Log.e("$APP_TAG:$tag", message)
         }
     }
-    
+
     /**
      * Log repository operation start
      */
@@ -56,7 +56,7 @@ object FlockrLogger {
         val paramsString = params.entries.joinToString(", ") { "${it.key}=${it.value}" }
         d(tag, "▶ $operation: Starting${if (paramsString.isNotEmpty()) " with $paramsString" else ""}")
     }
-    
+
     /**
      * Log repository operation success
      */
@@ -64,35 +64,35 @@ object FlockrLogger {
         val resultString = result?.let { " result=$it" } ?: ""
         d(tag, "✅ $operation: Success$resultString")
     }
-    
+
     /**
      * Log repository operation error
      */
     fun repoError(tag: String, operation: String, error: Throwable) {
         e(tag, "❌ $operation: Failed", error)
     }
-    
+
     /**
      * Log ViewModel state change
      */
     fun viewModelState(tag: String, state: String, details: String = "") {
         d(tag, "🔄 State: $state${if (details.isNotEmpty()) " - $details" else ""}")
     }
-    
+
     /**
      * Log Realtime event
      */
     fun realtimeEvent(tag: String, event: String, details: String = "") {
         d(tag, "📡 Realtime: $event${if (details.isNotEmpty()) " - $details" else ""}")
     }
-    
+
     /**
      * Log navigation event
      */
     fun navigation(tag: String, destination: String, from: String = "") {
         d(tag, "🧭 Navigation: ${if (from.isNotEmpty()) "$from → " else ""}$destination")
     }
-    
+
     /**
      * Measure and log operation performance
      */

@@ -52,7 +52,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        buildMap<String, Any> {
+                        buildMap {
                             put("house_id", houseId)
                             put("name", name)
                             put("amount", amount)
@@ -87,7 +87,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        buildMap<String, Any> {
+                        buildMap {
                             put("house_id", houseId)
                             put("name", name)
                             put("amount", amount)

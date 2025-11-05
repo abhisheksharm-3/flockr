@@ -34,12 +34,16 @@ fun OneTimeExpensesScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -122,7 +126,10 @@ fun OneTimeExpensesScreen(
 
                         // Expense Cards
                         items(state.expenses) { expense ->
-                            ModernExpenseCard(expense = expense)
+                            ModernExpenseCard(
+                                expense = expense,
+                                currencySymbol = currencySymbol
+                            )
                         }
 
                         // Bottom Spacer for FAB
@@ -176,7 +183,10 @@ fun OneTimeExpensesScreen(
 }
 
 @Composable
-fun ModernExpenseCard(expense: OneTimeExpense) {
+fun ModernExpenseCard(
+    expense: OneTimeExpense,
+    currencySymbol: String = "$"
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -218,7 +228,7 @@ fun ModernExpenseCard(expense: OneTimeExpense) {
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "$%.2f".format(expense.amount),
+                        text = "$currencySymbol${"%.2f".format(expense.amount)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,

@@ -39,6 +39,8 @@ fun PerDiemConfigScreenModern(
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
     val configs by viewModel.configs.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
     var showAddDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -61,6 +63,7 @@ fun PerDiemConfigScreenModern(
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -129,6 +132,7 @@ fun PerDiemConfigScreenModern(
                 items(configs, key = { it.id }) { config ->
                     PerDiemConfigCard(
                         config = config,
+                        currencySymbol = currencySymbol,
                         onAddEntry = { onNavigateToAddEntry(config.id) },
                         onDelete = {
                             scope.launch {
@@ -153,6 +157,7 @@ fun PerDiemConfigScreenModern(
 @Composable
 private fun PerDiemConfigCard(
     config: PerDiemConfig,
+    currencySymbol: String = "$",
     onAddEntry: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -207,7 +212,7 @@ private fun PerDiemConfigCard(
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "$%.2f".format(config.rate),
+                        text = "$currencySymbol${"%.2f".format(config.rate)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,

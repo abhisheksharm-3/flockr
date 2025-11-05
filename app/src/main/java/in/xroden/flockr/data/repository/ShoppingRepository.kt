@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.ShoppingItem
-import `in`.xroden.flockr.util.FlockrLogger
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -13,7 +13,9 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,15 +75,41 @@ class ShoppingRepository @Inject constructor(
     suspend fun getShoppingItems(houseId: String): List<ShoppingItem> {
         FlockrLogger.repoStart(TAG, "getShoppingItems", mapOf("houseId" to houseId))
         return try {
-            val items = supabase.from("shopping_items")
-                .select(Columns.ALL) {
+            val response = supabase.from("shopping_items")
+                .select(Columns.raw("""
+                    *,
+                    added_by_profile:profiles!shopping_items_added_by_fkey(full_name),
+                    purchased_by_profile:profiles!shopping_items_purchased_by_fkey(full_name)
+                """.trimIndent())) {
                     filter {
                         eq("house_id", houseId)
                         eq("is_purchased", false)
                     }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
-                .decodeList<ShoppingItem>()
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+
+            val items = response.map { obj ->
+                val addedByName = obj["added_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
+                val purchasedByName = obj["purchased_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
+
+                ShoppingItem(
+                    id = obj["id"]?.jsonPrimitive?.content ?: "",
+                    houseId = obj["house_id"]?.jsonPrimitive?.content ?: "",
+                    itemName = obj["item_name"]?.jsonPrimitive?.content ?: "",
+                    quantity = obj["quantity"]?.jsonPrimitive?.contentOrNull,
+                    isPurchased = obj["is_purchased"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    addedBy = obj["added_by"]?.jsonPrimitive?.contentOrNull,
+                    addedByName = addedByName,
+                    purchasedBy = obj["purchased_by"]?.jsonPrimitive?.contentOrNull,
+                    purchasedByName = purchasedByName,
+                    purchasedAt = obj["purchased_at"]?.jsonPrimitive?.contentOrNull,
+                    createdAt = obj["created_at"]?.jsonPrimitive?.content ?: ""
+                )
+            }
+            
             FlockrLogger.repoSuccess(TAG, "getShoppingItems", "Found ${items.size} items")
             items
         } catch (e: Exception) {
@@ -107,12 +135,12 @@ class ShoppingRepository @Inject constructor(
 
             supabase.from("shopping_items")
                 .insert(
-                    mapOf(
-                        "house_id" to houseId,
-                        "item_name" to itemName,
-                        "quantity" to quantity,
-                        "added_by" to currentUserId
-                    )
+                    buildMap {
+                        put("house_id", houseId)
+                        put("item_name", itemName)
+                        put("quantity", quantity)
+                        put("added_by", currentUserId)
+                    }
                 )
 
             FlockrLogger.repoSuccess(TAG, "addShoppingItem", "Item added successfully")
@@ -136,11 +164,11 @@ class ShoppingRepository @Inject constructor(
 
             supabase.from("shopping_items")
                 .update(
-                    mapOf(
-                        "is_purchased" to true,
-                        "purchased_by" to currentUserId,
-                        "purchased_at" to "now()"
-                    )
+                    buildMap {
+                        put("is_purchased", true)
+                        put("purchased_by", currentUserId)
+                        put("purchased_at", "now()")
+                    }
                 ) {
                     filter {
                         eq("id", itemId)
@@ -150,16 +178,16 @@ class ShoppingRepository @Inject constructor(
             FlockrLogger.d(TAG, "markAsPurchased: Creating notification")
             // Create notification
             supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to "Item Purchased",
-                    "p_message" to "Just bought the $itemName.",
-                    "p_type" to "shopping",
-                    "p_data" to mapOf("id" to itemId),
-                    "p_exclude_user_id" to currentUserId
-                )
-            )
+                function = "create_notification_for_house",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_title", "Item Purchased")
+                    put("p_message", "Just bought the $itemName.")
+                    put("p_type", "shopping")
+                    put("p_data", """{"id":"$itemId"}""")
+                    put("p_exclude_user_id", currentUserId)
+                }
+            ).decodeAs<Unit>()
 
             FlockrLogger.repoSuccess(TAG, "markAsPurchased", "Item marked as purchased")
             Result.success(Unit)

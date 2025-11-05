@@ -55,9 +55,12 @@ fun AddExpenseScreenModern(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
     LaunchedEffect(houseId) {
         houseMembers = houseManagementViewModel.getHouseMembers(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
@@ -323,9 +326,9 @@ fun AddExpenseScreenModern(
                             )
                             Text(
                                 text = if (splitEqually) {
-                                    "${"$%.2f".format(splitAmount)} each"
+                                    "$currencySymbol${"%.2f".format(splitAmount)} each"
                                 } else {
-                                    "${"$%.2f".format(splitAmount)} total"
+                                    "$currencySymbol${"%.2f".format(splitAmount)} total"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold

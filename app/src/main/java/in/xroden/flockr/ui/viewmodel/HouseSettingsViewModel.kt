@@ -1,17 +1,25 @@
 package `in`.xroden.flockr.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.data.model.House
 import `in`.xroden.flockr.data.model.HouseConfig
 import `in`.xroden.flockr.data.repository.HouseRepository
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
     private val houseRepository: HouseRepository
 ) : ViewModel() {
+
+    suspend fun getHouse(houseId: String): House? {
+        return try {
+            houseRepository.getHouseById(houseId)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseSettingsViewModel", "Error getting house", e)
+            null
+        }
+    }
 
     suspend fun getHouseConfig(houseId: String): HouseConfig? {
         return try {
@@ -38,22 +46,42 @@ class HouseSettingsViewModel @Inject constructor(
         }
     }
 
-    suspend fun updateCurrency(
+    suspend fun updateHouseConfig(
         houseId: String,
-        currencyCode: String,
-        currencySymbol: String
+        currencyCode: String? = null,
+        currencySymbol: String? = null,
+        dateFormat: String? = null,
+        firstDayOfWeek: Int? = null,
+        timezone: String? = null
     ): Result<Unit> {
         return try {
-            android.util.Log.d("HouseSettingsViewModel", "Updating currency: $currencyCode ($currencySymbol)")
+            android.util.Log.d("HouseSettingsViewModel", "Updating house config: currency=$currencyCode, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
             houseRepository.updateHouseConfig(
                 houseId = houseId,
                 currencyCode = currencyCode,
-                currencySymbol = currencySymbol
+                currencySymbol = currencySymbol,
+                dateFormat = dateFormat,
+                firstDayOfWeek = firstDayOfWeek,
+                timezone = timezone
             )
         } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error updating currency", e)
+            android.util.Log.e("HouseSettingsViewModel", "Error updating house config", e)
             Result.failure(e)
         }
+    }
+
+    suspend fun deleteHouse(houseId: String): Result<Unit> {
+        return try {
+            android.util.Log.d("HouseSettingsViewModel", "Deleting house: houseId=$houseId")
+            houseRepository.deleteHouse(houseId)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseSettingsViewModel", "Error deleting house", e)
+            Result.failure(e)
+        }
+    }
+
+    fun getCurrentUserId(): String? {
+        return houseRepository.userId
     }
 }
 

@@ -1,7 +1,14 @@
 package `in`.xroden.flockr.data.repository
 
+import `in`.xroden.flockr.data.model.CreateNotificationParams
+import `in`.xroden.flockr.data.model.GetPerDiemBillByMonthParams
+import `in`.xroden.flockr.data.model.GetPerDiemBillParams
 import `in`.xroden.flockr.data.model.PerDiemConfig
+import `in`.xroden.flockr.data.model.PerDiemConfigActivation
+import `in`.xroden.flockr.data.model.PerDiemConfigInsert
+import `in`.xroden.flockr.data.model.PerDiemConfigUpdate
 import `in`.xroden.flockr.data.model.PerDiemEntry
+import `in`.xroden.flockr.data.model.PerDiemEntryInsert
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -63,17 +70,16 @@ class PerDiemRepository @Inject constructor(
     ): Result<PerDiemConfig> {
         return try {
             android.util.Log.d("PerDiemRepository", "Creating per-diem config: $itemName")
+            val configInsert = PerDiemConfigInsert(
+                houseId = houseId,
+                itemName = itemName,
+                rate = rate,
+                category = category,
+                unit = unit,
+                isActive = true
+            )
             val config = supabase.from("per_diem_config")
-                .insert(
-                    buildMap<String, Any> {
-                        put("house_id", houseId)
-                        put("item_name", itemName)
-                        put("rate", rate)
-                        put("category", category)
-                        put("unit", unit)
-                        put("is_active", true)
-                    }
-                ) {
+                .insert(configInsert) {
                     select()
                 }
                 .decodeSingle<PerDiemConfig>()
@@ -94,15 +100,14 @@ class PerDiemRepository @Inject constructor(
         unit: String
     ): Result<Unit> {
         return try {
+            val update = PerDiemConfigUpdate(
+                itemName = itemName,
+                rate = rate,
+                category = category,
+                unit = unit
+            )
             supabase.from("per_diem_config")
-                .update(
-                    mapOf(
-                        "item_name" to itemName,
-                        "rate" to rate,
-                        "category" to category,
-                        "unit" to unit
-                    )
-                ) {
+                .update(update) {
                     filter {
                         eq("id", configId)
                     }
@@ -116,10 +121,9 @@ class PerDiemRepository @Inject constructor(
 
     suspend fun deletePerDiemConfig(configId: String): Result<Unit> {
         return try {
+            val activation = PerDiemConfigActivation(isActive = false)
             supabase.from("per_diem_config")
-                .update(
-                    mapOf("is_active" to false)
-                ) {
+                .update(activation) {
                     filter {
                         eq("id", configId)
                     }
@@ -141,31 +145,31 @@ class PerDiemRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
+            val entryInsert = PerDiemEntryInsert(
+                configId = configId,
+                quantity = quantity,
+                date = date,
+                addedBy = currentUserId,
+                notes = null
+            )
             val entry = supabase.from("per_diem_entries")
-                .insert(
-                    mapOf(
-                        "config_id" to configId,
-                        "quantity" to quantity,
-                        "date" to date,
-                        "added_by" to currentUserId
-                    )
-                ) {
+                .insert(entryInsert) {
                     select()
                 }
                 .decodeSingle<PerDiemEntry>()
 
             // Create notification for house members
-            supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to "Per-Diem Entry Added",
-                    "p_message" to "$itemName entry added: $quantity units.",
-                    "p_type" to "per_diem",
-                    "p_data" to mapOf("id" to entry.id),
-                    "p_exclude_user_id" to currentUserId
-                )
+            val notificationParams = CreateNotificationParams(
+                houseId = houseId,
+                title = "Per-Diem Entry Added",
+                message = "$itemName entry added: $quantity units.",
+                data = """{"id":"${entry.id}","type":"per_diem"}""",
+                excludeUserId = currentUserId
             )
+            supabase.postgrest.rpc(
+                function = "create_notification_for_house",
+                parameters = notificationParams
+            ).decodeAs<Unit>()
 
             Result.success(entry)
         } catch (e: Exception) {
@@ -175,13 +179,14 @@ class PerDiemRepository @Inject constructor(
 
     suspend fun getPerDiemBillItemized(houseId: String, month: String): Map<String, Any>? {
         return try {
+            val params = GetPerDiemBillByMonthParams(
+                houseId = houseId,
+                month = month
+            )
             supabase.postgrest.rpc(
-                "get_per_diem_bill_itemized",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
-            ).decodeSingle<Map<String, Any>>() // <-- FIXED: Added .decodeSingle()
+                function = "get_per_diem_bill_itemized",
+                parameters = params
+            ).decodeSingle<Map<String, Any>>()
         } catch (e: Exception) {
             null
         }
@@ -189,13 +194,14 @@ class PerDiemRepository @Inject constructor(
 
     suspend fun getPerDiemBillByMember(houseId: String, month: String): Map<String, Any>? {
         return try {
+            val params = GetPerDiemBillByMonthParams(
+                houseId = houseId,
+                month = month
+            )
             supabase.postgrest.rpc(
-                "get_per_diem_bill_by_member",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to month
-                )
-            ).decodeSingle<Map<String, Any>>() // <-- FIXED: Added .decodeSingle()
+                function = "get_per_diem_bill_by_member",
+                parameters = params
+            ).decodeSingle<Map<String, Any>>()
         } catch (e: Exception) {
             null
         }

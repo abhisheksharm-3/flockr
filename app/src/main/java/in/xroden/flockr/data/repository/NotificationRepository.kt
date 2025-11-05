@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Notification
-import `in`.xroden.flockr.util.FlockrLogger
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -109,22 +109,22 @@ class NotificationRepository @Inject constructor(
         title: String,
         message: String,
         type: String,
-        data: Map<String, String>? = null
+        data: String? = null
     ): Result<Unit> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             supabase.postgrest.rpc(
-                "create_notification_for_house",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_title" to title,
-                    "p_message" to message,
-                    "p_type" to type,
-                    "p_data" to (data ?: emptyMap<String, String>()),
-                    "p_exclude_user_id" to currentUserId
-                )
-            )
+                function = "create_notification_for_house",
+                parameters = buildMap {
+                    put("p_house_id", houseId)
+                    put("p_title", title)
+                    put("p_message", message)
+                    put("p_type", type)
+                    put("p_data", (data ?: "{}"))
+                    put("p_exclude_user_id", currentUserId)
+                }
+            ).decodeAs<Unit>()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -138,20 +138,20 @@ class NotificationRepository @Inject constructor(
         title: String,
         message: String,
         type: String,
-        data: Map<String, String>? = null
+        data: String? = null
     ): Result<Unit> {
         return try {
             supabase.from("notifications")
                 .insert(
-                    mapOf(
-                        "user_id" to targetUserId,
-                        "house_id" to houseId,
-                        "title" to title,
-                        "message" to message,
-                        "type" to type,
-                        "is_read" to false,
-                        "data" to (data ?: emptyMap<String, String>())
-                    )
+                    buildMap {
+                        put("user_id", targetUserId)
+                        put("house_id", houseId)
+                        put("title", title)
+                        put("message", message)
+                        put("type", type)
+                        put("is_read", false)
+                        put("data", (data ?: "{}"))
+                    }
                 )
 
             Result.success(Unit)
@@ -166,7 +166,9 @@ class NotificationRepository @Inject constructor(
 
             supabase.from("notifications")
                 .update(
-                    mapOf("is_read" to true)
+                    buildMap {
+                        put("is_read", true)
+                    }
                 ) {
                     filter {
                         eq("user_id", currentUserId)
@@ -219,7 +221,9 @@ class NotificationRepository @Inject constructor(
         return try {
             supabase.from("notifications")
                 .update(
-                    mapOf("is_read" to true)
+                    buildMap {
+                        put("is_read", true)
+                    }
                 ) {
                     filter {
                         eq("id", notificationId)

@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.data.model.House
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
-import `in`.xroden.flockr.ui.viewmodel.HouseManagementViewModel
 import `in`.xroden.flockr.ui.viewmodel.HouseSettingsViewModel
 
 /**
@@ -31,18 +30,25 @@ import `in`.xroden.flockr.ui.viewmodel.HouseSettingsViewModel
 fun HouseSettingsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: HouseSettingsViewModel = hiltViewModel(),
-    houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
+    viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
     var house by remember { mutableStateOf<House?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var currentUserId by remember { mutableStateOf<String?>(null) }
 
     // Form fields
     var houseName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var currency by remember { mutableStateOf("USD") }
     var expandedCurrency by remember { mutableStateOf(false) }
+    var dateFormat by remember { mutableStateOf("YYYY-MM-DD") }
+    var expandedDateFormat by remember { mutableStateOf(false) }
+    var firstDayOfWeek by remember { mutableStateOf(0) }
+    var expandedFirstDay by remember { mutableStateOf(false) }
+    var timezone by remember { mutableStateOf("UTC") }
+    var expandedTimezone by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
@@ -62,18 +68,28 @@ fun HouseSettingsScreen(
     LaunchedEffect(houseId) {
         isLoading = true
         scope.launch {
-            houseManagementViewModel.loadHouse(houseId)
-            val loadedHouse = houseManagementViewModel.currentHouse.value
+            // Load house data
+            val loadedHouse = viewModel.getHouse(houseId)
             if (loadedHouse != null) {
                 house = loadedHouse
                 houseName = loadedHouse.name
                 address = loadedHouse.address ?: ""
+                currentUserId = viewModel.getCurrentUserId()
+                android.util.Log.d("HouseSettingsScreen", "Loaded house: name=${loadedHouse.name}, address=${loadedHouse.address}, currentUserId=$currentUserId, ownerId=${loadedHouse.ownerId}")
+            } else {
+                android.util.Log.e("HouseSettingsScreen", "Failed to load house data")
             }
             
-            // Load house config for currency
+            // Load house config
             val config = viewModel.getHouseConfig(houseId)
             if (config != null) {
                 currency = config.currencyCode
+                dateFormat = config.dateFormat
+                firstDayOfWeek = config.firstDayOfWeek
+                timezone = config.timezone
+                android.util.Log.d("HouseSettingsScreen", "Loaded config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+            } else {
+                android.util.Log.d("HouseSettingsScreen", "No config found, using defaults")
             }
             
             isLoading = false
@@ -81,6 +97,7 @@ fun HouseSettingsScreen(
     }
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -211,6 +228,58 @@ fun HouseSettingsScreen(
                     }
                 }
 
+                // Header Image Section
+                SectionCard(title = "Header Image") {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (house?.headerImageUrl != null) {
+                            // Show current image
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Image Preview",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Add a header image to personalize your household (Coming Soon)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Image upload feature coming soon!")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Upload Header Image")
+                        }
+                    }
+                }
+
                 // Currency Settings
                 SectionCard(title = "Currency & Localization") {
                     Column {
@@ -265,6 +334,167 @@ fun HouseSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Date Format
+                        Text(
+                            text = "Date Format",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        ExposedDropdownMenuBox(
+                            expanded = expandedDateFormat,
+                            onExpandedChange = { expandedDateFormat = !expandedDateFormat }
+                        ) {
+                            FlockrTextField(
+                                value = dateFormat,
+                                onValueChange = {},
+                                readOnly = true,
+                                placeholder = "Select date format",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDateFormat)
+                                }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedDateFormat,
+                                onDismissRequest = { expandedDateFormat = false }
+                            ) {
+                                listOf("YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD-MM-YYYY").forEach { format ->
+                                    DropdownMenuItem(
+                                        text = { Text(format) },
+                                        onClick = {
+                                            dateFormat = format
+                                            expandedDateFormat = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // First Day of Week
+                        Text(
+                            text = "First Day of Week",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        ExposedDropdownMenuBox(
+                            expanded = expandedFirstDay,
+                            onExpandedChange = { expandedFirstDay = !expandedFirstDay }
+                        ) {
+                            val days = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+                            FlockrTextField(
+                                value = days[firstDayOfWeek],
+                                onValueChange = {},
+                                readOnly = true,
+                                placeholder = "Select first day",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFirstDay)
+                                }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedFirstDay,
+                                onDismissRequest = { expandedFirstDay = false }
+                            ) {
+                                days.forEachIndexed { index, day ->
+                                    DropdownMenuItem(
+                                        text = { Text(day) },
+                                        onClick = {
+                                            firstDayOfWeek = index
+                                            expandedFirstDay = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Timezone
+                        Text(
+                            text = "Timezone",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        ExposedDropdownMenuBox(
+                            expanded = expandedTimezone,
+                            onExpandedChange = { expandedTimezone = !expandedTimezone }
+                        ) {
+                            val timezones = listOf(
+                                "UTC",
+                                "America/New_York",
+                                "America/Chicago",
+                                "America/Denver",
+                                "America/Los_Angeles",
+                                "Europe/London",
+                                "Europe/Paris",
+                                "Asia/Tokyo",
+                                "Asia/Shanghai",
+                                "Asia/Kolkata",
+                                "Australia/Sydney"
+                            )
+                            FlockrTextField(
+                                value = timezone,
+                                onValueChange = {},
+                                readOnly = true,
+                                placeholder = "Select timezone",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTimezone)
+                                }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedTimezone,
+                                onDismissRequest = { expandedTimezone = false }
+                            ) {
+                                timezones.forEach { tz ->
+                                    DropdownMenuItem(
+                                        text = { Text(tz) },
+                                        onClick = {
+                                            timezone = tz
+                                            expandedTimezone = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -310,13 +540,54 @@ fun HouseSettingsScreen(
                     }
                 }
 
+                // Delete House Section (Owner Only)
+                if (house?.ownerId == currentUserId) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Danger Zone",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+
+                        OutlinedButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                width = 1.dp,
+                                brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Delete House")
+                        }
+
+                        Text(
+                            text = "This will permanently delete the house and all its data",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                }
+
                 // Save Button
                 Button(
                     onClick = {
-                        if (houseName.isBlank()) {
-                            nameError = "Name is required"
-                            return@Button
-                        }
                         if (houseName.length < 2) {
                             nameError = "Name must be at least 2 characters"
                             return@Button
@@ -332,22 +603,33 @@ fun HouseSettingsScreen(
                             
                             // Update house details if changed
                             if (nameChanged || addressChanged) {
+                                android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
                                 val result = viewModel.updateHouse(
                                     houseId = houseId,
                                     name = if (nameChanged) houseName else null,
                                     address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
                                 )
                                 success = result.isSuccess
+                                if (!success) {
+                                    android.util.Log.e("HouseSettingsScreen", "Failed to update house")
+                                }
                             }
 
-                            // Update currency if changed
+                            // Update all config fields
                             if (success) {
-                                val result = viewModel.updateCurrency(
+                                android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+                                val result = viewModel.updateHouseConfig(
                                     houseId = houseId,
                                     currencyCode = currency,
-                                    currencySymbol = currencySymbol
+                                    currencySymbol = currencySymbol,
+                                    dateFormat = dateFormat,
+                                    firstDayOfWeek = firstDayOfWeek,
+                                    timezone = timezone
                                 )
                                 success = result.isSuccess
+                                if (!success) {
+                                    android.util.Log.e("HouseSettingsScreen", "Failed to update config")
+                                }
                             }
 
                             isSaving = false
@@ -388,6 +670,84 @@ fun HouseSettingsScreen(
                 }
             }
         }
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    "Delete House?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Are you sure you want to delete \"${house?.name}\"?",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        "This action cannot be undone. All expenses, balances, and house data will be permanently deleted.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isSaving = true
+                            val result = viewModel.deleteHouse(houseId)
+                            isSaving = false
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar("House deleted")
+                                onNavigateBack()
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    result.exceptionOrNull()?.message ?: "Failed to delete house"
+                                )
+                            }
+                            showDeleteDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    enabled = !isSaving
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onError,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Delete")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !isSaving
+                ) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 

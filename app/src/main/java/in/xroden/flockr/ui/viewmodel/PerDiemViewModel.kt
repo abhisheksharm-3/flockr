@@ -15,7 +15,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PerDiemViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
-    private val perDiemRepository: PerDiemRepository
+    private val perDiemRepository: PerDiemRepository,
+    private val houseRepository: `in`.xroden.flockr.data.repository.HouseRepository
 ) : ViewModel() {
 
     private val _configs = MutableStateFlow<List<PerDiemConfig>>(emptyList())
@@ -30,23 +31,38 @@ class PerDiemViewModel @Inject constructor(
     private val _perDiemBillByMember = MutableStateFlow<List<PerDiemBillByMember>>(emptyList())
     val perDiemBillByMember: StateFlow<List<PerDiemBillByMember>> = _perDiemBillByMember.asStateFlow()
 
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    fun loadPerDiemConfigs(houseId: String) {
+    fun loadConfigs(houseId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
                 val configs = perDiemRepository.getPerDiemConfigs(houseId)
                 _configs.value = configs
+                loadHouseConfig(houseId)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load per-diem configurations"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            try {
+                val config = houseRepository.getHouseConfig(houseId)
+                _houseConfig.value = config
+            } catch (e: Exception) {
+                android.util.Log.e("PerDiemViewModel", "Failed to load house config", e)
             }
         }
     }
@@ -97,19 +113,6 @@ class PerDiemViewModel @Inject constructor(
         _error.value = null
     }
 
-    fun loadConfigs(houseId: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val configs = perDiemRepository.getPerDiemConfigs(houseId)
-                _configs.value = configs
-            } catch (e: Exception) {
-                _error.value = e.message
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
 
     suspend fun createConfig(
         houseId: String,
