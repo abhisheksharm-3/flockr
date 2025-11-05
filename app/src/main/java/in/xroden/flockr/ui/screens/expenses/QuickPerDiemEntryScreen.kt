@@ -28,6 +28,7 @@ fun QuickPerDiemEntryScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddEntry: (String) -> Unit,
     onNavigateToConfig: () -> Unit,
+    onNavigateToTransactions: () -> Unit = {},
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
     val configs by viewModel.configs.collectAsState()
@@ -105,6 +106,26 @@ fun QuickPerDiemEntryScreen(
                             text = "Choose which per-diem item you want to log usage for",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = onNavigateToTransactions,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "View All Transactions",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

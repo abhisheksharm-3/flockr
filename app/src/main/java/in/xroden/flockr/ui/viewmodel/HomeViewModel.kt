@@ -43,11 +43,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 android.util.Log.d("HomeViewModel", "createHouse called - name='$name', address='$address', latitude=$latitude, longitude=$longitude, currency=$currencyCode")
-                _uiState.value = HomeUiState.Loading
                 houseRepository.createHouse(name, address, latitude, longitude, currencyCode, currencySymbol).fold(
                     onSuccess = { house ->
                         android.util.Log.d("HomeViewModel", "createHouse succeeded - id=${house.id}, name=${house.name}, inviteCode=${house.inviteCode}")
-                        loadHouses()
+                        // Flow will automatically update the list
                         onSuccess(house)
                     },
                     onFailure = { error ->
@@ -69,7 +68,7 @@ class HomeViewModel @Inject constructor(
                 houseRepository.joinHouseByInviteCode(inviteCode).fold(
                     onSuccess = { house ->
                         android.util.Log.d("HomeViewModel", "joinHouseByInviteCode succeeded - joined house: ${house.name}")
-                        loadHouses()
+                        // Flow will automatically update the list
                         onSuccess(house.id)
                     },
                     onFailure = { error ->

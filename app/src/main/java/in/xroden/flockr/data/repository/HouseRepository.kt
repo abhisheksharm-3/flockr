@@ -43,12 +43,40 @@ class HouseRepository @Inject constructor(
             emit(getHouses())
 
             // Then listen for realtime updates
-            val channel = supabase.realtime.channel("houses_channel")
-            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "houses"
-            }.collect {
-                android.util.Log.d("HouseRepository", "Realtime update received, fetching houses")
-                emit(getHouses())
+            val channelId = "houses_user_${userId}_${System.currentTimeMillis()}"
+            val channel = supabase.realtime.channel(channelId)
+
+            try {
+                // Listen to both houses and house_members tables
+                val housesFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "houses"
+                }
+
+                val membersFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "house_members"
+                }
+
+                // Subscribe to the channel
+                android.util.Log.d("HouseRepository", "Subscribing to channel $channelId")
+                channel.subscribe(blockUntilSubscribed = true)
+                android.util.Log.d("HouseRepository", "Successfully subscribed to realtime updates")
+
+                // Merge both flows
+                kotlinx.coroutines.flow.merge(housesFlow, membersFlow).collect { action ->
+                    android.util.Log.d("HouseRepository", "Realtime update received: $action")
+                    // Small delay to ensure database consistency
+                    kotlinx.coroutines.delay(100)
+                    emit(getHouses())
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HouseRepository", "Error in realtime subscription", e)
+            } finally {
+                try {
+                    android.util.Log.d("HouseRepository", "Cleaning up channel")
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    android.util.Log.e("HouseRepository", "Error removing channel", e)
+                }
             }
         }
     }

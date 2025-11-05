@@ -25,6 +25,9 @@ class PerDiemViewModel @Inject constructor(
     private val _entries = MutableStateFlow<List<PerDiemEntry>>(emptyList())
     val entries: StateFlow<List<PerDiemEntry>> = _entries.asStateFlow()
 
+    private val _entriesWithDetails = MutableStateFlow<List<PerDiemEntryWithDetails>>(emptyList())
+    val entriesWithDetails: StateFlow<List<PerDiemEntryWithDetails>> = _entriesWithDetails.asStateFlow()
+
     private val _perDiemBillItemized = MutableStateFlow<List<PerDiemBillItemized>>(emptyList())
     val perDiemBillItemized: StateFlow<List<PerDiemBillItemized>> = _perDiemBillItemized.asStateFlow()
 
@@ -79,6 +82,22 @@ class PerDiemViewModel @Inject constructor(
                 _perDiemBillByMember.value = byMember
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load per-diem reports"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadEntriesWithDetails(houseId: String, month: String? = null) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val entries = perDiemRepository.getPerDiemEntriesWithDetails(houseId, month)
+                _entriesWithDetails.value = entries
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load per-diem entries"
+                android.util.Log.e("PerDiemViewModel", "Failed to load entries with details", e)
             } finally {
                 _isLoading.value = false
             }

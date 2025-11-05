@@ -139,32 +139,68 @@ class ChoreRepository @Inject constructor(
             val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
 
             FlockrLogger.d(TAG, "createChore: Inserting chore into database")
+
+            @kotlinx.serialization.Serializable
+            data class ChoreInsert(
+                @kotlinx.serialization.SerialName("house_id")
+                val houseId: String,
+                @kotlinx.serialization.SerialName("task_name")
+                val taskName: String,
+                @kotlinx.serialization.SerialName("description")
+                val description: String? = null,
+                @kotlinx.serialization.SerialName("due_date")
+                val dueDate: String? = null,
+                @kotlinx.serialization.SerialName("recurrence_pattern")
+                val recurrencePattern: String? = null,
+                @kotlinx.serialization.SerialName("assigned_to")
+                val assignedTo: String? = null,
+                @kotlinx.serialization.SerialName("created_by")
+                val createdBy: String
+            )
+
             supabase.from("chores")
                 .insert(
-                    buildMap {
-                        put("house_id", houseId)
-                        put("task_name", taskName)
-                        put("description", description)
-                        put("due_date", dueDate)
-                        put("recurrence_pattern", recurrencePattern)
-                        put("assigned_to", assignedTo)
-                        put("created_by", currentUserId)
-                    }
+                    ChoreInsert(
+                        houseId = houseId,
+                        taskName = taskName,
+                        description = description,
+                        dueDate = dueDate,
+                        recurrencePattern = recurrencePattern,
+                        assignedTo = assignedTo,
+                        createdBy = currentUserId
+                    )
                 )
 
             // Create notification if assigned to someone
             if (assignedTo != null && assignedTo != currentUserId) {
                 FlockrLogger.d(TAG, "createChore: Creating assignment notification")
+
+                @kotlinx.serialization.Serializable
+                data class NotificationParams(
+                    @kotlinx.serialization.SerialName("user_id")
+                    val userId: String,
+                    @kotlinx.serialization.SerialName("house_id")
+                    val houseId: String,
+                    @kotlinx.serialization.SerialName("title")
+                    val title: String,
+                    @kotlinx.serialization.SerialName("message")
+                    val message: String,
+                    @kotlinx.serialization.SerialName("type")
+                    val type: String,
+                    @kotlinx.serialization.SerialName("data")
+                    val data: String
+                )
+
                 supabase.postgrest.rpc(
                     function = "create_notification",
-                    parameters = buildMap {
-                        put("user_id", assignedTo)
-                        put("house_id", houseId)
-                        put("title", "New Chore Assigned")
-                        put("message", "You have been assigned a new chore: $taskName.")
-                        put("type", "chore")
-                        put("data", """{"taskName":"$taskName"}""")
-                    }
+                    parameters = NotificationParams(
+                        userId = assignedTo,
+                        houseId = houseId,
+                        title = "New Chore Assigned",
+                        message = "You have been assigned a new chore: $taskName.",
+                        type = "chore",
+                        data = """{"taskName":"$taskName"}"""
+                    )
                 ).decodeAs<Unit>()
             }
 
@@ -182,13 +218,24 @@ class ChoreRepository @Inject constructor(
             val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
 
             FlockrLogger.d(TAG, "completeChore: Marking chore as completed")
+
+            @kotlinx.serialization.Serializable
+            data class ChoreUpdate(
+                @kotlinx.serialization.SerialName("is_completed")
+                val isCompleted: Boolean,
+                @kotlinx.serialization.SerialName("completed_by")
+                val completedBy: String,
+                @kotlinx.serialization.SerialName("completed_at")
+                val completedAt: String
+            )
+
             supabase.from("chores")
                 .update(
-                    buildMap {
-                        put("is_completed", true)
-                        put("completed_by", currentUserId)
-                        put("completed_at", "now()")
-                    }
+                    ChoreUpdate(
+                        isCompleted = true,
+                        completedBy = currentUserId,
+                        completedAt = "now()"
+                    )
                 ) {
                     filter {
                         eq("id", choreId)
