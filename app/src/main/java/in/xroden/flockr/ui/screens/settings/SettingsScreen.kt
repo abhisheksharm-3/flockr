@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.ui.screens.settings
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -236,6 +237,61 @@ fun SettingsScreen(
                     },
                     icon = if (currentTheme == ThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
                     onClick = { showThemeDialog = true },
+                    showChevron = true
+                )
+            }
+
+            // About Section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "About",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+
+                // App Info
+                `in`.xroden.flockr.ui.components.lists.ModernListItem(
+                    title = "Flockr",
+                    subtitle = "Version 1.0.0",
+                    icon = Icons.Default.Settings,
+                    showChevron = false
+                )
+
+                // Developer
+                `in`.xroden.flockr.ui.components.lists.ModernListItem(
+                    title = "Developer",
+                    subtitle = "Abhishek Sharma",
+                    icon = Icons.Default.Person,
+                    showChevron = false
+                )
+
+                // Website Link
+                val context = androidx.compose.ui.platform.LocalContext.current
+                `in`.xroden.flockr.ui.components.lists.ModernListItem(
+                    title = "Website",
+                    subtitle = "abhisheksan.com",
+                    icon = Icons.Default.Person,
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                            data = android.net.Uri.parse("https://abhisheksan.com")
+                        }
+                        context.startActivity(intent)
+                    },
+                    showChevron = true
+                )
+
+                // GitHub Link
+                `in`.xroden.flockr.ui.components.lists.ModernListItem(
+                    title = "GitHub Repository",
+                    subtitle = "View source code & contribute",
+                    icon = Icons.Default.Settings,
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                            data = android.net.Uri.parse("https://github.com/abhisheksharm-3/flockr")
+                        }
+                        context.startActivity(intent)
+                    },
                     showChevron = true
                 )
             }

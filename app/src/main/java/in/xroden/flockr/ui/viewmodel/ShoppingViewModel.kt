@@ -68,6 +68,36 @@ class ShoppingViewModel @Inject constructor(
         }
     }
 
+    fun updateItem(
+        itemId: String,
+        itemName: String,
+        quantity: String?,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("ShoppingViewModel", "Updating item: $itemId")
+                val result = shoppingRepository.updateShoppingItem(itemId, itemName, quantity)
+                result.fold(
+                    onSuccess = {
+                        android.util.Log.d("ShoppingViewModel", "Item updated successfully")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        val errorMessage = error.message ?: "Failed to update item"
+                        android.util.Log.e("ShoppingViewModel", "Failed to update item: $errorMessage", error)
+                        onError(errorMessage)
+                    }
+                )
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: "Failed to update item"
+                android.util.Log.e("ShoppingViewModel", "Exception updating item: $errorMessage", e)
+                onError(errorMessage)
+            }
+        }
+    }
+
     fun deleteItem(itemId: String) {
         viewModelScope.launch {
             shoppingRepository.deleteShoppingItem(itemId)

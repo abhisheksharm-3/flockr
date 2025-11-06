@@ -212,6 +212,49 @@ class ChoreRepository @Inject constructor(
         }
     }
 
+    suspend fun updateChore(
+        choreId: String,
+        taskName: String,
+        description: String?,
+        dueDate: String?,
+        assignedTo: String?
+    ): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "updateChore", mapOf("choreId" to choreId, "taskName" to taskName))
+        return try {
+            @kotlinx.serialization.Serializable
+            data class ChoreUpdate(
+                @kotlinx.serialization.SerialName("task_name")
+                val taskName: String,
+                @kotlinx.serialization.SerialName("description")
+                val description: String?,
+                @kotlinx.serialization.SerialName("due_date")
+                val dueDate: String?,
+                @kotlinx.serialization.SerialName("assigned_to")
+                val assignedTo: String?
+            )
+
+            supabase.from("chores")
+                .update(
+                    ChoreUpdate(
+                        taskName = taskName,
+                        description = description,
+                        dueDate = dueDate,
+                        assignedTo = assignedTo
+                    )
+                ) {
+                    filter {
+                        eq("id", choreId)
+                    }
+                }
+
+            FlockrLogger.repoSuccess(TAG, "updateChore", "Chore updated successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "updateChore", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun completeChore(choreId: String, houseId: String, taskName: String): Result<Unit> {
         FlockrLogger.repoStart(TAG, "completeChore", mapOf("choreId" to choreId))
         return try {

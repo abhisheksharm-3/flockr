@@ -4,16 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.model.House
+import `in`.xroden.flockr.data.model.HouseCardData
 import `in`.xroden.flockr.data.repository.HouseRepository
+import `in`.xroden.flockr.data.repository.ExpenseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
+    private val houseRepository: HouseRepository,
+    private val expenseRepository: ExpenseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -30,7 +36,44 @@ class HomeViewModel @Inject constructor(
             try {
                 houseRepository.getHousesFlow().collect { houses ->
                     android.util.Log.d("HomeViewModel", "Houses loaded: ${houses.size} houses")
-                    _uiState.value = HomeUiState.Success(houses)
+
+                    // Enrich house data with member count and monthly expenses
+                    val enrichedHouses = houses.map { house ->
+                        val memberCountDeferred = async {
+                            try {
+                                houseRepository.getHouseMembers(house.id).size
+                            } catch (e: Exception) {
+                                0
+                            }
+                        }
+
+                        val monthlyExpenseDeferred = async {
+                            try {
+                                val currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                                val summary = expenseRepository.getMonthlySummary(house.id, currentMonth)
+                                summary?.totalExpenses?.toDouble() ?: 0.0
+                            } catch (e: Exception) {
+                                0.0
+                            }
+                        }
+
+                        val currencySymbolDeferred = async {
+                            try {
+                                houseRepository.getHouseConfig(house.id)?.currencySymbol ?: "$"
+                            } catch (e: Exception) {
+                                "$"
+                            }
+                        }
+
+                        HouseCardData(
+                            house = house,
+                            memberCount = memberCountDeferred.await(),
+                            monthlyExpense = monthlyExpenseDeferred.await(),
+                            currencySymbol = currencySymbolDeferred.await()
+                        )
+                    }
+
+                    _uiState.value = HomeUiState.Success(enrichedHouses)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "Error loading houses", e)
@@ -94,10 +137,19 @@ class HomeViewModel @Inject constructor(
             null
         }
     }
+
+    suspend fun getHouseConfig(houseId: String): `in`.xroden.flockr.data.model.HouseConfig? {
+        return try {
+            houseRepository.getHouseConfig(houseId)
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Error loading house config", e)
+            null
+        }
+    }
 }
 
 sealed class HomeUiState {
     object Loading : HomeUiState()
-    data class Success(val houses: List<House>) : HomeUiState()
+    data class Success(val houses: List<HouseCardData>) : HomeUiState()
     data class Error(val message: String) : HomeUiState()
 }

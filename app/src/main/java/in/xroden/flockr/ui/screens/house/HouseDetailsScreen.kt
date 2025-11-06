@@ -143,36 +143,127 @@ fun HouseDetailsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // House Header Info
+                // House Info Header
                 item {
                     house?.let { houseData ->
-                        HouseHeaderCard(
-                            house = houseData,
-                            currentUserRole = currentUserRole,
-                            onMembersClick = onNavigateToManageMembers
-                        )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // House Name
+                                Text(
+                                    text = houseData.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+
+                                // Address if exists
+                                if (houseData.address?.isNotEmpty() == true) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Place,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = houseData.address,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+
+                                // Quick Actions Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Members button
+                                    OutlinedButton(
+                                        onClick = onNavigateToManageMembers,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                                        )
+                                    ) {
+                                        Icon(
+                                            Icons.Default.People,
+                                            null,
+                                            Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Members", fontSize = 14.sp)
+                                    }
+
+                                    // Invite code button
+                                    houseData.inviteCode?.let { code ->
+                                        val context = androidx.compose.ui.platform.LocalContext.current
+                                        OutlinedButton(
+                                            onClick = {
+                                                val shareIntent = android.content.Intent().apply {
+                                                    action = android.content.Intent.ACTION_SEND
+                                                    putExtra(
+                                                        android.content.Intent.EXTRA_TEXT,
+                                                        "Join \"${houseData.name}\" on Flockr!\n\nInvite code: $code"
+                                                    )
+                                                    type = "text/plain"
+                                                }
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            ),
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                                            )
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Share,
+                                                null,
+                                                Modifier.size(18.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Invite", fontSize = 14.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Section title
-                item {
-                    Text(
-                        text = "Features",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
-                    )
-                }
-
-                // Modules Grid
+                // Modules Section
                 item {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+
                         ModuleCard(
                             title = "Expenses",
                             subtitle = "Split bills and track spending",
@@ -404,7 +495,7 @@ private fun ModuleCard(
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
+        targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -417,8 +508,8 @@ private fun ModuleCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 0.dp,
         interactionSource = interactionSource
     ) {
@@ -431,7 +522,7 @@ private fun ModuleCard(
         ) {
             // Icon in a container
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.size(56.dp)
             ) {
@@ -456,7 +547,7 @@ private fun ModuleCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(

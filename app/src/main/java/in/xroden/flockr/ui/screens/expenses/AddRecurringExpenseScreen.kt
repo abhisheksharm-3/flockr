@@ -105,7 +105,11 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
                 )
 
                 // Amount
@@ -119,16 +123,17 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
                 )
+
                 // Due Day
                 OutlinedTextField(
                     value = dueDay,
-                    onValueChange = { 
-                        if (it.isEmpty() || (it.toIntOrNull() != null && it.toInt() in 1..31)) {
-                            dueDay = it
-                        }
-                    },
+                    onValueChange = { dueDay = it },
                     label = { Text("Due Day of Month *") },
                     placeholder = { Text("1-31") },
                     leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
@@ -136,7 +141,11 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
                     supportingText = { Text("Day of month when bill is due (1-31)") }
                 )
 
@@ -158,7 +167,11 @@ fun AddRecurringExpenseScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
                     )
                     ExposedDropdownMenu(
                         expanded = expandedCategory,

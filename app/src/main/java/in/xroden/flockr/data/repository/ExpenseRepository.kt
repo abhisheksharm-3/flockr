@@ -92,6 +92,21 @@ class ExpenseRepository @Inject constructor(
         }
     }
 
+    /**
+     * Create a one-time expense.
+     *
+     * Split Logic:
+     * - splits = null: No splitting, just track the expense
+     * - splits = list: Split expense among specified users
+     *
+     * IMPORTANT: If only the payer is in the splits list, splits are NOT created
+     * to prevent "owing yourself" scenarios. This is filtered out automatically.
+     *
+     * Example Scenarios:
+     * 1. Solo expense: You pay 676, no splits → No balance change
+     * 2. Split expense: You pay 900, split among 3 → You're owed 600, others owe 300 each
+     * 3. Full expense shown in house total regardless of splits
+     */
     suspend fun createOneTimeExpense(
         houseId: String,
         name: String,
@@ -131,17 +146,27 @@ class ExpenseRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "createOneTimeExpense: Expense created with id=${expense.id}")
 
-            // Create splits if provided
+            // Create splits if provided (but filter out if only payer is in the split)
             if (splits != null && splits.isNotEmpty()) {
-                FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${splits.size} splits")
-                splits.forEach { (splitUserId, amountOwed) ->
-                    val split = ExpenseSplitInsert(
-                        expenseId = expense.id,
-                        userId = splitUserId,
-                        amountOwed = amountOwed
-                    )
-                    supabase.from("expense_splits")
-                        .insert(split)
+                // Don't create splits if it's only the payer (would owe themselves)
+                val validSplits = if (splits.size == 1 && splits.first().first == currentUserId) {
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Skipping split creation - only payer is selected")
+                    emptyList()
+                } else {
+                    splits
+                }
+
+                if (validSplits.isNotEmpty()) {
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${validSplits.size} splits")
+                    validSplits.forEach { (splitUserId, amountOwed) ->
+                        val split = ExpenseSplitInsert(
+                            expenseId = expense.id,
+                            userId = splitUserId,
+                            amountOwed = amountOwed
+                        )
+                        supabase.from("expense_splits")
+                            .insert(split)
+                    }
                 }
 
                 // Create notification for house members about the split expense
@@ -193,6 +218,19 @@ class ExpenseRepository @Inject constructor(
         }
     }
 
+    /**
+     * Get user balances for a house.
+     *
+     * Balance Calculation Logic:
+     * - Positive balance: User is OWED money (they paid more than they owe)
+     * - Negative balance: User OWES money (they owe more than they paid)
+     *
+     * IMPORTANT: If you see "you owe yourself" bugs, the RPC function needs to be updated.
+     * See FIX_BALANCE_RPC.sql and BALANCE_FIX_GUIDE.md for the database fix.
+     *
+     * The RPC function must exclude splits where user_id == payer_id to prevent
+     * self-owing scenarios.
+     */
     suspend fun getUserBalances(houseId: String): List<UserBalance> {
         FlockrLogger.repoStart(TAG, "getUserBalances", mapOf("houseId" to houseId))
         return try {

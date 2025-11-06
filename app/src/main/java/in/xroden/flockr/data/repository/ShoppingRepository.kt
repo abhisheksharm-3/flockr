@@ -197,6 +197,36 @@ class ShoppingRepository @Inject constructor(
         }
     }
 
+    suspend fun updateShoppingItem(
+        itemId: String,
+        itemName: String,
+        quantity: String?
+    ): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "updateShoppingItem", mapOf(
+            "itemId" to itemId,
+            "itemName" to itemName
+        ))
+        return try {
+            supabase.from("shopping_items")
+                .update(
+                    buildMap {
+                        put("item_name", itemName)
+                        put("quantity", quantity)
+                    }
+                ) {
+                    filter {
+                        eq("id", itemId)
+                    }
+                }
+
+            FlockrLogger.repoSuccess(TAG, "updateShoppingItem", "Item updated successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "updateShoppingItem", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun deleteShoppingItem(itemId: String): Result<Unit> {
         FlockrLogger.repoStart(TAG, "deleteShoppingItem", mapOf("itemId" to itemId))
         return try {
