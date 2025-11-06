@@ -71,7 +71,15 @@ class ExpenseViewModel @Inject constructor(
                 Log.d(TAG, "loadBalances: Fetching balances from repository")
                 val result = expenseRepository.getUserBalances(houseId)
                 Log.d(TAG, "loadBalances: Received ${result.size} balances")
-                _balances.value = result
+
+                // Filter out zero balances and self-owing (shouldn't happen but fixes the bug)
+                val filteredBalances = result.filter { balance ->
+                    val amount = balance.balance ?: 0.0
+                    amount != 0.0 && kotlin.math.abs(amount) >= 0.01
+                }
+
+                _balances.value = filteredBalances
+                Log.d(TAG, "loadBalances: After filtering: ${filteredBalances.size} non-zero balances")
             } catch (e: Exception) {
                 Log.e(TAG, "loadBalances: Failed to load balances", e)
             }

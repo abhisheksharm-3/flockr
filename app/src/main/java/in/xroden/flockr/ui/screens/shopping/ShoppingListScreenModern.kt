@@ -41,6 +41,7 @@ fun ShoppingListScreenModern(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var showConvertDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,6 +61,34 @@ fun ShoppingListScreenModern(
                     viewModel.addItem(houseId, itemName, quantity)
                     showAddDialog = false
                     snackbarHostState.showSnackbar("Item added to list")
+                }
+            }
+        )
+    }
+
+    // Edit Item Dialog
+    showEditDialog?.let { item ->
+        EditShoppingItemDialog(
+            item = item,
+            onDismiss = { showEditDialog = null },
+            onSave = { itemName, quantity ->
+                scope.launch {
+                    viewModel.updateItem(
+                        itemId = item.id,
+                        itemName = itemName,
+                        quantity = quantity,
+                        onSuccess = {
+                            showEditDialog = null
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Item updated")
+                            }
+                        },
+                        onError = { error ->
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Error: $error")
+                            }
+                        }
+                    )
                 }
             }
         )
@@ -171,6 +200,9 @@ fun ShoppingListScreenModern(
                                         showConvertDialog = item
                                     }
                                 },
+                                onEdit = {
+                                    showEditDialog = item
+                                },
                                 onDelete = {
                                     scope.launch {
                                         viewModel.deleteItem(item.id)
@@ -226,6 +258,7 @@ fun ShoppingListScreenModern(
 fun ShoppingItemCard(
     item: ShoppingItem,
     onChecked: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     var isChecked by remember { mutableStateOf(false) }
@@ -403,7 +436,7 @@ fun ShoppingItemCard(
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
-                        onClick = { /* TODO: Implement edit */ },
+                        onClick = onEdit,
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
@@ -510,6 +543,84 @@ fun AddShoppingItemDialog(
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("Add")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditShoppingItemDialog(
+    item: ShoppingItem,
+    onDismiss: () -> Unit,
+    onSave: (String, String?) -> Unit
+) {
+    var itemName by remember { mutableStateOf(item.itemName) }
+    var quantity by remember { mutableStateOf(item.quantity ?: "") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text(
+                    text = "Edit Item",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    label = { Text("Item Name *") },
+                    placeholder = { Text("e.g., Milk, Bread") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = { quantity = it },
+                    label = { Text("Quantity (Optional)") },
+                    placeholder = { Text("e.g., 2L, 1 loaf") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            onSave(itemName, quantity.takeIf { it.isNotBlank() })
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = itemName.isNotBlank(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Save")
                     }
                 }
             }

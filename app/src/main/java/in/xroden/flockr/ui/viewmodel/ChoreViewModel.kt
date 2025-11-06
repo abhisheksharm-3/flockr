@@ -79,6 +79,44 @@ class ChoreViewModel @Inject constructor(
         }
     }
 
+    fun updateChore(
+        choreId: String,
+        taskName: String,
+        description: String?,
+        dueDate: String?,
+        assignedTo: String?,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("ChoreViewModel", "Updating chore: $choreId")
+                val result = choreRepository.updateChore(
+                    choreId = choreId,
+                    taskName = taskName,
+                    description = description,
+                    dueDate = dueDate,
+                    assignedTo = assignedTo
+                )
+                result.fold(
+                    onSuccess = {
+                        android.util.Log.d("ChoreViewModel", "Chore updated successfully")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        val errorMessage = error.message ?: "Failed to update chore"
+                        android.util.Log.e("ChoreViewModel", "Failed to update chore: $errorMessage", error)
+                        onError(errorMessage)
+                    }
+                )
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: "Failed to update chore"
+                android.util.Log.e("ChoreViewModel", "Exception updating chore: $errorMessage", e)
+                onError(errorMessage)
+            }
+        }
+    }
+
     fun deleteChore(choreId: String) {
         viewModelScope.launch {
             choreRepository.deleteChore(choreId)

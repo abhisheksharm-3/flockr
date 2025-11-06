@@ -52,7 +52,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        mapOf(
+                        mapOf<String, Any>(
                             "house_id" to houseId,
                             "name" to name,
                             "amount" to amount,
@@ -87,7 +87,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("recurring_expenses")
                     .insert(
-                        mapOf(
+                        mapOf<String, Any>(
                             "house_id" to houseId,
                             "name" to name,
                             "amount" to amount,
@@ -114,7 +114,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 supabase.from("payment_history")
                     .insert(
-                        mapOf(
+                        mapOf<String, Any>(
                             "recurring_expense_id" to expenseId,
                             "paid_by" to userId,
                             "amount" to amount,
