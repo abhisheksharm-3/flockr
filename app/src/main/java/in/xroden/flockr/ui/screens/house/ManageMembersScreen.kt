@@ -3,6 +3,7 @@ package `in`.xroden.flockr.ui.screens.house
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,21 +37,23 @@ fun ManageMembersScreen(
     viewModel: `in`.xroden.flockr.ui.viewmodel.HouseManagementViewModel = hiltViewModel()
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
+    var pendingInvitations by remember { mutableStateOf<List<`in`.xroden.flockr.data.model.HouseInvitation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showInviteDialog by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf<MemberWithProfile?>(null) }
     var inviteEmail by remember { mutableStateOf("") }
     var isInviting by remember { mutableStateOf(false) }
-    
+    var expandedInvitations by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val currentHouse by viewModel.currentHouse.collectAsState()
 
     LaunchedEffect(houseId) {
         isLoading = true
         scope.launch {
             viewModel.loadHouse(houseId)
             members = viewModel.getHouseMembers(houseId)
+            pendingInvitations = viewModel.getPendingInvitations(houseId)
             isLoading = false
         }
     }
@@ -68,15 +71,20 @@ fun ManageMembersScreen(
             onConfirm = {
                 scope.launch {
                     isInviting = true
-                    val result = viewModel.inviteMember(houseId, inviteEmail)
-                    isInviting = false
+                    val emailToInvite = inviteEmail // Capture email before clearing
+                    val result = viewModel.inviteMember(houseId, emailToInvite)
                     if (result.isSuccess) {
                         showInviteDialog = false
                         inviteEmail = ""
-                        snackbarHostState.showSnackbar("Invitation sent to $inviteEmail")
+                        // Reload pending invitations
+                        pendingInvitations = viewModel.getPendingInvitations(houseId)
+                        snackbarHostState.showSnackbar("Invitation sent to $emailToInvite")
                     } else {
-                        snackbarHostState.showSnackbar("Failed to send invitation")
+                        snackbarHostState.showSnackbar(
+                            result.exceptionOrNull()?.message ?: "Failed to send invitation"
+                        )
                     }
+                    isInviting = false
                 }
             }
         )
@@ -152,25 +160,130 @@ fun ManageMembersScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(24.dp),
+                contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header Section
                 item {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Household Members",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "${members.size} members in this household",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Members",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "${members.size} member${if (members.size != 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Pending Invitations - Collapsible Card
+                if (pendingInvitations.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column {
+                                // Header - Always visible
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { expandedInvitations = !expandedInvitations }
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Email,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.secondary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = "Pending Invitations",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Text(
+                                                text = "${pendingInvitations.size} invitation${if (pendingInvitations.size != 1) "s" else ""} sent",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = if (expandedInvitations) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (expandedInvitations) "Collapse" else "Expand",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // Expandable content
+                                if (expandedInvitations) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        pendingInvitations.forEach { invitation ->
+                                            PendingInvitationItem(
+                                                invitation = invitation,
+                                                onCancel = {
+                                                    scope.launch {
+                                                        val result = viewModel.cancelInvitation(invitation.id)
+                                                        if (result.isSuccess) {
+                                                            pendingInvitations = viewModel.getPendingInvitations(houseId)
+                                                            snackbarHostState.showSnackbar("Invitation cancelled")
+                                                        } else {
+                                                            snackbarHostState.showSnackbar("Failed to cancel invitation")
+                                                        }
+                                                    }
+                                                },
+                                                onResend = {
+                                                    scope.launch {
+                                                        val result = viewModel.resendInvitationNotification(invitation.id)
+                                                        if (result.isSuccess) {
+                                                            snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
+                                                        } else {
+                                                            snackbarHostState.showSnackbar(
+                                                                result.exceptionOrNull()?.message ?: "Failed to resend notification"
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -191,31 +304,9 @@ fun ManageMembersScreen(
                     )
                 }
 
-                // Info Card
+                // Bottom padding for FAB
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Invite members to collaborate on expenses, chores, and more. They'll receive an email invitation.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
@@ -482,4 +573,101 @@ fun RemoveMemberDialog(
             }
         }
     )
+}
+
+@Composable
+fun PendingInvitationItem(
+    invitation: `in`.xroden.flockr.data.model.HouseInvitation,
+    onCancel: () -> Unit,
+    onResend: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Email Icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Email,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Email and Status
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = invitation.inviteeEmail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiary)
+                    )
+                    Text(
+                        text = "Pending",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Resend Button
+            IconButton(
+                onClick = onResend,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Resend notification",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Cancel Button
+            IconButton(
+                onClick = onCancel,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Cancel invitation",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
 }

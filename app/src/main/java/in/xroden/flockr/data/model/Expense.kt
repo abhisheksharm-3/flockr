@@ -4,6 +4,22 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class OneTimeExpense(
+    val id: String,
+    @SerialName("house_id")
+    val houseId: String,
+    val name: String,
+    val amount: Double,
+    val category: String,
+    @SerialName("paid_by")
+    val paidBy: String,
+    val date: String,
+    val notes: String? = null,
+    @SerialName("created_at")
+    val createdAt: String
+)
+
+@Serializable
 data class RecurringExpense(
     val id: String,
     @SerialName("house_id")
@@ -17,29 +33,26 @@ data class RecurringExpense(
     val createdBy: String,
     @SerialName("is_active")
     val isActive: Boolean = true,
-    val frequency: String = "Monthly",
-    @SerialName("next_payment_date")
-    val nextPaymentDate: String = "",
-    @SerialName("is_paid")
-    val isPaid: Boolean = false,
     @SerialName("created_at")
-    val createdAt: String
-)
-
-@Serializable
-data class OneTimeExpense(
-    val id: String,
-    @SerialName("house_id")
-    val houseId: String,
-    val name: String,
-    val amount: Double,
-    val date: String,
-    @SerialName("paid_by")
-    val paidBy: String,
-    val category: String,
+    val createdAt: String,
+    // Enhanced fields (to be added to database)
+    val frequency: String = "monthly", // daily, weekly, biweekly, monthly, quarterly, semiannual, annual, custom
+    @SerialName("next_due_date")
+    val nextDueDate: String? = null,
+    @SerialName("last_paid_date")
+    val lastPaidDate: String? = null,
+    @SerialName("custom_frequency_days")
+    val customFrequencyDays: Int? = null,
+    @SerialName("reminder_days_before")
+    val reminderDaysBefore: Int = 3,
+    @SerialName("reminder_enabled")
+    val reminderEnabled: Boolean = true,
     val notes: String? = null,
-    @SerialName("created_at")
-    val createdAt: String
+    // Computed fields from RPC
+    @SerialName("due_status")
+    val dueStatus: String? = null,
+    @SerialName("days_until_due")
+    val daysUntilDue: Int? = null
 )
 
 @Serializable
@@ -70,6 +83,20 @@ data class Transaction(
     @SerialName("is_settlement")
     val isSettlement: Boolean = false,
     val description: String? = null,
+    @SerialName("created_at")
+    val createdAt: String
+)
+
+@Serializable
+data class PaymentHistory(
+    val id: String,
+    @SerialName("recurring_expense_id")
+    val recurringExpenseId: String,
+    @SerialName("paid_by")
+    val paidBy: String,
+    val amount: Double,
+    @SerialName("payment_date")
+    val paymentDate: String,
     @SerialName("created_at")
     val createdAt: String
 )

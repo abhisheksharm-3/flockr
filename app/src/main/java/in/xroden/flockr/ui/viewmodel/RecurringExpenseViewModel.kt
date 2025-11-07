@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.model.RecurringExpense
+import `in`.xroden.flockr.data.model.RecurringExpenseInsert
+import `in`.xroden.flockr.data.model.RecurringExpenseUpdate
+import `in`.xroden.flockr.data.model.PaymentHistoryInsert
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -50,17 +53,19 @@ class RecurringExpenseViewModel @Inject constructor(
             try {
                 val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
 
+                val expenseInsert = RecurringExpenseInsert(
+                    houseId = houseId,
+                    name = name,
+                    amount = amount,
+                    dueDay = dueDay,
+                    category = category,
+                    createdBy = userId
+                )
+
                 supabase.from("recurring_expenses")
-                    .insert(
-                        mapOf<String, Any>(
-                            "house_id" to houseId,
-                            "name" to name,
-                            "amount" to amount,
-                            "due_day" to dueDay,
-                            "category" to category,
-                            "created_by" to userId
-                        )
-                    )
+                    .insert(expenseInsert) {
+                        select()
+                    }
 
                 loadRecurringExpenses(houseId)
             } catch (e: Exception) {
@@ -75,6 +80,11 @@ class RecurringExpenseViewModel @Inject constructor(
         amount: Double,
         dueDay: Int,
         category: String,
+        frequency: String = "monthly",
+        customFrequencyDays: Int? = null,
+        reminderDaysBefore: Int = 3,
+        reminderEnabled: Boolean = true,
+        notes: String? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -85,17 +95,24 @@ class RecurringExpenseViewModel @Inject constructor(
                     return@launch
                 }
 
+                val expenseInsert = RecurringExpenseInsert(
+                    houseId = houseId,
+                    name = name,
+                    amount = amount,
+                    dueDay = dueDay,
+                    category = category,
+                    createdBy = userId,
+                    frequency = frequency,
+                    customFrequencyDays = customFrequencyDays,
+                    reminderDaysBefore = reminderDaysBefore,
+                    reminderEnabled = reminderEnabled,
+                    notes = notes
+                )
+
                 supabase.from("recurring_expenses")
-                    .insert(
-                        mapOf<String, Any>(
-                            "house_id" to houseId,
-                            "name" to name,
-                            "amount" to amount,
-                            "due_day" to dueDay,
-                            "category" to category,
-                            "created_by" to userId
-                        )
-                    )
+                    .insert(expenseInsert) {
+                        select()
+                    }
 
                 loadRecurringExpenses(houseId)
                 onSuccess()
@@ -112,19 +129,21 @@ class RecurringExpenseViewModel @Inject constructor(
                 val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
                 val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
-                supabase.from("payment_history")
-                    .insert(
-                        mapOf<String, Any>(
-                            "recurring_expense_id" to expenseId,
-                            "paid_by" to userId,
-                            "amount" to amount,
-                            "payment_date" to currentDate
-                        )
-                    )
+                val paymentInsert = PaymentHistoryInsert(
+                    recurringExpenseId = expenseId,
+                    paidBy = userId,
+                    amount = amount,
+                    paymentDate = currentDate
+                )
 
-                // Could show a snackbar here
+                supabase.from("payment_history")
+                    .insert(paymentInsert) {
+                        select()
+                    }
+
+                loadRecurringExpenses(houseId)
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("RecurringExpenseViewModel", "Error marking as paid", e)
             }
         }
     }
@@ -132,10 +151,10 @@ class RecurringExpenseViewModel @Inject constructor(
     fun toggleActive(expenseId: String, houseId: String, isActive: Boolean) {
         viewModelScope.launch {
             try {
+                val update = RecurringExpenseUpdate(isActive = isActive)
+
                 supabase.from("recurring_expenses")
-                    .update(
-                        mapOf("is_active" to isActive)
-                    ) {
+                    .update(update) {
                         filter {
                             eq("id", expenseId)
                         }
@@ -143,7 +162,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 loadRecurringExpenses(houseId)
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("RecurringExpenseViewModel", "Error toggling active status", e)
             }
         }
     }
@@ -160,7 +179,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
                 loadRecurringExpenses(houseId)
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("RecurringExpenseViewModel", "Error deleting expense", e)
             }
         }
     }

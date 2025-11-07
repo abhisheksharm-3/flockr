@@ -215,6 +215,13 @@ fun FlockrNavigation(
                             val houseId = notification.houseId
                             if (houseId != null) {
                                 when (notification.notificationType) {
+                                    "house_invitation" -> {
+                                        // Navigate to home screen - user can see the invitation in notifications
+                                        // Or we could show a dialog to accept/decline
+                                        navController.navigate(Screen.Home.route) {
+                                            popUpTo(Screen.Home.route) { inclusive = true }
+                                        }
+                                    }
                                     "expense", "settlement" -> {
                                         navController.navigate(Screen.Expenses.createRoute(houseId))
                                     }

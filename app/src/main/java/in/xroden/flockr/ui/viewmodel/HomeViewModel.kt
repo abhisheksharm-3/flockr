@@ -146,6 +146,28 @@ class HomeViewModel @Inject constructor(
             null
         }
     }
+
+    fun acceptInvitation(invitationId: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("HomeViewModel", "acceptInvitation called - id='$invitationId'")
+                houseRepository.acceptInvitation(invitationId).fold(
+                    onSuccess = { house ->
+                        android.util.Log.d("HomeViewModel", "acceptInvitation succeeded - joined house: ${house.name}")
+                        // Flow will automatically update the list
+                        onSuccess(house.id)
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e("HomeViewModel", "acceptInvitation failed", error)
+                        onError(error.message ?: "Failed to accept invitation")
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Exception in acceptInvitation", e)
+                onError(e.message ?: "Failed to accept invitation")
+            }
+        }
+    }
 }
 
 sealed class HomeUiState {

@@ -34,11 +34,24 @@ fun AddRecurringExpenseScreen(
     var amount by remember { mutableStateOf("") }
     var dueDay by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Utilities") }
+    var frequency by remember { mutableStateOf("monthly") }
+    var customFrequencyDays by remember { mutableStateOf("") }
+    var reminderDaysBefore by remember { mutableStateOf("3") }
+    var reminderEnabled by remember { mutableStateOf(true) }
+    var notes by remember { mutableStateOf("") }
     var expandedCategory by remember { mutableStateOf(false) }
+    var expandedFrequency by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
     val categories = listOf(
-        "Utilities", "Rent", "Internet", "Insurance", "Subscription", "Other"
+        "Utilities", "Rent", "Internet", "Insurance", "Subscription",
+        "Groceries", "Food", "Entertainment", "Transport", "Shopping",
+        "Healthcare", "Education", "Other"
+    )
+
+    val frequencies = listOf(
+        "Daily", "Weekly", "Biweekly", "Monthly", "Quarterly",
+        "Semiannual", "Annual", "Custom"
     )
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
@@ -188,6 +201,137 @@ fun AddRecurringExpenseScreen(
                         }
                     }
                 }
+
+                // Frequency Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expandedFrequency,
+                    onExpandedChange = { expandedFrequency = !expandedFrequency && !isLoading }
+                ) {
+                    OutlinedTextField(
+                        value = frequency.capitalize(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Frequency *") },
+                        leadingIcon = { Icon(Icons.Default.Repeat, null) },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        enabled = !isLoading,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedFrequency,
+                        onDismissRequest = { expandedFrequency = false }
+                    ) {
+                        frequencies.forEach { freq ->
+                            DropdownMenuItem(
+                                text = { Text(freq) },
+                                onClick = {
+                                    frequency = freq.lowercase()
+                                    expandedFrequency = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Custom Frequency Days (if frequency is custom)
+                if (frequency.lowercase() == "custom") {
+                    OutlinedTextField(
+                        value = customFrequencyDays,
+                        onValueChange = { customFrequencyDays = it },
+                        label = { Text("Custom Days *") },
+                        placeholder = { Text("e.g., 45 for every 45 days") },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading,
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        ),
+                        supportingText = { Text("Number of days between occurrences") }
+                    )
+                }
+            }
+
+            // Reminder Settings
+            SectionCard(title = "Reminder Settings") {
+                // Reminder Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable Reminders",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Get notified before bill is due",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = reminderEnabled,
+                        onCheckedChange = { reminderEnabled = it },
+                        enabled = !isLoading
+                    )
+                }
+
+                // Reminder Days Before (if enabled)
+                if (reminderEnabled) {
+                    OutlinedTextField(
+                        value = reminderDaysBefore,
+                        onValueChange = { reminderDaysBefore = it },
+                        label = { Text("Remind Days Before") },
+                        placeholder = { Text("3") },
+                        leadingIcon = { Icon(Icons.Default.Notifications, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading,
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        ),
+                        supportingText = { Text("Number of days before due date") }
+                    )
+                }
+            }
+
+            // Notes Section
+            SectionCard(title = "Notes (Optional)") {
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Additional Notes") },
+                    placeholder = { Text("e.g., Account number, payment instructions") },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                )
             }
 
             // Submit Button
@@ -196,6 +340,13 @@ fun AddRecurringExpenseScreen(
                     val amt = amount.toDoubleOrNull()
                     val day = dueDay.toIntOrNull()
                     
+                    if (name.isBlank()) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Please enter a bill name")
+                        }
+                        return@Button
+                    }
+
                     if (amt == null) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Please enter a valid amount")
@@ -210,6 +361,27 @@ fun AddRecurringExpenseScreen(
                         return@Button
                     }
 
+                    // Validate custom frequency days if frequency is custom
+                    val customDays = if (frequency.lowercase() == "custom") {
+                        customFrequencyDays.toIntOrNull()?.also {
+                            if (it <= 0) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Custom days must be greater than 0")
+                                }
+                                return@Button
+                            }
+                        } ?: run {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Please enter custom days for custom frequency")
+                            }
+                            return@Button
+                        }
+                    } else null
+
+                    val reminderDays = if (reminderEnabled) {
+                        reminderDaysBefore.toIntOrNull() ?: 3
+                    } else 3
+
                     isLoading = true
 
                     viewModel.createRecurringExpense(
@@ -218,6 +390,11 @@ fun AddRecurringExpenseScreen(
                         amount = amt,
                         dueDay = day,
                         category = category,
+                        frequency = frequency,
+                        customFrequencyDays = customDays,
+                        reminderDaysBefore = reminderDays,
+                        reminderEnabled = reminderEnabled,
+                        notes = notes.ifBlank { null },
                         onSuccess = {
                             isLoading = false
                             onExpenseAdded()
