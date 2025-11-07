@@ -174,14 +174,52 @@ class ExpenseViewModel @Inject constructor(
         Log.d(TAG, "loadRecurringExpenses() called for houseId=$houseId")
         viewModelScope.launch {
             try {
-                Log.d(TAG, "loadRecurringExpenses: Fetching from repository - NOT IMPLEMENTED YET")
-                // TODO: Implement recurring expenses repository method
-                _recurringExpenses.value = emptyList()
-                _uiState.value = ExpenseUiState.Success(_uiState.value.let {
-                    if (it is ExpenseUiState.Success) it.expenses else emptyList()
-                }, emptyList())
+                Log.d(TAG, "loadRecurringExpenses: Collecting expenses flow from repository")
+                expenseRepository.getRecurringExpensesFlow(houseId).collect { expenses ->
+                    Log.d(TAG, "loadRecurringExpenses: Received ${expenses.size} recurring expenses")
+                    _recurringExpenses.value = expenses
+                    _uiState.value = ExpenseUiState.Success(
+                        _uiState.value.let {
+                            if (it is ExpenseUiState.Success) it.expenses else emptyList()
+                        },
+                        expenses
+                    )
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "loadRecurringExpenses: Failed to load recurring expenses", e)
+                _uiState.value = ExpenseUiState.Error(e.message ?: "Failed to load recurring expenses")
+            }
+        }
+    }
+
+    fun markRecurringExpenseAsPaid(
+        expenseId: String,
+        houseId: String,
+        amount: Double,
+        paymentDate: String
+    ) {
+        Log.d(TAG, "markRecurringExpenseAsPaid() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "markRecurringExpenseAsPaid: Calling repository")
+                expenseRepository.markRecurringExpenseAsPaid(
+                    expenseId = expenseId,
+                    houseId = houseId,
+                    amount = amount,
+                    paymentDate = paymentDate
+                ).fold(
+                    onSuccess = {
+                        Log.d(TAG, "markRecurringExpenseAsPaid: Success, reloading")
+                        // The real-time flow will automatically update
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "markRecurringExpenseAsPaid: Failed", error)
+                        _uiState.value = ExpenseUiState.Error(error.message ?: "Failed to mark as paid")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "markRecurringExpenseAsPaid: Exception occurred", e)
+                _uiState.value = ExpenseUiState.Error(e.message ?: "Failed to mark as paid")
             }
         }
     }
@@ -193,27 +231,30 @@ class ExpenseViewModel @Inject constructor(
         date: String,
         category: String,
         notes: String?,
-        splits: List<Pair<String, Double>>?,
+        splits: List<Pair<String, Double>>? = null,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit = {}
+        onError: (String) -> Unit
     ) {
-        Log.d(TAG, "createExpense() called - name=$name, amount=$amount, houseId=$houseId, hasSplits=${splits != null}")
+        Log.d(TAG, "createExpense() called - name=$name, amount=$amount, hasSplits=${splits != null}")
         viewModelScope.launch {
             try {
                 Log.d(TAG, "createExpense: Calling repository")
                 expenseRepository.createOneTimeExpense(
-                    houseId, name, amount, date, category, notes, splits
+                    houseId = houseId,
+                    name = name,
+                    amount = amount,
+                    date = date,
+                    category = category,
+                    notes = notes,
+                    splits = splits
                 ).fold(
-                    onSuccess = {
-                        Log.d(TAG, "createExpense: Success, reloading expenses")
-                        loadExpenses(houseId)
+                    onSuccess = { expense ->
+                        Log.d(TAG, "createExpense: Success, expense created with id=${expense.id}")
                         onSuccess()
                     },
                     onFailure = { error ->
                         Log.e(TAG, "createExpense: Failed", error)
-                        val errorMessage = error.message ?: "Failed to create expense"
-                        _uiState.value = ExpenseUiState.Error(errorMessage)
-                        onError(errorMessage)
+                        onError(error.message ?: "Failed to create expense")
                     }
                 )
             } catch (e: Exception) {
@@ -248,6 +289,78 @@ class ExpenseViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "settleBalance: Exception occurred", e)
+                onError(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun deleteRecurringExpense(
+        expenseId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        Log.d(TAG, "deleteRecurringExpense() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "deleteRecurringExpense: Calling repository")
+                expenseRepository.deleteRecurringExpense(expenseId).fold(
+                    onSuccess = {
+                        Log.d(TAG, "deleteRecurringExpense: Success")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "deleteRecurringExpense: Failed", error)
+                        onError(error.message ?: "Failed to delete recurring expense")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "deleteRecurringExpense: Exception occurred", e)
+                onError(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun updateRecurringExpense(
+        expenseId: String,
+        name: String,
+        amount: Double,
+        dueDay: Int,
+        category: String,
+        frequency: String,
+        customFrequencyDays: Int?,
+        reminderDaysBefore: Int,
+        reminderEnabled: Boolean,
+        notes: String?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        Log.d(TAG, "updateRecurringExpense() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "updateRecurringExpense: Calling repository")
+                expenseRepository.updateRecurringExpense(
+                    expenseId = expenseId,
+                    name = name,
+                    amount = amount,
+                    dueDay = dueDay,
+                    category = category,
+                    frequency = frequency,
+                    customFrequencyDays = customFrequencyDays,
+                    reminderDaysBefore = reminderDaysBefore,
+                    reminderEnabled = reminderEnabled,
+                    notes = notes
+                ).fold(
+                    onSuccess = {
+                        Log.d(TAG, "updateRecurringExpense: Success")
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "updateRecurringExpense: Failed", error)
+                        onError(error.message ?: "Failed to update recurring expense")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "updateRecurringExpense: Exception occurred", e)
                 onError(e.message ?: "Unknown error")
             }
         }

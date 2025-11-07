@@ -55,5 +55,33 @@ class HouseManagementViewModel @Inject constructor(
         }
         return result
     }
-}
 
+    suspend fun getPendingInvitations(houseId: String): List<`in`.xroden.flockr.data.model.HouseInvitation> {
+        android.util.Log.d("HouseManagementViewModel", "Fetching pending invitations for house: $houseId")
+        val invitations = houseRepository.getPendingInvitations(houseId)
+        android.util.Log.d("HouseManagementViewModel", "Fetched ${invitations.size} pending invitations")
+        return invitations
+    }
+
+    suspend fun cancelInvitation(invitationId: String): Result<Unit> {
+        android.util.Log.d("HouseManagementViewModel", "Cancelling invitation: $invitationId")
+        val result = houseRepository.cancelInvitation(invitationId)
+        if (result.isSuccess) {
+            android.util.Log.d("HouseManagementViewModel", "Invitation cancelled successfully")
+        } else {
+            android.util.Log.e("HouseManagementViewModel", "Failed to cancel invitation: ${result.exceptionOrNull()?.message}")
+        }
+        return result
+    }
+
+    suspend fun resendInvitationNotification(invitationId: String): Result<Unit> {
+        android.util.Log.d("HouseManagementViewModel", "Resending invitation notification: $invitationId")
+        val result = houseRepository.resendInvitationNotification(invitationId)
+        if (result.isSuccess) {
+            android.util.Log.d("HouseManagementViewModel", "Notification resent successfully")
+        } else {
+            android.util.Log.e("HouseManagementViewModel", "Failed to resend notification: ${result.exceptionOrNull()?.message}")
+        }
+        return result
+    }
+}

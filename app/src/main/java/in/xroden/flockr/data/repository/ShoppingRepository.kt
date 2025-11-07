@@ -1,6 +1,10 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.ShoppingItem
+import `in`.xroden.flockr.data.model.ShoppingItemInsert
+import `in`.xroden.flockr.data.model.ShoppingItemUpdate
+import `in`.xroden.flockr.data.model.ShoppingItemUpdateModel
+import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -133,15 +137,15 @@ class ShoppingRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
+            val shoppingItemInsert = ShoppingItemInsert(
+                houseId = houseId,
+                itemName = itemName,
+                quantity = quantity,
+                addedBy = currentUserId
+            )
+
             supabase.from("shopping_items")
-                .insert(
-                    buildMap {
-                        put("house_id", houseId)
-                        put("item_name", itemName)
-                        put("quantity", quantity)
-                        put("added_by", currentUserId)
-                    }
-                )
+                .insert(shoppingItemInsert)
 
             FlockrLogger.repoSuccess(TAG, "addShoppingItem", "Item added successfully")
             Result.success(Unit)
@@ -162,14 +166,15 @@ class ShoppingRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
+            val currentTime = java.time.Instant.now().toString()
+            val updateModel = ShoppingItemUpdate(
+                isPurchased = true,
+                purchasedBy = currentUserId,
+                purchasedAt = currentTime
+            )
+
             supabase.from("shopping_items")
-                .update(
-                    buildMap {
-                        put("is_purchased", true)
-                        put("purchased_by", currentUserId)
-                        put("purchased_at", "now()")
-                    }
-                ) {
+                .update(updateModel) {
                     filter {
                         eq("id", itemId)
                     }
@@ -177,17 +182,18 @@ class ShoppingRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "markAsPurchased: Creating notification")
             // Create notification
+            val notificationParams = CreateNotificationWithTypeParams(
+                houseId = houseId,
+                title = "Item Purchased",
+                message = "Just bought the $itemName.",
+                type = "shopping",
+                data = """{"id":"$itemId"}""",
+                excludeUserId = currentUserId
+            )
             supabase.postgrest.rpc(
                 function = "create_notification_for_house",
-                parameters = buildMap {
-                    put("p_house_id", houseId)
-                    put("p_title", "Item Purchased")
-                    put("p_message", "Just bought the $itemName.")
-                    put("p_type", "shopping")
-                    put("p_data", """{"id":"$itemId"}""")
-                    put("p_exclude_user_id", currentUserId)
-                }
-            ).decodeAs<Unit>()
+                parameters = notificationParams
+            )
 
             FlockrLogger.repoSuccess(TAG, "markAsPurchased", "Item marked as purchased")
             Result.success(Unit)
@@ -207,13 +213,13 @@ class ShoppingRepository @Inject constructor(
             "itemName" to itemName
         ))
         return try {
+            val updateModel = ShoppingItemUpdateModel(
+                itemName = itemName,
+                quantity = quantity
+            )
+
             supabase.from("shopping_items")
-                .update(
-                    buildMap {
-                        put("item_name", itemName)
-                        put("quantity", quantity)
-                    }
-                ) {
+                .update(updateModel) {
                     filter {
                         eq("id", itemId)
                     }

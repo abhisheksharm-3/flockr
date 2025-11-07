@@ -3,6 +3,7 @@ package `in`.xroden.flockr.data.repository
 import `in`.xroden.flockr.data.model.CreateNotificationParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillByMonthParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillParams
+import `in`.xroden.flockr.data.model.GetPerDiemEntriesWithDetailsParams
 import `in`.xroden.flockr.data.model.PerDiemConfig
 import `in`.xroden.flockr.data.model.PerDiemConfigActivation
 import `in`.xroden.flockr.data.model.PerDiemConfigInsert
@@ -221,14 +222,10 @@ class PerDiemRepository @Inject constructor(
     suspend fun getPerDiemEntriesWithDetails(houseId: String, month: String? = null): List<PerDiemEntryWithDetails> {
         return try {
             val monthDate = if (month != null && month.length == 7) "$month-01" else month
+            val params = GetPerDiemEntriesWithDetailsParams(houseId = houseId, month = monthDate)
             supabase.postgrest.rpc(
                 function = "get_per_diem_entries_with_details",
-                parameters = buildMap {
-                    put("p_house_id", houseId)
-                    if (monthDate != null) {
-                        put("p_month", monthDate)
-                    }
-                }
+                parameters = params
             ).decodeList<PerDiemEntryWithDetails>()
         } catch (e: Exception) {
             android.util.Log.e("PerDiemRepository", "Error getting per diem entries with details", e)

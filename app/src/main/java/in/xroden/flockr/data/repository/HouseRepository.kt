@@ -96,6 +96,7 @@ class HouseRepository @Inject constructor(
             data class HouseIdResult(val house_id: String)
 
             val params = GetUserHouseIdsParams(userId = currentUserId)
+            
             val houseMembers = supabase.postgrest.rpc(
                 function = "get_user_house_ids",
                 parameters = params
@@ -124,7 +125,6 @@ class HouseRepository @Inject constructor(
             emptyList()
         }
     }
-
     suspend fun getHouseById(houseId: String): House? {
         return try {
             supabase.from("houses")
@@ -250,6 +250,34 @@ class HouseRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
+            android.util.Log.d("HouseRepository", "Inviting member: email=$email, houseId=$houseId")
+
+            // Get the house name for notification
+            val house = getHouseById(houseId) ?: return Result.failure(Exception("House not found"))
+
+            // Get inviter's profile
+            val inviterProfile = supabase.from("profiles")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("id", currentUserId)
+                    }
+                }
+                .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
+
+            val inviterName = inviterProfile?.get("full_name")?.jsonPrimitive?.content ?: "Someone"
+
+            // Check if user exists with this email
+            val inviteeProfile = supabase.from("profiles")
+                .select(Columns.raw("id")) {
+                    filter {
+                        eq("email", email)
+                    }
+                }
+                .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
+
+            val inviteeUserId = inviteeProfile?.get("id")?.jsonPrimitive?.content
+
+            // Insert invitation
             val invitation = HouseInvitationInsert(
                 houseId = houseId,
                 inviterId = currentUserId,
@@ -258,6 +286,28 @@ class HouseRepository @Inject constructor(
             )
             supabase.from("house_invitations")
                 .insert(invitation)
+
+            android.util.Log.d("HouseRepository", "Invitation inserted, creating notification for user: $inviteeUserId")
+
+            // Create notification if the user exists
+            if (inviteeUserId != null) {
+                val notificationInsert = mapOf(
+                    "user_id" to inviteeUserId,
+                    "house_id" to houseId,
+                    "title" to "House Invitation",
+                    "message" to "$inviterName invited you to join ${house.name}",
+                    "type" to "house_invitation",
+                    "is_read" to false,
+                    "data" to """{"house_id":"$houseId","inviter_name":"$inviterName"}"""
+                )
+
+                supabase.from("notifications")
+                    .insert(notificationInsert)
+
+                android.util.Log.d("HouseRepository", "Notification created successfully")
+            } else {
+                android.util.Log.d("HouseRepository", "User not found with email $email, skipping notification")
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -268,14 +318,24 @@ class HouseRepository @Inject constructor(
 
     suspend fun getHouseByInviteCode(inviteCode: String): House? {
         return try {
-            android.util.Log.d("HouseRepository", "Looking up house by invite code: $inviteCode")
-            supabase.from("houses")
+            val trimmedCode = inviteCode.trim().uppercase()
+            android.util.Log.d("HouseRepository", "Looking up house by invite code: $trimmedCode")
+
+            val result = supabase.from("houses")
                 .select(Columns.ALL) {
                     filter {
-                        eq("invite_code", inviteCode)
+                        eq("invite_code", trimmedCode)
                     }
                 }
                 .decodeSingleOrNull<House>()
+
+            if (result == null) {
+                android.util.Log.w("HouseRepository", "No house found with invite code: $trimmedCode")
+            } else {
+                android.util.Log.d("HouseRepository", "Found house: ${result.name} (${result.id})")
+            }
+
+            result
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error looking up house by invite code", e)
             null
@@ -364,6 +424,181 @@ class HouseRepository @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error fetching house members", e)
             emptyList()
+        }
+    }
+
+    suspend fun getPendingInvitations(houseId: String): List<`in`.xroden.flockr.data.model.HouseInvitation> {
+        return try {
+            android.util.Log.d("HouseRepository", "Fetching pending invitations for house: $houseId")
+            supabase.from("house_invitations")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("status", "pending")
+                    }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }
+                .decodeList<`in`.xroden.flockr.data.model.HouseInvitation>()
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error fetching pending invitations", e)
+            emptyList()
+        }
+    }
+
+    suspend fun cancelInvitation(invitationId: String): Result<Unit> {
+        return try {
+            android.util.Log.d("HouseRepository", "Cancelling invitation: $invitationId")
+            supabase.from("house_invitations")
+                .update(mapOf("status" to "cancelled")) {
+                    filter {
+                        eq("id", invitationId)
+                    }
+                }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error cancelling invitation", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resendInvitationNotification(invitationId: String): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            android.util.Log.d("HouseRepository", "Resending invitation notification: $invitationId")
+
+            // Get invitation details
+            val invitation = supabase.from("house_invitations")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("id", invitationId)
+                    }
+                }
+                .decodeSingle<`in`.xroden.flockr.data.model.HouseInvitation>()
+
+            // Verify the current user is the inviter
+            if (invitation.inviterId != currentUserId) {
+                return Result.failure(Exception("You can only resend your own invitations"))
+            }
+
+            // Get house and inviter information
+            val house = getHouseById(invitation.houseId)
+                ?: return Result.failure(Exception("House not found"))
+
+            val inviterProfile = supabase.from("profiles")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("id", currentUserId)
+                    }
+                }
+                .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
+
+            val inviterName = inviterProfile?.get("full_name")?.jsonPrimitive?.content ?: "Someone"
+
+            // Check if invitee exists
+            val inviteeProfile = supabase.from("profiles")
+                .select(Columns.raw("id")) {
+                    filter {
+                        eq("email", invitation.inviteeEmail)
+                    }
+                }
+                .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
+
+            val inviteeUserId = inviteeProfile?.get("id")?.jsonPrimitive?.content
+
+            if (inviteeUserId != null) {
+                // Create new notification
+                val notificationInsert = mapOf(
+                    "user_id" to inviteeUserId,
+                    "house_id" to invitation.houseId,
+                    "title" to "House Invitation",
+                    "message" to "$inviterName invited you to join ${house.name}",
+                    "type" to "house_invitation",
+                    "is_read" to false,
+                    "data" to """{"house_id":"${invitation.houseId}","inviter_name":"$inviterName","invitation_id":"$invitationId"}"""
+                )
+
+                supabase.from("notifications")
+                    .insert(notificationInsert)
+
+                android.util.Log.d("HouseRepository", "Notification resent successfully")
+                Result.success(Unit)
+            } else {
+                android.util.Log.d("HouseRepository", "User not found with email ${invitation.inviteeEmail}")
+                Result.failure(Exception("User with email ${invitation.inviteeEmail} not found"))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error resending invitation notification", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun acceptInvitation(invitationId: String): Result<House> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            android.util.Log.d("HouseRepository", "Accepting invitation: $invitationId")
+
+            // Get invitation details
+            val invitation = supabase.from("house_invitations")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("id", invitationId)
+                    }
+                }
+                .decodeSingle<`in`.xroden.flockr.data.model.HouseInvitation>()
+
+            // Verify the invitation is for the current user
+            val currentUserEmail = supabase.auth.currentUserOrNull()?.email
+            if (invitation.inviteeEmail != currentUserEmail) {
+                return Result.failure(Exception("This invitation is not for you"))
+            }
+
+            // Check if user is already a member
+            val existingMember = supabase.from("house_members")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", invitation.houseId)
+                        eq("user_id", currentUserId)
+                    }
+                }
+                .decodeSingleOrNull<Map<String, String>>()
+
+            if (existingMember != null) {
+                android.util.Log.d("HouseRepository", "User is already a member of this house")
+                // Update invitation status to accepted anyway
+                supabase.from("house_invitations")
+                    .update(mapOf("status" to "accepted")) {
+                        filter {
+                        eq("id", invitationId)
+                    }
+                }
+
+                val house = getHouseById(invitation.houseId)
+                    ?: return Result.failure(Exception("House not found"))
+                return Result.success(house)
+            }
+
+            // Add user as member
+            android.util.Log.d("HouseRepository", "Adding user as member to house: ${invitation.houseId}")
+            addMemberToHouse(invitation.houseId, currentUserId).getOrThrow()
+
+            // Update invitation status
+            supabase.from("house_invitations")
+                .update(mapOf("status" to "accepted")) {
+                    filter {
+                        eq("id", invitationId)
+                    }
+                }
+
+            val house = getHouseById(invitation.houseId)
+                ?: return Result.failure(Exception("House not found"))
+
+            android.util.Log.d("HouseRepository", "Successfully accepted invitation and joined house: ${house.name}")
+            Result.success(house)
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error accepting invitation", e)
+            Result.failure(e)
         }
     }
 

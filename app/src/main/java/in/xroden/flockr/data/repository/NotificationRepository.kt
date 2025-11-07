@@ -1,6 +1,9 @@
 package `in`.xroden.flockr.data.repository
 
+import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
 import `in`.xroden.flockr.data.model.Notification
+import `in`.xroden.flockr.data.model.NotificationInsert
+import `in`.xroden.flockr.data.model.NotificationUpdate
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -114,17 +117,19 @@ class NotificationRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
+            val notificationParams = CreateNotificationWithTypeParams(
+                houseId = houseId,
+                title = title,
+                message = message,
+                type = type,
+                data = data ?: "{}",
+                excludeUserId = currentUserId
+            )
+
             supabase.postgrest.rpc(
                 function = "create_notification_for_house",
-                parameters = buildMap {
-                    put("p_house_id", houseId)
-                    put("p_title", title)
-                    put("p_message", message)
-                    put("p_type", type)
-                    put("p_data", (data ?: "{}"))
-                    put("p_exclude_user_id", currentUserId)
-                }
-            ).decodeAs<Unit>()
+                parameters = notificationParams
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -141,18 +146,18 @@ class NotificationRepository @Inject constructor(
         data: String? = null
     ): Result<Unit> {
         return try {
+            val notificationInsert = NotificationInsert(
+                userId = targetUserId,
+                houseId = houseId,
+                title = title,
+                message = message,
+                type = type,
+                isRead = false,
+                data = data ?: "{}"
+            )
+
             supabase.from("notifications")
-                .insert(
-                    buildMap {
-                        put("user_id", targetUserId)
-                        put("house_id", houseId)
-                        put("title", title)
-                        put("message", message)
-                        put("type", type)
-                        put("is_read", false)
-                        put("data", (data ?: "{}"))
-                    }
-                )
+                .insert(notificationInsert)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -164,12 +169,10 @@ class NotificationRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
+            val update = NotificationUpdate(isRead = true)
+
             supabase.from("notifications")
-                .update(
-                    buildMap {
-                        put("is_read", true)
-                    }
-                ) {
+                .update(update) {
                     filter {
                         eq("user_id", currentUserId)
                         eq("is_read", false)
@@ -219,12 +222,10 @@ class NotificationRepository @Inject constructor(
 
     suspend fun markAsRead(notificationId: String): Result<Unit> {
         return try {
+            val update = NotificationUpdate(isRead = true)
+
             supabase.from("notifications")
-                .update(
-                    buildMap {
-                        put("is_read", true)
-                    }
-                ) {
+                .update(update) {
                     filter {
                         eq("id", notificationId)
                     }

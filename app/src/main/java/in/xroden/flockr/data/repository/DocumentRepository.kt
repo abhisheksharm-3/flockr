@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.data.repository
 
 import `in`.xroden.flockr.data.model.Document
+import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -120,16 +121,17 @@ class DocumentRepository @Inject constructor(
 
             // Create notification if house document
             if (houseId != null) {
+                val notificationParams = CreateNotificationWithTypeParams(
+                    houseId = houseId,
+                    title = "New Document Uploaded",
+                    message = "Uploaded a new document: $fileName.",
+                    type = "document",
+                    data = """{"id":"${document.id}"}""",
+                    excludeUserId = currentUserId
+                )
                 supabase.postgrest.rpc(
                     function = "create_notification_for_house",
-                    parameters = buildMap {
-                        put("p_house_id", houseId)
-                        put("p_title", "New Document Uploaded")
-                        put("p_message", "Uploaded a new document: $fileName.")
-                        put("p_type", "document")
-                        put("p_data", """{"id":"${document.id}"}""")
-                        put("p_exclude_user_id", currentUserId)
-                    }
+                    parameters = notificationParams
                 )
             }
 
