@@ -32,3 +32,26 @@ data class Notification(
         }
 }
 
+@Serializable
+data class NotificationPreference(
+    val id: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("house_id")
+    val houseId: String,
+    @SerialName("enable_member_joined")
+    val enableMemberJoined: Boolean = true,
+    @SerialName("enable_expense_added")
+    val enableExpenseAdded: Boolean = true,
+    @SerialName("enable_chore_assigned")
+    val enableChoreAssigned: Boolean = true,
+    @SerialName("enable_message_sent")
+    val enableMessageSent: Boolean = true,
+    @SerialName("enable_shopping_item_added")
+    val enableShoppingItemAdded: Boolean = true,
+    @SerialName("created_at")
+    val createdAt: String? = null,
+    @SerialName("updated_at")
+    val updatedAt: String? = null
+)
+

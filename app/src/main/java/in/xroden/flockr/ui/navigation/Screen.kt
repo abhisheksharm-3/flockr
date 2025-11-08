@@ -51,7 +51,7 @@ sealed class Screen(val route: String) {
     }
     object EditProfile : Screen("edit_profile")
     
-    // Modern Finance Screens
+    // Finance Screens
     object OneTimeExpenses : Screen("one_time_expenses/{houseId}") {
         fun createRoute(houseId: String) = "one_time_expenses/$houseId"
     }
@@ -64,9 +64,9 @@ sealed class Screen(val route: String) {
     object MonthlyReports : Screen("monthly_reports/{houseId}") {
         fun createRoute(houseId: String) = "monthly_reports/$houseId"
     }
-    object AddExpenseModern : Screen("add_expense_modern/{houseId}?itemName={itemName}&quantity={quantity}") {
+    object AddExpenseAdvanced : Screen("add_expense_advanced/{houseId}?itemName={itemName}&quantity={quantity}") {
         fun createRoute(houseId: String, itemName: String? = null, quantity: Int? = null): String {
-            var route = "add_expense_modern/$houseId"
+            var route = "add_expense_advanced/$houseId"
             if (itemName != null) {
                 route += "?itemName=${java.net.URLEncoder.encode(itemName, "UTF-8")}"
                 if (quantity != null) {
@@ -76,8 +76,8 @@ sealed class Screen(val route: String) {
             return route
         }
     }
-    object BalancesModern : Screen("balances_modern/{houseId}") {
-        fun createRoute(houseId: String) = "balances_modern/$houseId"
+    object BalancesDetailed : Screen("balances_detailed/{houseId}") {
+        fun createRoute(houseId: String) = "balances_detailed/$houseId"
     }
     object QuickPerDiemEntry : Screen("quick_per_diem/{houseId}") {
         fun createRoute(houseId: String) = "quick_per_diem/$houseId"
@@ -86,11 +86,17 @@ sealed class Screen(val route: String) {
         fun createRoute(houseId: String) = "per_diem_transactions/$houseId"
     }
 
-    // Modern Organization Screens
-    object ShoppingListModern : Screen("shopping_modern/{houseId}") {
-        fun createRoute(houseId: String) = "shopping_modern/$houseId"
+    // Organization Screens
+    object ShoppingListDetailed : Screen("shopping_detailed/{houseId}") {
+        fun createRoute(houseId: String) = "shopping_detailed/$houseId"
     }
-    object ChoresModern : Screen("chores_modern/{houseId}") {
-        fun createRoute(houseId: String) = "chores_modern/$houseId"
+    object ChoresDetailed : Screen("chores_detailed/{houseId}") {
+        fun createRoute(houseId: String) = "chores_detailed/$houseId"
+    }
+
+    // New Feature Screens
+    object NotificationPreferences : Screen("notification_preferences")
+    object HouseAuditLog : Screen("house_audit_log/{houseId}") {
+        fun createRoute(houseId: String) = "house_audit_log/$houseId"
     }
 }

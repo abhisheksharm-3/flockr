@@ -786,4 +786,21 @@ class HouseRepository @Inject constructor(
             .map { chars.random() }
             .joinToString("")
     }
+
+    suspend fun getHouseAuditLogs(houseId: String): List<`in`.xroden.flockr.data.model.HouseAuditLog> {
+        return try {
+            android.util.Log.d("HouseRepository", "Fetching audit logs for house: $houseId")
+            supabase.from("house_audit_log")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                    order("created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }
+                .decodeList<`in`.xroden.flockr.data.model.HouseAuditLog>()
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error fetching audit logs", e)
+            emptyList()
+        }
+    }
 }
