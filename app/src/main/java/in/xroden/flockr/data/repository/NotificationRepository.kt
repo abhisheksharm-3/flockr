@@ -237,5 +237,51 @@ class NotificationRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getNotificationPreferences(): List<`in`.xroden.flockr.data.model.NotificationPreference> {
+        return try {
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "getNotificationPreferences: No user logged in")
+                return emptyList()
+            }
+
+            supabase.from("notification_preferences")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("user_id", currentUserId)
+                    }
+                }
+                .decodeList<`in`.xroden.flockr.data.model.NotificationPreference>()
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "getNotificationPreferences", e)
+            emptyList()
+        }
+    }
+
+    suspend fun updateNotificationPreference(
+        houseId: String,
+        key: String,
+        enabled: Boolean
+    ): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            // Build update map dynamically
+            val updateMap = mutableMapOf<String, Any>(key to enabled)
+
+            supabase.from("notification_preferences")
+                .update(updateMap) {
+                    filter {
+                        eq("user_id", currentUserId)
+                        eq("house_id", houseId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "updateNotificationPreference", e)
+            Result.failure(e)
+        }
+    }
 }
 

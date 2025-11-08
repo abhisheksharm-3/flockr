@@ -67,3 +67,21 @@ data class MemberWithProfile(
     val joinedAt: String
 )
 
+@Serializable
+data class HouseAuditLog(
+    val id: String,
+    @SerialName("house_id")
+    val houseId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("action")
+    val action: String, // member_added, member_removed, role_changed, house_updated, etc.
+    @SerialName("target_user_id")
+    val targetUserId: String? = null,
+    @SerialName("details")
+    val details: Map<String, String> = emptyMap(),
+    @SerialName("created_at")
+    val createdAt: String
+)
+
+

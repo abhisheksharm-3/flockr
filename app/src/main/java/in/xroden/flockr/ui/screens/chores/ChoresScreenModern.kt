@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.ui.screens.chores
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -280,192 +281,237 @@ fun ChoreCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (chore.isCompleted) {
-                MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (chore.isCompleted) {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
             } else {
-                MaterialTheme.colorScheme.surface
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (chore.isCompleted) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Checkbox
-            Checkbox(
-                checked = chore.isCompleted,
-                onCheckedChange = { onToggleComplete() }
-            )
-
-            // Chore Details
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Header Row: Checkbox + Title + Menu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Custom Checkbox with larger hit area
+                Surface(
+                    onClick = onToggleComplete,
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (chore.isCompleted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    modifier = Modifier.size(28.dp),
+                    border = BorderStroke(
+                        2.dp,
+                        if (chore.isCompleted) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        }
+                    )
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (chore.isCompleted) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Completed",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Title
                 Text(
                     text = chore.taskName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                     textDecoration = if (chore.isCompleted) TextDecoration.LineThrough else null,
                     color = if (chore.isCompleted) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     } else {
                         MaterialTheme.colorScheme.onSurface
-                    }
+                    },
+                    modifier = Modifier.weight(1f)
                 )
 
-                chore.description?.let { desc ->
-                    Text(
-                        text = desc,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // User Info Row - Only show if at least one name is available
-                val hasUserInfo = chore.createdByName != null ||
-                                  chore.assignedToName != null ||
-                                  (chore.isCompleted && chore.completedByName != null)
-
-                if (hasUserInfo) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // More Options Menu
+                Box {
+                    IconButton(
+                        onClick = { showMenu = !showMenu },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        // Created By
-                        chore.createdByName?.let { name ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(13.dp),
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                                )
-                                Text(
-                                    text = "By $name",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        // Assigned To
-                        chore.assignedToName?.let { name ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PersonOutline,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(13.dp),
-                                    tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
-                                )
-                                Text(
-                                    text = "For $name",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        // Completed By
-                        if (chore.isCompleted) {
-                            chore.completedByName?.let { name ->
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(13.dp),
-                                        tint = PositiveGreen.copy(alpha = 0.7f)
-                                    )
-                                    Text(
-                                        text = "Done by $name",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = PositiveGreen.copy(alpha = 0.7f),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
+                        Icon(
+                            Icons.Default.MoreVert,
+                            "Options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                }
-
-                // Due Date Badge
-                chore.dueDate?.let { date ->
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isOverdue(date) && !chore.isCompleted) {
-                            MaterialTheme.colorScheme.errorContainer
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
                     ) {
-                        Text(
-                            text = formatDate(date),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = if (isOverdue(date) && !chore.isCompleted) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                        if (!chore.isCompleted) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, null)
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         )
                     }
                 }
             }
 
+            // Description
+            chore.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            // Action Buttons
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            // Metadata Row (Due Date + User Info)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Edit Button
-                if (!chore.isCompleted) {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(36.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
+                // Due Date Badge
+                chore.dueDate?.let { date ->
+                    val isOverdue = isOverdue(date) && !chore.isCompleted
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = when {
+                            isOverdue -> MaterialTheme.colorScheme.errorContainer
+                            chore.isCompleted -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> MaterialTheme.colorScheme.primaryContainer
+                        }
                     ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            "Edit",
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = when {
+                                    isOverdue -> MaterialTheme.colorScheme.onErrorContainer
+                                    chore.isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onPrimaryContainer
+                                }
+                            )
+                            Text(
+                                text = formatDate(date),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = when {
+                                    isOverdue -> MaterialTheme.colorScheme.onErrorContainer
+                                    chore.isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onPrimaryContainer
+                                }
+                            )
+                        }
                     }
                 }
 
-                // Delete Button
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(36.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        "Delete",
-                        modifier = Modifier.size(20.dp)
-                    )
+                // Assigned To Badge
+                chore.assignedToName?.let { name ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.PersonOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
+                // Completed Badge
+                if (chore.isCompleted && chore.completedByName != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = PositiveGreen.copy(alpha = 0.15f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = PositiveGreen
+                            )
+                            Text(
+                                text = chore.completedByName!!,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = PositiveGreen
+                            )
+                        }
+                    }
                 }
             }
         }
