@@ -8,6 +8,28 @@ plugins {
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
+// Read version from properties file
+val versionFile = file("$rootDir/version.properties")
+
+fun readVersionProps(): Pair<String, Int> {
+    if (versionFile.exists()) {
+        val props = versionFile.readText()
+            .lines()
+            .filter { it.isNotBlank() && !it.trim().startsWith("#") && it.contains("=") }
+            .associate {
+                val (key, value) = it.split("=", limit = 2)
+                key.trim() to value.trim()
+            }
+        return Pair(
+            props["VERSION_NAME"] ?: "1.0.0",
+            props["VERSION_CODE"]?.toIntOrNull() ?: 1
+        )
+    }
+    return Pair("1.0.0", 1)
+}
+
+val (appVersionName, appVersionCode) = readVersionProps()
+
 android {
     namespace = "in.xroden.flockr"
     compileSdk = 36
@@ -16,8 +38,12 @@ android {
         applicationId = "in.xroden.flockr"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+
+        // Make version available to BuildConfig
+        buildConfigField("String", "VERSION_NAME", "\"$appVersionName\"")
+        buildConfigField("int", "VERSION_CODE", "$appVersionCode")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

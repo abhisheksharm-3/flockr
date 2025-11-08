@@ -22,6 +22,7 @@ import `in`.xroden.flockr.data.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
 import `in`.xroden.flockr.ui.viewmodel.HouseManagementViewModel
+import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -39,7 +40,7 @@ fun AddExpenseScreenModern(
     var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
     }
     var notes by remember {
         mutableStateOf(if (initialQuantity != null) "Quantity: $initialQuantity" else "")
@@ -53,10 +54,7 @@ fun AddExpenseScreenModern(
     var selectedMembers by remember { mutableStateOf<Set<String>>(emptySet()) }
     var customSplits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    val categories = listOf(
-        "Groceries", "Food", "Utilities", "Rent", "Internet", 
-        "Entertainment", "Transport", "Shopping", "Healthcare", "Other"
-    )
+    val categories = Constants.ExpenseCategories.DEFAULT_CATEGORIES
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }

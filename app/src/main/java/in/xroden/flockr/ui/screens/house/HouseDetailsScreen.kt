@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.ui.screens.house
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -146,12 +147,12 @@ fun HouseDetailsScreen(
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // House Info Header
+                // House Info Header - Modern Beautiful Design
                 item {
                     house?.let { houseData ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(24.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer
                             ),
@@ -161,67 +162,110 @@ fun HouseDetailsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(24.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
-                                // House Name
-                                Text(
-                                    text = houseData.name,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-
-                                // Address if exists
-                                if (houseData.address?.isNotEmpty() == true) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                // House Icon & Name Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Modern Icon Container with shadow
+                                    Card(
+                                        modifier = Modifier.size(64.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Default.Place,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                        )
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Home,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(32.dp),
+                                                tint = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
                                         Text(
-                                            text = houseData.address,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                            text = houseData.name,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
+                                        if (houseData.address?.isNotEmpty() == true) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Place,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                                )
+                                                Text(
+                                                    text = houseData.address,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
-                                // Quick Actions Row
+                                // Modern Action Buttons Row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    // Members button
+                                    // Members Button - Modern Outlined Style
                                     OutlinedButton(
                                         onClick = onNavigateToManageMembers,
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        modifier = Modifier.weight(1f).height(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        border = BorderStroke(
+                                            2.dp,
+                                            MaterialTheme.colorScheme.primary
                                         ),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.primary,
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         )
                                     ) {
-                                        Icon(
-                                            Icons.Default.People,
-                                            null,
-                                            Modifier.size(18.dp)
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Members", fontSize = 14.sp)
+                                        Row(
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                Icons.Default.People,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "Members",
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.titleSmall
+                                            )
+                                        }
                                     }
 
-                                    // Invite code button
+                                    // Share Invite Button - Primary Filled Style
                                     houseData.inviteCode?.let { code ->
                                         val context = androidx.compose.ui.platform.LocalContext.current
-                                        OutlinedButton(
+                                        Button(
                                             onClick = {
                                                 val shareIntent = android.content.Intent().apply {
                                                     action = android.content.Intent.ACTION_SEND
@@ -231,25 +275,36 @@ fun HouseDetailsScreen(
                                                     )
                                                     type = "text/plain"
                                                 }
-                                                context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Invite"))
                                             },
-                                            modifier = Modifier.weight(1f),
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            modifier = Modifier.weight(1f).height(56.dp),
+                                            shape = RoundedCornerShape(16.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
                                             ),
-                                            border = androidx.compose.foundation.BorderStroke(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                                            elevation = ButtonDefaults.buttonElevation(
+                                                defaultElevation = 2.dp,
+                                                pressedElevation = 4.dp
                                             )
                                         ) {
-                                            Icon(
-                                                Icons.Default.Share,
-                                                null,
-                                                Modifier.size(18.dp)
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text("Invite", fontSize = 14.sp)
+                                            Row(
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Share,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    "Share Invite",
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.titleSmall
+                                                )
+                                            }
                                         }
                                     }
                                 }

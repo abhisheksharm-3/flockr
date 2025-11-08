@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.data.model.PerDiemConfig
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.viewmodel.PerDiemViewModel
+import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -37,7 +38,7 @@ fun PerDiemDailyEntryScreen(
     var selectedConfig by remember { mutableStateOf<PerDiemConfig?>(null) }
     var quantity by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
     }
     var notes by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }

@@ -143,8 +143,18 @@ class PerDiemViewModel @Inject constructor(
         return perDiemRepository.createPerDiemConfig(houseId, itemName, rate, category, unit)
     }
 
-    suspend fun deleteConfig(configId: String): Result<Unit> {
-        return perDiemRepository.deletePerDiemConfig(configId)
+    suspend fun updateConfig(
+        configId: String,
+        itemName: String,
+        rate: Double,
+        category: String,
+        unit: String
+    ): Result<Unit> {
+        return perDiemRepository.updatePerDiemConfig(configId, itemName, rate, category, unit)
+    }
+
+    suspend fun deleteConfig(configId: String, deleteUsage: Boolean = false): Result<Unit> {
+        return perDiemRepository.deletePerDiemConfig(configId, deleteUsage)
     }
 }
 

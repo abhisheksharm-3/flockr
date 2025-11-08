@@ -1,3 +1,180 @@
 <resources>
     <string name="app_name">Flockr</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="add">Add</string>
+    <string name="loading">Loading…</string>
+    <string name="error">Error</string>
+    <string name="retry">Retry</string>
+    <string name="required_field">This field is required</string>
+
+    <!-- Greetings -->
+    <string name="good_morning">Good morning</string>
+    <string name="good_afternoon">Good afternoon</string>
+    <string name="good_evening">Good evening</string>
+    <string name="good_night">Good night</string>
+    <string name="welcome_back">Welcome back</string>
+    <string name="hello">Hello</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="profile">Profile</string>
+    <string name="theme">Theme</string>
+    <string name="about">About</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="full_name">Full Name</string>
+    <string name="email">Email</string>
+
+    <!-- House Details -->
+    <string name="household">Household</string>
+    <string name="house_name">House Name</string>
+    <string name="address">Address</string>
+    <string name="members">Members</string>
+    <string name="invite_members">Invite Members</string>
+    <string name="house_settings">House Settings</string>
+    <string name="my_households">My Households</string>
+    <string name="your_households">Your Households</string>
+    <string name="welcome_to_flockr">Welcome to Flockr!</string>
+    <string name="create_first_household">Create your first household or join an existing one to start managing shared expenses, chores, and more with your roommates.</string>
+    <string name="no_households_yet">No households yet</string>
+    <string name="time_to_get_organized">Time to get organized!</string>
+
+    <!-- Expenses -->
+    <string name="expenses">Expenses</string>
+    <string name="add_expense">Add Expense</string>
+    <string name="new_expense">New Expense</string>
+    <string name="expense_details">Expense Details</string>
+    <string name="expense_name">Expense Name</string>
+    <string name="amount">Amount</string>
+    <string name="date">Date</string>
+    <string name="category">Category</string>
+    <string name="notes">Notes</string>
+    <string name="all_expenses">All Expenses</string>
+    <string name="expenses_recorded">%d expenses recorded</string>
+
+    <!-- Recurring Bills -->
+    <string name="add_recurring_bill">Add Recurring Bill</string>
+    <string name="new_recurring_bill">New Recurring Bill</string>
+    <string name="bill_details">Bill Details</string>
+    <string name="bill_name">Bill Name</string>
+    <string name="due_day_of_month">Due Day of Month</string>
+    <string name="frequency">Frequency</string>
+    <string name="reminder_settings">Reminder Settings</string>
+    <string name="enable_reminders">Enable Reminders</string>
+    <string name="remind_days_before">Remind Days Before</string>
+
+    <!-- Per Diem -->
+    <string name="per_diem_items">Per-Diem Items</string>
+    <string name="add_item">Add Item</string>
+    <string name="configured_items">Configured Items</string>
+    <string name="select_item">Select Item</string>
+    <string name="entry_details">Entry Details</string>
+    <string name="quantity">Quantity</string>
+    <string name="estimated_cost">Estimated Cost</string>
+    <string name="add_entry">Add Entry</string>
+    <string name="edit_item">Edit Item</string>
+    <string name="item_name">Item Name</string>
+    <string name="rate">Rate</string>
+    <string name="unit">Unit</string>
+
+    <!-- Monthly Reports -->
+    <string name="monthly_report">Monthly Report</string>
+    <string name="financial_summary">Financial Summary</string>
+    <string name="monthly_overview">Monthly Overview</string>
+    <string name="total_expenses">Total Expenses</string>
+    <string name="spend_by_category">Spend by Category</string>
+    <string name="spend_by_member">Spend by Member</string>
+
+    <!-- Shopping List -->
+    <string name="shopping_list">Shopping List</string>
+    <string name="shopping_items">Shopping Items</string>
+    <string name="items_to_buy">%d items to buy</string>
+
+    <!-- Chores -->
+    <string name="chores">Chores</string>
+    <string name="add_chore">Add Chore</string>
+    <string name="household_tasks">Household Tasks</string>
+    <string name="task_name">Task Name</string>
+    <string name="description">Description</string>
+    <string name="due_date">Due Date</string>
+    <string name="assigned_to">Assigned To</string>
+    <string name="mark_complete">Mark Complete</string>
+    <string name="edit_chore">Edit Chore</string>
+
+    <!-- Chat -->
+    <string name="chat">Chat</string>
+    <string name="type_message">Type a message…</string>
+    <string name="send">Send</string>
+    <string name="no_messages">NO MESSAGES</string>
+    <string name="start_conversation">Start a conversation with your household</string>
+    <string name="chat_security_warning">⚠️ This chat is not encrypted. Please do not share sensitive information like passwords or financial details here. Use this chat for household coordination only.</string>
+    <string name="you">You</string>
+
+    <!-- Validation Messages -->
+    <string name="invalid_email">Please enter a valid email</string>
+    <string name="invalid_amount">Please enter a valid amount</string>
+    <string name="invalid_due_day">Due day must be between 1 and 31</string>
+    <string name="password_too_short">Password must be at least 6 characters</string>
+
+    <!-- Error Messages -->
+    <string name="network_error">Network error. Please check your connection.</string>
+    <string name="unauthorized">You are not authorized to perform this action.</string>
+    <string name="not_found">Resource not found.</string>
+    <string name="server_error">Server error. Please try again later.</string>
+    <string name="unknown_error">An unknown error occurred.</string>
+    <string name="no_user_logged_in">No user logged in</string>
+
+    <!-- Success Messages -->
+    <string name="expense_created">Expense created successfully</string>
+    <string name="expense_deleted">Expense deleted successfully</string>
+    <string name="house_created">House created successfully</string>
+    <string name="balance_settled">Balance settled successfully</string>
+    <string name="profile_updated">Profile updated successfully</string>
+    <string name="chore_added">Chore added successfully</string>
+    <string name="chore_completed">Chore completed!</string>
+    <string name="chore_deleted">Chore deleted</string>
+    <string name="item_added">Item added to list</string>
+    <string name="item_updated">Item updated</string>
+    <string name="entry_added">Entry added successfully</string>
+    <string name="item_removed">Item removed</string>
+
+    <!-- Monthly Reports -->
+    <string name="previous_month">Previous Month</string>
+    <string name="next_month">Next Month</string>
+    <string name="one_time_expenses">One-Time</string>
+    <string name="recurring_expenses">Recurring</string>
+    <string name="per_diem_expenses">Per Diem</string>
+    <string name="spending_by_member">Spending by Member</string>
+    <string name="spending_by_category">Spending by Category</string>
+    <string name="per_diem_usage">Per Diem Usage by Item</string>
+    <string name="total_per_diem">Total Per Diem</string>
+    <string name="no_expenses_this_month">No expenses recorded this month</string>
+    <string name="no_per_diem_items">No per diem items used this month</string>
+
+    <!-- Per Diem -->
+    <string name="delete_config_title">Delete Per-Diem Item?</string>
+    <string name="delete_config_message">What would you like to do with the logged usage?</string>
+    <string name="keep_logged_usage">Keep Logged Usage</string>
+    <string name="delete_all_usage">Delete All Usage</string>
+    <string name="delete_item_only">The item configuration will be deleted, but all logged usage will be preserved in reports and calculations.</string>
+    <string name="delete_item_and_usage">Both the item configuration and all logged usage will be permanently deleted.</string>
+
+    <!-- Filter -->
+    <string name="filter_by_month">Filter by Month</string>
+    <string name="clear_filter">Clear</string>
+    <string name="all">All</string>
+    <string name="active">Active</string>
+    <string name="completed">Completed</string>
+
+    <!-- Empty States -->
+    <string name="no_chores">No chores yet</string>
+    <string name="add_first_chore">Add your first chore to get started</string>
+    <string name="no_expenses">No expenses recorded</string>
+    <string name="track_expenses_here">Track your household expenses here</string>
 </resources>

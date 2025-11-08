@@ -5,8 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,7 +25,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.data.model.PerDiemConfig
 import `in`.xroden.flockr.ui.theme.CategoryBlue
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.ui.viewmodel.PerDiemViewModel
 
 /**
@@ -42,6 +43,8 @@ fun PerDiemConfigScreenModern(
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
     var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -51,12 +54,55 @@ fun PerDiemConfigScreenModern(
 
     if (showAddDialog) {
         AddPerDiemConfigDialog(
+            currencySymbol = currencySymbol,
             onDismiss = { showAddDialog = false },
             onAdd = { itemName, rate, category, unit ->
                 scope.launch {
                     viewModel.createConfig(houseId, itemName, rate, category, unit)
                     showAddDialog = false
                     snackbarHostState.showSnackbar("Per-diem item added")
+                }
+            }
+        )
+    }
+
+    showEditDialog?.let { config ->
+        EditPerDiemConfigDialog(
+            config = config,
+            currencySymbol = currencySymbol,
+            onDismiss = { showEditDialog = null },
+            onSave = { itemName, rate, category, unit ->
+                scope.launch {
+                    try {
+                        viewModel.updateConfig(config.id, itemName, rate, category, unit)
+                        showEditDialog = null
+                        snackbarHostState.showSnackbar("Per-diem item updated")
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Failed to update: ${e.message}")
+                    }
+                }
+            }
+        )
+    }
+
+    showDeleteDialog?.let { config ->
+        DeletePerDiemConfigDialog(
+            config = config,
+            onDismiss = { showDeleteDialog = null },
+            onConfirm = { deleteUsage ->
+                scope.launch {
+                    try {
+                        viewModel.deleteConfig(config.id, deleteUsage)
+                        showDeleteDialog = null
+                        val message = if (deleteUsage) {
+                            "Item and all usage deleted"
+                        } else {
+                            "Item deleted, usage preserved"
+                        }
+                        snackbarHostState.showSnackbar(message)
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Failed to delete: ${e.message}")
+                    }
                 }
             }
         )
@@ -134,12 +180,8 @@ fun PerDiemConfigScreenModern(
                         config = config,
                         currencySymbol = currencySymbol,
                         onAddEntry = { onNavigateToAddEntry(config.id) },
-                        onDelete = {
-                            scope.launch {
-                                viewModel.deleteConfig(config.id)
-                                snackbarHostState.showSnackbar("Item removed")
-                            }
-                        }
+                        onEdit = { showEditDialog = config },
+                        onDelete = { showDeleteDialog = config }
                     )
                 }
 
@@ -159,6 +201,7 @@ private fun PerDiemConfigCard(
     config: PerDiemConfig,
     currencySymbol: String = "$",
     onAddEntry: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -248,8 +291,26 @@ private fun PerDiemConfigCard(
                 }
 
                 OutlinedButton(
-                    onClick = onDelete,
+                    onClick = onEdit,
                     modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Edit")
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
@@ -269,11 +330,12 @@ private fun PerDiemConfigCard(
 }
 
 /**
- * Dialog for adding a new per-diem configuration.
+ * Full-screen for adding a new per-diem configuration.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddPerDiemConfigDialog(
+    currencySymbol: String = "$",
     onDismiss: () -> Unit,
     onAdd: (String, Double, String, String) -> Unit
 ) {
@@ -285,115 +347,262 @@ private fun AddPerDiemConfigDialog(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Add Per-Diem Item",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    label = { Text("Item Name *") },
-                    placeholder = { Text("e.g., Milk, Coffee") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = rate,
-                    onValueChange = { rate = it },
-                    label = { Text("Rate per Unit *") },
-                    prefix = { Text("$") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = unit,
-                    onValueChange = { unit = it },
-                    label = { Text("Unit *") },
-                    placeholder = { Text("e.g., liter, pack, cup") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategory,
-                    onExpandedChange = { expandedCategory = !expandedCategory }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category *") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        shape = RoundedCornerShape(12.dp)
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Add Per-Diem Item",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    category = cat
-                                    expandedCategory = false
-                                }
-                            )
-                        }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Clear, "Cancel")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Item Details",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            OutlinedTextField(
+                value = itemName,
+                onValueChange = { itemName = it },
+                label = { Text("Item Name *") },
+                placeholder = { Text("e.g., Milk, Coffee") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = rate,
+                onValueChange = { rate = it },
+                label = { Text("Rate per Unit *") },
+                prefix = { Text(currencySymbol) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = unit,
+                onValueChange = { unit = it },
+                label = { Text("Unit *") },
+                placeholder = { Text("e.g., liter, pack, cup") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = expandedCategory,
+                onExpandedChange = { expandedCategory = !expandedCategory }
+            ) {
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Category *") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedCategory,
+                    onDismissRequest = { expandedCategory = false }
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            val rateValue = rate.toDoubleOrNull()
-                            if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
-                                onAdd(itemName, rateValue, category, unit)
+                    categories.forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text(cat) },
+                            onClick = {
+                                category = cat
+                                expandedCategory = false
                             }
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Add")
+                        )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = {
+                    val rateValue = rate.toDoubleOrNull()
+                    if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
+                        onAdd(itemName, rateValue, category, unit)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Add, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Add Item", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/**
+ * Full-screen for editing an existing per-diem configuration.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditPerDiemConfigDialog(
+    config: PerDiemConfig,
+    currencySymbol: String = "$",
+    onDismiss: () -> Unit,
+    onSave: (String, Double, String, String) -> Unit
+) {
+    var itemName by remember { mutableStateOf(config.itemName) }
+    var rate by remember { mutableStateOf(config.rate.toString()) }
+    var category by remember { mutableStateOf(config.category) }
+    var unit by remember { mutableStateOf(config.unit) }
+    var expandedCategory by remember { mutableStateOf(false) }
+
+    val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Edit Per-Diem Item",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Clear, "Cancel")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "Item Details",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = itemName,
+                onValueChange = { itemName = it },
+                label = { Text("Item Name *") },
+                placeholder = { Text("e.g., Milk, Coffee") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = rate,
+                onValueChange = { rate = it },
+                label = { Text("Rate per Unit *") },
+                prefix = { Text(currencySymbol) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = unit,
+                onValueChange = { unit = it },
+                label = { Text("Unit *") },
+                placeholder = { Text("e.g., liter, pack, cup") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = expandedCategory,
+                onExpandedChange = { expandedCategory = !expandedCategory }
+            ) {
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Category *") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedCategory,
+                    onDismissRequest = { expandedCategory = false }
+                ) {
+                    categories.forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text(cat) },
+                            onClick = {
+                                category = cat
+                                expandedCategory = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = {
+                    val rateValue = rate.toDoubleOrNull()
+                    if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
+                        onSave(itemName, rateValue, category, unit)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Check, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Save Changes", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -463,3 +672,157 @@ private fun EmptyPerDiemState(
     }
 }
 
+/**
+ * Dialog for confirming deletion of a per-diem configuration,
+ * with option to keep or delete associated usage.
+ */
+@Composable
+private fun DeletePerDiemConfigDialog(
+    config: PerDiemConfig,
+    onDismiss: () -> Unit,
+    onConfirm: (deleteUsage: Boolean) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = {
+            Text(
+                text = "Delete Per-Diem Item?",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "You're about to delete \"${config.itemName}\". What would you like to do with the logged usage?",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Keep Logged Usage",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "The item configuration will be deleted, but all logged usage will be preserved in reports and calculations.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "Delete All Usage",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Text(
+                            text = "Both the item configuration and all logged usage will be permanently deleted. This cannot be undone.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { onConfirm(false) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Keep Usage & Delete Item", fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = { onConfirm(true) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.DeleteForever, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete Everything", fontWeight = FontWeight.SemiBold)
+                }
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        },
+        dismissButton = {},
+        shape = RoundedCornerShape(16.dp)
+    )
+}

@@ -1,10 +1,12 @@
 package `in`.xroden.flockr.ui.screens.home
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,10 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import `in`.xroden.flockr.ui.viewmodel.HomeUiState
 import `in`.xroden.flockr.ui.viewmodel.HomeViewModel
 import `in`.xroden.flockr.ui.viewmodel.NotificationViewModel
+import `in`.xroden.flockr.ui.viewmodel.ProfileViewModel
+import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,21 +43,50 @@ fun HomeScreen(
     onCreateHouseClick: () -> Unit,
     onJoinHouseClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
-    notificationViewModel: NotificationViewModel = hiltViewModel()
+    notificationViewModel: NotificationViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val unreadCount by notificationViewModel.unreadCount.collectAsState()
+    val profile by profileViewModel.profile.collectAsState()
+
+    // Load profile data
+    LaunchedEffect(Unit) {
+        profileViewModel.loadProfile()
+    }
+
+    // Get time-based greeting
+    val greeting = remember {
+        val hour = LocalTime.now().hour
+        when (hour) {
+            in 0..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..20 -> "Good evening"
+            else -> "Good night"
+        }
+    }
+
+    val userName = profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
+    var showJoinDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "My Households",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column {
+                        Text(
+                            text = "$greeting, $userName!",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Your Households",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 },
                 actions = {
                     // Notification icon with badge
@@ -176,64 +211,85 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding)
+                            .background(MaterialTheme.colorScheme.background)
                     ) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .padding(horizontal = 32.dp)
+                                .padding(horizontal = 24.dp)
                                 .fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                            // Beautiful icon card
                         ) {
-                            // Icon with gradient background
-                            Box(
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = RoundedCornerShape(30.dp)
-                                    )
-                                    .padding(bottom = 24.dp),
-                                contentAlignment = Alignment.Center
+                            // Beautiful icon card
+                            Card(
+                                modifier = Modifier.size(140.dp),
+                                shape = RoundedCornerShape(32.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Home,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(32.dp))
 
+                            // Welcome message
                             Text(
-                                text = "Welcome to Flockr",
+                                text = "Welcome to Flockr, $userName!",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
+
                             Text(
-                                text = "Create your first household or join an existing one to start managing shared expenses, chores, and more with your roommates.",
+                                text = "🏠",
+                                style = MaterialTheme.typography.displaySmall,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Description
+                            Text(
+                                text = "Let's get you started! Create your first household or join an existing one to manage shared expenses, chores, and daily tasks together with your roommates.",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.padding(bottom = 32.dp)
+                                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3
                             )
 
+                            Spacer(modifier = Modifier.height(40.dp))
+
+                            // Action buttons
                             Button(
                                 onClick = onCreateHouseClick,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(56.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    Icons.Default.Add,
                                     contentDescription = null,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     "Create Household",
                                     style = MaterialTheme.typography.titleMedium,
@@ -241,24 +297,40 @@ fun HomeScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             OutlinedButton(
-                                onClick = onJoinHouseClick,
+                                onClick = { showJoinDialog = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(56.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(
+                                    1.5.dp,
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
                             ) {
+                                Icon(
+                                    Icons.Default.Home,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     "Join with Invite Code",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
                     }
                 } else {
+                    // List of houses
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -266,6 +338,46 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        // Personalized welcome header
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "✨ Everything in one place",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Managing ${state.houses.size} household${if (state.houses.size > 1) "s" else ""}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Home,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                            }
+                        }
+
                         items(state.houses) { houseData ->
                             HouseCard(
                                 houseData = houseData,
@@ -294,6 +406,26 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    // Join House Dialog
+    if (showJoinDialog) {
+        JoinHouseDialog(
+            onDismiss = { showJoinDialog = false },
+            onJoinHouse = { inviteCode ->
+                viewModel.joinHouseByInviteCode(
+                    inviteCode = inviteCode,
+                    onSuccess = { houseId ->
+                        showJoinDialog = false
+                        onHouseClick(houseId)
+                    },
+                    onError = { errorMessage ->
+                        showJoinDialog = false
+                        // Error is already handled by ViewModel snackbar
+                    }
+                )
+            }
+        )
     }
 }
 

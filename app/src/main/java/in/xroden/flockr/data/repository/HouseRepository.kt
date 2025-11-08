@@ -291,20 +291,33 @@ class HouseRepository @Inject constructor(
 
             // Create notification if the user exists
             if (inviteeUserId != null) {
-                val notificationInsert = mapOf(
-                    "user_id" to inviteeUserId,
-                    "house_id" to houseId,
-                    "title" to "House Invitation",
-                    "message" to "$inviterName invited you to join ${house.name}",
-                    "type" to "house_invitation",
-                    "is_read" to false,
-                    "data" to """{"house_id":"$houseId","inviter_name":"$inviterName"}"""
-                )
+                try {
+                    val notificationData = kotlinx.serialization.json.buildJsonObject {
+                        put("house_id", kotlinx.serialization.json.JsonPrimitive(houseId))
+                        put("house_name", kotlinx.serialization.json.JsonPrimitive(house.name))
+                        put("inviter_name", kotlinx.serialization.json.JsonPrimitive(inviterName))
+                        put("invite_code", kotlinx.serialization.json.JsonPrimitive(house.inviteCode ?: ""))
+                        put("action", kotlinx.serialization.json.JsonPrimitive("house_invitation"))
+                    }
 
-                supabase.from("notifications")
-                    .insert(notificationInsert)
+                    val notificationInsert = mapOf(
+                        "user_id" to inviteeUserId,
+                        "house_id" to houseId,
+                        "title" to "House Invitation",
+                        "message" to "$inviterName invited you to join ${house.name}",
+                        "type" to "house_invitation",
+                        "is_read" to false,
+                        "data" to notificationData
+                    )
 
-                android.util.Log.d("HouseRepository", "Notification created successfully")
+                    supabase.from("notifications")
+                        .insert(notificationInsert)
+
+                    android.util.Log.d("HouseRepository", "Notification created successfully for user: $inviteeUserId")
+                } catch (e: Exception) {
+                    android.util.Log.e("HouseRepository", "Error creating notification (non-fatal)", e)
+                    // Don't fail the invitation if notification fails
+                }
             } else {
                 android.util.Log.d("HouseRepository", "User not found with email $email, skipping notification")
             }
@@ -321,13 +334,39 @@ class HouseRepository @Inject constructor(
             val trimmedCode = inviteCode.trim().uppercase()
             android.util.Log.d("HouseRepository", "Looking up house by invite code: $trimmedCode")
 
-            val result = supabase.from("houses")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("invite_code", trimmedCode)
-                    }
+            @kotlinx.serialization.Serializable
+            data class InviteCodeParam(val code: String)
+
+            @kotlinx.serialization.Serializable
+            data class MinimalHouseResult(
+                val id: String,
+                val name: String,
+                val header_image_url: String?
+            )
+
+            // Call safer RPC function that only returns minimal info
+            val result = try {
+                val response = supabase.postgrest.rpc("get_house_by_invite_code", parameters = InviteCodeParam(trimmedCode))
+                    .decodeSingleOrNull<MinimalHouseResult>()
+
+                response?.let {
+                    House(
+                        id = it.id,
+                        name = it.name,
+                        ownerId = "", // Not exposed for security
+                        inviteCode = null,
+                        address = null,
+                        latitude = null,
+                        longitude = null,
+                        createdAt = null,
+                        updatedAt = null,
+                        headerImageUrl = it.header_image_url
+                    )
                 }
-                .decodeSingleOrNull<House>()
+            } catch (e: Exception) {
+                android.util.Log.e("HouseRepository", "RPC call failed", e)
+                null
+            }
 
             if (result == null) {
                 android.util.Log.w("HouseRepository", "No house found with invite code: $trimmedCode")
@@ -345,31 +384,35 @@ class HouseRepository @Inject constructor(
     suspend fun joinHouseByInviteCode(inviteCode: String): Result<House> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+            val trimmedCode = inviteCode.trim().uppercase()
 
-            android.util.Log.d("HouseRepository", "Attempting to join house with code: $inviteCode")
+            android.util.Log.d("HouseRepository", "Attempting to join house with code: $trimmedCode")
 
-            // Look up house by invite code
-            val house = getHouseByInviteCode(inviteCode)
-                ?: return Result.failure(Exception("Invalid invite code"))
+            @kotlinx.serialization.Serializable
+            data class InviteCodeParam(val code: String)
 
-            // Check if user is already a member
-            val existingMember = supabase.from("house_members")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("house_id", house.id)
-                        eq("user_id", currentUserId)
-                    }
-                }
-                .decodeSingleOrNull<Map<String, String>>()
+            @kotlinx.serialization.Serializable
+            data class JoinResult(
+                val success: Boolean,
+                val error: String? = null,
+                val house_id: String? = null
+            )
 
-            if (existingMember != null) {
-                android.util.Log.d("HouseRepository", "User is already a member of this house")
-                return Result.failure(Exception("You are already a member of this household"))
+            // Call the secure RPC function that handles joining
+            val joinResult = supabase.postgrest.rpc("join_house_with_invite_code", parameters = InviteCodeParam(trimmedCode))
+                .decodeSingle<JoinResult>()
+
+            if (!joinResult.success) {
+                val errorMsg = joinResult.error ?: "Unknown error"
+                android.util.Log.w("HouseRepository", "Failed to join house: $errorMsg")
+                return Result.failure(Exception(errorMsg))
             }
 
-            // Add user as member
-            android.util.Log.d("HouseRepository", "Adding user as member to house: ${house.id}")
-            addMemberToHouse(house.id, currentUserId).getOrThrow()
+            val houseId = joinResult.house_id ?: return Result.failure(Exception("No house ID returned"))
+
+            // Now fetch the full house details since we're a member
+            val house = getHouseById(houseId)
+                ?: return Result.failure(Exception("Could not load house details"))
 
             android.util.Log.d("HouseRepository", "Successfully joined house: ${house.name}")
             Result.success(house)
@@ -378,6 +421,7 @@ class HouseRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
 
     suspend fun getHouseMembers(houseId: String): List<MemberWithProfile> {
         return try {
@@ -448,12 +492,16 @@ class HouseRepository @Inject constructor(
     suspend fun cancelInvitation(invitationId: String): Result<Unit> {
         return try {
             android.util.Log.d("HouseRepository", "Cancelling invitation: $invitationId")
+
+            // Actually delete the invitation instead of just updating status
             supabase.from("house_invitations")
-                .update(mapOf("status" to "cancelled")) {
+                .delete {
                     filter {
                         eq("id", invitationId)
                     }
                 }
+
+            android.util.Log.d("HouseRepository", "Invitation deleted successfully")
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error cancelling invitation", e)
