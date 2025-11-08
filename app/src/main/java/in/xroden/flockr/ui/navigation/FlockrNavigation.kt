@@ -280,12 +280,26 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.ui.screens.house.HouseSettingsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAuditLog = {
+                            navController.navigate(Screen.HouseAuditLog.createRoute(houseId))
+                        },
                         onDeleteHouse = {
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(Screen.Home.route) { inclusive = false }
                                 launchSingleTop = true
                             }
                         }
+                    )
+                }
+
+                composable(
+                    route = Screen.HouseAuditLog.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    `in`.xroden.flockr.ui.screens.house.HouseAuditLogScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
