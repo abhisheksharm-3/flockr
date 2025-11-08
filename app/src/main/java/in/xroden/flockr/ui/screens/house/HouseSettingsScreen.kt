@@ -712,15 +712,16 @@ fun HouseSettingsScreen(
                             isSaving = true
                             val result = viewModel.deleteHouse(houseId)
                             isSaving = false
+                            showDeleteDialog = false
                             if (result.isSuccess) {
-                                snackbarHostState.showSnackbar("House deleted")
-                                showDeleteDialog = false
+                                // Redirect immediately
                                 onDeleteHouse()
+                                // Show snackbar after redirect (user won't see it but it's for consistency)
+                                snackbarHostState.showSnackbar("House deleted")
                             } else {
                                 snackbarHostState.showSnackbar(
                                     result.exceptionOrNull()?.message ?: "Failed to delete house"
                                 )
-                                showDeleteDialog = false
                             }
                         }
                     },

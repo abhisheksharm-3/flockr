@@ -22,7 +22,9 @@ import `in`.xroden.flockr.data.model.OneTimeExpense
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.ui.viewmodel.ExpenseUiState
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
+import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +38,8 @@ fun OneTimeExpensesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
+
+    var selectedMonth by remember { mutableStateOf<YearMonth?>(null) }
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
@@ -90,7 +94,30 @@ fun OneTimeExpensesScreen(
                 }
             }
             is ExpenseUiState.Success -> {
-                if (state.expenses.isEmpty()) {
+                // Sort expenses by date, newest first
+                val sortedExpenses = state.expenses.sortedByDescending {
+                    try {
+                        LocalDate.parse(it.date)
+                    } catch (e: Exception) {
+                        LocalDate.MIN
+                    }
+                }
+
+                // Filter by selected month if one is selected
+                val filteredExpenses = if (selectedMonth != null) {
+                    sortedExpenses.filter { expense ->
+                        try {
+                            val expenseDate = LocalDate.parse(expense.date)
+                            YearMonth.from(expenseDate) == selectedMonth
+                        } catch (e: Exception) {
+                            false
+                        }
+                    }
+                } else {
+                    sortedExpenses
+                }
+
+                if (sortedExpenses.isEmpty()) {
                     EmptyExpensesState(
                         modifier = Modifier
                             .fillMaxSize()
@@ -105,10 +132,10 @@ fun OneTimeExpensesScreen(
                         contentPadding = PaddingValues(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Header
+                        // Header with month filter
                         item {
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Text(
                                     text = "All Expenses",
@@ -116,16 +143,20 @@ fun OneTimeExpensesScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
-                                Text(
-                                    text = "${state.expenses.size} expenses recorded",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                                // Month Selector
+                                MonthSelectorCard(
+                                    selectedMonth = selectedMonth,
+                                    onMonthChange = { selectedMonth = it },
+                                    onClearFilter = { selectedMonth = null },
+                                    expenseCount = filteredExpenses.size,
+                                    hasFilter = selectedMonth != null
                                 )
                             }
                         }
 
                         // Expense Cards
-                        items(state.expenses) { expense ->
+                        items(filteredExpenses) { expense ->
                             ModernExpenseCard(
                                 expense = expense,
                                 currencySymbol = currencySymbol
@@ -368,8 +399,8 @@ fun EmptyExpensesState(
 // Helper Functions
 private fun formatDate(dateString: String): String {
     return try {
-        val date = LocalDate.parse(dateString.substring(0, 10))
-        date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        val date = LocalDate.parse(dateString.substring(0, 10), DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
+        date.format(DateTimeFormatter.ofPattern(Constants.DateFormats.DISPLAY_DATE))
     } catch (e: Exception) {
         dateString.substring(0, 10)
     }
@@ -400,6 +431,106 @@ private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vect
         "healthcare" -> Icons.Default.LocalHospital
         "education" -> Icons.Default.School
         else -> Icons.Default.Receipt
+    }
+}
+
+@Composable
+fun MonthSelectorCard(
+    selectedMonth: YearMonth?,
+    onMonthChange: (YearMonth?) -> Unit,
+    onClearFilter: () -> Unit,
+    expenseCount: Int,
+    hasFilter: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        val newMonth = selectedMonth?.minusMonths(1) ?: YearMonth.now().minusMonths(1)
+                        onMonthChange(newMonth)
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous month",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = (selectedMonth ?: YearMonth.now()).format(
+                            DateTimeFormatter.ofPattern("MMMM yyyy")
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (hasFilter) {
+                        Text(
+                            text = "$expenseCount expenses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = {
+                        val newMonth = selectedMonth?.plusMonths(1) ?: YearMonth.now().plusMonths(1)
+                        if (!newMonth.isAfter(YearMonth.now())) {
+                            onMonthChange(newMonth)
+                        }
+                    },
+                    enabled = selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now())
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        "Next month",
+                        tint = if (selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now()))
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                }
+            }
+
+            if (hasFilter) {
+                OutlinedButton(
+                    onClick = onClearFilter,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }
 

@@ -13,8 +13,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Person
@@ -24,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,14 +72,14 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         "Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -98,52 +102,52 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 24.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Profile Section
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = "Profile",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+            Spacer(modifier = Modifier.height(4.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+            // Profile Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    // Profile Avatar
+                    Surface(
+                        modifier = Modifier.size(100.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        shadowElevation = 8.dp
                     ) {
-                        // Profile Picture Placeholder
-                        Surface(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .align(Alignment.CenterHorizontally),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(40.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = (profile?.fullName?.firstOrNull()?.uppercase() ?: "U"),
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
                         }
+                    }
 
-                        if (editMode) {
-                            // Edit Mode
+                    if (editMode) {
+                        // Edit Mode
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             OutlinedTextField(
                                 value = editedName,
                                 onValueChange = { editedName = it },
@@ -151,7 +155,11 @@ fun SettingsScreen(
                                 placeholder = { Text("Enter your name") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(14.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
                             )
 
                             if (profileError != null) {
@@ -176,230 +184,311 @@ fun SettingsScreen(
                                     enabled = !isProfileLoading,
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text("Cancel")
+                                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                                 }
 
-                                ModernButton(
+                                Button(
                                     onClick = {
                                         profileViewModel.updateProfile(editedName)
                                         editMode = false
                                     },
-                                    text = if (isProfileLoading) "Saving..." else "Save",
                                     modifier = Modifier.weight(1f),
-                                    enabled = !isProfileLoading && editedName.isNotBlank()
-                                )
+                                    enabled = !isProfileLoading && editedName.isNotBlank(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    if (isProfileLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Text("Save", fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
                             }
-                        } else {
-                            // View Mode
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = profile?.fullName ?: "Loading...",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = profile?.email ?: "",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            ModernButton(
-                                onClick = { editMode = true },
-                                text = "Edit Profile",
-                                icon = Icons.Default.Edit,
-                                modifier = Modifier.fillMaxWidth()
+                        }
+                    } else {
+                        // View Mode
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = profile?.fullName ?: "Loading...",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            Text(
+                                text = profile?.email ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = { editMode = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Edit Profile", fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
             }
 
-            // Appearance Section
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Appearance",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+            // Settings Sections
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Appearance Section
+                SettingsSection(title = "Appearance") {
+                    SettingsItem(
+                        icon = if (currentTheme == ThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
+                        title = "Theme",
+                        subtitle = when (currentTheme) {
+                            ThemeMode.LIGHT -> "Light Mode"
+                            ThemeMode.DARK -> "Dark Mode"
+                            ThemeMode.SYSTEM -> "System Default"
+                        },
+                        onClick = { showThemeDialog = true }
+                    )
+                }
 
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "Theme",
-                    subtitle = when (currentTheme) {
-                        ThemeMode.LIGHT -> "Light Mode"
-                        ThemeMode.DARK -> "Dark Mode"
-                        ThemeMode.SYSTEM -> "System Default"
-                    },
-                    icon = if (currentTheme == ThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
-                    onClick = { showThemeDialog = true },
-                    showChevron = true
-                )
-            }
+                // About Section
+                SettingsSection(title = "About") {
+                    SettingsItem(
+                        icon = Icons.Default.Settings,
+                        title = "Flockr",
+                        subtitle = "Version ${`in`.xroden.flockr.BuildConfig.VERSION_NAME} (${`in`.xroden.flockr.BuildConfig.VERSION_CODE})",
+                        showChevron = false
+                    )
 
-            // About Section
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "About",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
 
-                // App Info
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "Flockr",
-                    subtitle = "Version 1.0.0",
-                    icon = Icons.Default.Settings,
-                    showChevron = false
-                )
+                    SettingsItem(
+                        icon = Icons.Default.Person,
+                        title = "Developer",
+                        subtitle = "Abhishek Sharma",
+                        showChevron = false
+                    )
 
-                // Developer
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "Developer",
-                    subtitle = "Abhishek Sharma",
-                    icon = Icons.Default.Person,
-                    showChevron = false
-                )
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
 
-                // Website Link
-                val context = androidx.compose.ui.platform.LocalContext.current
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "Website",
-                    subtitle = "abhisheksan.com",
-                    icon = Icons.Default.Person,
-                    onClick = {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                            data = android.net.Uri.parse("https://abhisheksan.com")
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    SettingsItem(
+                        icon = Icons.Default.Person,
+                        title = "Website",
+                        subtitle = "abhisheksan.com",
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("https://abhisheksan.com")
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
-                    },
-                    showChevron = true
-                )
+                    )
 
-                // GitHub Link
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "GitHub Repository",
-                    subtitle = "View source code & contribute",
-                    icon = Icons.Default.Settings,
-                    onClick = {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                            data = android.net.Uri.parse("https://github.com/abhisheksharm-3/flockr")
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    SettingsItem(
+                        icon = Icons.Default.Settings,
+                        title = "GitHub Repository",
+                        subtitle = "View source code & contribute",
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("https://github.com/abhisheksharm-3/flockr")
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
-                    },
-                    showChevron = true
-                )
+                    )
+                }
+
+                // Account Section
+                SettingsSection(title = "Account") {
+                    SettingsItem(
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        title = "Sign Out",
+                        subtitle = "Sign out of your account",
+                        onClick = { showLogoutDialog = true },
+                        showChevron = false,
+                        iconTint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
-            // Account Actions
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Account",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-
-                `in`.xroden.flockr.ui.components.lists.ModernListItem(
-                    title = "Sign Out",
-                    subtitle = "Sign out of your account",
-                    icon = Icons.AutoMirrored.Filled.ExitToApp,
-                    iconBackgroundColor = MaterialTheme.colorScheme.errorContainer,
-                    onClick = { showLogoutDialog = true },
-                    showChevron = false
-                )
-            }
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 
-    // Theme Dialog
+    // Theme Selector Full Screen
     if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = {
-                Text(
-                    "Choose Theme",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "Choose Theme",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { showThemeDialog = false }) {
+                            Icon(Icons.Default.Clear, "Close")
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ThemeMode.entries.forEach { mode ->
-                        val selected = currentTheme == mode
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isPressed by interactionSource.collectIsPressedAsState()
-                        
-                        val scale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.97f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
-                            ),
-                            label = "theme_option_scale"
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Appearance",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "Choose how Flockr looks to you. Select a single theme or sync with your system settings.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ThemeMode.entries.forEach { mode ->
+                    val selected = currentTheme == mode
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.97f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "theme_option_scale"
+                    )
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .scale(scale),
+                        onClick = {
+                            scope.launch {
+                                viewModel.setThemeMode(mode)
+                                showThemeDialog = false
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surface
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                         )
-                        
-                        Surface(
+                    ) {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .scale(scale)
-                                .border(
-                                    width = 1.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = null
-                                ) {
-                                    scope.launch {
-                                        viewModel.setThemeMode(mode)
-                                        showThemeDialog = false
-                                    }
-                                },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                   else MaterialTheme.colorScheme.surface
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            Icon(
+                                imageVector = when (mode) {
+                                    ThemeMode.LIGHT -> Icons.Default.LightMode
+                                    ThemeMode.DARK -> Icons.Default.DarkMode
+                                    ThemeMode.SYSTEM -> Icons.Default.Settings
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = if (selected)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                RadioButton(
-                                    selected = selected,
-                                    onClick = null
-                                )
                                 Text(
                                     text = when (mode) {
                                         ThemeMode.LIGHT -> "Light"
                                         ThemeMode.DARK -> "Dark"
                                         ThemeMode.SYSTEM -> "System Default"
                                     },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = when (mode) {
+                                        ThemeMode.LIGHT -> "Always use light theme"
+                                        ThemeMode.DARK -> "Always use dark theme"
+                                        ThemeMode.SYSTEM -> "Follow system settings"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            if (selected) {
+                                Icon(
+                                    Icons.Default.Done,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Done", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
-
-    // Logout Dialog
+            }
+        }
+    }    // Logout Dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -447,6 +536,109 @@ fun SettingsScreen(
             },
             shape = RoundedCornerShape(16.dp)
         )
+    }
+}
+
+// Helper Composables for Settings
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null,
+    showChevron: Boolean = onClick != null,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Surface(
+        onClick = { onClick?.invoke() },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = onClick != null,
+        color = Color.Transparent,
+        interactionSource = interactionSource
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Icon
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = iconTint
+            )
+
+            // Text Content
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (iconTint == MaterialTheme.colorScheme.error)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Chevron
+            if (showChevron) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
     }
 }
 

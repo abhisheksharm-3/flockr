@@ -11,11 +11,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
+import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
+import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
+import `in`.xroden.flockr.utils.Constants
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -33,14 +37,22 @@ fun MonthlyReportsScreen(
     val houseConfig by viewModel.houseConfig.collectAsState()
     val monthlySummary by viewModel.monthlySummary.collectAsState()
 
+    // Load per diem configs to get categories
+    val perDiemViewModel: `in`.xroden.flockr.ui.viewmodel.PerDiemViewModel = hiltViewModel()
+    val perDiemConfigs by perDiemViewModel.configs.collectAsState()
+
     LaunchedEffect(houseId, selectedMonth) {
-        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH))
         viewModel.loadMonthlySummary(houseId, monthStr)
         viewModel.loadPerDiemBillItemized(houseId, monthStr)
         viewModel.loadSpendByCategory(houseId, monthStr)
         viewModel.loadSpendByMember(houseId, monthStr)
         viewModel.loadHouseConfig(houseId)
+        perDiemViewModel.loadConfigs(houseId)
     }
+
+    // Chart colors from constants
+    val chartColors = Constants.ChartColors.PIE_CHART_COLORS.map { Color(it) }
 
     Scaffold(
         topBar = {
@@ -72,8 +84,8 @@ fun MonthlyReportsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(Constants.UI.STANDARD_PADDING_DP.dp),
+            verticalArrangement = Arrangement.spacedBy(Constants.UI.CARD_SPACING_DP.dp)
         ) {
             // Month Selector
             item {
@@ -218,7 +230,7 @@ fun MonthlyReportsScreen(
             // Spending by Member
             item {
                 SectionCard(title = "Spending by Member") {
-                    if (spendByMember.isEmpty()) {
+                    if (spendByMember.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
                             style = MaterialTheme.typography.bodyMedium,
@@ -226,73 +238,24 @@ fun MonthlyReportsScreen(
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Chart Placeholder
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(8.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.BarChart,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "Bar Chart Visualization",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "(To be implemented with charting library)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // Build member data map - individual spending
+                            val memberData = spendByMember.associate {
+                                (it.fullName ?: "Unknown") to (it.totalSpent ?: 0.0)
+                            }.toMutableMap()
+
+                            // Add per diem as "House" spending
+                            val perDiemTotal = perDiemItemized.sumOf { it.totalAmount ?: 0.0 }
+                            if (perDiemTotal > 0) {
+                                memberData["House (Per Diem)"] = perDiemTotal
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            spendByMember.forEach { spend ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Text(
-                                            text = spend.fullName ?: "Unknown",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                    Text(
-                                        text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", spend.totalSpent)}",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
+                            SimpleBarChart(
+                                data = memberData,
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.primary,
+                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                            )
                         }
                     }
                 }
@@ -301,7 +264,7 @@ fun MonthlyReportsScreen(
             // Spending by Category
             item {
                 SectionCard(title = "Spending by Category") {
-                    if (spendByCategory.isEmpty()) {
+                    if (spendByCategory.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
                             style = MaterialTheme.typography.bodyMedium,
@@ -309,73 +272,33 @@ fun MonthlyReportsScreen(
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Chart Placeholder
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(8.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PieChart,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "Pie Chart Visualization",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "(To be implemented with charting library)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // Build category data - merge regular expenses and per diem
+                            val categoryData = spendByCategory.associate {
+                                (it.category ?: "Uncategorized") to (it.totalAmount ?: 0.0)
+                            }.toMutableMap()
+
+                            // Create map of item names to categories from configs
+                            val itemNameToCategory = perDiemConfigs.associate { config ->
+                                config.itemName to config.category
+                            }
+
+                            // Group per diem by category using config lookup and add to categoryData
+                            perDiemItemized.groupBy { item ->
+                                itemNameToCategory[item.itemName] ?: "Per Diem"
+                            }.forEach { (category, items) ->
+                                val total = items.sumOf { it.totalAmount ?: 0.0 }
+                                if (total > 0) {
+                                    categoryData[category] = (categoryData[category] ?: 0.0) + total
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            spendByCategory.forEach { spend ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Category,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Text(
-                                            text = spend.category ?: "Uncategorized",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                    Text(
-                                        text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", spend.totalAmount)}",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
+                            SimplePieChart(
+                                data = categoryData,
+                                colors = chartColors,
+                                modifier = Modifier.fillMaxWidth(),
+                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                            )
                         }
                     }
                 }

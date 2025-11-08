@@ -30,6 +30,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Read version from version.properties file
+      - name: Read Version from Properties
+        id: version
+        run: |
+          VERSION_NAME=$(grep VERSION_NAME version.properties | cut -d'=' -f2)
+          VERSION_CODE=$(grep VERSION_CODE version.properties | cut -d'=' -f2)
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "VERSION_CODE=${VERSION_CODE}" >> $GITHUB_ENV
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
+          echo "📦 Building Flockr version ${VERSION_NAME} (${VERSION_CODE})"
+
       # Decode the keystore file once to a secure location
       - name: Decode Keystore
         if: github.event_name != 'pull_request'
@@ -53,13 +65,6 @@ jobs:
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
             --stacktrace
 
-      # Generate version properties for naming consistency
-      - name: Generate Version Properties
-        id: version
-        run: |
-          VERSION_NAME=$(./gradlew -q printVersionName)
-          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
-          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
 
       # Collect and organize APKs
       - name: Organize APKs

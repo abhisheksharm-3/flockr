@@ -24,6 +24,7 @@ import `in`.xroden.flockr.data.model.Chore
 import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.ui.viewmodel.ChoreUiState
 import `in`.xroden.flockr.ui.viewmodel.ChoreViewModel
+import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -36,6 +37,7 @@ fun ChoresScreenModern(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf<Chore?>(null) }
     var filterOption by remember { mutableStateOf(ChoreFilter.ALL) }
     
     val snackbarHostState = remember { SnackbarHostState() }
@@ -69,6 +71,37 @@ fun ChoresScreenModern(
                         onError = { error ->
                             scope.launch {
                                 snackbarHostState.showSnackbar("Failed to add chore: $error")
+                            }
+                        }
+                    )
+                }
+            }
+        )
+    }
+
+    // Edit Chore Dialog
+    showEditDialog?.let { chore ->
+        EditChoreDialog(
+            chore = chore,
+            houseId = houseId,
+            onDismiss = { showEditDialog = null },
+            onSave = { taskName, description, dueDate, assignedTo ->
+                scope.launch {
+                    viewModel.updateChore(
+                        choreId = chore.id,
+                        taskName = taskName,
+                        description = description,
+                        dueDate = dueDate,
+                        assignedTo = assignedTo,
+                        onSuccess = {
+                            showEditDialog = null
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Chore updated successfully")
+                            }
+                        },
+                        onError = { error ->
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Failed to update chore: $error")
                             }
                         }
                     )
@@ -188,6 +221,7 @@ fun ChoresScreenModern(
                                         }
                                     }
                                 },
+                                onEdit = { showEditDialog = chore },
                                 onDelete = {
                                     scope.launch {
                                         viewModel.deleteChore(chore.id)
@@ -243,6 +277,7 @@ fun ChoresScreenModern(
 fun ChoreCard(
     chore: Chore,
     onToggleComplete: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -402,18 +437,20 @@ fun ChoreCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Edit Button
-                IconButton(
-                    onClick = { /* TODO: Implement edit */ },
-                    modifier = Modifier.size(36.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "Edit",
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (!chore.isCompleted) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(36.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            "Edit",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 // Delete Button
@@ -588,6 +625,101 @@ fun EmptyChoresState(
     }
 }
 
+@Composable
+fun EditChoreDialog(
+    chore: Chore,
+    houseId: String,
+    onDismiss: () -> Unit,
+    onSave: (String, String?, String?, String?) -> Unit
+) {
+    var taskName by remember { mutableStateOf(chore.taskName) }
+    var description by remember { mutableStateOf(chore.description ?: "") }
+    var dueDate by remember { mutableStateOf(chore.dueDate ?: "") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Edit Chore",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = taskName,
+                    onValueChange = { taskName = it },
+                    label = { Text("Task Name *") },
+                    placeholder = { Text("e.g., Clean kitchen") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (Optional)") },
+                    placeholder = { Text("Add details...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = dueDate,
+                    onValueChange = { dueDate = it },
+                    label = { Text("Due Date (Optional)") },
+                    placeholder = { Text("YYYY-MM-DD") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            onSave(
+                                taskName,
+                                description.takeIf { it.isNotBlank() },
+                                dueDate.takeIf { it.isNotBlank() },
+                                chore.assignedTo  // Keep existing assignment
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = taskName.isNotBlank(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
 enum class ChoreFilter(val label: String) {
     ALL("All"),
     ACTIVE("Active"),
@@ -599,8 +731,8 @@ private fun formatDate(dateString: String): String {
         // Handle short dates safely
         if (dateString.length < 10) return dateString
         val datePart = dateString.substring(0, 10)
-        val date = LocalDate.parse(datePart)
-        date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        val date = LocalDate.parse(datePart, DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
+        date.format(DateTimeFormatter.ofPattern(Constants.DateFormats.DISPLAY_DATE))
     } catch (e: Exception) {
         // Return safe default if parsing fails
         if (dateString.length >= 10) dateString.substring(0, 10) else dateString
@@ -609,7 +741,7 @@ private fun formatDate(dateString: String): String {
 
 private fun isOverdue(dateString: String): Boolean {
     return try {
-        val dueDate = LocalDate.parse(dateString.substring(0, 10))
+        val dueDate = LocalDate.parse(dateString.substring(0, 10), DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
         dueDate.isBefore(LocalDate.now())
     } catch (e: Exception) {
         false

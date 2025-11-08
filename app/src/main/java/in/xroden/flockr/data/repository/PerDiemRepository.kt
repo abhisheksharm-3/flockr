@@ -121,8 +121,19 @@ class PerDiemRepository @Inject constructor(
         }
     }
 
-    suspend fun deletePerDiemConfig(configId: String): Result<Unit> {
+    suspend fun deletePerDiemConfig(configId: String, deleteUsage: Boolean = false): Result<Unit> {
         return try {
+            if (deleteUsage) {
+                // Delete all associated usage entries first
+                supabase.from("per_diem_entries")
+                    .delete {
+                        filter {
+                            eq("config_id", configId)
+                        }
+                    }
+            }
+
+            // Soft delete the config by setting isActive to false
             val activation = PerDiemConfigActivation(isActive = false)
             supabase.from("per_diem_config")
                 .update(activation) {

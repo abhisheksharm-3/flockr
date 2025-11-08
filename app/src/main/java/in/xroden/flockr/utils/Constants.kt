@@ -95,6 +95,31 @@ object Constants {
         const val ANIMATION_DURATION_MS = 300L
         const val SNACKBAR_DURATION_MS = 3000L
         const val MAX_LINES_COLLAPSED = 3
+        const val STANDARD_PADDING_DP = 24
+        const val CARD_SPACING_DP = 20
+        const val CARD_CORNER_RADIUS_DP = 12
+        const val FAB_CORNER_RADIUS_DP = 16
+    }
+
+    // Chart Colors (in hex for easy theming)
+    object ChartColors {
+        val PIE_CHART_COLORS = listOf(
+            0xFF6366F1, // Indigo
+            0xFF8B5CF6, // Purple
+            0xFFEC4899, // Pink
+            0xFFF59E0B, // Amber
+            0xFF10B981, // Emerald
+            0xFF06B6D4, // Cyan
+            0xFFF97316, // Orange
+            0xFF84CC16  // Lime
+        )
+
+        val BAR_CHART_COLORS = listOf(
+            0xFF6366F1, // Indigo
+            0xFF8B5CF6, // Purple
+            0xFFEC4899, // Pink
+            0xFFF59E0B  // Amber
+        )
     }
 
     // Storage Paths
