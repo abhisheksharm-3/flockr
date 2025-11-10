@@ -28,6 +28,101 @@ class ExpenseRepository @Inject constructor(
         private const val TAG = "ExpenseRepository"
     }
 
+    /**
+     * Helper function to get house currency symbol for notifications
+     */
+    private suspend fun getHouseCurrency(houseId: String): String {
+        return try {
+            val result = supabase.from("house_config")
+                .select(columns = Columns.list("currency_symbol")) {
+                    filter { eq("house_id", houseId) }
+                }
+                .decodeSingle<Map<String, String>>()
+            result["currency_symbol"] ?: "$"
+        } catch (e: Exception) {
+            FlockrLogger.d(TAG, "Failed to get house currency, using default: ${e.message}")
+            "$" // Fallback to USD
+        }
+    }
+
+    /**
+     * Helper function to get current user's display name for notifications
+     */
+    private suspend fun getCurrentUserName(): String {
+        val currentUserId = userId ?: return "Someone"
+        return try {
+            val profile = supabase.from("profiles")
+                .select(Columns.raw("full_name")) {
+                    filter { eq("user_id", currentUserId) }
+                }
+                .decodeSingle<Profile>()
+            profile.fullName ?: "Someone"
+        } catch (e: Exception) {
+            FlockrLogger.d(TAG, "Failed to get user name, using default: ${e.message}")
+            "Someone"
+        }
+    }
+
+    /**
+     * Delete a one-time expense and its splits
+     */
+    suspend fun deleteOneTimeExpense(expenseId: String): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "deleteOneTimeExpense", mapOf("expenseId" to expenseId))
+        return try {
+            // Delete splits first (foreign key constraint)
+            supabase.from("expense_splits")
+                .delete {
+                    filter { eq("expense_id", expenseId) }
+                }
+
+            // Delete the expense
+            supabase.from("one_time_expenses")
+                .delete {
+                    filter { eq("id", expenseId) }
+                }
+
+            FlockrLogger.repoSuccess(TAG, "deleteOneTimeExpense", "Expense deleted successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "deleteOneTimeExpense", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update a one-time expense
+     */
+    suspend fun updateOneTimeExpense(
+        expenseId: String,
+        name: String,
+        amount: Double,
+        date: String,
+        category: String,
+        notes: String?
+    ): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "updateOneTimeExpense", mapOf("expenseId" to expenseId))
+        return try {
+            val update = mapOf(
+                "name" to name,
+                "amount" to amount,
+                "date" to date,
+                "category" to category,
+                "notes" to notes
+            )
+
+            supabase.from("one_time_expenses")
+                .update(update) {
+                    filter { eq("id", expenseId) }
+                }
+
+            FlockrLogger.repoSuccess(TAG, "updateOneTimeExpense", "Expense updated successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "updateOneTimeExpense", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getOneTimeExpenses(houseId: String): List<OneTimeExpense> {
         FlockrLogger.repoStart(TAG, "getOneTimeExpenses", mapOf("houseId" to houseId))
         return try {
@@ -169,12 +264,17 @@ class ExpenseRepository @Inject constructor(
                     }
                 }
 
+                // Get currency and user name for notification
+                val currency = getHouseCurrency(houseId)
+                val userName = getCurrentUserName()
+
                 // Create notification for house members about the split expense
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating split notification")
                 val notificationParams = CreateNotificationParams(
                     houseId = houseId,
                     title = "New Expense Split",
-                    message = "Added a \$$amount expense for $name and split it.",
+                    message = "$userName added a $currency$amount expense for $name and split it.",
+                    type = "expense",
                     data = """{"id":"${expense.id}","type":"expense"}""",
                     excludeUserId = currentUserId
                 )
@@ -189,12 +289,17 @@ class ExpenseRepository @Inject constructor(
                     FlockrLogger.d(TAG, "createOneTimeExpense: Notification failed (non-critical): ${e.message}")
                 }
             } else {
+                // Get currency and user name for notification
+                val currency = getHouseCurrency(houseId)
+                val userName = getCurrentUserName()
+
                 // Create notification for simple expense (not split)
                 FlockrLogger.d(TAG, "createOneTimeExpense: Creating simple notification")
                 val notificationParams = CreateNotificationParams(
                     houseId = houseId,
                     title = "New Expense",
-                    message = "Added a \$$amount expense for $name.",
+                    message = "$userName added a $currency$amount expense for $name.",
+                    type = "expense",
                     data = """{"id":"${expense.id}","type":"expense"}""",
                     excludeUserId = currentUserId
                 )
@@ -263,6 +368,20 @@ class ExpenseRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
+            // Get current user's name for notification
+            val currentUserProfile = try {
+                supabase.from("profiles")
+                    .select(Columns.raw("full_name")) {
+                        filter {
+                            eq("user_id", currentUserId)
+                        }
+                    }
+                    .decodeSingle<Profile>()
+            } catch (e: Exception) {
+                null
+            }
+            val payerName = currentUserProfile?.fullName ?: "Someone"
+
             val transactionInsert = TransactionInsert(
                 houseId = houseId,
                 payerId = currentUserId,
@@ -275,16 +394,19 @@ class ExpenseRepository @Inject constructor(
             supabase.from("transactions")
                 .insert(transactionInsert)
 
+            // Get house currency for notification
+            val currency = getHouseCurrency(houseId)
+
             FlockrLogger.d(TAG, "settleBalance: Creating notification for payee")
             // Create notification for payee
             val notificationInsert = NotificationInsert(
                 userId = payeeId,
                 houseId = houseId,
                 title = "Balance Settled",
-                message = "Has settled their balance with you (\$$amount).",
+                message = "$payerName has settled their balance with you ($currency$amount).",
                 type = "settlement",
                 isRead = false,
-                data = """{"amount":"${amount}"}"""
+                data = """{"amount":"${amount}","payer_name":"$payerName","currency":"$currency"}"""
             )
 
             supabase.from("notifications")
@@ -422,14 +544,19 @@ class ExpenseRepository @Inject constructor(
             supabase.from("per_diem_entries")
                 .insert(entryInsert)
 
+            // Get currency and user name for notification
+            val currency = getHouseCurrency(houseId)
+            val userName = getCurrentUserName()
+
             FlockrLogger.d(TAG, "createPerDiemEntry: Creating notification")
             // Create notification
             try {
                 val notificationParams = CreateNotificationParams(
                     houseId = houseId,
                     title = "Per Diem Entry Added",
-                    message = "$itemName entry added: $quantity received.",
-                    data = """{"type":"per_diem"}""",
+                    message = "$userName added $itemName entry: $quantity units.",
+                    type = "per_diem",
+                    data = """{"type":"per_diem","item":"$itemName"}""",
                     excludeUserId = currentUserId
                 )
                 supabase.postgrest.rpc(
@@ -578,11 +705,16 @@ class ExpenseRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "createRecurringExpense: Expense created with id=${expense.id}")
 
+            // Get currency and user name for notification
+            val currency = getHouseCurrency(houseId)
+            val userName = getCurrentUserName()
+
             // Create notification for house members
             val notificationParams = CreateNotificationParams(
                 houseId = houseId,
                 title = "New Recurring Bill",
-                message = "Added $frequency bill: $name for $$amount.",
+                message = "$userName added $frequency bill: $name for $currency$amount.",
+                type = "recurring_expense",
                 data = """{"id":"${expense.id}","type":"recurring_expense"}""",
                 excludeUserId = currentUserId
             )
@@ -657,6 +789,32 @@ class ExpenseRepository @Inject constructor(
     }
 
     /**
+     * Delete a recurring expense
+     */
+    suspend fun deleteRecurringExpense(expenseId: String): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "deleteRecurringExpense", mapOf("expenseId" to expenseId))
+        return try {
+            // Delete payment history first
+            supabase.from("payment_history")
+                .delete {
+                    filter { eq("recurring_expense_id", expenseId) }
+                }
+
+            // Delete the recurring expense
+            supabase.from("recurring_expenses")
+                .delete {
+                    filter { eq("id", expenseId) }
+                }
+
+            FlockrLogger.repoSuccess(TAG, "deleteRecurringExpense", "Recurring expense deleted")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "deleteRecurringExpense", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Toggle active status of a recurring expense
      */
     suspend fun toggleRecurringExpenseActive(
@@ -664,28 +822,6 @@ class ExpenseRepository @Inject constructor(
         isActive: Boolean
     ): Result<Unit> {
         return updateRecurringExpense(expenseId, isActive = isActive)
-    }
-
-    /**
-     * Delete a recurring expense
-     */
-    suspend fun deleteRecurringExpense(expenseId: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "deleteRecurringExpense", mapOf("expenseId" to expenseId))
-
-        return try {
-            supabase.from("recurring_expenses")
-                .delete {
-                    filter {
-                        eq("id", expenseId)
-                    }
-                }
-
-            FlockrLogger.repoSuccess(TAG, "deleteRecurringExpense", "Expense deleted")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "deleteRecurringExpense", e)
-            Result.failure(e)
-        }
     }
 
     /**
@@ -737,12 +873,17 @@ class ExpenseRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "markRecurringExpenseAsPaid: Creating notification")
 
+            // Get currency and user name for notification
+            val currency = getHouseCurrency(houseId)
+            val userName = getCurrentUserName()
+
             // 3. Create notification
             try {
                 val notificationParams = CreateNotificationParams(
                     houseId = houseId,
                     title = "Bill Paid",
-                    message = "Marked recurring bill as paid (\$$amount).",
+                    message = "$userName marked recurring bill as paid ($currency$amount).",
+                    type = "payment",
                     data = """{"id":"$expenseId","type":"payment","amount":"$amount"}""",
                     excludeUserId = currentUserId
                 )

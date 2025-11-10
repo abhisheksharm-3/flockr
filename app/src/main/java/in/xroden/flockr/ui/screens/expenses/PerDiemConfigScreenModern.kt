@@ -58,9 +58,14 @@ fun PerDiemConfigScreenModern(
             onDismiss = { showAddDialog = false },
             onAdd = { itemName, rate, category, unit ->
                 scope.launch {
-                    viewModel.createConfig(houseId, itemName, rate, category, unit)
-                    showAddDialog = false
-                    snackbarHostState.showSnackbar("Per-diem item added")
+                    val result = viewModel.createConfig(houseId, itemName, rate, category, unit)
+                    if (result.isSuccess) {
+                        viewModel.loadConfigs(houseId)
+                        showAddDialog = false
+                        snackbarHostState.showSnackbar("Per-diem item added")
+                    } else {
+                        snackbarHostState.showSnackbar("Failed to add: ${result.exceptionOrNull()?.message}")
+                    }
                 }
             }
         )
@@ -74,9 +79,14 @@ fun PerDiemConfigScreenModern(
             onSave = { itemName, rate, category, unit ->
                 scope.launch {
                     try {
-                        viewModel.updateConfig(config.id, itemName, rate, category, unit)
-                        showEditDialog = null
-                        snackbarHostState.showSnackbar("Per-diem item updated")
+                        val result = viewModel.updateConfig(config.id, itemName, rate, category, unit)
+                        if (result.isSuccess) {
+                            viewModel.loadConfigs(houseId)
+                            showEditDialog = null
+                            snackbarHostState.showSnackbar("Per-diem item updated")
+                        } else {
+                            snackbarHostState.showSnackbar("Failed to update: ${result.exceptionOrNull()?.message}")
+                        }
                     } catch (e: Exception) {
                         snackbarHostState.showSnackbar("Failed to update: ${e.message}")
                     }
@@ -92,14 +102,19 @@ fun PerDiemConfigScreenModern(
             onConfirm = { deleteUsage ->
                 scope.launch {
                     try {
-                        viewModel.deleteConfig(config.id, deleteUsage)
-                        showDeleteDialog = null
-                        val message = if (deleteUsage) {
-                            "Item and all usage deleted"
+                        val result = viewModel.deleteConfig(config.id, deleteUsage)
+                        if (result.isSuccess) {
+                            viewModel.loadConfigs(houseId)
+                            showDeleteDialog = null
+                            val message = if (deleteUsage) {
+                                "Item and all usage deleted"
+                            } else {
+                                "Item deleted, usage preserved"
+                            }
+                            snackbarHostState.showSnackbar(message)
                         } else {
-                            "Item deleted, usage preserved"
+                            snackbarHostState.showSnackbar("Failed to delete: ${result.exceptionOrNull()?.message}")
                         }
-                        snackbarHostState.showSnackbar(message)
                     } catch (e: Exception) {
                         snackbarHostState.showSnackbar("Failed to delete: ${e.message}")
                     }

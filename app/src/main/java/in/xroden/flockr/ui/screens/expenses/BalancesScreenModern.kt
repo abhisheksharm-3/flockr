@@ -19,8 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.model.UserBalance
-import `in`.xroden.flockr.ui.components.data.BalanceDisplay
-import `in`.xroden.flockr.ui.components.data.BalanceSize
 import `in`.xroden.flockr.ui.theme.NegativeRed
 import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
@@ -36,6 +34,7 @@ fun BalancesScreenModern(
     val balances by viewModel.balances.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currentUserId = viewModel.getCurrentUserId()
     var showSettleDialog by remember { mutableStateOf(false) }
     var selectedBalance by remember { mutableStateOf<UserBalance?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -55,7 +54,6 @@ fun BalancesScreenModern(
         SettleBalanceDialogModern(
             balance = selectedBalance!!,
             currencySymbol = currencySymbol,
-            houseId = houseId,
             onDismiss = { showSettleDialog = false },
             onSettle = { amount, description ->
                 scope.launch {
@@ -186,6 +184,7 @@ fun BalancesScreenModern(
                     items(balances) { balance ->
                         BalanceCardModern(
                             balance = balance,
+                            currentUserId = currentUserId,
                             currencySymbol = currencySymbol,
                             onSettleClick = {
                                 selectedBalance = balance
@@ -229,10 +228,20 @@ fun BalancesScreenModern(
 @Composable
 fun BalanceCardModern(
     balance: UserBalance,
+    currentUserId: String?,
     currencySymbol: String = "$",
     onSettleClick: () -> Unit
 ) {
-    val isPositive = balance.balance > 0
+    // CRITICAL FIX: The balance value represents THAT USER'S balance perspective
+    // balance.balance > 0 = that user is OWED money (they paid more than they owe)
+    // balance.balance < 0 = that user OWES money (they owe more than they paid)
+    //
+    // From CURRENT user's perspective, we need to INVERT this:
+    // If THEIR balance is positive (+), THEY are owed, which means WE OWE THEM
+    // If THEIR balance is negative (-), THEY owe, which means THEY OWE US
+
+    val theyOweUs = balance.balance < 0  // Their balance is negative = they owe = they owe us
+    val weOweThem = balance.balance > 0  // Their balance is positive = they're owed = we owe them
     val amount = kotlin.math.abs(balance.balance)
 
     Card(
@@ -262,7 +271,7 @@ fun BalanceCardModern(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isPositive) "owes you" else "you owe",
+                        text = if (theyOweUs) "owes you" else "you owe",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -271,23 +280,23 @@ fun BalanceCardModern(
                 // Balance Amount
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isPositive) 
-                        PositiveGreen.copy(alpha = 0.1f) 
-                    else 
-                        NegativeRed.copy(alpha = 0.1f)
+                    color = if (theyOweUs)
+                        PositiveGreen.copy(alpha = 0.1f)  // Good for us
+                    else
+                        NegativeRed.copy(alpha = 0.1f)    // Bad for us
                 ) {
                     Text(
                         text = "$currencySymbol${"%.2f".format(amount)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (isPositive) PositiveGreen else NegativeRed,
+                        color = if (theyOweUs) PositiveGreen else NegativeRed,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
             }
 
-            // Settle Button (only show if you owe them)
-            if (!isPositive) {
+            // Settle Button (only show if WE owe THEM)
+            if (weOweThem) {
                 Button(
                     onClick = onSettleClick,
                     modifier = Modifier.fillMaxWidth(),
@@ -310,7 +319,6 @@ fun BalanceCardModern(
 fun SettleBalanceDialogModern(
     balance: UserBalance,
     currencySymbol: String = "$",
-    houseId: String,
     onDismiss: () -> Unit,
     onSettle: (Double, String?) -> Unit
 ) {

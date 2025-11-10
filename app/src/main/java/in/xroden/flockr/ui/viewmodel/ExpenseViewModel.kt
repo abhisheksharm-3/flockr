@@ -192,6 +192,26 @@ class ExpenseViewModel @Inject constructor(
         }
     }
 
+    fun deleteRecurringExpense(
+        expenseId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        Log.d(TAG, "deleteRecurringExpense() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            expenseRepository.deleteRecurringExpense(expenseId).fold(
+                onSuccess = {
+                    Log.d(TAG, "deleteRecurringExpense: Success")
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "deleteRecurringExpense: Failed", error)
+                    onError(error.message ?: "Failed to delete")
+                }
+            )
+        }
+    }
+
     fun markRecurringExpenseAsPaid(
         expenseId: String,
         houseId: String,
@@ -221,6 +241,53 @@ class ExpenseViewModel @Inject constructor(
                 Log.e(TAG, "markRecurringExpenseAsPaid: Exception occurred", e)
                 _uiState.value = ExpenseUiState.Error(e.message ?: "Failed to mark as paid")
             }
+        }
+    }
+
+    fun deleteOneTimeExpense(
+        expenseId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        Log.d(TAG, "deleteOneTimeExpense() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            expenseRepository.deleteOneTimeExpense(expenseId).fold(
+                onSuccess = {
+                    Log.d(TAG, "deleteOneTimeExpense: Success")
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "deleteOneTimeExpense: Failed", error)
+                    onError(error.message ?: "Failed to delete expense")
+                }
+            )
+        }
+    }
+
+    fun updateOneTimeExpense(
+        expenseId: String,
+        name: String,
+        amount: Double,
+        date: String,
+        category: String,
+        notes: String?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        Log.d(TAG, "updateOneTimeExpense() called for expenseId=$expenseId")
+        viewModelScope.launch {
+            expenseRepository.updateOneTimeExpense(
+                expenseId, name, amount, date, category, notes
+            ).fold(
+                onSuccess = {
+                    Log.d(TAG, "updateOneTimeExpense: Success")
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "updateOneTimeExpense: Failed", error)
+                    onError(error.message ?: "Failed to update expense")
+                }
+            )
         }
     }
 
@@ -289,32 +356,6 @@ class ExpenseViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "settleBalance: Exception occurred", e)
-                onError(e.message ?: "Unknown error")
-            }
-        }
-    }
-
-    fun deleteRecurringExpense(
-        expenseId: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit = {}
-    ) {
-        Log.d(TAG, "deleteRecurringExpense() called for expenseId=$expenseId")
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "deleteRecurringExpense: Calling repository")
-                expenseRepository.deleteRecurringExpense(expenseId).fold(
-                    onSuccess = {
-                        Log.d(TAG, "deleteRecurringExpense: Success")
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        Log.e(TAG, "deleteRecurringExpense: Failed", error)
-                        onError(error.message ?: "Failed to delete recurring expense")
-                    }
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "deleteRecurringExpense: Exception occurred", e)
                 onError(e.message ?: "Unknown error")
             }
         }

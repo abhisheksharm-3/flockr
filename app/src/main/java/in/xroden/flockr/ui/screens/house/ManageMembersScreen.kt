@@ -44,18 +44,90 @@ fun ManageMembersScreen(
     var inviteEmail by remember { mutableStateOf("") }
     var isInviting by remember { mutableStateOf(false) }
     var expandedInvitations by remember { mutableStateOf(false) }
+    var currentUserRole by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentUserId = viewModel.getCurrentUserId()
 
     LaunchedEffect(houseId) {
         isLoading = true
         scope.launch {
             viewModel.loadHouse(houseId)
             members = viewModel.getHouseMembers(houseId)
-            pendingInvitations = viewModel.getPendingInvitations(houseId)
+            // Find current user's role
+            currentUserRole = members.find { it.userId == currentUserId }?.role
+            // Only load invitations if user is owner or admin
+            if (currentUserRole == "Owner" || currentUserRole == "Admin") {
+                pendingInvitations = viewModel.getPendingInvitations(houseId)
+            }
             isLoading = false
         }
+    }
+
+    // Check if user has permission to manage members
+    val canManageMembers = currentUserRole == "Owner" || currentUserRole == "Admin"
+
+    // If not authorized, show message and return
+    if (!isLoading && !canManageMembers) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "Manage Members",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                "Back",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Access Denied",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Only house owners and admins can manage members.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        return
     }
 
     // Invite Dialog
@@ -291,14 +363,19 @@ fun ManageMembersScreen(
                 items(members) { member ->
                     MemberListItem(
                         member = member,
+                        currentUserRole = currentUserRole,
                         isOwner = member.role == "Owner",
                         onRemove = { 
-                            if (member.role != "Owner") {
-                                showRemoveDialog = member 
-                            } else {
+                            if (member.role == "Owner") {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Cannot remove the owner of the household")
                                 }
+                            } else if (member.role == "Admin" && currentUserRole != "Owner") {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Only the owner can remove admins")
+                                }
+                            } else {
+                                showRemoveDialog = member
                             }
                         }
                     )
@@ -316,9 +393,18 @@ fun ManageMembersScreen(
 @Composable
 fun MemberListItem(
     member: MemberWithProfile,
+    currentUserRole: String?,
     isOwner: Boolean,
     onRemove: () -> Unit
 ) {
+    // Can delete if: you're owner (can delete anyone except owner), or you're admin (can delete regular members only)
+    val canDelete = when {
+        isOwner -> false // Can't delete owner
+        member.role == "Admin" && currentUserRole != "Owner" -> false // Only owner can delete admins
+        currentUserRole == "Owner" || currentUserRole == "Admin" -> true // Owner/Admin can delete others
+        else -> false
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -399,19 +485,19 @@ fun MemberListItem(
                 )
             }
 
-            // Delete Button (disabled for owner)
-            IconButton(
-                onClick = onRemove,
-                enabled = !isOwner,
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = if (isOwner) "Cannot remove owner" else "Remove member"
-                )
+            // Delete Button (only shown if user has permission)
+            if (canDelete) {
+                IconButton(
+                    onClick = onRemove,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove member"
+                    )
+                }
             }
         }
     }

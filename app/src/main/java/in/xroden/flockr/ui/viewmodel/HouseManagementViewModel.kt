@@ -19,6 +19,8 @@ class HouseManagementViewModel @Inject constructor(
     private val _currentHouse = MutableStateFlow<House?>(null)
     val currentHouse: StateFlow<House?> = _currentHouse.asStateFlow()
 
+    fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
+
     fun loadHouse(houseId: String) {
         viewModelScope.launch {
             android.util.Log.d("HouseManagementViewModel", "Loading house: $houseId")

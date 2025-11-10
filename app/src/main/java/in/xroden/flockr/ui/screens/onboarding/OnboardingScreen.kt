@@ -57,14 +57,16 @@ fun OnboardingScreen(
             onFullNameChange = { fullName = it },
             isLoading = isUpdating,
             onComplete = {
-                isUpdating = true
-                coroutineScope.launch {
-                    viewModel.updateProfile(
-                        fullName = fullName.ifBlank { null },
-                        hasCompletedOnboarding = true
-                    )
-                    isUpdating = false
-                    // The navigation will be handled automatically by state changes
+                if (!isUpdating && fullName.isNotBlank()) {
+                    isUpdating = true
+                    coroutineScope.launch {
+                        viewModel.updateProfile(
+                            fullName = fullName,
+                            hasCompletedOnboarding = true
+                        )
+                        // Don't set isUpdating = false or call onComplete()
+                        // Let the state flow handle navigation
+                    }
                 }
             }
         )
