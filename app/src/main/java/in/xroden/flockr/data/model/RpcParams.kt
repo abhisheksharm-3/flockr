@@ -27,8 +27,10 @@ data class CreateNotificationParams(
     val title: String,
     @SerialName("p_message")
     val message: String,
+    @SerialName("p_type")
+    val type: String,
     @SerialName("p_data")
-    val data: String? = null,
+    val data: String = "{}",
     @SerialName("p_exclude_user_id")
     val excludeUserId: String? = null
 )

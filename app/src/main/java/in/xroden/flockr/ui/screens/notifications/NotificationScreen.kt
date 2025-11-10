@@ -288,7 +288,24 @@ private fun IndustrialNotificationItem(
 }
 
 private fun formatTimestamp(timestamp: String): String {
-    // TODO: Implement proper timestamp formatting
-    // For now, return placeholder
-    return "Just now"
+    return try {
+        val notifTime = java.time.Instant.parse(timestamp)
+        val now = java.time.Instant.now()
+        val diff = java.time.Duration.between(notifTime, now)
+
+        when {
+            diff.toMinutes() < 1 -> "Just now"
+            diff.toMinutes() < 60 -> "${diff.toMinutes()} minute${if (diff.toMinutes() == 1L) "" else "s"} ago"
+            diff.toHours() < 24 -> "${diff.toHours()} hour${if (diff.toHours() == 1L) "" else "s"} ago"
+            diff.toDays() < 7 -> "${diff.toDays()} day${if (diff.toDays() == 1L) "" else "s"} ago"
+            else -> {
+                // Format as date
+                val date = java.time.LocalDateTime.ofInstant(notifTime, java.time.ZoneId.systemDefault())
+                val month = date.month.toString().take(3).lowercase().replaceFirstChar { it.uppercase() }
+                "$month ${date.dayOfMonth}, ${date.year}"
+            }
+        }
+    } catch (e: Exception) {
+        "Just now" // Fallback
+    }
 }

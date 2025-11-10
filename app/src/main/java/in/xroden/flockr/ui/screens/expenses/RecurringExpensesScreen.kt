@@ -47,6 +47,52 @@ fun RecurringExpensesScreen(
         viewModel.loadHouseConfig(houseId)
     }
 
+    // Delete confirmation dialog
+    if (showDeleteDialog && selectedExpense != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Delete Recurring Bill?") },
+            text = {
+                Text("Are you sure you want to delete '${selectedExpense?.name}'? This will also delete all payment history for this bill.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedExpense?.let { expense ->
+                            viewModel.deleteRecurringExpense(
+                                expenseId = expense.id,
+                                onSuccess = {
+                                    showDeleteDialog = false
+                                    selectedExpense = null
+                                },
+                                onError = { _: String ->
+                                    // Error handling - could show snackbar
+                                }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
@@ -251,7 +297,7 @@ fun RecurringExpensesScreen(
                                     showDeleteDialog = false
                                     selectedExpense = null
                                 },
-                                onError = { error ->
+                                onError = { _: String ->
                                     // Show error in snackbar or dialog
                                     showDeleteDialog = false
                                 }

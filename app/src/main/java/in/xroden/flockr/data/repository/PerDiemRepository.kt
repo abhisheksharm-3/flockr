@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.data.repository
 
+import android.content.ContentValues.TAG
 import `in`.xroden.flockr.data.model.CreateNotificationParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillByMonthParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillParams
@@ -11,6 +12,8 @@ import `in`.xroden.flockr.data.model.PerDiemConfigUpdate
 import `in`.xroden.flockr.data.model.PerDiemEntry
 import `in`.xroden.flockr.data.model.PerDiemEntryInsert
 import `in`.xroden.flockr.data.model.PerDiemEntryWithDetails
+import `in`.xroden.flockr.data.model.Profile
+import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -171,18 +174,37 @@ class PerDiemRepository @Inject constructor(
                 }
                 .decodeSingle<PerDiemEntry>()
 
+            // Get user name for notification
+            val userName = try {
+                val profile = supabase.from("profiles")
+                    .select(Columns.raw("full_name")) {
+                        filter { eq("user_id", currentUserId) }
+                    }
+                    .decodeSingle<Profile>()
+                profile.fullName ?: "Someone"
+            } catch (e: Exception) {
+                "Someone"
+            }
+
             // Create notification for house members
             val notificationParams = CreateNotificationParams(
                 houseId = houseId,
                 title = "Per-Diem Entry Added",
-                message = "$itemName entry added: $quantity units.",
-                data = """{"id":"${entry.id}","type":"per_diem"}""",
+                message = "$userName added $itemName entry: $quantity units.",
+                type = "per_diem",
+                data = """{"id":"${entry.id}","type":"per_diem","item":"$itemName"}""",
                 excludeUserId = currentUserId
             )
-            supabase.postgrest.rpc(
-                function = "create_notification_for_house",
-                parameters = notificationParams
-            ).decodeAs<Unit>()
+            try {
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                ).decodeAs<Unit>()
+                FlockrLogger.d(TAG, "createPerDiemEntry: Notification created successfully")
+            } catch (e: Exception) {
+                // Ignore notification errors
+                FlockrLogger.e(TAG, "createPerDiemEntry: Failed to create notification (non-critical)", e)
+            }
 
             Result.success(entry)
         } catch (e: Exception) {

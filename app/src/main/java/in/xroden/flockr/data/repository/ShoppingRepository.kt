@@ -5,6 +5,7 @@ import `in`.xroden.flockr.data.model.ShoppingItemInsert
 import `in`.xroden.flockr.data.model.ShoppingItemUpdate
 import `in`.xroden.flockr.data.model.ShoppingItemUpdateModel
 import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
+import `in`.xroden.flockr.data.model.Profile
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -180,14 +181,28 @@ class ShoppingRepository @Inject constructor(
                     }
                 }
 
+            // Get current user's name for notification
+            val currentUserProfile = try {
+                supabase.from("profiles")
+                    .select(Columns.raw("full_name")) {
+                        filter {
+                            eq("user_id", currentUserId)
+                        }
+                    }
+                    .decodeSingle<Profile>()
+            } catch (e: Exception) {
+                null
+            }
+            val purchaserName = currentUserProfile?.fullName ?: "Someone"
+
             FlockrLogger.d(TAG, "markAsPurchased: Creating notification")
             // Create notification
             val notificationParams = CreateNotificationWithTypeParams(
                 houseId = houseId,
                 title = "Item Purchased",
-                message = "Just bought the $itemName.",
+                message = "$purchaserName just bought the $itemName.",
                 type = "shopping",
-                data = """{"id":"$itemId"}""",
+                data = """{"id":"$itemId","purchaser":"$purchaserName"}""",
                 excludeUserId = currentUserId
             )
             supabase.postgrest.rpc(

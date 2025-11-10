@@ -291,13 +291,20 @@ class ChoreRepository @Inject constructor(
                 houseId = houseId,
                 title = "Chore Completed",
                 message = "Completed the chore: $taskName.",
+                type = "chore",
                 data = """{"id":"$choreId","type":"chore"}""",
                 excludeUserId = currentUserId
             )
-            supabase.postgrest.rpc(
-                function = "create_notification_for_house",
-                parameters = notificationParams
-            ).decodeAs<Unit>()
+            try {
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                ).decodeAs<Unit>()
+                FlockrLogger.d(TAG, "completeChore: Notification created successfully")
+            } catch (e: Exception) {
+                // Ignore notification errors
+                FlockrLogger.d(TAG, "completeChore: Notification failed (non-critical): ${e.message}")
+            }
 
             FlockrLogger.repoSuccess(TAG, "completeChore", "Chore marked as completed")
             Result.success(Unit)

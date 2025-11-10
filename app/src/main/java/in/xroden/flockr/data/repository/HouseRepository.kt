@@ -399,8 +399,10 @@ class HouseRepository @Inject constructor(
             )
 
             // Call the secure RPC function that handles joining
-            val joinResult = supabase.postgrest.rpc("join_house_with_invite_code", parameters = InviteCodeParam(trimmedCode))
-                .decodeSingle<JoinResult>()
+            val joinResult = supabase.postgrest.rpc(
+                "join_house_with_invite_code",
+                parameters = InviteCodeParam(trimmedCode)
+            ).decodeAs<JoinResult>()
 
             if (!joinResult.success) {
                 val errorMsg = joinResult.error ?: "Unknown error"
