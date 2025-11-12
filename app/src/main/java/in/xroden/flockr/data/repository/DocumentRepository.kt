@@ -89,12 +89,12 @@ class DocumentRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
 
-            // Upload to storage - use documents bucket for both
-            val bucket = "documents"
+            // Upload to storage - use separate buckets for house and personal docs
+            val bucket = if (houseId != null) "house-documents" else "personal-documents"
             val path = if (houseId != null) {
-                "house/$houseId/$currentUserId/$fileName"
+                "$houseId/$currentUserId/$fileName"
             } else {
-                "personal/$currentUserId/$fileName"
+                "$currentUserId/$fileName"
             }
 
             FlockrLogger.d(TAG, "uploadDocument: Uploading to bucket=$bucket, path=$path")
@@ -144,8 +144,13 @@ class DocumentRepository @Inject constructor(
 
     suspend fun deleteDocument(documentId: String, storagePath: String): Result<Unit> {
         return try {
-            // Delete from storage
-            val bucket = if (storagePath.contains("/")) "house_documents" else "personal_documents"
+            // Delete from storage - determine bucket from path
+            val bucket = if (storagePath.contains("/") && !storagePath.startsWith("personal")) {
+                "house-documents"
+            } else {
+                "personal-documents"
+            }
+            FlockrLogger.d(TAG, "deleteDocument: Deleting from bucket=$bucket, path=$storagePath")
             supabase.storage.from(bucket).delete(storagePath)
 
             // Delete record
@@ -156,8 +161,10 @@ class DocumentRepository @Inject constructor(
                     }
                 }
 
+            FlockrLogger.d(TAG, "deleteDocument: Successfully deleted document $documentId")
             Result.success(Unit)
         } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "deleteDocument", e)
             Result.failure(e)
         }
     }

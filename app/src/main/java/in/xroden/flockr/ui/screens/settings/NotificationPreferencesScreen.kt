@@ -28,14 +28,21 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val houseRepository: `in`.xroden.flockr.data.repository.HouseRepository
 ) : ViewModel() {
 
     private val _preferences = MutableStateFlow<List<NotificationPreference>>(emptyList())
     val preferences: StateFlow<List<NotificationPreference>> = _preferences.asStateFlow()
 
+    private val _houseNames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val houseNames: StateFlow<Map<String, String>> = _houseNames.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
 
     init {
         loadPreferences()
@@ -45,10 +52,23 @@ class NotificationPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // Get user's houses first
+                val houses = houseRepository.getHouses()
+                val houseNameMap = mutableMapOf<String, String>()
+
+                houses.forEach { house ->
+                    houseNameMap[house.id] = house.name
+                    // Ensure preferences exist for each house
+                    notificationRepository.ensurePreferencesExist(house.id)
+                }
+
+                _houseNames.value = houseNameMap
+
                 // Load notification preferences
                 _preferences.value = notificationRepository.getNotificationPreferences()
             } catch (e: Exception) {
                 android.util.Log.e("NotificationPrefs", "Error loading preferences", e)
+                _message.value = "Failed to load preferences"
             } finally {
                 _isLoading.value = false
             }
@@ -60,10 +80,16 @@ class NotificationPreferencesViewModel @Inject constructor(
             try {
                 notificationRepository.updateNotificationPreference(houseId, key, enabled)
                 loadPreferences() // Reload to get updated data
+                _message.value = "Preference updated"
             } catch (e: Exception) {
                 android.util.Log.e("NotificationPrefs", "Error updating preference", e)
+                _message.value = "Failed to update preference"
             }
         }
+    }
+
+    fun clearMessage() {
+        _message.value = null
     }
 }
 
@@ -74,7 +100,17 @@ fun NotificationPreferencesScreen(
     viewModel: NotificationPreferencesViewModel = hiltViewModel()
 ) {
     val preferences by viewModel.preferences.collectAsState()
+    val houseNames by viewModel.houseNames.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(message) {
+        message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -99,7 +135,8 @@ fun NotificationPreferencesScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (isLoading) {
             Box(
@@ -185,6 +222,7 @@ fun NotificationPreferencesScreen(
                     items(preferences) { pref ->
                         NotificationPreferenceCard(
                             preference = pref,
+                            houseName = houseNames[pref.houseId] ?: "Unknown House",
                             onToggle = { key, enabled ->
                                 viewModel.updatePreference(pref.houseId, key, enabled)
                             }
@@ -199,6 +237,7 @@ fun NotificationPreferencesScreen(
 @Composable
 private fun NotificationPreferenceCard(
     preference: NotificationPreference,
+    houseName: String,
     onToggle: (String, Boolean) -> Unit
 ) {
     Card(
@@ -227,7 +266,7 @@ private fun NotificationPreferenceCard(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    "Household Notifications", // You'd normally fetch house name
+                    houseName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

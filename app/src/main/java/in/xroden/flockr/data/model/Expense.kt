@@ -48,6 +48,20 @@ data class RecurringExpense(
     @SerialName("reminder_enabled")
     val reminderEnabled: Boolean = true,
     val notes: String? = null,
+    // Split functionality
+    @SerialName("split_with")
+    val splitWith: List<String>? = null, // Array of user IDs to split with
+    @SerialName("split_type")
+    val splitType: String? = null, // "equal" or "custom"
+    @SerialName("split_amounts")
+    val splitAmounts: Map<String, Double>? = null, // Custom amounts: {"user_id": amount}
+    // Prepay and custom payment date
+    @SerialName("prepay_enabled")
+    val prepayEnabled: Boolean = false,
+    @SerialName("first_payment_date")
+    val firstPaymentDate: String? = null,
+    @SerialName("next_payment_date")
+    val nextPaymentDate: String? = null,
     // Computed fields from RPC
     @SerialName("due_status")
     val dueStatus: String? = null,

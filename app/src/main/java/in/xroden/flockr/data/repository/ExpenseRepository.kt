@@ -53,7 +53,7 @@ class ExpenseRepository @Inject constructor(
         return try {
             val profile = supabase.from("profiles")
                 .select(Columns.raw("full_name")) {
-                    filter { eq("user_id", currentUserId) }
+                    filter { eq("id", currentUserId) }
                 }
                 .decodeSingle<Profile>()
             profile.fullName ?: "Someone"
@@ -241,18 +241,17 @@ class ExpenseRepository @Inject constructor(
 
             FlockrLogger.d(TAG, "createOneTimeExpense: Expense created with id=${expense.id}")
 
-            // Create splits if provided (but filter out if only payer is in the split)
+            // Create splits if provided (but ALWAYS filter out the payer to prevent self-owing)
             if (splits != null && splits.isNotEmpty()) {
-                // Don't create splits if it's only the payer (would owe themselves)
-                val validSplits = if (splits.size == 1 && splits.first().first == currentUserId) {
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Skipping split creation - only payer is selected")
-                    emptyList()
-                } else {
-                    splits
+                // CRITICAL FIX: Remove payer from splits list to prevent "owing yourself" bug
+                val validSplits = splits.filter { (splitUserId, _) -> 
+                    splitUserId != currentUserId 
                 }
-
-                if (validSplits.isNotEmpty()) {
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${validSplits.size} splits")
+                
+                if (validSplits.isEmpty()) {
+                    FlockrLogger.d(TAG, "createOneTimeExpense: No valid splits after filtering out payer")
+                } else {
+                    FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${validSplits.size} splits (payer filtered out)")
                     validSplits.forEach { (splitUserId, amountOwed) ->
                         val split = ExpenseSplitInsert(
                             expenseId = expense.id,
@@ -373,7 +372,7 @@ class ExpenseRepository @Inject constructor(
                 supabase.from("profiles")
                     .select(Columns.raw("full_name")) {
                         filter {
-                            eq("user_id", currentUserId)
+                            eq("id", currentUserId)
                         }
                     }
                     .decodeSingle<Profile>()
@@ -391,8 +390,12 @@ class ExpenseRepository @Inject constructor(
                 description = description
             )
 
+            // Insert transaction - this will trigger the settle_expense_splits() function
+            // which automatically marks related expense_splits as settled
             supabase.from("transactions")
                 .insert(transactionInsert)
+
+            FlockrLogger.d(TAG, "settleBalance: Transaction recorded, splits auto-marked as settled")
 
             // Get house currency for notification
             val currency = getHouseCurrency(houseId)
@@ -668,13 +671,17 @@ class ExpenseRepository @Inject constructor(
         customFrequencyDays: Int? = null,
         reminderDaysBefore: Int = 3,
         reminderEnabled: Boolean = true,
-        notes: String? = null
+        notes: String? = null,
+        prepayEnabled: Boolean = false,
+        firstPaymentDate: String? = null
     ): Result<RecurringExpense> {
         FlockrLogger.repoStart(TAG, "createRecurringExpense", mapOf(
             "houseId" to houseId,
             "name" to name,
             "amount" to amount,
-            "frequency" to frequency
+            "frequency" to frequency,
+            "prepayEnabled" to prepayEnabled,
+            "firstPaymentDate" to firstPaymentDate
         ))
 
         return try {
@@ -694,7 +701,9 @@ class ExpenseRepository @Inject constructor(
                 customFrequencyDays = customFrequencyDays,
                 reminderDaysBefore = reminderDaysBefore,
                 reminderEnabled = reminderEnabled,
-                notes = notes
+                notes = notes,
+                prepayEnabled = prepayEnabled,
+                firstPaymentDate = firstPaymentDate
             )
 
             val expense = supabase.from("recurring_expenses")
@@ -923,6 +932,72 @@ class ExpenseRepository @Inject constructor(
             Result.success(payments)
         } catch (e: Exception) {
             FlockrLogger.repoError(TAG, "getRecurringExpensePayments", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Prepay a recurring bill (make advance payment)
+     * This allows users to pay bills before their due date
+     */
+    suspend fun prepayRecurringBill(
+        expenseId: String,
+        houseId: String,
+        amount: Double,
+        paymentDate: String,
+        billName: String
+    ): Result<Unit> {
+        FlockrLogger.repoStart(TAG, "prepayRecurringBill", mapOf(
+            "expenseId" to expenseId,
+            "amount" to amount,
+            "paymentDate" to paymentDate
+        ))
+
+        return try {
+            val currentUserId = userId ?: run {
+                FlockrLogger.e(TAG, "prepayRecurringBill: No user logged in")
+                return Result.failure(Exception("No user logged in"))
+            }
+
+            // 1. Record payment in payment_history
+            val paymentInsert = PaymentHistoryInsert(
+                recurringExpenseId = expenseId,
+                paidBy = currentUserId,
+                amount = amount,
+                paymentDate = paymentDate
+            )
+
+            supabase.from("payment_history")
+                .insert(paymentInsert)
+
+            FlockrLogger.d(TAG, "prepayRecurringBill: Payment recorded")
+
+            // Get currency and user name for notification
+            val currency = getHouseCurrency(houseId)
+            val userName = getCurrentUserName()
+
+            // 2. Create notification
+            try {
+                val notificationParams = CreateNotificationParams(
+                    houseId = houseId,
+                    title = "Bill Prepaid",
+                    message = "$userName prepaid $billName ($currency$amount).",
+                    type = "payment",
+                    data = """{"id":"$expenseId","type":"prepayment","amount":"$amount"}""",
+                    excludeUserId = currentUserId
+                )
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                ).decodeAs<Unit>()
+            } catch (e: Exception) {
+                FlockrLogger.d(TAG, "prepayRecurringBill: Notification failed (non-critical)")
+            }
+
+            FlockrLogger.repoSuccess(TAG, "prepayRecurringBill", "Prepayment recorded successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            FlockrLogger.repoError(TAG, "prepayRecurringBill", e)
             Result.failure(e)
         }
     }

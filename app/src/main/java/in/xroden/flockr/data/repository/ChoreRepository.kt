@@ -171,37 +171,58 @@ class ChoreRepository @Inject constructor(
                     )
                 )
 
-            // Create notification if assigned to someone
-            if (assignedTo != null && assignedTo != currentUserId) {
-                FlockrLogger.d(TAG, "createChore: Creating assignment notification")
+            // Create notifications for chore creation
+            try {
+                if (assignedTo != null && assignedTo != currentUserId) {
+                    // Assigned to specific person - send direct notification
+                    FlockrLogger.d(TAG, "createChore: Creating assignment notification")
 
-                @kotlinx.serialization.Serializable
-                data class NotificationParams(
-                    @kotlinx.serialization.SerialName("user_id")
-                    val userId: String,
-                    @kotlinx.serialization.SerialName("house_id")
-                    val houseId: String,
-                    @kotlinx.serialization.SerialName("title")
-                    val title: String,
-                    @kotlinx.serialization.SerialName("message")
-                    val message: String,
-                    @kotlinx.serialization.SerialName("type")
-                    val type: String,
-                    @kotlinx.serialization.SerialName("data")
-                    val data: String
-                )
-
-                supabase.postgrest.rpc(
-                    function = "create_notification",
-                    parameters = NotificationParams(
-                        userId = assignedTo,
-                        houseId = houseId,
-                        title = "New Chore Assigned",
-                        message = "You have been assigned a new chore: $taskName.",
-                        type = "chore",
-                        data = """{"taskName":"$taskName"}"""
+                    @kotlinx.serialization.Serializable
+                    data class NotificationParams(
+                        @kotlinx.serialization.SerialName("user_id")
+                        val userId: String,
+                        @kotlinx.serialization.SerialName("house_id")
+                        val houseId: String,
+                        @kotlinx.serialization.SerialName("title")
+                        val title: String,
+                        @kotlinx.serialization.SerialName("message")
+                        val message: String,
+                        @kotlinx.serialization.SerialName("type")
+                        val type: String,
+                        @kotlinx.serialization.SerialName("data")
+                        val data: String
                     )
-                ).decodeAs<Unit>()
+
+                    supabase.postgrest.rpc(
+                        function = "create_notification",
+                        parameters = NotificationParams(
+                            userId = assignedTo,
+                            houseId = houseId,
+                            title = "New Chore Assigned",
+                            message = "You have been assigned a new chore: $taskName.",
+                            type = "chore_assigned",
+                            data = """{"type":"chore_assigned","taskName":"$taskName"}"""
+                        )
+                    ).decodeAs<Unit>()
+                } else {
+                    // Unassigned chore - notify everyone
+                    FlockrLogger.d(TAG, "createChore: Creating house notification for unassigned chore")
+                    val notificationParams = CreateNotificationParams(
+                        houseId = houseId,
+                        title = "New Chore Created",
+                        message = "New chore created: $taskName.",
+                        type = "chore",
+                        data = """{"type":"chore","taskName":"$taskName"}""",
+                        excludeUserId = currentUserId
+                    )
+                    supabase.postgrest.rpc(
+                        function = "create_notification_for_house",
+                        parameters = notificationParams
+                    )
+                }
+            } catch (notificationError: Exception) {
+                FlockrLogger.e(TAG, "createChore: Failed to create notification", notificationError)
+                // Don't fail the whole operation if notification fails
             }
 
             FlockrLogger.repoSuccess(TAG, "createChore", "Chore created successfully")

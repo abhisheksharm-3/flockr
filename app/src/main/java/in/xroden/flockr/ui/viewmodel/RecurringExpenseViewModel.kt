@@ -85,6 +85,11 @@ class RecurringExpenseViewModel @Inject constructor(
         reminderDaysBefore: Int = 3,
         reminderEnabled: Boolean = true,
         notes: String? = null,
+        splitWith: List<String>? = null,
+        splitType: String? = null,
+        splitAmounts: Map<String, Double>? = null,
+        prepayEnabled: Boolean = false,
+        firstPaymentDate: String? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -106,7 +111,12 @@ class RecurringExpenseViewModel @Inject constructor(
                     customFrequencyDays = customFrequencyDays,
                     reminderDaysBefore = reminderDaysBefore,
                     reminderEnabled = reminderEnabled,
-                    notes = notes
+                    notes = notes,
+                    splitWith = splitWith,
+                    splitType = splitType,
+                    splitAmounts = splitAmounts,
+                    prepayEnabled = prepayEnabled,
+                    firstPaymentDate = firstPaymentDate
                 )
 
                 supabase.from("recurring_expenses")

@@ -513,11 +513,18 @@ fun FlockrNavigation(
                     SettingsScreen(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToProfile = { navController.navigate(Screen.EditProfile.route) },
+                        onNavigateToNotificationPreferences = { navController.navigate(Screen.NotificationPreferences.route) },
                         onLogout = {
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
                         }
+                    )
+                }
+
+                composable(Screen.NotificationPreferences.route) {
+                    `in`.xroden.flockr.ui.screens.settings.NotificationPreferencesScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 

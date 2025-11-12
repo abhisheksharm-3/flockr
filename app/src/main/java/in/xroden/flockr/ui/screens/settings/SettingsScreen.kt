@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -45,6 +46,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToNotificationPreferences: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
@@ -268,6 +270,16 @@ fun SettingsScreen(
                             ThemeMode.SYSTEM -> "System Default"
                         },
                         onClick = { showThemeDialog = true }
+                    )
+                }
+
+                // Notifications Section
+                SettingsSection(title = "Notifications") {
+                    SettingsItem(
+                        icon = Icons.Default.Notifications,
+                        title = "Notification Preferences",
+                        subtitle = "Manage notification settings for each household",
+                        onClick = onNavigateToNotificationPreferences
                     )
                 }
 

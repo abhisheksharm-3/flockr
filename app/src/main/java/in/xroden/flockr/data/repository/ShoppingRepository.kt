@@ -5,6 +5,7 @@ import `in`.xroden.flockr.data.model.ShoppingItemInsert
 import `in`.xroden.flockr.data.model.ShoppingItemUpdate
 import `in`.xroden.flockr.data.model.ShoppingItemUpdateModel
 import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
+import `in`.xroden.flockr.data.model.CreateNotificationParams
 import `in`.xroden.flockr.data.model.Profile
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
@@ -148,6 +149,27 @@ class ShoppingRepository @Inject constructor(
             supabase.from("shopping_items")
                 .insert(shoppingItemInsert)
 
+            // Create notification for shopping item added
+            FlockrLogger.d(TAG, "addShoppingItem: Creating notification")
+            try {
+                val quantityText = if (quantity.isNullOrBlank()) "" else " ($quantity)"
+                val notificationParams = CreateNotificationParams(
+                    houseId = houseId,
+                    title = "Shopping Item Added",
+                    message = "Added $itemName$quantityText to the shopping list.",
+                    type = "shopping",
+                    data = """{"type":"shopping","item":"$itemName"}""",
+                    excludeUserId = currentUserId
+                )
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = notificationParams
+                )
+            } catch (notificationError: Exception) {
+                FlockrLogger.e(TAG, "addShoppingItem: Failed to create notification", notificationError)
+                // Don't fail the whole operation if notification fails
+            }
+
             FlockrLogger.repoSuccess(TAG, "addShoppingItem", "Item added successfully")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -186,7 +208,7 @@ class ShoppingRepository @Inject constructor(
                 supabase.from("profiles")
                     .select(Columns.raw("full_name")) {
                         filter {
-                            eq("user_id", currentUserId)
+                            eq("id", currentUserId)
                         }
                     }
                     .decodeSingle<Profile>()

@@ -52,11 +52,25 @@ fun PerDiemConfigScreenModern(
         viewModel.loadConfigs(houseId)
     }
 
+    // Add logging for state changes
+    LaunchedEffect(showAddDialog) {
+        android.util.Log.d("PerDiemConfigScreen", "showAddDialog state changed to: $showAddDialog")
+    }
+
+    LaunchedEffect(showEditDialog) {
+        android.util.Log.d("PerDiemConfigScreen", "showEditDialog state changed to: $showEditDialog")
+    }
+
     if (showAddDialog) {
+        android.util.Log.d("PerDiemConfigScreen", "Rendering AddPerDiemConfigDialog")
         AddPerDiemConfigDialog(
             currencySymbol = currencySymbol,
-            onDismiss = { showAddDialog = false },
+            onDismiss = {
+                android.util.Log.d("PerDiemConfigScreen", "AddDialog onDismiss called")
+                showAddDialog = false
+            },
             onAdd = { itemName, rate, category, unit ->
+                android.util.Log.d("PerDiemConfigScreen", "AddDialog onAdd called: $itemName, $rate, $category, $unit")
                 scope.launch {
                     val result = viewModel.createConfig(houseId, itemName, rate, category, unit)
                     if (result.isSuccess) {
@@ -149,7 +163,11 @@ fun PerDiemConfigScreenModern(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { showAddDialog = true },
+                onClick = {
+                    android.util.Log.d("PerDiemConfigScreen", "FAB clicked - setting showAddDialog = true")
+                    showAddDialog = true
+                    android.util.Log.d("PerDiemConfigScreen", "showAddDialog is now: $showAddDialog")
+                },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("Add Item") },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -345,7 +363,7 @@ private fun PerDiemConfigCard(
 }
 
 /**
- * Full-screen for adding a new per-diem configuration.
+ * Full-screen dialog for adding a new per-diem configuration.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -362,7 +380,15 @@ private fun AddPerDiemConfigDialog(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
 
-    Scaffold(
+    // Wrap in Dialog to show as overlay
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,  // Allow full width
+            decorFitsSystemWindows = false     // Allow edge-to-edge
+        )
+    ) {
+        Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -481,10 +507,11 @@ private fun AddPerDiemConfigDialog(
             }
         }
     }
+    } // Close Dialog
 }
 
 /**
- * Full-screen for editing an existing per-diem configuration.
+ * Full-screen dialog for editing an existing per-diem configuration.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -502,7 +529,15 @@ private fun EditPerDiemConfigDialog(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
 
-    Scaffold(
+    // Wrap in Dialog to show as overlay
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,  // Allow full width
+            decorFitsSystemWindows = false     // Allow edge-to-edge
+        )
+    ) {
+        Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -621,6 +656,7 @@ private fun EditPerDiemConfigDialog(
             }
         }
     }
+    } // Close Dialog
 }
 
 /**
