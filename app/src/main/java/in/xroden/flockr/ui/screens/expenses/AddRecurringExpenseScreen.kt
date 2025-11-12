@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.viewmodel.ExpenseViewModel
 import `in`.xroden.flockr.ui.viewmodel.RecurringExpenseViewModel
+import androidx.compose.foundation.clickable
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +45,17 @@ fun AddRecurringExpenseScreen(
     var expandedCategory by remember { mutableStateOf(false) }
     var expandedFrequency by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    
+    // New fields for prepay and custom date
+    var prepayEnabled by remember { mutableStateOf(false) }
+    var firstPaymentDate by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    
+    // New fields for bill splitting
+    var selectedMembers by remember { mutableStateOf<List<String>>(emptyList()) }
+    var splitType by remember { mutableStateOf("equal") }
+    var customAmounts by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var houseMembers by remember { mutableStateOf<List<`in`.xroden.flockr.data.model.MemberWithProfile>>(emptyList()) }
 
     val categories = listOf(
         "Utilities", "Rent", "Internet", "Insurance", "Subscription",
@@ -61,6 +75,13 @@ fun AddRecurringExpenseScreen(
 
     LaunchedEffect(houseId) {
         expenseViewModel.loadHouseConfig(houseId)
+        // Load house members for splitting
+        try {
+            val members = expenseViewModel.getHouseMembers(houseId)
+            houseMembers = members
+        } catch (e: Exception) {
+            android.util.Log.e("AddRecurringExpense", "Error loading members", e)
+        }
     }
 
     Scaffold(
@@ -333,6 +354,184 @@ fun AddRecurringExpenseScreen(
                     )
                 )
             }
+            
+            // Payment Options Section
+            SectionCard(title = "Payment Options") {
+                // Prepay Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Allow Prepayment",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Enable paying this bill before due date",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = prepayEnabled,
+                        onCheckedChange = { prepayEnabled = it },
+                        enabled = !isLoading
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Custom First Payment Date
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isLoading) { showDatePicker = true }
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "First Payment Date (Optional)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                firstPaymentDate ?: "Use default schedule",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(Icons.Default.DateRange, "Select date")
+                    }
+                }
+            }
+            
+            // Split Bill Section (Optional)
+            if (houseMembers.size > 1) {
+                SectionCard(title = "Split Bill (Optional)") {
+                    Text(
+                        "Select members to split this bill with",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Member selection chips
+                    androidx.compose.foundation.layout.FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        houseMembers.forEach { member ->
+                            FilterChip(
+                                selected = selectedMembers.contains(member.userId),
+                                onClick = {
+                                    selectedMembers = if (selectedMembers.contains(member.userId)) {
+                                        selectedMembers - member.userId
+                                    } else {
+                                        selectedMembers + member.userId
+                                    }
+                                },
+                                label = { Text(member.fullName ?: member.userId) },
+                                enabled = !isLoading
+                            )
+                        }
+                    }
+                    
+                    // Split type selector (if members selected)
+                    if (selectedMembers.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            "Split Method",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            FilterChip(
+                                selected = splitType == "equal",
+                                onClick = { splitType = "equal" },
+                                label = { Text("Equal Split") },
+                                enabled = !isLoading,
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = splitType == "custom",
+                                onClick = { splitType = "custom" },
+                                label = { Text("Custom Amounts") },
+                                enabled = !isLoading,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        // Custom amounts input (if custom selected)
+                        if (splitType == "custom") {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Text(
+                                "Enter amount for each member",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            selectedMembers.forEach { memberId ->
+                                val memberName = houseMembers.find { it.userId == memberId }?.fullName ?: memberId
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        memberName,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    OutlinedTextField(
+                                        value = customAmounts[memberId]?.toString() ?: "",
+                                        onValueChange = { 
+                                            val amt = it.toDoubleOrNull()
+                                            if (amt != null) {
+                                                customAmounts = customAmounts + (memberId to amt)
+                                            } else if (it.isEmpty()) {
+                                                customAmounts = customAmounts - memberId
+                                            }
+                                        },
+                                        label = { Text("Amount") },
+                                        prefix = { Text(currencySymbol) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        modifier = Modifier.width(140.dp),
+                                        enabled = !isLoading,
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    }
+                }
+            }
 
             // Submit Button
             Button(
@@ -382,6 +581,17 @@ fun AddRecurringExpenseScreen(
                         reminderDaysBefore.toIntOrNull() ?: 3
                     } else 3
 
+                    // Validate custom amounts if custom split selected
+                    if (splitType == "custom" && selectedMembers.isNotEmpty()) {
+                        val totalCustom = customAmounts.values.sum()
+                        if (totalCustom > amt) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Custom amounts exceed total bill amount")
+                            }
+                            return@Button
+                        }
+                    }
+
                     isLoading = true
 
                     viewModel.createRecurringExpense(
@@ -395,6 +605,11 @@ fun AddRecurringExpenseScreen(
                         reminderDaysBefore = reminderDays,
                         reminderEnabled = reminderEnabled,
                         notes = notes.ifBlank { null },
+                        splitWith = if (selectedMembers.isNotEmpty()) selectedMembers else null,
+                        splitType = if (selectedMembers.isNotEmpty()) splitType else null,
+                        splitAmounts = if (splitType == "custom" && selectedMembers.isNotEmpty()) customAmounts else null,
+                        prepayEnabled = prepayEnabled,
+                        firstPaymentDate = firstPaymentDate,
                         onSuccess = {
                             isLoading = false
                             onExpenseAdded()
@@ -431,6 +646,34 @@ fun AddRecurringExpenseScreen(
                     )
                 }
             }
+        }
+    }
+    
+    // DatePicker dialog for custom first payment date
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = LocalDate.ofEpochDay(millis / (1000 * 60 * 60 * 24))
+                        firstPaymentDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

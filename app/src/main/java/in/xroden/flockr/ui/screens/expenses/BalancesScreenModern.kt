@@ -232,16 +232,24 @@ fun BalanceCardModern(
     currencySymbol: String = "$",
     onSettleClick: () -> Unit
 ) {
-    // CRITICAL FIX: The balance value represents THAT USER'S balance perspective
-    // balance.balance > 0 = that user is OWED money (they paid more than they owe)
-    // balance.balance < 0 = that user OWES money (they owe more than they paid)
+    // BALANCE INTERPRETATION:
+    // The get_user_balances RPC returns each user's net balance in the house.
+    // balance > 0 = user has paid more than they owe = they are OWED money (they should receive)
+    // balance < 0 = user owes more than they paid = they OWE money (they should pay)
     //
-    // From CURRENT user's perspective, we need to INVERT this:
-    // If THEIR balance is positive (+), THEY are owed, which means WE OWE THEM
-    // If THEIR balance is negative (-), THEY owe, which means THEY OWE US
+    // From the CURRENT user's perspective viewing OTHER users' cards:
+    // If OTHER user's balance is POSITIVE = they are owed = WE owe THEM
+    // If OTHER user's balance is NEGATIVE = they owe = THEY owe US
+    //
+    // IMPORTANT: Don't show the current user's own card (this shouldn't happen with the RPC fix)
 
-    val theyOweUs = balance.balance < 0  // Their balance is negative = they owe = they owe us
-    val weOweThem = balance.balance > 0  // Their balance is positive = they're owed = we owe them
+    if (balance.userId == currentUserId) {
+        // Skip rendering self-balance card (should be filtered by RPC)
+        return
+    }
+
+    val theyOweUs = balance.balance < 0  // Their balance is negative = they owe us
+    val weOweThem = balance.balance > 0  // Their balance is positive = we owe them
     val amount = kotlin.math.abs(balance.balance)
 
     Card(

@@ -199,7 +199,7 @@ private fun IndustrialNotificationItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
+        targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -207,7 +207,7 @@ private fun IndustrialNotificationItem(
         label = "notification_scale"
     )
     
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
@@ -215,71 +215,66 @@ private fun IndustrialNotificationItem(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            )
-            .border(
-                width = if (!notification.isRead) 2.dp else 1.dp,
-                color = if (!notification.isRead) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(8.dp)
             ),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (!notification.isRead) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (!notification.isRead) 3.dp else 1.dp
-        )
+        color = if (!notification.isRead) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = if (!notification.isRead) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Unread indicator
-            if (!notification.isRead) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .size(10.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        )
-                )
-            } else {
-                Spacer(modifier = Modifier.width(10.dp))
-            }
+            // Unread indicator dot
+            Box(
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .size(if (!notification.isRead) 8.dp else 6.dp)
+                    .background(
+                        color = if (!notification.isRead) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        },
+                        shape = CircleShape
+                    )
+            )
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Title
                 Text(
                     text = notification.title.uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = if (!notification.isRead) 0.5.sp else 0.sp
+                    letterSpacing = 1.sp
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                
+                // Message
                 Text(
                     text = notification.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
+                    lineHeight = 20.sp
                 )
-                // Optional: Add timestamp
+                
+                // Timestamp
                 notification.createdAt?.let { timestamp ->
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = formatTimestamp(timestamp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Normal,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
             }

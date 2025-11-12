@@ -128,6 +128,16 @@ data class HouseMemberInsert(
 )
 
 @Serializable
+data class HouseMemberUpdate(
+    @SerialName("is_active")
+    val isActive: Boolean? = null,
+    @SerialName("left_at")
+    val leftAt: String? = null,
+    @SerialName("role")
+    val role: String? = null
+)
+
+@Serializable
 data class HouseInvitationInsert(
     @SerialName("house_id")
     val houseId: String,
@@ -276,7 +286,17 @@ data class RecurringExpenseInsert(
     @SerialName("reminder_enabled")
     val reminderEnabled: Boolean = true,
     @SerialName("notes")
-    val notes: String? = null
+    val notes: String? = null,
+    @SerialName("split_with")
+    val splitWith: List<String>? = null,
+    @SerialName("split_type")
+    val splitType: String? = null,
+    @SerialName("split_amounts")
+    val splitAmounts: Map<String, Double>? = null,
+    @SerialName("prepay_enabled")
+    val prepayEnabled: Boolean = false,
+    @SerialName("first_payment_date")
+    val firstPaymentDate: String? = null
 )
 
 @Serializable
@@ -302,7 +322,17 @@ data class RecurringExpenseUpdate(
     @SerialName("notes")
     val notes: String? = null,
     @SerialName("last_paid_date")
-    val lastPaidDate: String? = null
+    val lastPaidDate: String? = null,
+    @SerialName("split_with")
+    val splitWith: List<String>? = null,
+    @SerialName("split_type")
+    val splitType: String? = null,
+    @SerialName("split_amounts")
+    val splitAmounts: Map<String, Double>? = null,
+    @SerialName("prepay_enabled")
+    val prepayEnabled: Boolean? = null,
+    @SerialName("first_payment_date")
+    val firstPaymentDate: String? = null
 )
 
 @Serializable

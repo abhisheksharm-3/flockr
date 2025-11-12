@@ -1,7 +1,61 @@
 package `in`.xroden.flockr.data.model
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
+/**
+ * Custom serializer for notification data field that can handle both:
+ * - JSON string: "{\"type\":\"expense\"}"
+ * - JSON object: {"type":"expense"}
+ * - null
+ */
+object FlexibleDataSerializer : KSerializer<String?> {
+    override val descriptor: SerialDescriptor = 
+        PrimitiveSerialDescriptor("FlexibleData", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: String?) {
+        if (value != null) {
+            encoder.encodeString(value)
+        } else {
+            encoder.encodeNull()
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): String? {
+        return try {
+            val jsonElement = decoder.decodeSerializableValue(JsonElement.serializer())
+            when (jsonElement) {
+                is JsonPrimitive -> {
+                    // If it's a string primitive, return its content
+                    if (jsonElement.isString) {
+                        jsonElement.content
+                    } else {
+                        jsonElement.toString()
+                    }
+                }
+                is JsonObject -> {
+                    // If it's a JSON object, convert it to string
+                    jsonElement.toString()
+                }
+                else -> {
+                    jsonElement.toString()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationSerializer", "Error deserializing data field", e)
+            null
+        }
+    }
+}
 
 @Serializable
 data class Notification(
@@ -15,6 +69,7 @@ data class Notification(
     @SerialName("is_read")
     val isRead: Boolean = false,
     @SerialName("data")
+    @Serializable(with = FlexibleDataSerializer::class)
     val data: String? = null, // JSON string containing type and other metadata
     @SerialName("created_at")
     val createdAt: String

@@ -169,6 +169,18 @@ class ExpenseViewModel @Inject constructor(
             }
         }
     }
+    
+    suspend fun getHouseMembers(houseId: String): List<MemberWithProfile> {
+        Log.d(TAG, "getHouseMembers() called for houseId=$houseId")
+        return try {
+            val members = houseRepository.getHouseMembers(houseId)
+            Log.d(TAG, "getHouseMembers: Fetched ${members.size} members")
+            members
+        } catch (e: Exception) {
+            Log.e(TAG, "getHouseMembers: Failed to get house members", e)
+            emptyList()
+        }
+    }
 
     fun loadRecurringExpenses(houseId: String) {
         Log.d(TAG, "loadRecurringExpenses() called for houseId=$houseId")

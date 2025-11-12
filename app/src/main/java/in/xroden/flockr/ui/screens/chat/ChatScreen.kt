@@ -66,10 +66,11 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             Surface(
                 modifier = Modifier

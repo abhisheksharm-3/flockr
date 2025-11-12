@@ -8,6 +8,7 @@ import `in`.xroden.flockr.data.model.HouseConfig
 import `in`.xroden.flockr.data.model.HouseConfigUpdate
 import `in`.xroden.flockr.data.model.HouseInvitationInsert
 import `in`.xroden.flockr.data.model.HouseMemberInsert
+import `in`.xroden.flockr.data.model.HouseMemberUpdate
 import `in`.xroden.flockr.data.model.HouseUpdate
 import `in`.xroden.flockr.data.model.MemberWithProfile
 import io.github.jan.supabase.SupabaseClient
@@ -22,6 +23,7 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -232,13 +234,70 @@ class HouseRepository @Inject constructor(
 
     suspend fun removeMemberFromHouse(houseId: String, userId: String): Result<Unit> {
         return try {
-            supabase.from("house_members")
-                .delete {
+            android.util.Log.d("HouseRepository", "removeMemberFromHouse: Starting update for userId=$userId, houseId=$houseId")
+            
+            // First, verify the member exists and is active
+            val beforeCheck = supabase.from("house_members")
+                .select(Columns.raw("user_id, is_active, role")) {
                     filter {
                         eq("house_id", houseId)
                         eq("user_id", userId)
                     }
                 }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+            
+            android.util.Log.d("HouseRepository", "removeMemberFromHouse: Before update - found ${beforeCheck.size} matching rows")
+            if (beforeCheck.isNotEmpty()) {
+                android.util.Log.d("HouseRepository", "removeMemberFromHouse: Before state - ${beforeCheck.first()}")
+            }
+            
+            if (beforeCheck.isEmpty()) {
+                android.util.Log.e("HouseRepository", "removeMemberFromHouse: No member found with userId=$userId in house=$houseId")
+                return Result.failure(Exception("Member not found"))
+            }
+            
+            // Perform the soft delete update
+            val currentTime = java.time.Instant.now().toString()
+            val updateData = HouseMemberUpdate(
+                isActive = false,
+                leftAt = currentTime
+            )
+            
+            supabase.from("house_members")
+                .update(updateData) {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("user_id", userId)
+                    }
+                }
+            
+            android.util.Log.d("HouseRepository", "removeMemberFromHouse: Update executed")
+            
+            // Verify the update worked
+            val afterCheck = supabase.from("house_members")
+                .select(Columns.raw("user_id, is_active, left_at, role")) {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("user_id", userId)
+                    }
+                }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+            
+            android.util.Log.d("HouseRepository", "removeMemberFromHouse: After update - ${afterCheck.size} rows")
+            if (afterCheck.isNotEmpty()) {
+                val afterState = afterCheck.first()
+                val isActive = afterState["is_active"]?.jsonPrimitive?.boolean
+                android.util.Log.d("HouseRepository", "removeMemberFromHouse: After state - $afterState")
+                android.util.Log.d("HouseRepository", "removeMemberFromHouse: is_active = $isActive")
+                
+                if (isActive == false) {
+                    android.util.Log.d("HouseRepository", "✅ Member soft deleted successfully: userId=$userId from house=$houseId")
+                } else {
+                    android.util.Log.e("HouseRepository", "❌ Update failed: is_active is still true for userId=$userId")
+                    return Result.failure(Exception("Update failed - member still active"))
+                }
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error removing member", e)
@@ -438,6 +497,7 @@ class HouseRepository @Inject constructor(
                 """.trimIndent())) {
                     filter {
                         eq("house_id", houseId)
+                        eq("is_active", true)  // Only fetch active members
                     }
                 }
                 .decodeList<kotlinx.serialization.json.JsonObject>()
