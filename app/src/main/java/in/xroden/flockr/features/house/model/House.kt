@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.model
 
+import `in`.xroden.flockr.features.auth.model.Profile
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -45,6 +46,15 @@ data class HouseWithMembers(
 )
 
 @Serializable
+data class MemberWithProfile(
+    val userId: String,
+    val fullName: String?,
+    val email: String,
+    val role: String = "Member",
+    val joinedAt: String
+)
+
+@Serializable
 data class HouseInvitation(
     val id: String,
     @SerialName("house_id")
@@ -53,18 +63,9 @@ data class HouseInvitation(
     val inviterId: String,
     @SerialName("invitee_email")
     val inviteeEmail: String,
-    val status: String = "pending", // pending, accepted, rejected
+    val status: String = "pending",
     @SerialName("created_at")
     val createdAt: String
-)
-
-@Serializable
-data class MemberWithProfile(
-    val userId: String,
-    val fullName: String?,
-    val email: String,
-    val role: String = "Member",
-    val joinedAt: String
 )
 
 @Serializable
@@ -75,7 +76,7 @@ data class HouseAuditLog(
     @SerialName("user_id")
     val userId: String,
     @SerialName("action")
-    val action: String, // member_added, member_removed, role_changed, house_updated, etc.
+    val action: String,
     @SerialName("target_user_id")
     val targetUserId: String? = null,
     @SerialName("details")
@@ -83,5 +84,6 @@ data class HouseAuditLog(
     @SerialName("created_at")
     val createdAt: String
 )
+
 
 

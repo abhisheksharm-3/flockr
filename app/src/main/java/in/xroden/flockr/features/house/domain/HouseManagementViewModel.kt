@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.House
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +31,7 @@ class HouseManagementViewModel @Inject constructor(
         }
     }
 
-    suspend fun getHouseMembers(houseId: String): List<`in`.xroden.flockr.data.model.MemberWithProfile> {
+    suspend fun getHouseMembers(houseId: String): List<MemberWithProfile> {
         android.util.Log.d("HouseManagementViewModel", "Fetching members for house: $houseId")
         val members = houseRepository.getHouseMembers(houseId)
         android.util.Log.d("HouseManagementViewModel", "Fetched ${members.size} members")
@@ -58,7 +60,7 @@ class HouseManagementViewModel @Inject constructor(
         return result
     }
 
-    suspend fun getPendingInvitations(houseId: String): List<`in`.xroden.flockr.data.model.HouseInvitation> {
+    suspend fun getPendingInvitations(houseId: String): List<HouseInvitation> {
         android.util.Log.d("HouseManagementViewModel", "Fetching pending invitations for house: $houseId")
         val invitations = houseRepository.getPendingInvitations(houseId)
         android.util.Log.d("HouseManagementViewModel", "Fetched ${invitations.size} pending invitations")

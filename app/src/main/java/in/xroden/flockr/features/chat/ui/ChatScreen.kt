@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.ui.components.FadeInListItem
-import `in`.xroden.flockr.ui.viewmodel.ChatUiState
+import `in`.xroden.flockr.features.chat.domain.ChatUiState
 import `in`.xroden.flockr.features.chat.domain.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

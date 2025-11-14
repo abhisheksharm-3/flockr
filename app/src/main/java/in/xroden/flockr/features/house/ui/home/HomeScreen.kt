@@ -1,12 +1,12 @@
 package `in`.xroden.flockr.features.house.ui.home
 
 import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,11 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.ui.components.ExpandableContent
 import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.ui.components.JoinHouseDialog
-import `in`.xroden.flockr.ui.viewmodel.HomeUiState
+import `in`.xroden.flockr.features.house.domain.HomeUiState
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
+import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
 import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
 import java.time.LocalTime
@@ -134,7 +135,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Show individual buttons when menu is expanded
-                `in`.xroden.flockr.ui.components.ExpandableContent(expanded = showMenu) {
+                AnimatedVisibility(visible = showMenu) {
                     Column(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -431,7 +432,7 @@ fun HomeScreen(
 
 @Composable
 fun HouseCard(
-    houseData: `in`.xroden.flockr.data.model.HouseCardData,
+    houseData: HouseCardData,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }

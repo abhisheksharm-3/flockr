@@ -1,8 +1,6 @@
 package `in`.xroden.flockr.domain.utils
 
-import `in`.xroden.flockr.data.model.RecurringExpense
-import `in`.xroden.flockr.features.expenses.model.RecurringFrequency
-import `in`.xroden.flockr.features.expenses.model.DueStatus
+import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 
 /**
  * Utility functions for recurring expenses

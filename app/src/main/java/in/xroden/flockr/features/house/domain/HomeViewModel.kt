@@ -138,7 +138,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    suspend fun getHouseConfig(houseId: String): `in`.xroden.flockr.data.model.HouseConfig? {
+    suspend fun getHouseConfig(houseId: String): `in`.xroden.flockr.features.house.model.HouseConfig? {
         return try {
             houseRepository.getHouseConfig(houseId)
         } catch (e: Exception) {

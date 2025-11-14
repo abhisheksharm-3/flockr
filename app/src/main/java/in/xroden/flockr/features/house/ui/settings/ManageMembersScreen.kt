@@ -23,21 +23,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.MemberWithProfile
+import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
+import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import `in`.xroden.flockr.ui.theme.PositiveGreen
 import kotlinx.coroutines.launch
+import kotlin.collections.isNotEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageMembersScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: `in`.xroden.flockr.ui.viewmodel.HouseManagementViewModel = hiltViewModel()
+    viewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
-    var pendingInvitations by remember { mutableStateOf<List<`in`.xroden.flockr.data.model.HouseInvitation>>(emptyList()) }
+    var pendingInvitations by remember { mutableStateOf<List<HouseInvitation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showInviteDialog by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf<MemberWithProfile?>(null) }
@@ -663,7 +666,7 @@ fun RemoveMemberDialog(
 
 @Composable
 fun PendingInvitationItem(
-    invitation: `in`.xroden.flockr.data.model.HouseInvitation,
+    invitation: HouseInvitation,
     onCancel: () -> Unit,
     onResend: () -> Unit
 ) {

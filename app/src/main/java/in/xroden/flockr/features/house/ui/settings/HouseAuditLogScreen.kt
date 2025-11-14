@@ -152,7 +152,20 @@ fun HouseAuditLogScreen(
 
 @Composable
 private fun AuditLogCard(log: HouseAuditLog) {
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
+    val inputFormat = remember { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    } }
+    val outputFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
+
+    val formattedDate = remember(log.createdAt) {
+        try {
+            val date = inputFormat.parse(log.createdAt)
+            date?.let { outputFormat.format(it) } ?: log.createdAt
+        } catch (e: Exception) {
+            android.util.Log.e("AuditLogCard", "Error parsing date: ${log.createdAt}", e)
+            log.createdAt
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -198,7 +211,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
                 )
 
                 Text(
-                    dateFormat.format(Date(log.createdAt)),
+                    formattedDate,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

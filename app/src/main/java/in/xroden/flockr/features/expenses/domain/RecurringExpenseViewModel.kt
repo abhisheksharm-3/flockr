@@ -3,7 +3,7 @@ package `in`.xroden.flockr.features.expenses.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.data.model.RecurringExpense
+import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.data.model.RecurringExpenseInsert
 import `in`.xroden.flockr.data.model.RecurringExpenseUpdate
 import `in`.xroden.flockr.data.model.PaymentHistoryInsert
@@ -200,4 +200,3 @@ sealed class RecurringExpenseUiState {
     data class Success(val expenses: List<RecurringExpense>) : RecurringExpenseUiState()
     data class Error(val message: String) : RecurringExpenseUiState()
 }
-

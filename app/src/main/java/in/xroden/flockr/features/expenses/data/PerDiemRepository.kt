@@ -5,12 +5,12 @@ import `in`.xroden.flockr.data.model.CreateNotificationParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillByMonthParams
 import `in`.xroden.flockr.data.model.GetPerDiemBillParams
 import `in`.xroden.flockr.data.model.GetPerDiemEntriesWithDetailsParams
+import `in`.xroden.flockr.data.model.PerDiemConfigActivation
+import `in`.xroden.flockr.data.model.PerDiemConfigInsert
+import `in`.xroden.flockr.data.model.PerDiemConfigUpdate
+import `in`.xroden.flockr.data.model.PerDiemEntryInsert
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
-import `in`.xroden.flockr.features.expenses.model.PerDiemConfigActivation
-import `in`.xroden.flockr.features.expenses.model.PerDiemConfigInsert
-import `in`.xroden.flockr.features.expenses.model.PerDiemConfigUpdate
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntry
-import `in`.xroden.flockr.features.expenses.model.PerDiemEntryInsert
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.utils.FlockrLogger

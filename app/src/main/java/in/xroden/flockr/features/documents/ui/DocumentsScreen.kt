@@ -34,7 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
-import `in`.xroden.flockr.ui.viewmodel.DocumentUiState
+import `in`.xroden.flockr.features.documents.domain.DocumentUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,10 +1,10 @@
 package `in`.xroden.flockr.features.notifications.data
 
 import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
+import `in`.xroden.flockr.data.model.NotificationInsert
+import `in`.xroden.flockr.data.model.NotificationUpdate
 import `in`.xroden.flockr.features.notifications.model.Notification
-import `in`.xroden.flockr.features.notifications.model.NotificationInsert
-import `in`.xroden.flockr.features.notifications.model.NotificationUpdate
-import `in`.xroden.flockr.service.NotificationService
+import `in`.xroden.flockr.features.notifications.service.NotificationService
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -281,7 +281,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun getNotificationPreferences(): List<`in`.xroden.flockr.data.model.NotificationPreference> {
+    suspend fun getNotificationPreferences(): List<`in`.xroden.flockr.features.notifications.model.NotificationPreference> {
         return try {
             val currentUserId = userId ?: run {
                 FlockrLogger.e(TAG, "getNotificationPreferences: No user logged in")
@@ -294,7 +294,7 @@ class NotificationRepository @Inject constructor(
                         eq("user_id", currentUserId)
                     }
                 }
-                .decodeList<`in`.xroden.flockr.data.model.NotificationPreference>()
+                .decodeList<`in`.xroden.flockr.features.notifications.model.NotificationPreference>()
         } catch (e: Exception) {
             FlockrLogger.repoError(TAG, "getNotificationPreferences", e)
             emptyList()
@@ -404,4 +404,3 @@ class NotificationRepository @Inject constructor(
         }
     }
 }
-

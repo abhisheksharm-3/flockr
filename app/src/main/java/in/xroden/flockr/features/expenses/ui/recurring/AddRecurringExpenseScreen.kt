@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
@@ -55,7 +56,7 @@ fun AddRecurringExpenseScreen(
     var selectedMembers by remember { mutableStateOf<List<String>>(emptyList()) }
     var splitType by remember { mutableStateOf("equal") }
     var customAmounts by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
-    var houseMembers by remember { mutableStateOf<List<`in`.xroden.flockr.data.model.MemberWithProfile>>(emptyList()) }
+    var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
     val categories = listOf(
         "Utilities", "Rent", "Internet", "Insurance", "Subscription",

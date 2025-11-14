@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.features.house.domain.HomeUiState
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.ScreenLogger
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
@@ -77,8 +78,8 @@ private fun CreateHouseScreenContent(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
-        if (uiState is `in`.xroden.flockr.ui.viewmodel.HomeUiState.Error) {
-            val msg = (uiState as `in`.xroden.flockr.ui.viewmodel.HomeUiState.Error).message
+        if (uiState is HomeUiState.Error) {
+            val msg = (uiState as HomeUiState.Error).message
             logScreenError(SCREEN_NAME, msg)
             isCreating = false
             snackbarHostState.showSnackbar(msg)

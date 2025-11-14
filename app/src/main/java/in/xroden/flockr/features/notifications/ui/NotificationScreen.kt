@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.ui.components.FadeInListItem
-import `in`.xroden.flockr.ui.viewmodel.NotificationUiState
+import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

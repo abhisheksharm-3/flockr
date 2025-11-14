@@ -29,7 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
-    private val houseRepository: `in`.xroden.flockr.data.repository.HouseRepository
+    private val houseRepository: `in`.xroden.flockr.features.house.data.HouseRepository
 ) : ViewModel() {
 
     private val _preferences = MutableStateFlow<List<NotificationPreference>>(emptyList())

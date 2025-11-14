@@ -18,10 +18,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.UserBalance
+import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.ui.theme.NegativeRed
 import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -418,4 +419,3 @@ fun SettleBalanceDialog(
         }
     }
 }
-

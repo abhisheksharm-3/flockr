@@ -1,5 +1,7 @@
 package `in`.xroden.flockr.features.expenses.data
 
+import `in`.xroden.flockr.features.expenses.model.*
+import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.data.model.*
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
@@ -1002,4 +1004,3 @@ class ExpenseRepository @Inject constructor(
         }
     }
 }
-

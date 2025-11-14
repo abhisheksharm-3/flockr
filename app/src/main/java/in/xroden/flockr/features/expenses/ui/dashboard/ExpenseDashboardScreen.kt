@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.OneTimeExpense
+import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.components.cards.DataCard
 import `in`.xroden.flockr.ui.components.cards.CompactDataCard
 import `in`.xroden.flockr.ui.components.data.BalanceDisplay
@@ -24,6 +24,7 @@ import `in`.xroden.flockr.ui.components.data.BalanceSize
 import `in`.xroden.flockr.ui.components.data.CompactStatDisplay
 import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -42,10 +43,13 @@ fun ExpenseDashboardScreen(
     onNavigateToReports: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val balances by viewModel.balances.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
-    val monthlySummary by viewModel.monthlySummary.collectAsState()
+    val uiState by viewModel.uiState.collectAsState(initial = ExpenseUiState.Loading)
+    val balancesState = viewModel.balances.collectAsState(initial = emptyList())
+    val balances by remember { derivedStateOf { balancesState.value } }
+    val houseConfigState = viewModel.houseConfig.collectAsState(initial = null as `in`.xroden.flockr.features.house.model.HouseConfig?)
+    val houseConfig = houseConfigState.value
+    val monthlySummaryState = viewModel.monthlySummary.collectAsState(initial = null as `in`.xroden.flockr.features.expenses.model.MonthlySummary?)
+    val monthlySummary = monthlySummaryState.value
     val currencySymbol = houseConfig?.currencySymbol ?: "$"
 
     LaunchedEffect(houseId) {
@@ -227,7 +231,7 @@ fun ExpenseDashboardScreen(
             }
 
             when (val state = uiState) {
-                is `in`.xroden.flockr.ui.viewmodel.ExpenseUiState.Loading -> {
+                is ExpenseUiState.Loading -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -239,7 +243,7 @@ fun ExpenseDashboardScreen(
                         }
                     }
                 }
-                is `in`.xroden.flockr.ui.viewmodel.ExpenseUiState.Error -> {
+                is ExpenseUiState.Error -> {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -267,7 +271,7 @@ fun ExpenseDashboardScreen(
                         }
                     }
                 }
-                is `in`.xroden.flockr.ui.viewmodel.ExpenseUiState.Success -> {
+                is ExpenseUiState.Success -> {
                     val recentExpenses = state.expenses.take(5)
                     if (recentExpenses.isEmpty()) {
                         item {
@@ -433,4 +437,3 @@ fun RecentExpenseCard(
         }
     }
 }
-

@@ -3,9 +3,14 @@ package `in`.xroden.flockr.features.expenses.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.data.model.*
 import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
 import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
+import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
+import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
+import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
+import `in`.xroden.flockr.features.expenses.model.PerDiemEntry
+import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +21,7 @@ import javax.inject.Inject
 class PerDiemViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     private val perDiemRepository: PerDiemRepository,
-    private val houseRepository: `in`.xroden.flockr.data.repository.HouseRepository
+    private val houseRepository: `in`.xroden.flockr.features.house.data.HouseRepository
 ) : ViewModel() {
 
     private val _configs = MutableStateFlow<List<PerDiemConfig>>(emptyList())

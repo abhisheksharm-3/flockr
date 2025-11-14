@@ -21,9 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.RecurringExpense
+import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.ui.viewmodel.ExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1063,4 +1063,3 @@ fun EditRecurringExpenseDialog(
         }
     }
 }
-

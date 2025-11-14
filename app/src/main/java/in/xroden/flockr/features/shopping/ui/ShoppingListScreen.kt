@@ -24,10 +24,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.ui.theme.PositiveGreen
-import `in`.xroden.flockr.ui.viewmodel.ShoppingUiState
 import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

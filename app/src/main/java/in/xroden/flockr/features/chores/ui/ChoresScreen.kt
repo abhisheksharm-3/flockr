@@ -23,7 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.ui.theme.PositiveGreen
-import `in`.xroden.flockr.ui.viewmodel.ChoreUiState
+import `in`.xroden.flockr.features.chores.domain.ChoreUiState
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
 import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
@@ -820,4 +820,3 @@ private fun isOverdue(dateString: String): Boolean {
         false
     }
 }
-
