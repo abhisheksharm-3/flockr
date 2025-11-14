@@ -46,6 +46,11 @@ jobs:
           echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
           
           echo "📦 Building Flockr version ${VERSION_NAME} (${VERSION_CODE})"
+          
+      - name: Create local.properties
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> local.properties
+          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> local.properties
 
       - name: Decode Keystore
         if: github.event_name != 'pull_request'
