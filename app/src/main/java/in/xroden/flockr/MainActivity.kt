@@ -10,10 +10,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import `in`.xroden.flockr.data.preferences.ThemeMode
+import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.ui.navigation.FlockrNavigation
 import `in`.xroden.flockr.ui.theme.FlockrTheme
-import `in`.xroden.flockr.ui.viewmodel.SettingsViewModel
+import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
 import `in`.xroden.flockr.utils.PermissionHandler
 import `in`.xroden.flockr.utils.PermissionManager
 
