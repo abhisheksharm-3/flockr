@@ -14,8 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.PaymentHistory
+import `in`.xroden.flockr.features.expenses.model.PaymentHistory
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -220,4 +221,3 @@ private fun formatPaymentDate(dateString: String): String {
         dateString
     }
 }
-

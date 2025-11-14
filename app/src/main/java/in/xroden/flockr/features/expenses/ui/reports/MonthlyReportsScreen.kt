@@ -19,6 +19,7 @@ import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.utils.Constants
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -37,8 +38,7 @@ fun MonthlyReportsScreen(
     val houseConfig by viewModel.houseConfig.collectAsState()
     val monthlySummary by viewModel.monthlySummary.collectAsState()
 
-    // Load per diem configs to get categories
-    val perDiemViewModel: `in`.xroden.flockr.ui.viewmodel.PerDiemViewModel = hiltViewModel()
+    val perDiemViewModel: PerDiemViewModel = hiltViewModel()
     val perDiemConfigs by perDiemViewModel.configs.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {

@@ -16,8 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.ui.components.ModernButton
 import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
+import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +99,7 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        ModernButton(
+                        FlockrPrimaryButton(
                             onClick = { viewModel.loadProfile() },
                             text = "Retry"
                         )
@@ -199,7 +199,7 @@ fun ProfileScreen(
                                         Text("Cancel")
                                     }
 
-                                    ModernButton(
+                                    FlockrPrimaryButton(
                                         onClick = {
                                             viewModel.updateProfile(editedName)
                                         },
@@ -225,7 +225,7 @@ fun ProfileScreen(
                                     value = profile?.createdAt?.take(10) ?: "Unknown"
                                 )
 
-                                ModernButton(
+                                FlockrPrimaryButton(
                                     onClick = { editMode = true },
                                     text = "Edit Profile",
                                     icon = Icons.Default.Edit,

@@ -25,10 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.DueStatus
-import `in`.xroden.flockr.data.model.RecurringExpense
+import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.domain.utils.RecurringExpenseUtils
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.ui.viewmodel.ExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import java.time.LocalDate
 import java.time.YearMonth
@@ -842,4 +842,3 @@ fun PayBillCard(
         )
     }
 }
-

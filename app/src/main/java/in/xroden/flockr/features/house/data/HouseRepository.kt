@@ -3,14 +3,16 @@ package `in`.xroden.flockr.features.house.data
 import `in`.xroden.flockr.data.model.CreateHouseParams
 import `in`.xroden.flockr.data.model.CreateHouseResponse
 import `in`.xroden.flockr.data.model.GetUserHouseIdsParams
+import `in`.xroden.flockr.data.model.HouseConfigUpdate
+import `in`.xroden.flockr.data.model.HouseInvitationInsert
+import `in`.xroden.flockr.data.model.HouseMemberInsert
+import `in`.xroden.flockr.data.model.HouseMemberUpdate
+import `in`.xroden.flockr.data.model.HouseUpdate
 import `in`.xroden.flockr.features.house.model.House
+import `in`.xroden.flockr.features.house.model.HouseAuditLog
 import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.features.house.model.HouseConfigUpdate
-import `in`.xroden.flockr.features.house.model.HouseInvitationInsert
-import `in`.xroden.flockr.features.house.model.HouseMemberInsert
-import `in`.xroden.flockr.features.house.model.HouseMemberUpdate
-import `in`.xroden.flockr.features.house.model.HouseUpdate
-import `in`.xroden.flockr.data.model.MemberWithProfile
+import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -260,7 +262,8 @@ class HouseRepository @Inject constructor(
             val currentTime = java.time.Instant.now().toString()
             val updateData = HouseMemberUpdate(
                 isActive = false,
-                leftAt = currentTime
+                leftAt = currentTime,
+                role = null
             )
             
             supabase.from("house_members")
@@ -533,7 +536,7 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun getPendingInvitations(houseId: String): List<`in`.xroden.flockr.data.model.HouseInvitation> {
+    suspend fun getPendingInvitations(houseId: String): List<HouseInvitation> {
         return try {
             android.util.Log.d("HouseRepository", "Fetching pending invitations for house: $houseId")
             supabase.from("house_invitations")
@@ -544,7 +547,7 @@ class HouseRepository @Inject constructor(
                     }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
-                .decodeList<`in`.xroden.flockr.data.model.HouseInvitation>()
+                .decodeList<HouseInvitation>()
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error fetching pending invitations", e)
             emptyList()
@@ -584,7 +587,7 @@ class HouseRepository @Inject constructor(
                         eq("id", invitationId)
                     }
                 }
-                .decodeSingle<`in`.xroden.flockr.data.model.HouseInvitation>()
+                .decodeSingle<HouseInvitation>()
 
             // Verify the current user is the inviter
             if (invitation.inviterId != currentUserId) {
@@ -656,7 +659,7 @@ class HouseRepository @Inject constructor(
                         eq("id", invitationId)
                     }
                 }
-                .decodeSingle<`in`.xroden.flockr.data.model.HouseInvitation>()
+                .decodeSingle<HouseInvitation>()
 
             // Verify the invitation is for the current user
             val currentUserEmail = supabase.auth.currentUserOrNull()?.email
@@ -849,7 +852,7 @@ class HouseRepository @Inject constructor(
             .joinToString("")
     }
 
-    suspend fun getHouseAuditLogs(houseId: String): List<`in`.xroden.flockr.data.model.HouseAuditLog> {
+    suspend fun getHouseAuditLogs(houseId: String): List<HouseAuditLog> {
         return try {
             android.util.Log.d("HouseRepository", "Fetching audit logs for house: $houseId")
             supabase.from("house_audit_log")
@@ -859,7 +862,7 @@ class HouseRepository @Inject constructor(
                     }
                     order("created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
-                .decodeList<`in`.xroden.flockr.data.model.HouseAuditLog>()
+                .decodeList<HouseAuditLog>()
         } catch (e: Exception) {
             android.util.Log.e("HouseRepository", "Error fetching audit logs", e)
             emptyList()

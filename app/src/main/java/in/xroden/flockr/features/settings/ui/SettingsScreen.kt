@@ -34,9 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.settings.model.ThemeMode
-import `in`.xroden.flockr.ui.components.ModernButton
-import `in`.xroden.flockr.ui.components.ModernDivider
-import `in`.xroden.flockr.ui.components.ModernSectionHeader
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
 import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -50,7 +47,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
-    profileViewModel: `in`.xroden.flockr.ui.viewmodel.ProfileViewModel = hiltViewModel()
+    profileViewModel: `in`.xroden.flockr.features.settings.domain.ProfileViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)

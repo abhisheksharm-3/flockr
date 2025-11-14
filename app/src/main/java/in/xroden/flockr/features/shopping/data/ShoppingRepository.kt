@@ -1,11 +1,11 @@
 package `in`.xroden.flockr.features.shopping.data
 
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.features.shopping.model.ShoppingItemInsert
-import `in`.xroden.flockr.features.shopping.model.ShoppingItemUpdate
-import `in`.xroden.flockr.features.shopping.model.ShoppingItemUpdateModel
 import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
 import `in`.xroden.flockr.data.model.CreateNotificationParams
+import `in`.xroden.flockr.data.model.ShoppingItemInsert
+import `in`.xroden.flockr.data.model.ShoppingItemUpdate
+import `in`.xroden.flockr.data.model.ShoppingItemUpdateModel
 import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient

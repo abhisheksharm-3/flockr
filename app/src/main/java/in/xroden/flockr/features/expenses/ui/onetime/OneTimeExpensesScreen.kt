@@ -21,10 +21,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.data.model.OneTimeExpense
+import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.ui.viewmodel.ExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import `in`.xroden.flockr.utils.Constants
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -749,4 +749,3 @@ fun EditExpenseDialog(
         }
     }
 }
-

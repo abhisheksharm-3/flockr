@@ -4,7 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.data.model.*
+import `in`.xroden.flockr.features.expenses.model.*
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -432,4 +434,3 @@ sealed class ExpenseUiState {
     ) : ExpenseUiState()
     data class Error(val message: String) : ExpenseUiState()
 }
-

@@ -18,7 +18,6 @@ import `in`.xroden.flockr.features.auth.ui.LoginScreen
 import `in`.xroden.flockr.features.auth.ui.SignupScreen
 import `in`.xroden.flockr.features.chat.ui.ChatScreen
 import `in`.xroden.flockr.features.documents.ui.DocumentsScreen
-import `in`.xroden.flockr.ui.screens.expenses.ExpenseDashboardScreen
 import `in`.xroden.flockr.features.house.ui.home.CreateHouseScreen
 import `in`.xroden.flockr.features.house.ui.home.HomeScreen
 import `in`.xroden.flockr.features.house.ui.home.JoinHouseScreen
@@ -27,6 +26,17 @@ import `in`.xroden.flockr.features.notifications.ui.NotificationScreen
 import `in`.xroden.flockr.features.auth.ui.OnboardingScreen
 import `in`.xroden.flockr.features.settings.ui.SettingsScreen
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
+import `in`.xroden.flockr.features.expenses.ui.dashboard.ExpenseDashboardScreen
+import `in`.xroden.flockr.features.expenses.ui.onetime.AddExpenseScreen
+import `in`.xroden.flockr.features.expenses.ui.onetime.BalancesScreen
+import `in`.xroden.flockr.features.expenses.ui.onetime.OneTimeExpensesScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.AddPerDiemEntryScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.PerDiemConfigScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.PerDiemTransactionsScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.QuickPerDiemEntryScreen
+import `in`.xroden.flockr.features.expenses.ui.recurring.AddRecurringExpenseScreen
+import `in`.xroden.flockr.features.expenses.ui.recurring.RecurringExpensesScreen
+import `in`.xroden.flockr.features.expenses.ui.reports.MonthlyReportsScreen
 import io.github.jan.supabase.gotrue.SessionStatus
 
 /**
@@ -175,7 +185,7 @@ fun FlockrNavigation(
                 }
 
                 composable(Screen.JoinHouse.route) {
-                    `in`.xroden.flockr.ui.screens.home.JoinHouseScreen(
+                    JoinHouseScreen(
                         onHouseJoined = { houseId ->
                             navController.navigate(Screen.HouseDetails.createRoute(houseId)) {
                                 popUpTo(Screen.Home.route)
@@ -336,7 +346,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.PerDiemConfigScreen(
+                    PerDiemConfigScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddEntry = { configId ->
@@ -354,7 +364,7 @@ fun FlockrNavigation(
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     val configId = backStackEntry.arguments?.getString("configId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.AddPerDiemEntryScreen(
+                    AddPerDiemEntryScreen(
                         houseId = houseId,
                         configId = configId,
                         onNavigateBack = { navController.popBackStack() }
@@ -367,7 +377,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.OneTimeExpensesScreen(
+                    OneTimeExpensesScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) }
@@ -394,7 +404,7 @@ fun FlockrNavigation(
                     val itemName = backStackEntry.arguments?.getString("itemName")
                     val quantityStr = backStackEntry.arguments?.getString("quantity")
                     val quantity = quantityStr?.toIntOrNull()
-                    `in`.xroden.flockr.ui.screens.expenses.AddExpenseScreen(
+                    AddExpenseScreen(
                         houseId = houseId,
                         initialName = itemName,
                         initialQuantity = quantity,
@@ -408,7 +418,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.BalancesScreen(
+                    BalancesScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -419,7 +429,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.RecurringExpensesScreen(
+                    RecurringExpensesScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddBill = {
@@ -433,7 +443,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.AddRecurringExpenseScreen(
+                    AddRecurringExpenseScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onExpenseAdded = { navController.popBackStack() }
@@ -445,7 +455,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.MonthlyReportsScreen(
+                    MonthlyReportsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -456,7 +466,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.QuickPerDiemEntryScreen(
+                    QuickPerDiemEntryScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddEntry = { configId ->
@@ -476,7 +486,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.PerDiemTransactionsScreen(
+                    PerDiemTransactionsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
