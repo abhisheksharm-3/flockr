@@ -14,19 +14,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import `in`.xroden.flockr.ui.screens.auth.LoginScreen
-import `in`.xroden.flockr.ui.screens.auth.SignupScreen
-import `in`.xroden.flockr.ui.screens.chat.ChatScreen
-import `in`.xroden.flockr.ui.screens.documents.DocumentsScreen
+import `in`.xroden.flockr.features.auth.ui.LoginScreen
+import `in`.xroden.flockr.features.auth.ui.SignupScreen
+import `in`.xroden.flockr.features.chat.ui.ChatScreen
+import `in`.xroden.flockr.features.documents.ui.DocumentsScreen
 import `in`.xroden.flockr.ui.screens.expenses.ExpenseDashboardScreen
-import `in`.xroden.flockr.ui.screens.home.CreateHouseScreen
-import `in`.xroden.flockr.ui.screens.home.HomeScreen
-import `in`.xroden.flockr.ui.screens.home.JoinHouseScreen
-import `in`.xroden.flockr.ui.screens.house.HouseDetailsScreen
-import `in`.xroden.flockr.ui.screens.notifications.NotificationScreen
-import `in`.xroden.flockr.ui.screens.onboarding.OnboardingScreen
-import `in`.xroden.flockr.ui.screens.settings.SettingsScreen
-import `in`.xroden.flockr.ui.viewmodel.AuthViewModel
+import `in`.xroden.flockr.features.house.ui.home.CreateHouseScreen
+import `in`.xroden.flockr.features.house.ui.home.HomeScreen
+import `in`.xroden.flockr.features.house.ui.home.JoinHouseScreen
+import `in`.xroden.flockr.features.house.ui.details.HouseDetailsScreen
+import `in`.xroden.flockr.features.notifications.ui.NotificationScreen
+import `in`.xroden.flockr.features.auth.ui.OnboardingScreen
+import `in`.xroden.flockr.features.settings.ui.SettingsScreen
+import `in`.xroden.flockr.features.auth.domain.AuthViewModel
 import io.github.jan.supabase.gotrue.SessionStatus
 
 /**
@@ -93,7 +93,7 @@ fun FlockrNavigation(
                     startDestination = Screen.Welcome.route
                 ) {
                     composable(Screen.Welcome.route) {
-                        `in`.xroden.flockr.ui.screens.welcome.WelcomeScreen(
+                        `in`.xroden.flockr.features.auth.ui.WelcomeScreen(
                             onGetStarted = {
                                 navController.navigate(Screen.Signup.route)
                             },
@@ -266,7 +266,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.house.ManageMembersScreen(
+                    `in`.xroden.flockr.features.house.ui.settings.ManageMembersScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -277,7 +277,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.house.HouseSettingsScreen(
+                    `in`.xroden.flockr.features.house.ui.settings.HouseSettingsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAuditLog = {
@@ -297,7 +297,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.house.HouseAuditLogScreen(
+                    `in`.xroden.flockr.features.house.ui.settings.HouseAuditLogScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -336,7 +336,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.PerDiemConfigScreenModern(
+                    `in`.xroden.flockr.ui.screens.expenses.PerDiemConfigScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddEntry = { configId ->
@@ -354,7 +354,7 @@ fun FlockrNavigation(
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     val configId = backStackEntry.arguments?.getString("configId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.AddPerDiemEntryScreenModern(
+                    `in`.xroden.flockr.ui.screens.expenses.AddPerDiemEntryScreen(
                         houseId = houseId,
                         configId = configId,
                         onNavigateBack = { navController.popBackStack() }
@@ -394,7 +394,7 @@ fun FlockrNavigation(
                     val itemName = backStackEntry.arguments?.getString("itemName")
                     val quantityStr = backStackEntry.arguments?.getString("quantity")
                     val quantity = quantityStr?.toIntOrNull()
-                    `in`.xroden.flockr.ui.screens.expenses.AddExpenseScreenModern(
+                    `in`.xroden.flockr.ui.screens.expenses.AddExpenseScreen(
                         houseId = houseId,
                         initialName = itemName,
                         initialQuantity = quantity,
@@ -408,7 +408,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.expenses.BalancesScreenModern(
+                    `in`.xroden.flockr.ui.screens.expenses.BalancesScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -488,7 +488,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.shopping.ShoppingListScreenModern(
+                    `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) },
@@ -503,7 +503,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.ui.screens.chores.ChoresScreenModern(
+                    `in`.xroden.flockr.features.chores.ui.ChoresScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -523,13 +523,13 @@ fun FlockrNavigation(
                 }
 
                 composable(Screen.NotificationPreferences.route) {
-                    `in`.xroden.flockr.ui.screens.settings.NotificationPreferencesScreen(
+                    `in`.xroden.flockr.features.settings.ui.NotificationPreferencesScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
                 composable(Screen.EditProfile.route) {
-                    `in`.xroden.flockr.ui.screens.profile.EditProfileScreen(
+                    `in`.xroden.flockr.features.settings.ui.EditProfileScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
