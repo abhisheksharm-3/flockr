@@ -1,11 +1,8 @@
 package `in`.xroden.flockr.features.settings.ui
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -111,7 +108,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
@@ -154,7 +151,7 @@ fun SettingsScreen(
                                 placeholder = { Text("Enter your name") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = MaterialTheme.shapes.large,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -181,7 +178,7 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier.weight(1f),
                                     enabled = !isProfileLoading,
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = MaterialTheme.shapes.medium
                                 ) {
                                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                                 }
@@ -193,7 +190,7 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier.weight(1f),
                                     enabled = !isProfileLoading && editedName.isNotBlank(),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = MaterialTheme.shapes.medium
                                 ) {
                                     if (isProfileLoading) {
                                         CircularProgressIndicator(
@@ -231,7 +228,7 @@ fun SettingsScreen(
                             Button(
                                 onClick = { editMode = true },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
@@ -401,29 +398,16 @@ fun SettingsScreen(
 
                 ThemeMode.entries.forEach { mode ->
                     val selected = currentTheme == mode
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.97f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "theme_option_scale"
-                    )
 
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .scale(scale),
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             scope.launch {
                                 viewModel.setThemeMode(mode)
                                 showThemeDialog = false
                             }
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = if (selected)
                                 MaterialTheme.colorScheme.primaryContainer
@@ -533,7 +517,7 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Sign Out", fontWeight = FontWeight.SemiBold)
                 }
@@ -543,7 +527,7 @@ fun SettingsScreen(
                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(16.dp)
+            shape = MaterialTheme.shapes.large
         )
     }
 }
@@ -568,7 +552,7 @@ private fun SettingsSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ),
@@ -593,14 +577,11 @@ private fun SettingsItem(
     showChevron: Boolean = onClick != null,
     iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Surface(
         onClick = { onClick?.invoke() },
         modifier = Modifier.fillMaxWidth(),
         enabled = onClick != null,
-        color = Color.Transparent,
-        interactionSource = interactionSource
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -659,35 +640,19 @@ private fun IndustrialSettingsCard(
     onClick: () -> Unit,
     isDanger: Boolean = false
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "settings_card_scale"
-    )
-    
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .border(
-                width = 2.dp,
-                color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(8.dp)
-            ),
-        shape = RoundedCornerShape(8.dp),
+            .fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraSmall,
         colors = CardDefaults.cardColors(
             containerColor = if (isDanger) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            width = 2.dp,
+            brush = androidx.compose.ui.graphics.SolidColor(
+                if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+            )
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
@@ -706,9 +671,9 @@ private fun IndustrialSettingsCard(
                     .border(
                         width = 2.dp,
                         color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(6.dp)
+                        shape = MaterialTheme.shapes.small
                     ),
-                shape = RoundedCornerShape(6.dp),
+                shape = MaterialTheme.shapes.small,
                 color = if (isDanger) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {

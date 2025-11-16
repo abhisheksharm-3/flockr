@@ -159,7 +159,7 @@ fun NotificationPreferencesScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
@@ -190,7 +190,7 @@ fun NotificationPreferencesScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = MaterialTheme.shapes.large
                         ) {
                             Column(
                                 modifier = Modifier
@@ -242,7 +242,7 @@ private fun NotificationPreferenceCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

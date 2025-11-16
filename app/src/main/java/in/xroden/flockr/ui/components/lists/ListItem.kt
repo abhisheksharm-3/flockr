@@ -1,104 +1,77 @@
 package `in`.xroden.flockr.ui.components.lists
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import `in`.xroden.flockr.ui.theme.ListItemSubtext
-import `in`.xroden.flockr.ui.theme.ListItemTitle
 
 /**
- * Modern list item component with optional icon, action, and interactive states
+ * Standard Flockr list item using Material 3 ListItem
  */
 @Composable
-fun ModernListItem(
-    title: String,
+fun FlockrListItem(
+    headlineContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    icon: ImageVector? = null,
-    iconBackgroundColor: Color? = null,
-    trailing: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-    showChevron: Boolean = false
+    overlineContent: (@Composable () -> Unit)? = null,
+    supportingContent: (@Composable () -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && onClick != null) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "list_item_scale"
+    ListItem(
+        headlineContent = headlineContent,
+        modifier = if (onClick != null) {
+            modifier.clickable(onClick = onClick)
+        } else {
+            modifier
+        },
+        overlineContent = overlineContent,
+        supportingContent = supportingContent,
+        leadingContent = leadingContent,
+        trailingContent = trailingContent,
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     )
-    
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(10.dp)
+}
+
+// Convenience wrapper for text-based list items
+@Composable
+fun FlockrListItem(
+    headlineText: String,
+    modifier: Modifier = Modifier,
+    overlineText: String? = null,
+    supportingText: String? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+) {
+    FlockrListItem(
+        headlineContent = {
+            Text(
+                text = headlineText,
+                style = MaterialTheme.typography.titleMedium
             )
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick
-                    )
-                } else Modifier
+        },
+        modifier = modifier,
+        overlineContent = overlineText?.let { {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelSmall
             )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Leading icon
-        icon?.let {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(
-                        iconBackgroundColor ?: MaterialTheme.colorScheme.primaryContainer
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+        } },
+        supportingContent = supportingText?.let { {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } },
+        leadingContent = leadingContent,
+        trailingContent = trailingContent,
+        onClick = onClick
+    )
+}
                 )
             }
         }
@@ -110,13 +83,13 @@ fun ModernListItem(
         ) {
             Text(
                 text = title,
-                style = ListItemTitle,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             subtitle?.let {
                 Text(
                     text = it,
-                    style = ListItemSubtext,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -161,7 +134,7 @@ fun SimpleListItem(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .then(
                 if (onClick != null) {

@@ -1,10 +1,7 @@
 package `in`.xroden.flockr.features.house.ui.details
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -250,7 +247,7 @@ private fun HouseInfoCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
@@ -321,7 +318,7 @@ private fun QuickActionsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -385,7 +382,7 @@ private fun QuickActionsCard(
                         .size(48.dp)
                         .background(
                             MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
-                            RoundedCornerShape(12.dp)
+                            MaterialTheme.shapes.medium
                         )
                 ) {
                     Icon(
@@ -408,29 +405,14 @@ private fun FeatureCard(
     accentColor: Color,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "feature_card_scale"
-    )
-
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale),
+        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        interactionSource = interactionSource
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -443,7 +425,7 @@ private fun FeatureCard(
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(MaterialTheme.shapes.large)
                     .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {

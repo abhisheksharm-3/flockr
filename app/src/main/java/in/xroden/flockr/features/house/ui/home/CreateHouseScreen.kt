@@ -24,13 +24,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.domain.HomeUiState
 import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.ui.components.ScreenLogger
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
-import `in`.xroden.flockr.ui.components.logUserAction
-import `in`.xroden.flockr.ui.components.logScreenState
-import `in`.xroden.flockr.ui.components.logScreenError
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 
 private const val SCREEN_NAME = "CreateHouse"
@@ -42,9 +37,7 @@ fun CreateHouseScreen(
     onNavigateBack: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    ScreenLogger(screenName = SCREEN_NAME) {
-        CreateHouseScreenContent(onHouseCreated, onNavigateBack, viewModel)
-    }
+    CreateHouseScreenContent(onHouseCreated, onNavigateBack, viewModel)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +73,6 @@ private fun CreateHouseScreenContent(
     LaunchedEffect(uiState) {
         if (uiState is HomeUiState.Error) {
             val msg = (uiState as HomeUiState.Error).message
-            logScreenError(SCREEN_NAME, msg)
             isCreating = false
             snackbarHostState.showSnackbar(msg)
         }
@@ -296,20 +288,15 @@ private fun CreateHouseScreenContent(
                 FlockrPrimaryButton(
                     text = if (isCreating) "Creating..." else "Create Household",
                     onClick = {
-                        logUserAction(SCREEN_NAME, "Create Button Clicked", "name=$houseName, hasAddress=${address.isNotBlank()}")
-                        
                         if (houseName.isBlank()) {
                             nameError = "Name is required"
-                            logScreenError(SCREEN_NAME, "Validation failed: Name is required")
                             return@FlockrPrimaryButton
                         }
                         if (houseName.length < 2) {
                             nameError = "Name must be at least 2 characters"
-                            logScreenError(SCREEN_NAME, "Validation failed: Name too short")
                             return@FlockrPrimaryButton
                         }
                         
-                        logScreenState(SCREEN_NAME, "Creating", "name=$houseName, currency=$currency")
                         isCreating = true
                         val currencySymbol = currencies.find { it.first == currency }?.second ?: "$"
                         viewModel.createHouse(
@@ -320,7 +307,6 @@ private fun CreateHouseScreenContent(
                             currencyCode = currency,
                             currencySymbol = currencySymbol,
                             onSuccess = { house ->
-                                logScreenState(SCREEN_NAME, "Created Successfully", "houseId=${house.id}, inviteCode=${house.inviteCode}")
                                 isCreating = false
                                 createdHouse = house
                                 showSuccessDialog = true
@@ -346,7 +332,7 @@ fun HouseCreatedSuccessDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -362,15 +348,15 @@ fun HouseCreatedSuccessDialog(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(PositiveGreen.copy(alpha = 0.1f))
-                        .border(2.dp, PositiveGreen, RoundedCornerShape(32.dp)),
+                        .clip(MaterialTheme.shapes.extraLarge)
+                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                        .border(2.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Success",
-                        tint = PositiveGreen,
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -411,12 +397,12 @@ fun HouseCreatedSuccessDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.primaryContainer)
                             .border(
                                 2.dp,
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                RoundedCornerShape(12.dp)
+                                MaterialTheme.shapes.medium
                             )
                             .padding(20.dp),
                         contentAlignment = Alignment.Center
@@ -444,7 +430,7 @@ fun HouseCreatedSuccessDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text(
                         text = "Continue to Household",

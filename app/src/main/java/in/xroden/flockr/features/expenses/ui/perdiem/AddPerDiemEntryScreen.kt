@@ -131,7 +131,7 @@ fun AddPerDiemEntryScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
@@ -156,7 +156,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -168,7 +168,7 @@ fun AddPerDiemEntryScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.large,
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             ),
@@ -208,7 +208,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(enabled = !isLoading) { showDatePicker = true },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.outlinedCardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
@@ -264,7 +264,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -315,7 +315,7 @@ fun AddPerDiemEntryScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isLoading && quantity.toDoubleOrNull()?.let { it > 0 } == true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(

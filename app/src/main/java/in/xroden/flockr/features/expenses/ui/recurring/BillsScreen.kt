@@ -306,7 +306,7 @@ fun BillsCalendarGrid(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -394,12 +394,12 @@ fun CalendarDay(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(backgroundColor)
             .border(
                 width = if (isToday) 2.dp else 0.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(8.dp)
+                shape = MaterialTheme.shapes.extraSmall
             )
             .clickable(onClick = onClick)
             .padding(4.dp),
@@ -505,7 +505,7 @@ fun SummaryCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -545,7 +545,7 @@ fun BillsFilterChips(
                 selected = false,
                 onClick = { onFilterSelected(filter) },
                 label = { Text(filter) },
-                shape = RoundedCornerShape(20.dp)
+                shape = MaterialTheme.shapes.large
             )
         }
     }
@@ -573,7 +573,7 @@ fun ModernBillCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
@@ -590,7 +590,7 @@ fun ModernBillCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(statusColor.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -643,7 +643,7 @@ fun ModernBillCard(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
@@ -753,7 +753,7 @@ fun PayBillCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
@@ -770,7 +770,7 @@ fun PayBillCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -810,7 +810,7 @@ fun PayBillCard(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF66BB6A)
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Check, "Mark as Paid", modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))

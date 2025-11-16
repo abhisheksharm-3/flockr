@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,117 +17,92 @@ class DocumentViewModel @Inject constructor(
     private val documentRepository: DocumentRepository
 ) : ViewModel() {
 
-    private val _personalDocuments = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
-    val personalDocuments: StateFlow<DocumentUiState> = _personalDocuments.asStateFlow()
+    private val _uiState = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
+    val uiState: StateFlow<DocumentUiState> = _uiState.asStateFlow()
 
-    private val _houseDocuments = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
-    val houseDocuments: StateFlow<DocumentUiState> = _houseDocuments.asStateFlow()
+    private val _uploadState = MutableStateFlow<UploadDocumentUiState>(UploadDocumentUiState.Idle)
+    val uploadState: StateFlow<UploadDocumentUiState> = _uploadState.asStateFlow()
 
-    fun loadPersonalDocuments() {
+    private var currentHouseId: String? = null
+
+    fun loadDocuments(houseId: String? = null) {
         viewModelScope.launch {
-            _personalDocuments.value = DocumentUiState.Loading
-            try {
-                val documents = documentRepository.getPersonalDocuments()
-                _personalDocuments.value = DocumentUiState.Success(documents)
-            } catch (e: Exception) {
-                _personalDocuments.value = DocumentUiState.Error(e.message ?: "Failed to load documents")
+            _uiState.value = DocumentUiState.Loading
+            currentHouseId = houseId
+            
+            val personalResult = documentRepository.getPersonalDocuments()
+            val houseResult = if (houseId != null) {
+                documentRepository.getHouseDocuments(houseId)
+            } else {
+                Result.success(emptyList())
+            }
+            
+            val personal = personalResult.getOrElse { emptyList() }
+            val house = houseResult.getOrElse { emptyList() }
+            
+            if (personalResult.isFailure && houseResult.isFailure) {
+                _uiState.value = DocumentUiState.Error(
+                    message = personalResult.exceptionOrNull()?.message ?: "Failed to load documents",
+                    cause = personalResult.exceptionOrNull()
+                )
+            } else {
+                _uiState.value = DocumentUiState.Success(
+                    personalDocuments = personal,
+                    houseDocuments = house
+                )
             }
         }
     }
 
-    fun loadHouseDocuments(houseId: String) {
+    fun uploadDocument(uri: Uri, fileName: String, context: Context, houseId: String? = null) {
         viewModelScope.launch {
-            _houseDocuments.value = DocumentUiState.Loading
-            try {
-                val documents = documentRepository.getHouseDocuments(houseId)
-                _houseDocuments.value = DocumentUiState.Success(documents)
-            } catch (e: Exception) {
-                _houseDocuments.value = DocumentUiState.Error(e.message ?: "Failed to load documents")
-            }
-        }
-    }
-
-    fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
-        viewModelScope.launch {
+            _uploadState.value = UploadDocumentUiState.Uploading
+            
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                 val fileData = inputStream?.readBytes()
                 if (fileData == null) {
-                    _personalDocuments.value = DocumentUiState.Error("Could not read file")
+                    _uploadState.value = UploadDocumentUiState.Error("Could not read file")
                     return@launch
                 }
                 val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
 
-                val result = documentRepository.uploadDocument(null, fileName, fileData, mimeType)
-                result.fold(
+                documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
                     onSuccess = {
-                        loadPersonalDocuments()
+                        _uploadState.value = UploadDocumentUiState.Success
+                        loadDocuments(currentHouseId)
+                        kotlinx.coroutines.delay(1000)
+                        _uploadState.value = UploadDocumentUiState.Idle
                     },
                     onFailure = { error ->
-                        _personalDocuments.value = DocumentUiState.Error(error.message ?: "Upload failed")
+                        _uploadState.value = UploadDocumentUiState.Error(
+                            message = error.message ?: "Upload failed"
+                        )
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Upload error", e)
-                _personalDocuments.value = DocumentUiState.Error(e.message ?: "Upload failed")
+                _uploadState.value = UploadDocumentUiState.Error(e.message ?: "Upload failed")
             }
         }
     }
 
-    fun uploadHouseDocument(houseId: String, uri: Uri, fileName: String, context: Context) {
+    fun deleteDocument(documentId: String, storagePath: String) {
         viewModelScope.launch {
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val fileData = inputStream?.readBytes()
-                if (fileData == null) {
-                    _houseDocuments.value = DocumentUiState.Error("Could not read file")
-                    return@launch
+            documentRepository.deleteDocument(documentId, storagePath).fold(
+                onSuccess = {
+                    loadDocuments(currentHouseId)
+                },
+                onFailure = { error ->
+                    _uiState.value = DocumentUiState.Error(
+                        message = error.message ?: "Failed to delete document",
+                        cause = error
+                    )
                 }
-                val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
-
-                val result = documentRepository.uploadDocument(houseId, fileName, fileData, mimeType)
-                result.fold(
-                    onSuccess = {
-                        loadHouseDocuments(houseId)
-                    },
-                    onFailure = { error ->
-                        _houseDocuments.value = DocumentUiState.Error(error.message ?: "Upload failed")
-                    }
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Upload error", e)
-                _houseDocuments.value = DocumentUiState.Error(e.message ?: "Upload failed")
-            }
+            )
         }
     }
 
-    fun downloadDocument(document: Document, context: Context) {
-        // TODO: Implement download functionality
-        // For now, this is a placeholder
-        viewModelScope.launch {
-            try {
-                // Download functionality to be implemented
-                android.util.Log.d("DocumentViewModel", "Download requested for: ${document.fileName}")
-            } catch (_: Exception) {
-                // Handle error silently
-            }
-        }
-    }
-
-    fun deleteDocument(documentId: String, storagePath: String = "") {
-        viewModelScope.launch {
-            try {
-                documentRepository.deleteDocument(documentId, storagePath)
-            } catch (_: Exception) {
-                // Handle error silently
-            }
-        }
+    fun resetUploadState() {
+        _uploadState.value = UploadDocumentUiState.Idle
     }
 }
-
-sealed class DocumentUiState {
-    object Loading : DocumentUiState()
-    data class Success(val documents: List<Document>) : DocumentUiState()
-    data class Error(val message: String) : DocumentUiState()
-}
-

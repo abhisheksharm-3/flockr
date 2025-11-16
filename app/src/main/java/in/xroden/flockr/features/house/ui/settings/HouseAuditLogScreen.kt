@@ -112,7 +112,7 @@ fun HouseAuditLogScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = MaterialTheme.shapes.large
                         ) {
                             Column(
                                 modifier = Modifier
@@ -169,7 +169,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -182,7 +182,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
         ) {
             // Icon based on action type
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = getActionColor(log.action),
                 modifier = Modifier.size(40.dp)
             ) {

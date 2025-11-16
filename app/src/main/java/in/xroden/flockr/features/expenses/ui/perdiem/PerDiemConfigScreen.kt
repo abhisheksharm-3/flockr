@@ -171,7 +171,7 @@ fun PerDiemConfigScreen(
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("Add Item") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -239,7 +239,7 @@ private fun PerDiemConfigCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -265,12 +265,12 @@ private fun PerDiemConfigCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = CategoryBlue.copy(alpha = 0.15f),
                         modifier = Modifier.border(
                             1.dp,
                             CategoryBlue.copy(alpha = 0.3f),
-                            RoundedCornerShape(6.dp)
+                            MaterialTheme.shapes.small
                         )
                     ) {
                         Text(
@@ -284,7 +284,7 @@ private fun PerDiemConfigCard(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
@@ -312,7 +312,7 @@ private fun PerDiemConfigCard(
                 Button(
                     onClick = onAddEntry,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(
                         Icons.Default.Add,
@@ -326,7 +326,7 @@ private fun PerDiemConfigCard(
                 OutlinedButton(
                     onClick = onEdit,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(
                         Icons.Default.Edit,
@@ -344,7 +344,7 @@ private fun PerDiemConfigCard(
                 OutlinedButton(
                     onClick = onDelete,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
@@ -431,7 +431,7 @@ private fun AddPerDiemConfigDialog(
                 placeholder = { Text("e.g., Milk, Coffee") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             OutlinedTextField(
@@ -442,7 +442,7 @@ private fun AddPerDiemConfigDialog(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             OutlinedTextField(
@@ -452,7 +452,7 @@ private fun AddPerDiemConfigDialog(
                 placeholder = { Text("e.g., liter, pack, cup") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             ExposedDropdownMenuBox(
@@ -470,7 +470,7 @@ private fun AddPerDiemConfigDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
                 ExposedDropdownMenu(
                     expanded = expandedCategory,
@@ -499,7 +499,7 @@ private fun AddPerDiemConfigDialog(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Add, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
@@ -580,7 +580,7 @@ private fun EditPerDiemConfigDialog(
                 placeholder = { Text("e.g., Milk, Coffee") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             OutlinedTextField(
@@ -591,7 +591,7 @@ private fun EditPerDiemConfigDialog(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             OutlinedTextField(
@@ -601,7 +601,7 @@ private fun EditPerDiemConfigDialog(
                 placeholder = { Text("e.g., liter, pack, cup") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             ExposedDropdownMenuBox(
@@ -619,7 +619,7 @@ private fun EditPerDiemConfigDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
                 ExposedDropdownMenu(
                     expanded = expandedCategory,
@@ -648,7 +648,7 @@ private fun EditPerDiemConfigDialog(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Check, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
@@ -675,12 +675,12 @@ private fun EmptyPerDiemState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
+                    MaterialTheme.shapes.large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -714,7 +714,7 @@ private fun EmptyPerDiemState(
 
         Button(
             onClick = onAddItem,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -763,7 +763,7 @@ private fun DeletePerDiemConfigDialog(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
                         modifier = Modifier
@@ -800,7 +800,7 @@ private fun DeletePerDiemConfigDialog(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
                         modifier = Modifier
@@ -842,7 +842,7 @@ private fun DeletePerDiemConfigDialog(
                 Button(
                     onClick = { onConfirm(false) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -855,7 +855,7 @@ private fun DeletePerDiemConfigDialog(
                 Button(
                     onClick = { onConfirm(true) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
@@ -874,6 +874,6 @@ private fun DeletePerDiemConfigDialog(
             }
         },
         dismissButton = {},
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     )
 }

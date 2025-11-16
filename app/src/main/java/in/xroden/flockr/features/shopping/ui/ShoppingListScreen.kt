@@ -27,7 +27,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,23 +71,14 @@ fun ShoppingListScreen(
             item = item,
             onDismiss = { showEditDialog = null },
             onSave = { itemName, quantity ->
+                viewModel.updateItem(
+                    itemId = item.id,
+                    itemName = itemName,
+                    quantity = quantity
+                )
+                showEditDialog = null
                 scope.launch {
-                    viewModel.updateItem(
-                        itemId = item.id,
-                        itemName = itemName,
-                        quantity = quantity,
-                        onSuccess = {
-                            showEditDialog = null
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Item updated")
-                            }
-                        },
-                        onError = { error ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Error: $error")
-                            }
-                        }
-                    )
+                    snackbarHostState.showSnackbar("Item updated")
                 }
             }
         )
@@ -140,7 +130,7 @@ fun ShoppingListScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Item") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -241,7 +231,7 @@ fun ShoppingListScreen(
                         )
                         Button(
                             onClick = { viewModel.loadShoppingItems(houseId) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -263,23 +253,10 @@ fun ShoppingItemCard(
 ) {
     var isChecked by remember { mutableStateOf(false) }
 
-    val scale by animateFloatAsState(
-        targetValue = if (isChecked) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "shopping_card_scale"
-    )
-
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        shape = RoundedCornerShape(16.dp),
+            .fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (isChecked)
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
@@ -486,7 +463,7 @@ fun AddShoppingItemDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -510,7 +487,7 @@ fun AddShoppingItemDialog(
                     placeholder = { Text("e.g., Milk, Bread") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -520,7 +497,7 @@ fun AddShoppingItemDialog(
                     placeholder = { Text("e.g., 2L, 1 loaf") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(
@@ -530,7 +507,7 @@ fun AddShoppingItemDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -540,7 +517,7 @@ fun AddShoppingItemDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = itemName.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Add")
                     }
@@ -564,7 +541,7 @@ fun EditShoppingItemDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -588,7 +565,7 @@ fun EditShoppingItemDialog(
                     placeholder = { Text("e.g., Milk, Bread") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -598,7 +575,7 @@ fun EditShoppingItemDialog(
                     placeholder = { Text("e.g., 2L, 1 loaf") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(
@@ -608,7 +585,7 @@ fun EditShoppingItemDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -618,7 +595,7 @@ fun EditShoppingItemDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = itemName.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Save")
                     }
@@ -641,7 +618,7 @@ fun ConvertToExpenseDialog(
             Icon(
                 imageVector = Icons.Default.ShoppingCart,
                 contentDescription = null,
-                tint = PositiveGreen
+                tint = MaterialTheme.colorScheme.tertiary
             )
         },
         title = {
@@ -659,7 +636,7 @@ fun ConvertToExpenseDialog(
         confirmButton = {
             Button(
                 onClick = onConvert,
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Convert to Expense")
             }
@@ -667,7 +644,7 @@ fun ConvertToExpenseDialog(
         dismissButton = {
             TextButton(
                 onClick = onSkip,
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Skip")
             }
@@ -688,12 +665,12 @@ fun EmptyShoppingState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
+                    MaterialTheme.shapes.large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -726,7 +703,7 @@ fun EmptyShoppingState(
 
         Button(
             onClick = onAddItem,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))

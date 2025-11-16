@@ -8,11 +8,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
 import `in`.xroden.flockr.features.documents.domain.DocumentUiState
 
@@ -108,7 +105,7 @@ fun DocumentsScreen(
                 icon = { Icon(Icons.Default.Add, "Upload") },
                 text = { Text("Upload Document") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -169,9 +166,9 @@ fun DocumentsScreen(
                             ) {
                                 Surface(
                                     modifier = Modifier.size(80.dp).border(
-                                        2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)
+                                        2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.medium
                                     ),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = MaterialTheme.shapes.medium,
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -203,13 +200,11 @@ fun DocumentsScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(currentState.documents) { document ->
-                                FadeInListItem {
-                                    DocumentCard(
-                                        document = document,
-                                        onDownload = { viewModel.downloadDocument(document, context) },
-                                        onDelete = { viewModel.deleteDocument(document.id) }
-                                    )
-                                }
+                                DocumentCard(
+                                    document = document,
+                                    onDownload = { viewModel.downloadDocument(document, context) },
+                                    onDelete = { viewModel.deleteDocument(document.id) }
+                                )
                             }
                             item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
@@ -249,24 +244,12 @@ fun DocumentCard(
     onDownload: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "document_scale"
-    )
-    
     Card(
-        modifier = Modifier.fillMaxWidth().scale(scale)
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp)),
-        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraSmall,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = CardDefaults.outlinedCardBorder().copy(width = 2.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -280,8 +263,8 @@ fun DocumentCard(
             ) {
                 Surface(
                     modifier = Modifier.size(48.dp)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp)),
-                    shape = RoundedCornerShape(6.dp),
+                        .border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small),
+                    shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -314,53 +297,49 @@ fun DocumentCard(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val downloadInteraction = remember { MutableInteractionSource() }
-                val isDownloadPressed by downloadInteraction.collectIsPressedAsState()
-                
-                val downloadScale by animateFloatAsState(
-                    targetValue = if (isDownloadPressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                )
-                
-                Surface(
-                    modifier = Modifier.size(40.dp).scale(downloadScale)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                        .clickable(interactionSource = downloadInteraction, indication = null, onClick = onDownload),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Star,
-                            "Download",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                "Download",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
-                val deleteInteraction = remember { MutableInteractionSource() }
-                val isDeletePressed by deleteInteraction.collectIsPressedAsState()
-                
-                val deleteScale by animateFloatAsState(
-                    targetValue = if (isDeletePressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                )
-                
-                Surface(
-                    modifier = Modifier.size(40.dp).scale(deleteScale)
-                        .border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(6.dp))
-                        .clickable(interactionSource = deleteInteraction, indication = null, onClick = onDelete),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.errorContainer
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Delete,
-                            "Delete",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.error)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                "Delete",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }

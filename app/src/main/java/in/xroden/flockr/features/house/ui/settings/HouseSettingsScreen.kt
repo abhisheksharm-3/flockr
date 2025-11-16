@@ -241,7 +241,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Box(
@@ -507,7 +507,7 @@ fun HouseSettingsScreen(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -548,7 +548,7 @@ fun HouseSettingsScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                     ),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = MaterialTheme.shapes.large
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -581,7 +581,7 @@ fun HouseSettingsScreen(
                         Button(
                             onClick = onNavigateToAuditLog,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Visibility,
@@ -619,7 +619,7 @@ fun HouseSettingsScreen(
                                 width = 1.dp,
                                 brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -700,7 +700,7 @@ fun HouseSettingsScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isSaving && nameError == null && houseName.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -802,7 +802,7 @@ fun HouseSettingsScreen(
                     Text("Cancel")
                 }
             },
-            shape = RoundedCornerShape(16.dp)
+            shape = MaterialTheme.shapes.large
         )
     }
 }

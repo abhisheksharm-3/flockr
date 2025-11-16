@@ -94,7 +94,7 @@ fun PerDiemTransactionsScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Row(
                         modifier = Modifier
@@ -205,7 +205,7 @@ private fun PerDiemTransactionCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier
@@ -286,7 +286,7 @@ private fun MonthSelector(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier

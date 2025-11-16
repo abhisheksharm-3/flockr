@@ -1,5 +1,8 @@
 package `in`.xroden.flockr.features.notifications.model
 
+import `in`.xroden.flockr.data.enums.NotificationType
+import `in`.xroden.flockr.data.serialization.InstantSerializer
+import kotlinx.datetime.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -35,7 +38,6 @@ object FlexibleDataSerializer : KSerializer<String?> {
             val jsonElement = decoder.decodeSerializableValue(JsonElement.serializer())
             when (jsonElement) {
                 is JsonPrimitive -> {
-                    // If it's a string primitive, return its content
                     if (jsonElement.isString) {
                         jsonElement.content
                     } else {
@@ -43,7 +45,6 @@ object FlexibleDataSerializer : KSerializer<String?> {
                     }
                 }
                 is JsonObject -> {
-                    // If it's a JSON object, convert it to string
                     jsonElement.toString()
                 }
                 else -> {
@@ -51,7 +52,6 @@ object FlexibleDataSerializer : KSerializer<String?> {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("NotificationSerializer", "Error deserializing data field", e)
             null
         }
     }
@@ -68,24 +68,15 @@ data class Notification(
     val message: String,
     @SerialName("is_read")
     val isRead: Boolean = false,
+    @SerialName("type")
+    val type: NotificationType = NotificationType.GENERAL,
     @SerialName("data")
     @Serializable(with = FlexibleDataSerializer::class)
-    val data: String? = null, // JSON string containing type and other metadata
+    val data: String? = null,
     @SerialName("created_at")
-    val createdAt: String
-) {
-    // Helper to parse the type from data JSON
-    val notificationType: String?
-        get() = data?.let { jsonString ->
-            try {
-                // Simple parsing for {"type":"expense"}
-                val typeMatch = Regex(""""type"\s*:\s*"([^"]+)"""").find(jsonString)
-                typeMatch?.groupValues?.get(1)
-            } catch (e: Exception) {
-                null
-            }
-        }
-}
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
+)
 
 @Serializable
 data class NotificationPreference(
@@ -105,8 +96,9 @@ data class NotificationPreference(
     @SerialName("enable_shopping_item_added")
     val enableShoppingItemAdded: Boolean = true,
     @SerialName("created_at")
-    val createdAt: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant? = null,
     @SerialName("updated_at")
-    val updatedAt: String? = null
+    @Serializable(with = InstantSerializer::class)
+    val updatedAt: Instant? = null
 )
-

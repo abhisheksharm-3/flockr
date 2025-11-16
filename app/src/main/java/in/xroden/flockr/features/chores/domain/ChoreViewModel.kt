@@ -3,12 +3,13 @@ package `in`.xroden.flockr.features.chores.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.chores.data.ChoreRepository
+import `in`.xroden.flockr.features.chores.ui.ChoreFilter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -19,15 +20,39 @@ class ChoreViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ChoreUiState>(ChoreUiState.Loading)
     val uiState: StateFlow<ChoreUiState> = _uiState.asStateFlow()
 
+    private val _createState = MutableStateFlow<CreateChoreUiState>(CreateChoreUiState.Idle)
+    val createState: StateFlow<CreateChoreUiState> = _createState.asStateFlow()
+
+    private val _filterOption = MutableStateFlow(ChoreFilter.ALL)
+    val filterOption: StateFlow<ChoreFilter> = _filterOption.asStateFlow()
+
+    fun setFilter(filter: ChoreFilter) {
+        _filterOption.value = filter
+    }
+
     fun loadChores(houseId: String) {
         viewModelScope.launch {
             _uiState.value = ChoreUiState.Loading
-            try {
-                choreRepository.getChoresFlow(houseId).collect { chores ->
-                    _uiState.value = ChoreUiState.Success(chores)
-                }
-            } catch (e: Exception) {
-                _uiState.value = ChoreUiState.Error(e.message ?: "Failed to load chores")
+            
+            choreRepository.getChoresFlow(houseId).collect { result ->
+                result.fold(
+                    onSuccess = { chores ->
+                        val active = chores.filter { !it.isCompleted }
+                        val completed = chores.filter { it.isCompleted }
+                        
+                        _uiState.value = ChoreUiState.Success(
+                            allChores = chores,
+                            activeChores = active,
+                            completedChores = completed
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = ChoreUiState.Error(
+                            message = error.message ?: "Failed to load chores",
+                            cause = error
+                        )
+                    }
+                )
             }
         }
     }
@@ -36,97 +61,96 @@ class ChoreViewModel @Inject constructor(
         houseId: String,
         taskName: String,
         description: String?,
-        dueDate: String?,
-        isRecurring: Boolean,
-        assignedTo: String?,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        dueDate: LocalDate?,
+        recurrencePattern: `in`.xroden.flockr.data.enums.ChoreRecurrence?,
+        assignedTo: String?
     ) {
         viewModelScope.launch {
-            try {
-                android.util.Log.d("ChoreViewModel", "Creating chore: $taskName for house: $houseId")
-                val result = choreRepository.createChore(
-                    houseId = houseId,
-                    taskName = taskName,
-                    description = description,
-                    dueDate = dueDate,
-                    isRecurring = isRecurring,
-                    recurrencePattern = null,
-                    assignedTo = assignedTo
-                )
-                result.fold(
-                    onSuccess = {
-                        android.util.Log.d("ChoreViewModel", "Chore created successfully")
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        val errorMessage = error.message ?: "Failed to create chore"
-                        android.util.Log.e("ChoreViewModel", "Failed to create chore: $errorMessage", error)
-                        onError(errorMessage)
-                    }
-                )
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Failed to create chore"
-                android.util.Log.e("ChoreViewModel", "Exception creating chore: $errorMessage", e)
-                onError(errorMessage)
-            }
-        }
-    }
-
-    fun completeChore(choreId: String, houseId: String, taskName: String) {
-        viewModelScope.launch {
-            choreRepository.completeChore(choreId, houseId, taskName)
+            _createState.value = CreateChoreUiState.Loading
+            
+            choreRepository.createChore(
+                houseId = houseId,
+                taskName = taskName,
+                description = description,
+                dueDate = dueDate,
+                recurrencePattern = recurrencePattern,
+                assignedTo = assignedTo
+            ).fold(
+                onSuccess = {
+                    _createState.value = CreateChoreUiState.Success
+                    kotlinx.coroutines.delay(1000)
+                    _createState.value = CreateChoreUiState.Idle
+                },
+                onFailure = { error ->
+                    _createState.value = CreateChoreUiState.Error(
+                        message = error.message ?: "Failed to create chore"
+                    )
+                }
+            )
         }
     }
 
     fun updateChore(
         choreId: String,
-        taskName: String,
+        taskName: String?,
         description: String?,
-        dueDate: String?,
-        assignedTo: String?,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        dueDate: LocalDate?,
+        assignedTo: String?
     ) {
         viewModelScope.launch {
-            try {
-                android.util.Log.d("ChoreViewModel", "Updating chore: $choreId")
-                val result = choreRepository.updateChore(
-                    choreId = choreId,
-                    taskName = taskName,
-                    description = description,
-                    dueDate = dueDate,
-                    assignedTo = assignedTo
-                )
-                result.fold(
-                    onSuccess = {
-                        android.util.Log.d("ChoreViewModel", "Chore updated successfully")
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        val errorMessage = error.message ?: "Failed to update chore"
-                        android.util.Log.e("ChoreViewModel", "Failed to update chore: $errorMessage", error)
-                        onError(errorMessage)
-                    }
-                )
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Failed to update chore"
-                android.util.Log.e("ChoreViewModel", "Exception updating chore: $errorMessage", e)
-                onError(errorMessage)
-            }
+            choreRepository.updateChore(
+                choreId = choreId,
+                taskName = taskName,
+                description = description,
+                dueDate = dueDate,
+                assignedTo = assignedTo
+            ).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ChoreUiState.Error(
+                        message = error.message ?: "Failed to update chore",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
+    fun completeChore(choreId: String, houseId: String, taskName: String) {
+        viewModelScope.launch {
+            choreRepository.completeChore(choreId, houseId, taskName).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ChoreUiState.Error(
+                        message = error.message ?: "Failed to complete chore",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
     fun deleteChore(choreId: String) {
         viewModelScope.launch {
-            choreRepository.deleteChore(choreId)
+            choreRepository.deleteChore(choreId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ChoreUiState.Error(
+                        message = error.message ?: "Failed to delete chore",
+                        cause = error
+                    )
+                }
+            )
         }
     }
-}
 
-sealed class ChoreUiState {
-    object Loading : ChoreUiState()
-    data class Success(val chores: List<Chore>) : ChoreUiState()
-    data class Error(val message: String) : ChoreUiState()
+    fun resetCreateState() {
+        _createState.value = CreateChoreUiState.Idle
+    }
 }
-

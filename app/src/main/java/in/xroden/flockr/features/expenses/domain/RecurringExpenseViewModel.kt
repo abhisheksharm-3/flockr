@@ -3,200 +3,166 @@ package `in`.xroden.flockr.features.expenses.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.expenses.model.RecurringExpense
-import `in`.xroden.flockr.data.model.RecurringExpenseInsert
-import `in`.xroden.flockr.data.model.RecurringExpenseUpdate
-import `in`.xroden.flockr.data.model.PaymentHistoryInsert
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Order
+import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.LocalDate
+import java.math.BigDecimal
 import javax.inject.Inject
 
 @HiltViewModel
 class RecurringExpenseViewModel @Inject constructor(
-    private val supabase: SupabaseClient
+    private val expenseRepository: ExpenseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<RecurringExpenseUiState>(RecurringExpenseUiState.Loading)
     val uiState: StateFlow<RecurringExpenseUiState> = _uiState.asStateFlow()
 
+    private val _createState = MutableStateFlow<CreateExpenseUiState>(CreateExpenseUiState.Idle)
+    val createState: StateFlow<CreateExpenseUiState> = _createState.asStateFlow()
+
     fun loadRecurringExpenses(houseId: String) {
         viewModelScope.launch {
             _uiState.value = RecurringExpenseUiState.Loading
-            try {
-                val expenses = supabase.from("recurring_expenses")
-                    .select(Columns.ALL) {
-                        filter {
-                            eq("house_id", houseId)
-                        }
-                        order("name", Order.ASCENDING)
-                    }
-                    .decodeList<RecurringExpense>()
-
-                _uiState.value = RecurringExpenseUiState.Success(expenses)
-            } catch (e: Exception) {
-                _uiState.value = RecurringExpenseUiState.Error(e.message ?: "Failed to load expenses")
-            }
-        }
-    }
-
-    fun addRecurringExpense(houseId: String, name: String, amount: Double, dueDay: Int, category: String) {
-        viewModelScope.launch {
-            try {
-                val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
-
-                val expenseInsert = RecurringExpenseInsert(
-                    houseId = houseId,
-                    name = name,
-                    amount = amount,
-                    dueDay = dueDay,
-                    category = category,
-                    createdBy = userId
-                )
-
-                supabase.from("recurring_expenses")
-                    .insert(expenseInsert) {
-                        select()
-                    }
-
-                loadRecurringExpenses(houseId)
-            } catch (e: Exception) {
-                android.util.Log.e("RecurringExpenseViewModel", "Error adding expense", e)
-            }
+            
+            expenseRepository.getRecurringExpenses(houseId).fold(
+                onSuccess = { expenses ->
+                    _uiState.value = RecurringExpenseUiState.Success(expenses)
+                },
+                onFailure = { error ->
+                    _uiState.value = RecurringExpenseUiState.Error(
+                        message = error.message ?: "Failed to load recurring expenses",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
     fun createRecurringExpense(
         houseId: String,
         name: String,
-        amount: Double,
+        amount: BigDecimal,
         dueDay: Int,
         category: String,
-        frequency: String = "monthly",
+        frequency: ExpenseFrequency = ExpenseFrequency.MONTHLY,
         customFrequencyDays: Int? = null,
         reminderDaysBefore: Int = 3,
         reminderEnabled: Boolean = true,
         notes: String? = null,
         splitWith: List<String>? = null,
-        splitType: String? = null,
-        splitAmounts: Map<String, Double>? = null,
+        splitType: ExpenseSplitType? = null,
+        splitAmounts: Map<String, BigDecimal>? = null,
         prepayEnabled: Boolean = false,
-        firstPaymentDate: String? = null,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        firstPaymentDate: LocalDate? = null
     ) {
         viewModelScope.launch {
-            try {
-                val userId = supabase.auth.currentUserOrNull()?.id ?: run {
-                    onError("No user logged in")
-                    return@launch
+            _createState.value = CreateExpenseUiState.Loading
+            
+            expenseRepository.createRecurringExpense(
+                houseId = houseId,
+                name = name,
+                amount = amount,
+                dueDay = dueDay,
+                category = category,
+                frequency = frequency,
+                customFrequencyDays = customFrequencyDays,
+                reminderDaysBefore = reminderDaysBefore,
+                reminderEnabled = reminderEnabled,
+                notes = notes,
+                splitWith = splitWith,
+                splitType = splitType,
+                splitAmounts = splitAmounts,
+                prepayEnabled = prepayEnabled,
+                firstPaymentDate = firstPaymentDate
+            ).fold(
+                onSuccess = {
+                    _createState.value = CreateExpenseUiState.Success
+                    kotlinx.coroutines.delay(1000)
+                    _createState.value = CreateExpenseUiState.Idle
+                },
+                onFailure = { error ->
+                    _createState.value = CreateExpenseUiState.Error(
+                        message = error.message ?: "Failed to create recurring expense"
+                    )
                 }
-
-                val expenseInsert = RecurringExpenseInsert(
-                    houseId = houseId,
-                    name = name,
-                    amount = amount,
-                    dueDay = dueDay,
-                    category = category,
-                    createdBy = userId,
-                    frequency = frequency,
-                    customFrequencyDays = customFrequencyDays,
-                    reminderDaysBefore = reminderDaysBefore,
-                    reminderEnabled = reminderEnabled,
-                    notes = notes,
-                    splitWith = splitWith,
-                    splitType = splitType,
-                    splitAmounts = splitAmounts,
-                    prepayEnabled = prepayEnabled,
-                    firstPaymentDate = firstPaymentDate
-                )
-
-                supabase.from("recurring_expenses")
-                    .insert(expenseInsert) {
-                        select()
-                    }
-
-                loadRecurringExpenses(houseId)
-                onSuccess()
-            } catch (e: Exception) {
-                android.util.Log.e("RecurringExpenseViewModel", "Error creating expense", e)
-                onError(e.message ?: "Failed to create recurring expense")
-            }
+            )
         }
     }
 
-    fun markAsPaid(expenseId: String, houseId: String, amount: Double) {
+    fun updateRecurringExpense(
+        houseId: String,
+        expenseId: String,
+        name: String?,
+        amount: BigDecimal?,
+        dueDay: Int?,
+        category: String?,
+        isActive: Boolean?
+    ) {
         viewModelScope.launch {
-            try {
-                val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
-                val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-
-                val paymentInsert = PaymentHistoryInsert(
-                    recurringExpenseId = expenseId,
-                    paidBy = userId,
-                    amount = amount,
-                    paymentDate = currentDate
-                )
-
-                supabase.from("payment_history")
-                    .insert(paymentInsert) {
-                        select()
-                    }
-
-                loadRecurringExpenses(houseId)
-            } catch (e: Exception) {
-                android.util.Log.e("RecurringExpenseViewModel", "Error marking as paid", e)
-            }
+            expenseRepository.updateRecurringExpense(
+                expenseId = expenseId,
+                name = name,
+                amount = amount,
+                dueDay = dueDay,
+                category = category,
+                isActive = isActive
+            ).fold(
+                onSuccess = {
+                    loadRecurringExpenses(houseId)
+                },
+                onFailure = { error ->
+                    _uiState.value = RecurringExpenseUiState.Error(
+                        message = error.message ?: "Failed to update expense",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
-    fun toggleActive(expenseId: String, houseId: String, isActive: Boolean) {
+    fun markAsPaid(
+        houseId: String,
+        expenseId: String,
+        amount: BigDecimal,
+        paymentDate: LocalDate
+    ) {
         viewModelScope.launch {
-            try {
-                val update = RecurringExpenseUpdate(isActive = isActive)
-
-                supabase.from("recurring_expenses")
-                    .update(update) {
-                        filter {
-                            eq("id", expenseId)
-                        }
-                    }
-
-                loadRecurringExpenses(houseId)
-            } catch (e: Exception) {
-                android.util.Log.e("RecurringExpenseViewModel", "Error toggling active status", e)
-            }
+            expenseRepository.recordPayment(expenseId, amount, paymentDate).fold(
+                onSuccess = {
+                    loadRecurringExpenses(houseId)
+                },
+                onFailure = { error ->
+                    _uiState.value = RecurringExpenseUiState.Error(
+                        message = error.message ?: "Failed to record payment",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
-    fun deleteRecurringExpense(expenseId: String, houseId: String) {
+    fun deleteRecurringExpense(houseId: String, expenseId: String) {
         viewModelScope.launch {
-            try {
-                supabase.from("recurring_expenses")
-                    .delete {
-                        filter {
-                            eq("id", expenseId)
-                        }
-                    }
-
-                loadRecurringExpenses(houseId)
-            } catch (e: Exception) {
-                android.util.Log.e("RecurringExpenseViewModel", "Error deleting expense", e)
-            }
+            expenseRepository.deleteRecurringExpense(expenseId).fold(
+                onSuccess = {
+                    loadRecurringExpenses(houseId)
+                },
+                onFailure = { error ->
+                    _uiState.value = RecurringExpenseUiState.Error(
+                        message = error.message ?: "Failed to delete expense",
+                        cause = error
+                    )
+                }
+            )
         }
     }
-}
 
-sealed class RecurringExpenseUiState {
-    object Loading : RecurringExpenseUiState()
-    data class Success(val expenses: List<RecurringExpense>) : RecurringExpenseUiState()
-    data class Error(val message: String) : RecurringExpenseUiState()
+    fun resetCreateState() {
+        _createState.value = CreateExpenseUiState.Idle
+    }
 }

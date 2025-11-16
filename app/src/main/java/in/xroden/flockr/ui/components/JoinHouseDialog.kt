@@ -26,7 +26,7 @@ fun JoinHouseDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -77,7 +77,7 @@ fun JoinHouseDialog(
                         }
                     ),
                     enabled = !isLoading,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Buttons
@@ -89,7 +89,7 @@ fun JoinHouseDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -103,7 +103,7 @@ fun JoinHouseDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = inviteCode.length == 6 && !isLoading,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(

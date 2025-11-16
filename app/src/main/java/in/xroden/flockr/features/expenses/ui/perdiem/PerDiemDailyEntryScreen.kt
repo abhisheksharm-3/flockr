@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -152,7 +151,7 @@ fun PerDiemDailyEntryScreen(
                                         MaterialTheme.colorScheme.surfaceVariant
                                     }
                                 ),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -209,7 +208,7 @@ fun PerDiemDailyEntryScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isLoading,
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             )
 
                             // Quantity
@@ -223,7 +222,7 @@ fun PerDiemDailyEntryScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isLoading,
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             )
 
                             // Cost Estimate
@@ -232,7 +231,7 @@ fun PerDiemDailyEntryScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = MaterialTheme.shapes.extraSmall,
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.primaryContainer
                                     )
@@ -271,7 +270,7 @@ fun PerDiemDailyEntryScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 3,
                                 enabled = !isLoading,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             )
                         }
                     }
@@ -319,7 +318,7 @@ fun PerDiemDailyEntryScreen(
                                 .fillMaxWidth()
                                 .height(56.dp),
                             enabled = !isLoading && quantity.toDoubleOrNull()?.let { it > 0 } == true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(

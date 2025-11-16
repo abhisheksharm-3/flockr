@@ -20,7 +20,6 @@ import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.utils.Constants
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -129,7 +128,7 @@ fun MonthlyReportsScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
@@ -322,7 +321,7 @@ fun MonthlyReportsScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                                     ),
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = MaterialTheme.shapes.extraSmall
                                 ) {
                                     Column(
                                         modifier = Modifier

@@ -1,6 +1,10 @@
 package `in`.xroden.flockr.features.house.model
 
+import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.data.enums.InvitationStatus
+import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.features.auth.model.Profile
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -21,9 +25,11 @@ data class House(
     @SerialName("header_image_url")
     val headerImageUrl: String? = null,
     @SerialName("created_at")
-    val createdAt: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant? = null,
     @SerialName("updated_at")
-    val updatedAt: String? = null
+    @Serializable(with = InstantSerializer::class)
+    val updatedAt: Instant? = null
 )
 
 @Serializable
@@ -34,9 +40,10 @@ data class HouseMember(
     @SerialName("user_id")
     val userId: String,
     @SerialName("role")
-    val role: String = "Member", // Owner, Admin, Member
+    val role: HouseMemberRole = HouseMemberRole.MEMBER,
     @SerialName("joined_at")
-    val joinedAt: String
+    @Serializable(with = InstantSerializer::class)
+    val joinedAt: Instant
 )
 
 @Serializable
@@ -50,8 +57,8 @@ data class MemberWithProfile(
     val userId: String,
     val fullName: String?,
     val email: String,
-    val role: String = "Member",
-    val joinedAt: String
+    val role: HouseMemberRole = HouseMemberRole.MEMBER,
+    val joinedAt: Instant
 )
 
 @Serializable
@@ -63,9 +70,10 @@ data class HouseInvitation(
     val inviterId: String,
     @SerialName("invitee_email")
     val inviteeEmail: String,
-    val status: String = "pending",
+    val status: InvitationStatus = InvitationStatus.PENDING,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
 
 @Serializable
@@ -82,8 +90,6 @@ data class HouseAuditLog(
     @SerialName("details")
     val details: Map<String, String> = emptyMap(),
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
-
-
-

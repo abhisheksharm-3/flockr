@@ -26,7 +26,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,12 +98,12 @@ fun JoinHouseScreen(
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(MaterialTheme.shapes.large)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .border(
                         2.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        RoundedCornerShape(20.dp)
+                        MaterialTheme.shapes.large
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -181,7 +180,7 @@ fun JoinHouseScreen(
                             inviteCode.length == 6 && errorMessage == null -> Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Valid",
-                                tint = PositiveGreen
+                                tint = MaterialTheme.colorScheme.tertiary
                             )
                         }
                     },
@@ -190,7 +189,7 @@ fun JoinHouseScreen(
                     ),
                     singleLine = true,
                     enabled = !isLoading,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Text(
@@ -234,7 +233,7 @@ fun JoinHouseScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = !isLoading && inviteCode.length == 6 && errorMessage == null,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
                     Row(
@@ -275,7 +274,7 @@ fun JoinHouseScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),

@@ -1,11 +1,8 @@
 package `in`.xroden.flockr.features.notifications.ui
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
 
@@ -111,9 +107,9 @@ fun NotificationScreen(
                                     .border(
                                         width = 2.dp,
                                         color = MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = MaterialTheme.shapes.medium
                                     ),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -147,15 +143,13 @@ fun NotificationScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
-                            FadeInListItem {
-                                IndustrialNotificationItem(
-                                    notification = notification,
-                                    onClick = {
-                                        viewModel.markAsRead(notification.id)
-                                        onNotificationClick(notification)
-                                    }
-                                )
-                            }
+                            IndustrialNotificationItem(
+                                notification = notification,
+                                onClick = {
+                                    viewModel.markAsRead(notification.id)
+                                    onNotificationClick(notification)
+                                }
+                            )
                         }
                         item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
@@ -195,33 +189,15 @@ private fun IndustrialNotificationItem(
     notification: Notification,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "notification_scale"
-    )
-    
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
         color = if (!notification.isRead) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surface
         },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         tonalElevation = if (!notification.isRead) 2.dp else 0.dp
     ) {
         Row(

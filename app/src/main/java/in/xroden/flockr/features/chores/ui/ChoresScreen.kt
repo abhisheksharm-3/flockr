@@ -22,10 +22,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.chores.domain.ChoreUiState
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
-import `in`.xroden.flockr.utils.Constants
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -37,9 +35,11 @@ fun ChoresScreen(
     viewModel: ChoreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val createState by viewModel.createState.collectAsState()
+    val filterOption by viewModel.filterOption.collectAsState()
+    
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<Chore?>(null) }
-    var filterOption by remember { mutableStateOf(ChoreFilter.ALL) }
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -48,34 +48,39 @@ fun ChoresScreen(
         viewModel.loadChores(houseId)
     }
 
+    // Handle create state changes
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CreateChoreUiState.Success -> {
+                showAddDialog = false
+                snackbarHostState.showSnackbar("Chore added successfully")
+                viewModel.resetCreateState()
+            }
+            is CreateChoreUiState.Error -> {
+                snackbarHostState.showSnackbar("Failed to add chore: ${state.message}")
+                viewModel.resetCreateState()
+            }
+            else -> {}
+        }
+    }
+
     // Add Chore Dialog
     if (showAddDialog) {
         AddChoreDialog(
             houseId = houseId,
-            onDismiss = { showAddDialog = false },
+            onDismiss = {
+                showAddDialog = false
+                viewModel.resetCreateState()
+            },
             onAdd = { taskName, description, dueDate, assignedTo ->
-                scope.launch {
-                    android.util.Log.d("ChoresScreenModern", "Adding chore: $taskName")
-                    viewModel.createChore(
-                        houseId = houseId,
-                        taskName = taskName,
-                        description = description,
-                        dueDate = dueDate,
-                        isRecurring = false,
-                        assignedTo = assignedTo,
-                        onSuccess = {
-                            showAddDialog = false
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Chore added successfully")
-                            }
-                        },
-                        onError = { error ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Failed to add chore: $error")
-                            }
-                        }
-                    )
-                }
+                viewModel.createChore(
+                    houseId = houseId,
+                    taskName = taskName,
+                    description = description,
+                    dueDate = dueDate,
+                    recurrencePattern = null,
+                    assignedTo = assignedTo
+                )
             }
         )
     }
@@ -87,25 +92,16 @@ fun ChoresScreen(
             houseId = houseId,
             onDismiss = { showEditDialog = null },
             onSave = { taskName, description, dueDate, assignedTo ->
+                viewModel.updateChore(
+                    choreId = chore.id,
+                    taskName = taskName,
+                    description = description,
+                    dueDate = dueDate,
+                    assignedTo = assignedTo
+                )
+                showEditDialog = null
                 scope.launch {
-                    viewModel.updateChore(
-                        choreId = chore.id,
-                        taskName = taskName,
-                        description = description,
-                        dueDate = dueDate,
-                        assignedTo = assignedTo,
-                        onSuccess = {
-                            showEditDialog = null
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Chore updated successfully")
-                            }
-                        },
-                        onError = { error ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Failed to update chore: $error")
-                            }
-                        }
-                    )
+                    snackbarHostState.showSnackbar("Chore updated successfully")
                 }
             }
         )
@@ -142,7 +138,7 @@ fun ChoresScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Chore") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -159,12 +155,12 @@ fun ChoresScreen(
             }
             is ChoreUiState.Success -> {
                 val filteredChores = when (filterOption) {
-                    ChoreFilter.ALL -> state.chores
-                    ChoreFilter.ACTIVE -> state.chores.filter { !it.isCompleted }
-                    ChoreFilter.COMPLETED -> state.chores.filter { it.isCompleted }
+                    ChoreFilter.ALL -> state.allChores
+                    ChoreFilter.ACTIVE -> state.activeChores
+                    ChoreFilter.COMPLETED -> state.completedChores
                 }
 
-                if (state.chores.isEmpty()) {
+                if (state.allChores.isEmpty()) {
                     EmptyChoresState(
                         modifier = Modifier.fillMaxSize().padding(padding),
                         onAddChore = { showAddDialog = true }
@@ -193,7 +189,7 @@ fun ChoresScreen(
                                     ChoreFilter.values().forEach { filter ->
                                         FilterChip(
                                             selected = filterOption == filter,
-                                            onClick = { filterOption = filter },
+                                            onClick = { viewModel.setFilter(filter) },
                                             label = { Text(filter.label) },
                                             leadingIcon = if (filterOption == filter) {
                                                 { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
@@ -261,7 +257,7 @@ fun ChoresScreen(
                         )
                         Button(
                             onClick = { viewModel.loadChores(houseId) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(Icons.Default.Refresh, null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -285,7 +281,7 @@ fun ChoreCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -314,7 +310,7 @@ fun ChoreCard(
                 // Custom Checkbox with larger hit area
                 Surface(
                     onClick = onToggleComplete,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = if (chore.isCompleted) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -424,7 +420,7 @@ fun ChoreCard(
                 chore.dueDate?.let { date ->
                     val isOverdue = isOverdue(date) && !chore.isCompleted
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = when {
                             isOverdue -> MaterialTheme.colorScheme.errorContainer
                             chore.isCompleted -> MaterialTheme.colorScheme.surfaceVariant
@@ -463,7 +459,7 @@ fun ChoreCard(
                 // Created By Badge
                 chore.createdByName?.let { name ->
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.tertiaryContainer
                     ) {
                         Row(
@@ -490,7 +486,7 @@ fun ChoreCard(
                 // Assigned To Badge
                 chore.assignedToName?.let { name ->
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Row(
@@ -517,8 +513,8 @@ fun ChoreCard(
                 // Completed Badge
                 if (chore.isCompleted && chore.completedByName != null) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = PositiveGreen.copy(alpha = 0.15f)
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -529,13 +525,13 @@ fun ChoreCard(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = PositiveGreen
+                                tint = MaterialTheme.colorScheme.tertiary
                             )
                             Text(
                                 text = chore.completedByName!!,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
-                                color = PositiveGreen
+                                color = MaterialTheme.colorScheme.tertiary
                             )
                         }
                     }
@@ -558,7 +554,7 @@ fun AddChoreDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -582,7 +578,7 @@ fun AddChoreDialog(
                     placeholder = { Text("e.g., Take out trash") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -592,7 +588,7 @@ fun AddChoreDialog(
                     placeholder = { Text("Add any details...") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -603,7 +599,7 @@ fun AddChoreDialog(
                     leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(
@@ -613,7 +609,7 @@ fun AddChoreDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -628,7 +624,7 @@ fun AddChoreDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = taskName.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Add")
                     }
@@ -651,12 +647,12 @@ fun EmptyChoresState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
+                    MaterialTheme.shapes.large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -689,7 +685,7 @@ fun EmptyChoresState(
 
         Button(
             onClick = onAddChore,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -714,7 +710,7 @@ fun EditChoreDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -738,7 +734,7 @@ fun EditChoreDialog(
                     placeholder = { Text("e.g., Clean kitchen") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -748,7 +744,7 @@ fun EditChoreDialog(
                     placeholder = { Text("Add details...") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -758,7 +754,7 @@ fun EditChoreDialog(
                     placeholder = { Text("YYYY-MM-DD") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(
@@ -768,7 +764,7 @@ fun EditChoreDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -783,7 +779,7 @@ fun EditChoreDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = taskName.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Save")
                     }

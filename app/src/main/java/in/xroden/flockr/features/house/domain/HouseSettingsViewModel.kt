@@ -1,10 +1,13 @@
 package `in`.xroden.flockr.features.house.domain
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.data.HouseRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -12,76 +15,116 @@ class HouseSettingsViewModel @Inject constructor(
     private val houseRepository: HouseRepository
 ) : ViewModel() {
 
-    suspend fun getHouse(houseId: String): House? {
-        return try {
-            houseRepository.getHouseById(houseId)
-        } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error getting house", e)
-            null
+    private val _uiState = MutableStateFlow<HouseSettingsUiState>(HouseSettingsUiState.Loading)
+    val uiState: StateFlow<HouseSettingsUiState> = _uiState.asStateFlow()
+
+    private val _updateState = MutableStateFlow<UpdateHouseSettingsUiState>(UpdateHouseSettingsUiState.Idle)
+    val updateState: StateFlow<UpdateHouseSettingsUiState> = _updateState.asStateFlow()
+
+    fun loadHouseSettings(houseId: String) {
+        viewModelScope.launch {
+            _uiState.value = HouseSettingsUiState.Loading
+            
+            val houseResult = houseRepository.getHouseById(houseId)
+            val configResult = houseRepository.getHouseConfig(houseId)
+            
+            if (houseResult.isSuccess) {
+                val house = houseResult.getOrNull()
+                val config = configResult.getOrNull()
+                
+                if (house != null && config != null) {
+                    _uiState.value = HouseSettingsUiState.Success(config)
+                } else {
+                    _uiState.value = HouseSettingsUiState.Error("House or config not found")
+                }
+            } else {
+                _uiState.value = HouseSettingsUiState.Error(
+                    message = houseResult.exceptionOrNull()?.message ?: "Failed to load settings"
+                )
+            }
         }
     }
 
-    suspend fun getHouseConfig(houseId: String): HouseConfig? {
-        return try {
-            houseRepository.getHouseConfig(houseId)
-        } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error getting house config", e)
-            null
-        }
-    }
-
-    suspend fun updateHouse(
+    fun updateHouse(
         houseId: String,
         name: String?,
         address: String?,
         latitude: Double? = null,
         longitude: Double? = null
-    ): Result<Unit> {
-        return try {
-            android.util.Log.d("HouseSettingsViewModel", "Updating house: name=$name, address=$address")
-            houseRepository.updateHouse(houseId, name, address, latitude, longitude)
-        } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error updating house", e)
-            Result.failure(e)
+    ) {
+        viewModelScope.launch {
+            _updateState.value = UpdateHouseSettingsUiState.Loading
+            
+            houseRepository.updateHouse(houseId, name, address, latitude, longitude).fold(
+                onSuccess = {
+                    _updateState.value = UpdateHouseSettingsUiState.Success
+                    loadHouseSettings(houseId)
+                    kotlinx.coroutines.delay(1000)
+                    _updateState.value = UpdateHouseSettingsUiState.Idle
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateHouseSettingsUiState.Error(
+                        message = error.message ?: "Failed to update house"
+                    )
+                }
+            )
         }
     }
 
-    suspend fun updateHouseConfig(
+    fun updateHouseConfig(
         houseId: String,
         currencyCode: String? = null,
-        currencySymbol: String? = null,
         dateFormat: String? = null,
         firstDayOfWeek: Int? = null,
         timezone: String? = null
-    ): Result<Unit> {
-        return try {
-            android.util.Log.d("HouseSettingsViewModel", "Updating house config: currency=$currencyCode, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+    ) {
+        viewModelScope.launch {
+            _updateState.value = UpdateHouseSettingsUiState.Loading
+            
             houseRepository.updateHouseConfig(
                 houseId = houseId,
                 currencyCode = currencyCode,
-                currencySymbol = currencySymbol,
                 dateFormat = dateFormat,
                 firstDayOfWeek = firstDayOfWeek,
                 timezone = timezone
+            ).fold(
+                onSuccess = {
+                    _updateState.value = UpdateHouseSettingsUiState.Success
+                    loadHouseSettings(houseId)
+                    kotlinx.coroutines.delay(1000)
+                    _updateState.value = UpdateHouseSettingsUiState.Idle
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateHouseSettingsUiState.Error(
+                        message = error.message ?: "Failed to update settings"
+                    )
+                }
             )
-        } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error updating house config", e)
-            Result.failure(e)
         }
     }
 
-    suspend fun deleteHouse(houseId: String): Result<Unit> {
-        return try {
-            android.util.Log.d("HouseSettingsViewModel", "Deleting house: houseId=$houseId")
-            houseRepository.deleteHouse(houseId)
-        } catch (e: Exception) {
-            android.util.Log.e("HouseSettingsViewModel", "Error deleting house", e)
-            Result.failure(e)
+    fun deleteHouse(houseId: String) {
+        viewModelScope.launch {
+            _updateState.value = UpdateHouseSettingsUiState.Loading
+            
+            houseRepository.deleteHouse(houseId).fold(
+                onSuccess = {
+                    _updateState.value = UpdateHouseSettingsUiState.Success
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateHouseSettingsUiState.Error(
+                        message = error.message ?: "Failed to delete house"
+                    )
+                }
+            )
         }
+    }
+
+    fun resetUpdateState() {
+        _updateState.value = UpdateHouseSettingsUiState.Idle
     }
 
     fun getCurrentUserId(): String? {
         return houseRepository.userId
     }
 }
-

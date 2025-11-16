@@ -23,8 +23,11 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
-import `in`.xroden.flockr.utils.Constants
-import java.time.LocalDate
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
+import kotlinx.datetime.LocalDate
+import java.math.BigDecimal
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,7 +44,7 @@ fun AddExpenseScreen(
     var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
+        mutableStateOf(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember {
@@ -60,12 +63,33 @@ fun AddExpenseScreen(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val createState by viewModel.createState.collectAsState()
+    
+    // For now, use default currency - Phase 3 will add proper currency management
+    val currencySymbol = "$"
 
     LaunchedEffect(houseId) {
         houseMembers = houseManagementViewModel.getHouseMembers(houseId)
-        viewModel.loadHouseConfig(houseId)
+    }
+
+    // Handle create state
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CreateExpenseUiState.Success -> {
+                isLoading = false
+                onExpenseAdded()
+            }
+            is CreateExpenseUiState.Error -> {
+                isLoading = false
+                snackbarHostState.showSnackbar("Error: ${state.message}")
+            }
+            is CreateExpenseUiState.Loading -> {
+                isLoading = true
+            }
+            else -> {
+                isLoading = false
+            }
+        }
     }
 
     Scaffold(
@@ -123,7 +147,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -141,7 +165,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -153,7 +177,7 @@ fun AddExpenseScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = !isLoading) { showDatePicker = true },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.outlinedCardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
@@ -217,7 +241,7 @@ fun AddExpenseScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -250,7 +274,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     minLines = 3,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -356,7 +380,7 @@ fun AddExpenseScreen(
                                     modifier = Modifier.width(100.dp),
                                     enabled = !isLoading,
                                     singleLine = true,
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = MaterialTheme.shapes.extraSmall
                                 )
                             }
                         }
@@ -411,40 +435,44 @@ fun AddExpenseScreen(
 
                     isLoading = true
 
-                    val splits = if (enableSplitting && selectedMembers.isNotEmpty()) {
-                        if (splitEqually) {
-                            val splitAmount = amt / selectedMembers.size
-                            selectedMembers.map { it to splitAmount }
-                        } else {
-                            selectedMembers.mapNotNull { userId ->
-                                customSplits[userId]?.toDoubleOrNull()?.let { userId to it }
-                            }
-                        }
+                    // Prepare split parameters
+                    val splitWith = if (enableSplitting && selectedMembers.isNotEmpty()) {
+                        selectedMembers.toList()
+                    } else null
+                    
+                    val splitType = if (enableSplitting && selectedMembers.isNotEmpty()) {
+                        if (splitEqually) ExpenseSplitType.EQUAL else ExpenseSplitType.AMOUNT
+                    } else null
+                    
+                    val splitAmounts = if (enableSplitting && !splitEqually && selectedMembers.isNotEmpty()) {
+                        selectedMembers.mapNotNull { userId ->
+                            customSplits[userId]?.toBigDecimalOrNull()?.let { userId to it }
+                        }.toMap()
                     } else null
 
-                    viewModel.createExpense(
+                    // Parse date to kotlinx.datetime.LocalDate
+                    val parsedDate = try {
+                        val parts = date.split("-")
+                        LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
+                    } catch (e: Exception) {
+                        kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    }
+
+                    viewModel.createOneTimeExpense(
                         houseId = houseId,
                         name = name,
-                        amount = amt,
-                        date = date,
+                        amount = BigDecimal.valueOf(amt),
                         category = category,
+                        date = parsedDate,
                         notes = notes.takeIf { it.isNotBlank() },
-                        splits = splits,
-                        onSuccess = {
-                            isLoading = false
-                            onExpenseAdded()
-                        },
-                        onError = { errorMessage ->
-                            isLoading = false
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Error: $errorMessage")
-                            }
-                        }
+                        splitWith = splitWith,
+                        splitType = splitType,
+                        splitAmounts = splitAmounts
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !isLoading && name.isNotBlank() && amount.toDoubleOrNull() != null && date.isNotBlank(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

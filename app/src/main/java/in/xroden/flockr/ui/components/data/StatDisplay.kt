@@ -13,9 +13,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import `in`.xroden.flockr.ui.theme.NumericDisplayMedium
-import `in`.xroden.flockr.ui.theme.NumericDisplaySmall
-import `in`.xroden.flockr.ui.theme.OverlineLabel
 
 /**
  * StatDisplay - Component for displaying key metrics/statistics
@@ -32,7 +29,7 @@ fun StatDisplay(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -40,7 +37,7 @@ fun StatDisplay(
         // Label/Category
         Text(
             text = label.uppercase(),
-            style = OverlineLabel,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 1.sp
         )
@@ -81,7 +78,7 @@ fun CompactStatDisplay(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

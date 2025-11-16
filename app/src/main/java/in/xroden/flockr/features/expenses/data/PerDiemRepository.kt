@@ -1,25 +1,23 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import android.content.ContentValues.TAG
-import `in`.xroden.flockr.data.model.CreateNotificationParams
-import `in`.xroden.flockr.data.model.GetPerDiemBillByMonthParams
-import `in`.xroden.flockr.data.model.GetPerDiemBillParams
-import `in`.xroden.flockr.data.model.GetPerDiemEntriesWithDetailsParams
-import `in`.xroden.flockr.data.model.PerDiemConfigActivation
-import `in`.xroden.flockr.data.model.PerDiemConfigInsert
-import `in`.xroden.flockr.data.model.PerDiemConfigUpdate
-import `in`.xroden.flockr.data.model.PerDiemEntryInsert
+import `in`.xroden.flockr.data.dto.PerDiemConfigInsert
+import `in`.xroden.flockr.data.dto.PerDiemConfigUpdate
+import `in`.xroden.flockr.data.dto.PerDiemEntryInsert
+import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
+import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntry
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
-import `in`.xroden.flockr.features.auth.model.Profile
-import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import kotlinx.datetime.LocalDate
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,9 +28,8 @@ class PerDiemRepository @Inject constructor(
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    suspend fun getPerDiemConfigs(houseId: String): List<PerDiemConfig> {
+    suspend fun getPerDiemConfigs(houseId: String): Result<List<PerDiemConfig>> {
         return try {
-            android.util.Log.d("PerDiemRepository", "Getting per-diem configs for house: $houseId")
             val configs = supabase.from("per_diem_config")
                 .select(Columns.ALL) {
                     filter {
@@ -41,17 +38,16 @@ class PerDiemRepository @Inject constructor(
                     }
                 }
                 .decodeList<PerDiemConfig>()
-            android.util.Log.d("PerDiemRepository", "Found ${configs.size} per-diem configs")
-            configs
+
+            Result.success(configs)
         } catch (e: Exception) {
-            android.util.Log.e("PerDiemRepository", "Error getting per-diem configs", e)
-            emptyList()
+            Result.failure(e)
         }
     }
 
-    suspend fun getPerDiemEntries(houseId: String, configId: String? = null): List<PerDiemEntry> {
+    suspend fun getPerDiemEntries(houseId: String, configId: String? = null): Result<List<PerDiemEntry>> {
         return try {
-            supabase.from("per_diem_entries")
+            val entries = supabase.from("per_diem_entries")
                 .select(Columns.ALL) {
                     filter {
                         if (configId != null) {
@@ -61,58 +57,58 @@ class PerDiemRepository @Inject constructor(
                     order("date", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<PerDiemEntry>()
+
+            Result.success(entries)
         } catch (e: Exception) {
-            emptyList()
+            Result.failure(e)
         }
     }
 
     suspend fun createPerDiemConfig(
         houseId: String,
         itemName: String,
-        rate: Double,
+        rate: BigDecimal,
         category: String,
         unit: String
     ): Result<PerDiemConfig> {
         return try {
-            android.util.Log.d("PerDiemRepository", "Creating per-diem config: $itemName")
-            val configInsert = PerDiemConfigInsert(
-                houseId = houseId,
-                itemName = itemName,
-                rate = rate,
-                category = category,
-                unit = unit,
-                isActive = true
-            )
             val config = supabase.from("per_diem_config")
-                .insert(configInsert) {
+                .insert(
+                    PerDiemConfigInsert(
+                        houseId = houseId,
+                        itemName = itemName,
+                        rate = rate,
+                        category = category,
+                        unit = unit
+                    )
+                ) {
                     select()
                 }
                 .decodeSingle<PerDiemConfig>()
 
-            android.util.Log.d("PerDiemRepository", "Per-diem config created with id: ${config.id}")
             Result.success(config)
         } catch (e: Exception) {
-            android.util.Log.e("PerDiemRepository", "Error creating per-diem config", e)
             Result.failure(e)
         }
     }
 
     suspend fun updatePerDiemConfig(
         configId: String,
-        itemName: String,
-        rate: Double,
-        category: String,
-        unit: String
+        itemName: String?,
+        rate: BigDecimal?,
+        category: String?,
+        unit: String?
     ): Result<Unit> {
         return try {
-            val update = PerDiemConfigUpdate(
-                itemName = itemName,
-                rate = rate,
-                category = category,
-                unit = unit
-            )
             supabase.from("per_diem_config")
-                .update(update) {
+                .update(
+                    PerDiemConfigUpdate(
+                        itemName = itemName,
+                        rate = rate,
+                        category = category,
+                        unit = unit
+                    )
+                ) {
                     filter {
                         eq("id", configId)
                     }
@@ -127,7 +123,6 @@ class PerDiemRepository @Inject constructor(
     suspend fun deletePerDiemConfig(configId: String, deleteUsage: Boolean = false): Result<Unit> {
         return try {
             if (deleteUsage) {
-                // Delete all associated usage entries first
                 supabase.from("per_diem_entries")
                     .delete {
                         filter {
@@ -136,10 +131,11 @@ class PerDiemRepository @Inject constructor(
                     }
             }
 
-            // Soft delete the config by setting isActive to false
-            val activation = PerDiemConfigActivation(isActive = false)
+            // Soft delete by setting isActive to false
             supabase.from("per_diem_config")
-                .update(activation) {
+                .update(
+                    PerDiemConfigUpdate(isActive = false)
+                ) {
                     filter {
                         eq("id", configId)
                     }
@@ -154,84 +150,62 @@ class PerDiemRepository @Inject constructor(
     suspend fun addPerDiemEntry(
         houseId: String,
         configId: String,
-        quantity: Double,
-        date: String,
-        itemName: String
+        quantity: BigDecimal,
+        date: LocalDate,
+        itemName: String,
+        notes: String? = null
     ): Result<PerDiemEntry> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            val entryInsert = PerDiemEntryInsert(
-                configId = configId,
-                quantity = quantity,
-                date = date,
-                addedBy = currentUserId,
-                notes = null
-            )
             val entry = supabase.from("per_diem_entries")
-                .insert(entryInsert) {
+                .insert(
+                    PerDiemEntryInsert(
+                        configId = configId,
+                        quantity = quantity,
+                        date = date,
+                        addedBy = currentUserId,
+                        notes = notes
+                    )
+                ) {
                     select()
                 }
                 .decodeSingle<PerDiemEntry>()
 
-            // Get user name for notification
-            val userName = try {
-                val profile = supabase.from("profiles")
-                    .select(Columns.raw("full_name")) {
-                        filter { eq("user_id", currentUserId) }
-                    }
-                    .decodeSingle<Profile>()
-                profile.fullName ?: "Someone"
-            } catch (e: Exception) {
-                "Someone"
-            }
-
-            // Create notification for house members
-            val notificationParams = CreateNotificationParams(
-                houseId = houseId,
-                title = "Per-Diem Entry Added",
-                message = "$userName added $itemName entry: $quantity units.",
-                type = "per_diem",
-                data = """{"id":"${entry.id}","type":"per_diem","item":"$itemName"}""",
-                excludeUserId = currentUserId
-            )
+            // Create notification
             try {
+                @Serializable
+                data class HouseNotificationParams(
+                    @SerialName("p_house_id")
+                    val houseId: String,
+                    @SerialName("p_title")
+                    val title: String,
+                    @SerialName("p_message")
+                    val message: String,
+                    @SerialName("p_type")
+                    val type: String,
+                    @SerialName("p_data")
+                    val data: String,
+                    @SerialName("p_exclude_user_id")
+                    val excludeUserId: String?
+                )
+
                 supabase.postgrest.rpc(
                     function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
-                FlockrLogger.d(TAG, "createPerDiemEntry: Notification created successfully")
+                    parameters = HouseNotificationParams(
+                        houseId = houseId,
+                        title = "Per-Diem Entry Added",
+                        message = "Added $itemName entry: $quantity units.",
+                        type = "per_diem",
+                        data = """{"id":"${entry.id}","type":"per_diem","item":"$itemName"}""",
+                        excludeUserId = currentUserId
+                    )
+                )
             } catch (e: Exception) {
                 // Ignore notification errors
-                FlockrLogger.e(TAG, "createPerDiemEntry: Failed to create notification (non-critical)", e)
             }
 
             Result.success(entry)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun updatePerDiemEntry(
-        entryId: String,
-        quantity: Double,
-        date: String,
-        notes: String?
-    ): Result<Unit> {
-        return try {
-            val update = mapOf(
-                "quantity" to quantity,
-                "date" to date,
-                "notes" to notes
-            )
-            supabase.from("per_diem_entries")
-                .update(update) {
-                    filter {
-                        eq("id", entryId)
-                    }
-                }
-
-            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -252,47 +226,79 @@ class PerDiemRepository @Inject constructor(
         }
     }
 
-    suspend fun getPerDiemEntriesWithDetails(houseId: String, month: String? = null): List<PerDiemEntryWithDetails> {
+    suspend fun getPerDiemBill(houseId: String, month: String): Result<List<PerDiemBillItemized>> {
         return try {
-            val monthDate = if (month != null && month.length == 7) "$month-01" else month
-            val params = GetPerDiemEntriesWithDetailsParams(houseId = houseId, month = monthDate)
-            supabase.postgrest.rpc(
-                function = "get_per_diem_entries_with_details",
-                parameters = params
-            ).decodeList<PerDiemEntryWithDetails>()
+            @Serializable
+            data class PerDiemBillParams(
+                @SerialName("target_house_id")
+                val houseId: String,
+                @SerialName("target_year_month")
+                val month: String
+            )
+
+            val bill = supabase.postgrest.rpc(
+                function = "get_per_diem_bill",
+                parameters = PerDiemBillParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeAs<List<PerDiemBillItemized>>()
+
+            Result.success(bill)
         } catch (e: Exception) {
-            android.util.Log.e("PerDiemRepository", "Error getting per diem entries with details", e)
-            emptyList()
+            Result.failure(e)
         }
     }
 
-    suspend fun getPerDiemBillItemized(houseId: String, month: String): Map<String, Any>? {
+    suspend fun getPerDiemBillByMember(houseId: String, month: String): Result<List<PerDiemBillByMember>> {
         return try {
-            val params = GetPerDiemBillByMonthParams(
-                houseId = houseId,
-                month = month
+            @Serializable
+            data class PerDiemBillByMemberParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_month")
+                val month: String
             )
-            supabase.postgrest.rpc(
-                function = "get_per_diem_bill_itemized",
-                parameters = params
-            ).decodeSingle<Map<String, Any>>()
-        } catch (e: Exception) {
-            null
-        }
-    }
 
-    suspend fun getPerDiemBillByMember(houseId: String, month: String): Map<String, Any>? {
-        return try {
-            val params = GetPerDiemBillByMonthParams(
-                houseId = houseId,
-                month = month
-            )
-            supabase.postgrest.rpc(
+            val bill = supabase.postgrest.rpc(
                 function = "get_per_diem_bill_by_member",
-                parameters = params
-            ).decodeSingle<Map<String, Any>>()
+                parameters = PerDiemBillByMemberParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeAs<List<PerDiemBillByMember>>()
+
+            Result.success(bill)
         } catch (e: Exception) {
-            null
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPerDiemEntriesWithDetails(
+        houseId: String,
+        month: LocalDate? = null
+    ): Result<List<PerDiemEntryWithDetails>> {
+        return try {
+            @Serializable
+            data class PerDiemEntriesParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_month")
+                @Serializable(with = `in`.xroden.flockr.data.serialization.LocalDateSerializer::class)
+                val month: LocalDate? = null
+            )
+
+            val entries = supabase.postgrest.rpc(
+                function = "get_per_diem_entries_with_details",
+                parameters = PerDiemEntriesParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeAs<List<PerDiemEntryWithDetails>>()
+
+            Result.success(entries)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

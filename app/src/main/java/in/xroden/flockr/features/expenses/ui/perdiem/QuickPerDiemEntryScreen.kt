@@ -114,7 +114,7 @@ fun QuickPerDiemEntryScreen(
                     OutlinedButton(
                         onClick = onNavigateToTransactions,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Icon(
                             imageVector = Icons.Default.Receipt,
@@ -151,7 +151,7 @@ private fun PerDiemQuickSelectCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -245,7 +245,7 @@ private fun EmptyPerDiemConfigState(
 
         Button(
             onClick = onSetupConfig,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))

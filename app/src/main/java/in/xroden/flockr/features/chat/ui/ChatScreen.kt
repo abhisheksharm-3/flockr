@@ -1,11 +1,9 @@
 package `in`.xroden.flockr.features.chat.ui
 
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.chat.domain.ChatUiState
 import `in`.xroden.flockr.features.chat.domain.ChatViewModel
 
@@ -96,55 +93,54 @@ fun ChatScreen(
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Type a message...") },
                         maxLines = 3,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
                     
-                    val sendInteraction = remember { MutableInteractionSource() }
-                    val isSendPressed by sendInteraction.collectIsPressedAsState()
-                    
-                    val sendScale by animateFloatAsState(
-                        targetValue = if (isSendPressed) 0.9f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                    )
-                    
-                    Surface(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .scale(sendScale)
-                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            .clickable(
-                                interactionSource = sendInteraction,
-                                indication = null,
-                                enabled = messageText.isNotBlank()
-                            ) {
-                                if (messageText.isNotBlank()) {
-                                    val houseName = if (uiState is ChatUiState.Success) {
-                                        (uiState as ChatUiState.Success).houseName
-                                    } else "House"
-                                    viewModel.sendMessage(houseId, messageText, houseName)
-                                    messageText = ""
-                                }
-                            },
-                        shape = CircleShape,
-                        color = if (messageText.isNotBlank()) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.surfaceVariant
+                    IconButton(
+                        onClick = {
+                            if (messageText.isNotBlank()) {
+                                val houseName = if (uiState is ChatUiState.Success) {
+                                    (uiState as ChatUiState.Success).houseName
+                                } else "House"
+                                viewModel.sendMessage(houseId, messageText, houseName)
+                                messageText = ""
+                            }
+                        },
+                        enabled = messageText.isNotBlank(),
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                "Send",
-                                tint = if (messageText.isNotBlank()) 
-                                    MaterialTheme.colorScheme.onPrimary 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                        Surface(
+                            shape = CircleShape,
+                            color = if (messageText.isNotBlank())
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(
+                                2.dp,
+                                if (messageText.isNotBlank())
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.outline
                             )
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    "Send",
+                                    tint = if (messageText.isNotBlank())
+                                        MaterialTheme.colorScheme.onPrimary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -175,9 +171,9 @@ fun ChatScreen(
                         ) {
                             Surface(
                                 modifier = Modifier.size(80.dp).border(
-                                    2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)
+                                    2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.medium
                                 ),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -211,12 +207,10 @@ fun ChatScreen(
                         reverseLayout = true
                     ) {
                         items(state.messages.reversed()) { message ->
-                            FadeInListItem {
-                                MessageBubble(
-                                    message = message,
-                                    currentUserId = viewModel.getCurrentUserId()
-                                )
-                            }
+                            MessageBubble(
+                                message = message,
+                                currentUserId = viewModel.getCurrentUserId()
+                            )
                         }
 
                         // Security Warning Banner at the bottom (shows at top due to reverseLayout)
@@ -225,7 +219,7 @@ fun ChatScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                                 )

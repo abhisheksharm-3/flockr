@@ -124,7 +124,7 @@ fun RecurringExpensesScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Bill") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -169,7 +169,7 @@ fun RecurringExpensesScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 ),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = MaterialTheme.shapes.large
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -267,7 +267,7 @@ fun RecurringExpensesScreen(
                         )
                         Button(
                             onClick = { viewModel.loadRecurringExpenses(houseId) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -395,7 +395,7 @@ fun RecurringExpenseCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -422,7 +422,7 @@ fun RecurringExpenseCard(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(getCategoryColor(expense.category).copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
@@ -515,7 +515,7 @@ fun RecurringExpenseCard(
 
                 // Status Badge
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = statusBg
                 ) {
                     Text(
@@ -653,7 +653,7 @@ fun RecurringExpenseCard(
                 Button(
                     onClick = onMarkAsPaid,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -756,12 +756,12 @@ fun EmptyRecurringState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
+                    MaterialTheme.shapes.large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -858,7 +858,7 @@ fun EditRecurringExpenseDialog(
         modifier = Modifier.fillMaxWidth()
     ) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
         ) {
@@ -884,7 +884,7 @@ fun EditRecurringExpenseDialog(
                     label = { Text("Bill Name") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Amount
@@ -895,7 +895,7 @@ fun EditRecurringExpenseDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Due Day
@@ -906,7 +906,7 @@ fun EditRecurringExpenseDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Category
@@ -921,7 +921,7 @@ fun EditRecurringExpenseDialog(
                         label = { Text("Category") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
                     ExposedDropdownMenu(
                         expanded = expandedCategory,
@@ -951,7 +951,7 @@ fun EditRecurringExpenseDialog(
                         label = { Text("Frequency") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
                     ExposedDropdownMenu(
                         expanded = expandedFrequency,
@@ -978,7 +978,7 @@ fun EditRecurringExpenseDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
 
@@ -1007,7 +1007,7 @@ fun EditRecurringExpenseDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
 
@@ -1019,7 +1019,7 @@ fun EditRecurringExpenseDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Action Buttons
@@ -1030,7 +1030,7 @@ fun EditRecurringExpenseDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -1051,7 +1051,7 @@ fun EditRecurringExpenseDialog(
                             onSave(updatedExpense)
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = MaterialTheme.shapes.medium,
                         enabled = name.isNotBlank() &&
                                  amount.toDoubleOrNull() != null &&
                                  dueDay.toIntOrNull() in 1..31

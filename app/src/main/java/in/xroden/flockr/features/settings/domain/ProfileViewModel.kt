@@ -1,10 +1,8 @@
 package `in`.xroden.flockr.features.settings.domain
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.features.auth.data.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,21 +15,11 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    companion object {
-        private const val TAG = "ProfileViewModel"
-    }
+    private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
-    private val _profile = MutableStateFlow<Profile?>(null)
-    val profile: StateFlow<Profile?> = _profile.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
-
-    private val _updateSuccess = MutableStateFlow(false)
-    val updateSuccess: StateFlow<Boolean> = _updateSuccess.asStateFlow()
+    private val _updateState = MutableStateFlow<UpdateProfileUiState>(UpdateProfileUiState.Idle)
+    val updateState: StateFlow<UpdateProfileUiState> = _updateState.asStateFlow()
 
     init {
         loadProfile()
@@ -39,76 +27,57 @@ class ProfileViewModel @Inject constructor(
 
     fun loadProfile() {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-
-            Log.d(TAG, "loadProfile: Loading user profile")
-
-            try {
-                val profile = authRepository.getProfile()
-                if (profile != null) {
-                    Log.d(TAG, "loadProfile: Success - ${profile.fullName}")
-                    _profile.value = profile
-                } else {
-                    Log.e(TAG, "loadProfile: Profile is null")
-                    _error.value = "Failed to load profile"
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "loadProfile: Failed", e)
-                _error.value = e.message ?: "Failed to load profile"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun updateProfile(fullName: String) {
-        if (fullName.isBlank()) {
-            _error.value = "Name cannot be empty"
-            return
-        }
-
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            _updateSuccess.value = false
-
-            Log.d(TAG, "updateProfile: Updating profile with name=$fullName")
-
-            val result = authRepository.updateProfile(fullName = fullName, hasCompletedOnboarding = null)
-            result.fold(
-                onSuccess = {
-                    Log.d(TAG, "updateProfile: Success")
-                    _updateSuccess.value = true
-                    _isLoading.value = false
-                    // Reload profile to get updated data
-                    loadProfile()
+            _uiState.value = ProfileUiState.Loading
+            
+            authRepository.getProfile().fold(
+                onSuccess = { profile ->
+                    if (profile != null) {
+                        _uiState.value = ProfileUiState.Success(profile)
+                    } else {
+                        _uiState.value = ProfileUiState.Error("Profile not found")
+                    }
                 },
-                onFailure = { e ->
-                    Log.e(TAG, "updateProfile: Failed", e)
-                    _error.value = e.message ?: "Failed to update profile"
-                    _isLoading.value = false
+                onFailure = { error ->
+                    _uiState.value = ProfileUiState.Error(
+                        message = error.message ?: "Failed to load profile"
+                    )
                 }
             )
         }
     }
 
-    fun clearError() {
-        _error.value = null
+    fun updateProfile(fullName: String) {
+        if (fullName.isBlank()) {
+            _updateState.value = UpdateProfileUiState.Error("Name cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            _updateState.value = UpdateProfileUiState.Loading
+            
+            authRepository.updateProfile(fullName = fullName, hasCompletedOnboarding = null).fold(
+                onSuccess = {
+                    _updateState.value = UpdateProfileUiState.Success
+                    // Reload profile to get updated data
+                    loadProfile()
+                    kotlinx.coroutines.delay(1000)
+                    _updateState.value = UpdateProfileUiState.Idle
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateProfileUiState.Error(
+                        message = error.message ?: "Failed to update profile"
+                    )
+                }
+            )
+        }
     }
 
-    fun clearUpdateSuccess() {
-        _updateSuccess.value = false
+    fun resetUpdateState() {
+        _updateState.value = UpdateProfileUiState.Idle
     }
 
-    fun updateProfileName(fullName: String) {
-        updateProfile(fullName)
-    }
-
-    fun uploadProfilePicture(imageData: ByteArray, onSuccess: (String) -> Unit) {
+    fun uploadProfilePicture(imageData: ByteArray) {
         // TODO: Implement profile picture upload when storage is configured
-        Log.d(TAG, "uploadProfilePicture: Not yet implemented")
-        // For now, just log that this feature is not available
+        _updateState.value = UpdateProfileUiState.Error("Profile picture upload not yet implemented")
     }
 }
-
