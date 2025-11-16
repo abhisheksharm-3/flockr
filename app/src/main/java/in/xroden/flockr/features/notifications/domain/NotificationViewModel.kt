@@ -3,7 +3,6 @@ package `in`.xroden.flockr.features.notifications.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.data.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,50 +18,63 @@ class NotificationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<NotificationUiState>(NotificationUiState.Loading)
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
 
-    private val _unreadCount = MutableStateFlow(0)
-    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
-
     init {
         loadNotifications()
-        loadUnreadCount()
     }
 
     private fun loadNotifications() {
         viewModelScope.launch {
-            try {
-                notificationRepository.getNotificationsFlow().collect { notifications ->
-                    _uiState.value = NotificationUiState.Success(notifications)
-                    // Update unread count in real-time when notifications change
-                    _unreadCount.value = notifications.count { !it.isRead }
-                }
-            } catch (e: Exception) {
-                _uiState.value = NotificationUiState.Error(e.message ?: "Failed to load notifications")
+            _uiState.value = NotificationUiState.Loading
+            
+            notificationRepository.getNotificationsFlow().collect { result ->
+                result.fold(
+                    onSuccess = { notifications ->
+                        val unreadCount = notifications.count { !it.isRead }
+                        _uiState.value = NotificationUiState.Success(
+                            notifications = notifications,
+                            unreadCount = unreadCount
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = NotificationUiState.Error(
+                            message = error.message ?: "Failed to load notifications",
+                            cause = error
+                        )
+                    }
+                )
             }
         }
     }
 
-    private fun loadUnreadCount() {
-        // This is now handled in loadNotifications() for real-time updates
-    }
-
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
-            notificationRepository.markAsRead(notificationId)
-            loadUnreadCount()
+            notificationRepository.markNotificationAsRead(notificationId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = NotificationUiState.Error(
+                        message = error.message ?: "Failed to mark as read",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
-    fun markAllAsRead() {
+    fun deleteNotification(notificationId: String) {
         viewModelScope.launch {
-            notificationRepository.markAllAsRead()
-            loadUnreadCount()
+            notificationRepository.deleteNotification(notificationId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = NotificationUiState.Error(
+                        message = error.message ?: "Failed to delete notification",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 }
-
-sealed class NotificationUiState {
-    object Loading : NotificationUiState()
-    data class Success(val notifications: List<Notification>) : NotificationUiState()
-    data class Error(val message: String) : NotificationUiState()
-}
-

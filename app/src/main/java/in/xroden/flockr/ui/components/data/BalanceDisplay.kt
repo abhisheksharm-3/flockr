@@ -2,7 +2,6 @@ package `in`.xroden.flockr.ui.components.data
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -13,14 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import `in`.xroden.flockr.ui.theme.*
 
 /**
  * BalanceDisplay - Component for showing financial balances with +/- indicators
- * Positive = green (money owed to you), Negative = red (money you owe)
+ * Positive = tertiary color (money owed to you), Negative = error color (money you owe)
  */
 @Composable
 fun BalanceDisplay(
@@ -36,19 +33,19 @@ fun BalanceDisplay(
     
     val backgroundColor = when {
         isNeutral -> MaterialTheme.colorScheme.surfaceVariant
-        isPositive -> PositiveGreenLight
-        else -> NegativeRedLight
+        isPositive -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.errorContainer
     }
     
     val textColor = when {
-        isNeutral -> NeutralBalance
-        isPositive -> PositiveGreen
-        else -> NegativeRed
+        isNeutral -> MaterialTheme.colorScheme.onSurfaceVariant
+        isPositive -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
     
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(backgroundColor)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -56,7 +53,7 @@ fun BalanceDisplay(
         label?.let {
             Text(
                 text = it.uppercase(),
-                style = OverlineLabel,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -83,9 +80,9 @@ fun BalanceDisplay(
             Text(
                 text = formatBalance(amount, currencySymbol),
                 style = when (size) {
-                    BalanceSize.Large -> NumericDisplayMedium
-                    BalanceSize.Medium -> NumericDisplaySmall
-                    BalanceSize.Small -> NumericBody
+                    BalanceSize.Large -> MaterialTheme.typography.displayMedium
+                    BalanceSize.Medium -> MaterialTheme.typography.displaySmall
+                    BalanceSize.Small -> MaterialTheme.typography.headlineSmall
                 },
                 color = textColor,
                 fontWeight = FontWeight.Bold
@@ -108,8 +105,8 @@ fun CompactBalanceDisplay(
     
     val textColor = when {
         isNeutral -> MaterialTheme.colorScheme.onSurfaceVariant
-        isPositive -> PositiveGreen
-        else -> NegativeRed
+        isPositive -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
     
     Row(

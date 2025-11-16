@@ -19,8 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
-import `in`.xroden.flockr.ui.theme.NegativeRed
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import kotlinx.coroutines.launch
@@ -152,7 +150,7 @@ fun BalancesScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Column(
                                 modifier = Modifier
@@ -165,7 +163,7 @@ fun BalancesScreen(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
-                                    tint = PositiveGreen
+                                    tint = MaterialTheme.colorScheme.tertiary
                                 )
                                 Text(
                                     text = "All Settled Up!",
@@ -202,7 +200,7 @@ fun BalancesScreen(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -255,7 +253,7 @@ fun BalanceCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -288,17 +286,17 @@ fun BalanceCard(
 
                 // Balance Amount
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.medium,
                     color = if (theyOweUs)
-                        PositiveGreen.copy(alpha = 0.1f)  // Good for us
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)  // Good for us
                     else
-                        NegativeRed.copy(alpha = 0.1f)    // Bad for us
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.1f)    // Bad for us
                 ) {
                     Text(
                         text = "$currencySymbol${"%.2f".format(amount)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (theyOweUs) PositiveGreen else NegativeRed,
+                        color = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
@@ -309,7 +307,7 @@ fun BalanceCard(
                 Button(
                     onClick = onSettleClick,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -337,7 +335,7 @@ fun SettleBalanceDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -376,7 +374,7 @@ fun SettleBalanceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Description Field
@@ -387,7 +385,7 @@ fun SettleBalanceDialog(
                     placeholder = { Text("e.g., Cash payment") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Buttons
@@ -398,7 +396,7 @@ fun SettleBalanceDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -410,7 +408,7 @@ fun SettleBalanceDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = amount.toDoubleOrNull() != null && amount.toDoubleOrNull()!! > 0,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Settle")
                     }

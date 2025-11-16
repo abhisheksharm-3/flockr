@@ -5,161 +5,175 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
 import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
-import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
-import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
-import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
-import `in`.xroden.flockr.features.expenses.model.PerDiemEntry
-import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
-import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
 class PerDiemViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
-    private val perDiemRepository: PerDiemRepository,
-    private val houseRepository: `in`.xroden.flockr.features.house.data.HouseRepository
+    private val perDiemRepository: PerDiemRepository
 ) : ViewModel() {
 
-    private val _configs = MutableStateFlow<List<PerDiemConfig>>(emptyList())
-    val configs: StateFlow<List<PerDiemConfig>> = _configs.asStateFlow()
+    private val _configState = MutableStateFlow<PerDiemConfigUiState>(PerDiemConfigUiState.Loading)
+    val configState: StateFlow<PerDiemConfigUiState> = _configState.asStateFlow()
 
-    private val _entries = MutableStateFlow<List<PerDiemEntry>>(emptyList())
-    val entries: StateFlow<List<PerDiemEntry>> = _entries.asStateFlow()
+    private val _entryState = MutableStateFlow<PerDiemEntryUiState>(PerDiemEntryUiState.Loading)
+    val entryState: StateFlow<PerDiemEntryUiState> = _entryState.asStateFlow()
 
-    private val _entriesWithDetails = MutableStateFlow<List<PerDiemEntryWithDetails>>(emptyList())
-    val entriesWithDetails: StateFlow<List<PerDiemEntryWithDetails>> = _entriesWithDetails.asStateFlow()
-
-    private val _perDiemBillItemized = MutableStateFlow<List<PerDiemBillItemized>>(emptyList())
-    val perDiemBillItemized: StateFlow<List<PerDiemBillItemized>> = _perDiemBillItemized.asStateFlow()
-
-    private val _perDiemBillByMember = MutableStateFlow<List<PerDiemBillByMember>>(emptyList())
-    val perDiemBillByMember: StateFlow<List<PerDiemBillByMember>> = _perDiemBillByMember.asStateFlow()
-
-    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
-    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    private val _billState = MutableStateFlow<PerDiemBillUiState>(PerDiemBillUiState.Loading)
+    val billState: StateFlow<PerDiemBillUiState> = _billState.asStateFlow()
 
     fun loadConfigs(houseId: String) {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val configs = perDiemRepository.getPerDiemConfigs(houseId)
-                _configs.value = configs
-                loadHouseConfig(houseId)
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load per-diem configurations"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun loadHouseConfig(houseId: String) {
-        viewModelScope.launch {
-            try {
-                val config = houseRepository.getHouseConfig(houseId)
-                _houseConfig.value = config
-            } catch (e: Exception) {
-                android.util.Log.e("PerDiemViewModel", "Failed to load house config", e)
-            }
-        }
-    }
-
-    fun loadPerDiemReports(houseId: String, month: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val itemized = expenseRepository.getPerDiemBillItemized(houseId, month)
-                val byMember = expenseRepository.getPerDiemBillByMember(houseId, month)
-
-                _perDiemBillItemized.value = itemized
-                _perDiemBillByMember.value = byMember
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load per-diem reports"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun loadEntriesWithDetails(houseId: String, month: String? = null) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val entries = perDiemRepository.getPerDiemEntriesWithDetails(houseId, month)
-                _entriesWithDetails.value = entries
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load per-diem entries"
-                android.util.Log.e("PerDiemViewModel", "Failed to load entries with details", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun createPerDiemEntry(
-        configId: String,
-        houseId: String,
-        quantity: Double,
-        date: String,
-        notes: String?,
-        itemName: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit = {}
-    ) {
-        viewModelScope.launch {
-            expenseRepository.createPerDiemEntry(
-                configId, houseId, quantity, date, notes, itemName
-            ).fold(
-                onSuccess = { onSuccess() },
-                onFailure = {
-                    val errorMessage = it.message ?: "Failed to create per-diem entry"
-                    _error.value = errorMessage
-                    onError(errorMessage)
+            _configState.value = PerDiemConfigUiState.Loading
+            
+            perDiemRepository.getPerDiemConfigs(houseId).fold(
+                onSuccess = { configs ->
+                    _configState.value = PerDiemConfigUiState.Success(configs)
+                },
+                onFailure = { error ->
+                    _configState.value = PerDiemConfigUiState.Error(
+                        message = error.message ?: "Failed to load per-diem configurations"
+                    )
                 }
             )
         }
     }
 
-    fun clearError() {
-        _error.value = null
+    fun loadEntriesWithDetails(houseId: String, month: String? = null) {
+        viewModelScope.launch {
+            _entryState.value = PerDiemEntryUiState.Loading
+            
+            perDiemRepository.getPerDiemEntriesWithDetails(houseId, month).fold(
+                onSuccess = { entries ->
+                    _entryState.value = PerDiemEntryUiState.Success(entries)
+                },
+                onFailure = { error ->
+                    _entryState.value = PerDiemEntryUiState.Error(
+                        message = error.message ?: "Failed to load per-diem entries"
+                    )
+                }
+            )
+        }
     }
 
+    fun loadPerDiemReports(houseId: String, month: String) {
+        viewModelScope.launch {
+            _billState.value = PerDiemBillUiState.Loading
+            
+            val itemizedResult = expenseRepository.getPerDiemBillItemized(houseId, month)
+            val byMemberResult = expenseRepository.getPerDiemBillByMember(houseId, month)
+            
+            if (itemizedResult.isSuccess && byMemberResult.isSuccess) {
+                _billState.value = PerDiemBillUiState.Success(
+                    itemized = itemizedResult.getOrElse { emptyList() },
+                    byMember = byMemberResult.getOrElse { emptyList() }
+                )
+            } else {
+                val error = itemizedResult.exceptionOrNull() ?: byMemberResult.exceptionOrNull()
+                _billState.value = PerDiemBillUiState.Error(
+                    message = error?.message ?: "Failed to load per-diem reports"
+                )
+            }
+        }
+    }
 
-    suspend fun createConfig(
+    fun createConfig(
         houseId: String,
         itemName: String,
-        rate: Double,
+        rate: BigDecimal,
         category: String,
         unit: String
-    ): Result<PerDiemConfig> {
-        return perDiemRepository.createPerDiemConfig(houseId, itemName, rate, category, unit)
+    ) {
+        viewModelScope.launch {
+            perDiemRepository.createPerDiemConfig(houseId, itemName, rate, category, unit).fold(
+                onSuccess = {
+                    loadConfigs(houseId)
+                },
+                onFailure = { error ->
+                    _configState.value = PerDiemConfigUiState.Error(
+                        message = error.message ?: "Failed to create config"
+                    )
+                }
+            )
+        }
     }
 
-    suspend fun updateConfig(
+    fun updateConfig(
+        houseId: String,
         configId: String,
-        itemName: String,
-        rate: Double,
-        category: String,
-        unit: String
-    ): Result<Unit> {
-        return perDiemRepository.updatePerDiemConfig(configId, itemName, rate, category, unit)
+        itemName: String?,
+        rate: BigDecimal?,
+        category: String?,
+        unit: String?
+    ) {
+        viewModelScope.launch {
+            perDiemRepository.updatePerDiemConfig(configId, itemName, rate, category, unit).fold(
+                onSuccess = {
+                    loadConfigs(houseId)
+                },
+                onFailure = { error ->
+                    _configState.value = PerDiemConfigUiState.Error(
+                        message = error.message ?: "Failed to update config"
+                    )
+                }
+            )
+        }
     }
 
-    suspend fun deleteConfig(configId: String, deleteUsage: Boolean = false): Result<Unit> {
-        return perDiemRepository.deletePerDiemConfig(configId, deleteUsage)
+    fun deleteConfig(houseId: String, configId: String, deleteUsage: Boolean = false) {
+        viewModelScope.launch {
+            perDiemRepository.deletePerDiemConfig(configId, deleteUsage).fold(
+                onSuccess = {
+                    loadConfigs(houseId)
+                },
+                onFailure = { error ->
+                    _configState.value = PerDiemConfigUiState.Error(
+                        message = error.message ?: "Failed to delete config"
+                    )
+                }
+            )
+        }
+    }
+
+    fun createPerDiemEntry(
+        houseId: String,
+        configId: String,
+        quantity: BigDecimal,
+        date: LocalDate,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            perDiemRepository.createPerDiemEntry(configId, quantity, date, notes).fold(
+                onSuccess = {
+                    loadEntriesWithDetails(houseId)
+                },
+                onFailure = { error ->
+                    _entryState.value = PerDiemEntryUiState.Error(
+                        message = error.message ?: "Failed to create entry"
+                    )
+                }
+            )
+        }
+    }
+
+    fun deletePerDiemEntry(houseId: String, entryId: String) {
+        viewModelScope.launch {
+            perDiemRepository.deletePerDiemEntry(entryId).fold(
+                onSuccess = {
+                    loadEntriesWithDetails(houseId)
+                },
+                onFailure = { error ->
+                    _entryState.value = PerDiemEntryUiState.Error(
+                        message = error.message ?: "Failed to delete entry"
+                    )
+                }
+            )
+        }
     }
 }
-

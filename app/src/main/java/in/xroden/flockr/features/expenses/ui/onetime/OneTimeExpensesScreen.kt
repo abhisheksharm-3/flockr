@@ -25,7 +25,6 @@ import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
-import `in`.xroden.flockr.utils.Constants
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -81,7 +80,7 @@ fun OneTimeExpensesScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Expense") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -206,7 +205,7 @@ fun OneTimeExpensesScreen(
                         )
                         Button(
                             onClick = { viewModel.loadExpenses(houseId) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -309,7 +308,7 @@ fun ModernExpenseCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -348,7 +347,7 @@ fun ModernExpenseCard(
                 ) {
                     // Amount Badge
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
@@ -406,12 +405,12 @@ fun ModernExpenseCard(
             ) {
                 // Category Badge
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = getCategoryColor(expense.category).copy(alpha = 0.15f),
                     modifier = Modifier.border(
                         1.dp,
                         getCategoryColor(expense.category).copy(alpha = 0.3f),
-                        RoundedCornerShape(8.dp)
+                        MaterialTheme.shapes.extraSmall
                     )
                 ) {
                     Row(
@@ -474,12 +473,12 @@ fun EmptyExpensesState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
+                    MaterialTheme.shapes.large
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -513,7 +512,7 @@ fun EmptyExpensesState(
 
         Button(
             onClick = onAddExpense,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -577,7 +576,7 @@ fun MonthSelectorCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -649,7 +648,7 @@ fun MonthSelectorCard(
                 OutlinedButton(
                     onClick = onClearFilter,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(
                         Icons.Default.Close,
@@ -678,7 +677,7 @@ fun EditExpenseDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(

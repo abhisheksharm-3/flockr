@@ -250,7 +250,7 @@ fun ExpenseDashboardScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -280,7 +280,7 @@ fun ExpenseDashboardScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                                 ),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -343,7 +343,7 @@ fun ExpenseDashboardScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -376,7 +376,7 @@ fun RecentExpenseCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -423,7 +423,7 @@ fun RecentExpenseCard(
 
             // Right side - amount
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Text(

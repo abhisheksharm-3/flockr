@@ -28,7 +28,6 @@ import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.lists.ModernListItem
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
 
@@ -215,7 +214,7 @@ fun ManageMembersScreen(
                 icon = { Icon(Icons.Default.Add, "Invite") },
                 text = { Text("Invite Member") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -269,7 +268,7 @@ fun ManageMembersScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Column {
                                 // Header - Always visible
@@ -288,7 +287,7 @@ fun ManageMembersScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(40.dp)
-                                                .clip(RoundedCornerShape(10.dp))
+                                                .clip(MaterialTheme.shapes.medium)
                                                 .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -410,7 +409,7 @@ fun MemberListItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -427,7 +426,7 @@ fun MemberListItem(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
@@ -468,7 +467,7 @@ fun MemberListItem(
                     }
                     
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = roleColor,
                         modifier = Modifier.padding(0.dp)
                     ) {
@@ -517,7 +516,7 @@ fun InviteMemberDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -532,12 +531,12 @@ fun InviteMemberDialog(
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
+                        .clip(MaterialTheme.shapes.extraLarge)
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .border(
                             2.dp,
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            RoundedCornerShape(28.dp)
+                            MaterialTheme.shapes.extraLarge
                         )
                         .align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center
@@ -578,7 +577,7 @@ fun InviteMemberDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !isLoading,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 // Buttons
@@ -590,7 +589,7 @@ fun InviteMemberDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Cancel")
                     }
@@ -598,7 +597,7 @@ fun InviteMemberDialog(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading && email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -648,7 +647,7 @@ fun RemoveMemberDialog(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Remove")
             }
@@ -656,7 +655,7 @@ fun RemoveMemberDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Cancel")
             }
@@ -672,7 +671,7 @@ fun PendingInvitationItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
