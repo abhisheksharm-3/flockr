@@ -2,8 +2,6 @@ package `in`.xroden.flockr.features.expenses.ui.perdiem
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,8 +18,14 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
+import `in`.xroden.flockr.ui.theme.DateFormats
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import java.math.BigDecimal
 
 /**
  * Modern screen for adding daily per-diem entries.
@@ -37,19 +41,20 @@ fun PerDiemDailyEntryScreen(
     var selectedConfig by remember { mutableStateOf<PerDiemConfig?>(null) }
     var quantity by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
+        mutableStateOf(Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString())
     }
     var notes by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     
-    val configs by viewModel.configs.collectAsState()
+    val configState by viewModel.configState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
@@ -79,33 +84,75 @@ fun PerDiemDailyEntryScreen(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        if (configs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(32.dp)
+        when (val state = configState) {
+            is PerDiemConfigUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No Per Diem Items",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Add per diem config items first from the Per-Diem Config screen",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                    CircularProgressIndicator()
                 }
             }
-        } else {
-            LazyColumn(
+            is PerDiemConfigUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Text(
+                            text = "Error Loading Configs",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(onClick = { viewModel.loadConfigs(houseId) }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+            is PerDiemConfigUiState.Success -> {
+                val configs = state.configs
+                if (configs.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Text(
+                                text = "No Per Diem Items",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Add per diem config items first from the Per-Diem Config screen",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -172,7 +219,7 @@ fun PerDiemDailyEntryScreen(
                                             }
                                         )
                                         Text(
-                                            text = "$currencySymbol${"%.2f".format(config.rate)} per ${config.unit} • ${config.category}",
+                                            text = "$currencySymbol${"%.2f".format(config.rate.toDouble())} per ${config.unit} • ${config.category}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = if (isSelected) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
@@ -250,7 +297,7 @@ fun PerDiemDailyEntryScreen(
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
-                                            text = "$currencySymbol${"%.2f".format(quantityDouble * selectedConfig!!.rate)}",
+                                            text = "$currencySymbol${"%.2f".format(quantityDouble * selectedConfig!!.rate.toDouble())}",
                                             style = MaterialTheme.typography.headlineSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -289,29 +336,24 @@ fun PerDiemDailyEntryScreen(
 
                                 isLoading = true
                                 scope.launch {
-                                    viewModel.createPerDiemEntry(
-                                        configId = selectedConfig!!.id,
-                                        houseId = houseId,
-                                        quantity = quantityDouble,
-                                        date = date,
-                                        notes = notes.takeIf { it.isNotBlank() },
-                                        itemName = selectedConfig!!.itemName,
-                                        onSuccess = {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Entry added successfully")
-                                                quantity = ""
-                                                notes = ""
-                                                selectedConfig = null
-                                                isLoading = false
-                                            }
-                                        },
-                                        onError = { errorMessage ->
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Failed: $errorMessage")
-                                                isLoading = false
-                                            }
-                                        }
-                                    )
+                                    try {
+                                        viewModel.createPerDiemEntry(
+                                            houseId = houseId,
+                                            configId = selectedConfig!!.id,
+                                            quantity = BigDecimal(quantityDouble),
+                                            date = LocalDate.parse(date),
+                                            itemName = selectedConfig!!.itemName,
+                                            notes = notes.takeIf { it.isNotBlank() }
+                                        )
+                                        snackbarHostState.showSnackbar("Entry added successfully")
+                                        quantity = ""
+                                        notes = ""
+                                        selectedConfig = null
+                                        isLoading = false
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Failed: ${e.message}")
+                                        isLoading = false
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -341,6 +383,8 @@ fun PerDiemDailyEntryScreen(
                             }
                         }
                     }
+                }
+            }
                 }
             }
         }

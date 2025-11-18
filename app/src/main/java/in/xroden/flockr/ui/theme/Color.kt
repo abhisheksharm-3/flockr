@@ -76,3 +76,17 @@ val DarkColorScheme = darkColorScheme(
 
     scrim = Color(0x80000000)                 // Semi-transparent black
 )
+
+// =============================================================================
+// CATEGORY COLORS
+// Used for expense categories, charts, and visual categorization
+// =============================================================================
+
+val CategoryGreen = Color(0xFF4CAF50)      // Groceries, Food
+val CategoryBlue = Color(0xFF2196F3)       // Utilities, Services
+val CategoryPurple = Color(0xFF9C27B0)     // Entertainment
+val CategoryYellow = Color(0xFFFFC107)     // Transport
+val CategoryPink = Color(0xFFE91E63)       // Shopping
+val CategoryOrange = Color(0xFFFF5722)     // Rent, Housing
+val CategoryTeal = Color(0xFF009688)       // Healthcare
+val CategoryIndigo = Color(0xFF3F51B5)     // Education

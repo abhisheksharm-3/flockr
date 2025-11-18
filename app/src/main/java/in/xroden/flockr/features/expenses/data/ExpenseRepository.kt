@@ -34,6 +34,7 @@ import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.launch
 
 @Singleton
 class ExpenseRepository @Inject constructor(
@@ -69,10 +70,12 @@ class ExpenseRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -98,10 +101,12 @@ class ExpenseRepository @Inject constructor(
         houseId: String,
         name: String,
         amount: BigDecimal,
-        date: LocalDate,
         category: String,
+        date: LocalDate,
         notes: String?,
-        splits: List<Pair<String, BigDecimal>>? = null
+        splitWith: List<String>? = null,
+        splitType: `in`.xroden.flockr.data.enums.ExpenseSplitType? = null,
+        splitAmounts: Map<String, BigDecimal>? = null
     ): Result<OneTimeExpense> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
@@ -122,8 +127,8 @@ class ExpenseRepository @Inject constructor(
                 }
                 .decodeSingle<OneTimeExpense>()
 
-            if (splits != null && splits.isNotEmpty()) {
-                val validSplits = splits.filter { (splitUserId, _) ->
+            if (splitAmounts != null && splitAmounts.isNotEmpty()) {
+                val validSplits = splitAmounts.filter { (splitUserId, _) ->
                     splitUserId != currentUserId
                 }
 
@@ -248,10 +253,12 @@ class ExpenseRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -465,10 +472,12 @@ class ExpenseRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -528,6 +537,27 @@ class ExpenseRepository @Inject constructor(
                 }
 
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun settleBalance(
+        houseId: String,
+        payerId: String,
+        payeeId: String,
+        amount: BigDecimal,
+        description: String?
+    ): Result<Unit> {
+        return try {
+            createTransaction(
+                houseId = houseId,
+                payerId = payerId,
+                payeeId = payeeId,
+                amount = amount,
+                isSettlement = true,
+                description = description ?: "Balance settlement"
+            ).map { Unit }
         } catch (e: Exception) {
             Result.failure(e)
         }

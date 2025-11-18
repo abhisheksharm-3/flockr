@@ -110,7 +110,16 @@ class RecurringExpenseViewModel @Inject constructor(
                 amount = amount,
                 dueDay = dueDay,
                 category = category,
-                isActive = isActive
+                isActive = isActive,
+                frequency = null,
+                lastPaidDate = null,
+                customFrequencyDays = null,
+                reminderDaysBefore = null,
+                reminderEnabled = null,
+                notes = null,
+                splitWith = null,
+                splitType = null,
+                splitAmounts = null
             ).fold(
                 onSuccess = {
                     loadRecurringExpenses(houseId)
@@ -132,7 +141,7 @@ class RecurringExpenseViewModel @Inject constructor(
         paymentDate: LocalDate
     ) {
         viewModelScope.launch {
-            expenseRepository.recordPayment(expenseId, amount, paymentDate).fold(
+            expenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
                 onSuccess = {
                     loadRecurringExpenses(houseId)
                 },

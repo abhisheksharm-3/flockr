@@ -46,8 +46,8 @@ fun StatDisplay(
         Text(
             text = value,
             style = when (size) {
-                StatSize.Large -> NumericDisplayMedium
-                StatSize.Medium -> NumericDisplaySmall
+                StatSize.Large -> MaterialTheme.typography.displaySmall
+                StatSize.Medium -> MaterialTheme.typography.headlineMedium
                 StatSize.Small -> MaterialTheme.typography.headlineSmall
             },
             color = accentColor,

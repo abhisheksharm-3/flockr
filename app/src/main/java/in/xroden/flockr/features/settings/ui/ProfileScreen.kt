@@ -25,13 +25,17 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val profile by viewModel.profile.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val updateSuccess by viewModel.updateSuccess.collectAsState()
+    val profileUiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
 
     var editMode by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
+
+    // Extract profile from UI state
+    val profile = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
+        else -> null
+    }
 
     // Update editedName when profile loads
     LaunchedEffect(profile) {
@@ -41,9 +45,9 @@ fun ProfileScreen(
     }
 
     // Show snackbar on success
-    LaunchedEffect(updateSuccess) {
-        if (updateSuccess) {
-            viewModel.clearUpdateSuccess()
+    LaunchedEffect(updateState) {
+        if (updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Success) {
+            viewModel.resetUpdateState()
             editMode = false
         }
     }
@@ -80,13 +84,13 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when {
-                isLoading && profile == null -> {
+            when (val state = profileUiState) {
+                is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-                error != null && profile == null -> {
+                is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Error -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -95,9 +99,10 @@ fun ProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = error ?: "Failed to load profile",
+                            text = state.message,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
                         )
                         FlockrPrimaryButton(
                             onClick = { viewModel.loadProfile() },
@@ -105,7 +110,7 @@ fun ProfileScreen(
                         )
                     }
                 }
-                profile != null -> {
+                is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -174,14 +179,21 @@ fun ProfileScreen(
                                     singleLine = true
                                 )
 
-                                if (error != null) {
+                                val errorMessage = when (val state = updateState) {
+                                    is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error -> state.message
+                                    else -> null
+                                }
+
+                                if (errorMessage != null) {
                                     Text(
-                                        text = error ?: "",
+                                        text = errorMessage,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.padding(horizontal = 4.dp)
                                     )
                                 }
+
+                                val isUpdating = updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -191,10 +203,10 @@ fun ProfileScreen(
                                         onClick = {
                                             editMode = false
                                             editedName = profile?.fullName ?: ""
-                                            viewModel.clearError()
+                                            viewModel.resetUpdateState()
                                         },
                                         modifier = Modifier.weight(1f),
-                                        enabled = !isLoading
+                                        enabled = !isUpdating
                                     ) {
                                         Text("Cancel")
                                     }
@@ -205,7 +217,7 @@ fun ProfileScreen(
                                         },
                                         text = "Save",
                                         modifier = Modifier.weight(1f),
-                                        enabled = !isLoading && editedName.isNotBlank()
+                                        enabled = !isUpdating && editedName.isNotBlank()
                                     )
                                 }
                             } else {

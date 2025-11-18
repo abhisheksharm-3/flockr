@@ -7,8 +7,11 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,6 +27,31 @@ class DocumentViewModel @Inject constructor(
     val uploadState: StateFlow<UploadDocumentUiState> = _uploadState.asStateFlow()
 
     private var currentHouseId: String? = null
+
+    // Convenience properties for UI screens
+    val personalDocuments: StateFlow<List<`in`.xroden.flockr.features.documents.model.Document>> =
+        _uiState.map { state ->
+            when (state) {
+                is DocumentUiState.Success -> state.personalDocuments
+                else -> emptyList()
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = emptyList()
+        )
+
+    val houseDocuments: StateFlow<List<`in`.xroden.flockr.features.documents.model.Document>> =
+        _uiState.map { state ->
+            when (state) {
+                is DocumentUiState.Success -> state.houseDocuments
+                else -> emptyList()
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = emptyList()
+        )
 
     fun loadDocuments(houseId: String? = null) {
         viewModelScope.launch {
@@ -104,5 +132,57 @@ class DocumentViewModel @Inject constructor(
 
     fun resetUploadState() {
         _uploadState.value = UploadDocumentUiState.Idle
+    }
+
+    // Convenience methods for UI screens
+    fun loadPersonalDocuments() {
+        viewModelScope.launch {
+            val result = documentRepository.getPersonalDocuments()
+            if (result.isSuccess) {
+                val current = _uiState.value
+                if (current is DocumentUiState.Success) {
+                    _uiState.value = current.copy(personalDocuments = result.getOrElse { emptyList() })
+                } else {
+                    _uiState.value = DocumentUiState.Success(
+                        personalDocuments = result.getOrElse { emptyList() },
+                        houseDocuments = emptyList()
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadHouseDocuments(houseId: String) {
+        currentHouseId = houseId
+        viewModelScope.launch {
+            val result = documentRepository.getHouseDocuments(houseId)
+            if (result.isSuccess) {
+                val current = _uiState.value
+                if (current is DocumentUiState.Success) {
+                    _uiState.value = current.copy(houseDocuments = result.getOrElse { emptyList() })
+                } else {
+                    _uiState.value = DocumentUiState.Success(
+                        personalDocuments = emptyList(),
+                        houseDocuments = result.getOrElse { emptyList() }
+                    )
+                }
+            }
+        }
+    }
+
+    fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
+        uploadDocument(uri, fileName, context, houseId = null)
+    }
+
+    fun uploadHouseDocument(houseId: String, uri: Uri, fileName: String, context: Context) {
+        currentHouseId = houseId
+        uploadDocument(uri, fileName, context, houseId = houseId)
+    }
+
+    fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
+        viewModelScope.launch {
+            // This is a placeholder - actual download implementation would depend on platform requirements
+            documentRepository.downloadDocument(document.storagePath)
+        }
     }
 }

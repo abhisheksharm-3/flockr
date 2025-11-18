@@ -2,8 +2,6 @@ package `in`.xroden.flockr.features.expenses.ui.onetime
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,7 +18,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,9 +28,9 @@ fun BalancesScreen(
     onNavigateBack: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val balances by viewModel.balances.collectAsState()
+    val balanceState by viewModel.balanceState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     val currentUserId = viewModel.getCurrentUserId()
     var showSettleDialog by remember { mutableStateOf(false) }
     var selectedBalance by remember { mutableStateOf<UserBalance?>(null) }
@@ -48,6 +46,12 @@ fun BalancesScreen(
         isLoading = false
     }
 
+    // Extract balances list from state
+    val balances = when (val state = balanceState) {
+        is BalanceUiState.Success -> state.balances
+        else -> emptyList()
+    }
+
     // Settle Dialog
     if (showSettleDialog && selectedBalance != null) {
         SettleBalanceDialog(
@@ -58,22 +62,14 @@ fun BalancesScreen(
                 scope.launch {
                     viewModel.settleBalance(
                         houseId = houseId,
+                        payerId = viewModel.getCurrentUserId() ?: "",
                         payeeId = selectedBalance!!.userId,
-                        amount = amount,
-                        description = description,
-                        onSuccess = {
-                            showSettleDialog = false
-                            viewModel.loadBalances(houseId)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Balance settled!")
-                            }
-                        },
-                        onError = { error ->
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Error: $error")
-                            }
-                        }
+                        amount = amount.toBigDecimal(),
+                        description = description
                     )
+                    showSettleDialog = false
+                    viewModel.loadBalances(houseId)
+                    snackbarHostState.showSnackbar("Balance settled!")
                 }
             }
         )
@@ -247,9 +243,9 @@ fun BalanceCard(
         return
     }
 
-    val theyOweUs = balance.balance < 0  // Their balance is negative = they owe us
-    val weOweThem = balance.balance > 0  // Their balance is positive = we owe them
-    val amount = kotlin.math.abs(balance.balance)
+    val theyOweUs = balance.balance < java.math.BigDecimal.ZERO  // Their balance is negative = they owe us
+    val weOweThem = balance.balance > java.math.BigDecimal.ZERO  // Their balance is positive = we owe them
+    val amount = balance.balance.abs()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -329,7 +325,7 @@ fun SettleBalanceDialog(
     onDismiss: () -> Unit,
     onSettle: (Double, String?) -> Unit
 ) {
-    var amount by remember { mutableStateOf(kotlin.math.abs(balance.balance).toString()) }
+    var amount by remember { mutableStateOf(balance.balance.abs().toString()) }
     var description by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {

@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,12 +22,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.chores.domain.ChoreUiState
+import `in`.xroden.flockr.features.chores.domain.CreateChoreUiState
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 fun ChoresScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
@@ -77,7 +80,9 @@ fun ChoresScreen(
                     houseId = houseId,
                     taskName = taskName,
                     description = description,
-                    dueDate = dueDate,
+                    dueDate = dueDate?.let {
+                        try { LocalDate.parse(it) } catch (_: Exception) { null }
+                    },
                     recurrencePattern = null,
                     assignedTo = assignedTo
                 )
@@ -96,7 +101,9 @@ fun ChoresScreen(
                     choreId = chore.id,
                     taskName = taskName,
                     description = description,
-                    dueDate = dueDate,
+                    dueDate = dueDate?.let {
+                        try { LocalDate.parse(it) } catch (_: Exception) { null }
+                    },
                     assignedTo = assignedTo
                 )
                 showEditDialog = null
@@ -108,7 +115,7 @@ fun ChoresScreen(
     }
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -186,7 +193,7 @@ fun ChoresScreen(
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    ChoreFilter.values().forEach { filter ->
+                                    ChoreFilter.entries.forEach { filter ->
                                         FilterChip(
                                             selected = filterOption == filter,
                                             onClick = { viewModel.setFilter(filter) },
@@ -418,7 +425,7 @@ fun ChoreCard(
             ) {
                 // Due Date Badge
                 chore.dueDate?.let { date ->
-                    val isOverdue = isOverdue(date) && !chore.isCompleted
+                    val isOverdue = isOverdue(date.toString()) && !chore.isCompleted
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
                         color = when {
@@ -443,7 +450,7 @@ fun ChoreCard(
                                 }
                             )
                             Text(
-                                text = formatDate(date),
+                                text = formatDate(date.toString()),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = when {
@@ -528,7 +535,7 @@ fun ChoreCard(
                                 tint = MaterialTheme.colorScheme.tertiary
                             )
                             Text(
-                                text = chore.completedByName!!,
+                                text = chore.completedByName,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.tertiary
@@ -542,6 +549,7 @@ fun ChoreCard(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun AddChoreDialog(
     houseId: String,
     onDismiss: () -> Unit,
@@ -695,6 +703,7 @@ fun EmptyChoresState(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun EditChoreDialog(
     chore: Chore,
     houseId: String,
@@ -703,7 +712,7 @@ fun EditChoreDialog(
 ) {
     var taskName by remember { mutableStateOf(chore.taskName) }
     var description by remember { mutableStateOf(chore.description ?: "") }
-    var dueDate by remember { mutableStateOf(chore.dueDate ?: "") }
+    var dueDate by remember { mutableStateOf(chore.dueDate?.toString() ?: "") }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -799,20 +808,23 @@ private fun formatDate(dateString: String): String {
     return try {
         // Handle short dates safely
         if (dateString.length < 10) return dateString
-        val datePart = dateString.substring(0, 10)
-        val date = LocalDate.parse(datePart, DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-        date.format(DateTimeFormatter.ofPattern(Constants.DateFormats.DISPLAY_DATE))
-    } catch (e: Exception) {
+        val date = LocalDate.parse(dateString.take(10))
+        // Format as "MMM dd, yyyy" manually
+        val monthName = listOf("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[date.monthNumber]
+        "$monthName ${date.dayOfMonth}, ${date.year}"
+    } catch (_: Exception) {
         // Return safe default if parsing fails
-        if (dateString.length >= 10) dateString.substring(0, 10) else dateString
+        dateString.take(10)
     }
 }
 
 private fun isOverdue(dateString: String): Boolean {
     return try {
-        val dueDate = LocalDate.parse(dateString.substring(0, 10), DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-        dueDate.isBefore(LocalDate.now())
-    } catch (e: Exception) {
+        val dueDate = LocalDate.parse(dateString.take(10))
+        val now = Clock.System.now()
+        val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
+        dueDate < today
+    } catch (_: Exception) {
         false
     }
 }

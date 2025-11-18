@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,6 +32,19 @@ class AuthViewModel @Inject constructor(
 
     private val _signUpState = MutableStateFlow<SignUpUiState>(SignUpUiState.Idle)
     val signUpState: StateFlow<SignUpUiState> = _signUpState.asStateFlow()
+
+    // Convenience property to get the current profile
+    val profile: StateFlow<`in`.xroden.flockr.features.auth.model.Profile?> =
+        _uiState.map { state ->
+            when (state) {
+                is AuthUiState.Authenticated -> state.profile
+                else -> null
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
 
     // Combined state for navigation decisions
     val authNavigationState: StateFlow<AuthNavigationState> =

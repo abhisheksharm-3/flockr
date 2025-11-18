@@ -1,13 +1,14 @@
 package `in`.xroden.flockr.features.house.domain
 
 import `in`.xroden.flockr.features.house.model.House
+import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 
 sealed interface HouseListUiState {
     data object Loading : HouseListUiState
-    data class Success(val houses: List<House>) : HouseListUiState
+    data class Success(val houses: List<HouseCardData>) : HouseListUiState
     data class Error(val message: String, val cause: Throwable? = null) : HouseListUiState
 }
 
@@ -31,7 +32,7 @@ sealed interface CreateHouseUiState {
 sealed interface JoinHouseUiState {
     data object Idle : JoinHouseUiState
     data object Loading : JoinHouseUiState
-    data class Success(val house: House) : JoinHouseUiState
+    data class Success(val house: House?) : JoinHouseUiState
     data class Error(val message: String) : JoinHouseUiState
 }
 

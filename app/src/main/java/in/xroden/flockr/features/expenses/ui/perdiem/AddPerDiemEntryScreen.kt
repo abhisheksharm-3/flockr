@@ -23,8 +23,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import kotlinx.datetime.LocalDate
+import java.math.BigDecimal
 
 /**
  * Modern screen for adding usage entries to a per-diem item configuration.
@@ -46,10 +47,10 @@ fun AddPerDiemEntryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val configs by viewModel.configs.collectAsState()
+    val configs by viewModel.configState.collectAsState()
     val config = configs.firstOrNull { it.id == configId }
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
@@ -281,25 +282,15 @@ fun AddPerDiemEntryScreen(
                             scope.launch {
                                 try {
                                     viewModel.createPerDiemEntry(
-                                        configId = configId,
                                         houseId = houseId,
-                                        quantity = quantityDouble,
-                                        date = date,
-                                        notes = notes.takeIf { it.isNotBlank() },
+                                        configId = configId,
+                                        quantity = BigDecimal(quantityDouble),
+                                        date = LocalDate.parse(date),
                                         itemName = config.itemName,
-                                        onSuccess = {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Usage logged successfully")
-                                                onNavigateBack()
-                                            }
-                                        },
-                                        onError = { errorMessage ->
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Failed to log usage: $errorMessage")
-                                                isLoading = false
-                                            }
-                                        }
+                                        notes = notes.takeIf { it.isNotBlank() }
                                     )
+                                    snackbarHostState.showSnackbar("Usage logged successfully")
+                                    onNavigateBack()
                                 } catch (e: Exception) {
                                     snackbarHostState.showSnackbar("Failed to log usage: ${e.message}")
                                     isLoading = false

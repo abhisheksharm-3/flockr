@@ -22,6 +22,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.launch
 
 @Singleton
 class ChoreRepository @Inject constructor(
@@ -87,10 +91,12 @@ class ChoreRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -113,34 +119,34 @@ class ChoreRepository @Inject constructor(
 
             val chores = response.map { obj ->
                 val assignedToName = obj["assigned_to_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.kotlinx.serialization.json.jsonObject?.get("full_name")?.kotlinx.serialization.json.jsonPrimitive?.content
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
                 val completedByName = obj["completed_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.kotlinx.serialization.json.jsonObject?.get("full_name")?.kotlinx.serialization.json.jsonPrimitive?.content
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
                 val createdByName = obj["created_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.kotlinx.serialization.json.jsonObject?.get("full_name")?.kotlinx.serialization.json.jsonPrimitive?.content
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
 
                 Chore(
-                    id = obj["id"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    houseId = obj["house_id"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    taskName = obj["task_name"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    description = obj["description"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
-                    assignedTo = obj["assigned_to"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
+                    id = obj["id"]?.jsonPrimitive?.content ?: "",
+                    houseId = obj["house_id"]?.jsonPrimitive?.content ?: "",
+                    taskName = obj["task_name"]?.jsonPrimitive?.content ?: "",
+                    description = obj["description"]?.jsonPrimitive?.contentOrNull,
+                    assignedTo = obj["assigned_to"]?.jsonPrimitive?.contentOrNull,
                     assignedToName = assignedToName,
-                    dueDate = obj["due_date"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull?.let { LocalDate.parse(it) },
-                    isCompleted = obj["is_completed"]?.kotlinx.serialization.json.jsonPrimitive?.content?.toBoolean() ?: false,
-                    completedAt = obj["completed_at"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull?.let { Instant.parse(it) },
-                    completedBy = obj["completed_by"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
+                    dueDate = obj["due_date"]?.jsonPrimitive?.contentOrNull?.let { LocalDate.parse(it) },
+                    isCompleted = obj["is_completed"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    completedAt = obj["completed_at"]?.jsonPrimitive?.contentOrNull?.let { Instant.parse(it) },
+                    completedBy = obj["completed_by"]?.jsonPrimitive?.contentOrNull,
                     completedByName = completedByName,
-                    recurrencePattern = obj["recurrence_pattern"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull?.let {
+                    recurrencePattern = obj["recurrence_pattern"]?.jsonPrimitive?.contentOrNull?.let {
                         try {
                             `in`.xroden.flockr.data.enums.ChoreRecurrence.valueOf(it.uppercase())
                         } catch (e: Exception) {
                             null
                         }
                     },
-                    createdBy = obj["created_by"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
+                    createdBy = obj["created_by"]?.jsonPrimitive?.contentOrNull,
                     createdByName = createdByName,
-                    createdAt = obj["created_at"]?.kotlinx.serialization.json.jsonPrimitive?.content?.let { Instant.parse(it) }
+                    createdAt = obj["created_at"]?.jsonPrimitive?.content?.let { Instant.parse(it) }
                         ?: Instant.DISTANT_PAST
                 )
             }

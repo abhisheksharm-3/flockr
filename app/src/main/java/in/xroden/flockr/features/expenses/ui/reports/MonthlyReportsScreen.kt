@@ -1,9 +1,7 @@
 package `in`.xroden.flockr.features.expenses.ui.reports
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -11,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,6 +17,10 @@ import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.ui.theme.DateFormats
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -41,7 +42,7 @@ fun MonthlyReportsScreen(
     val perDiemConfigs by perDiemViewModel.configs.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
-        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH))
+        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH))
         viewModel.loadMonthlySummary(houseId, monthStr)
         viewModel.loadPerDiemBillItemized(houseId, monthStr)
         viewModel.loadSpendByCategory(houseId, monthStr)
@@ -50,8 +51,11 @@ fun MonthlyReportsScreen(
         perDiemViewModel.loadConfigs(houseId)
     }
 
-    // Chart colors from constants
-    val chartColors = Constants.ChartColors.PIE_CHART_COLORS.map { Color(it) }
+    // Chart colors from theme
+    val chartColors = listOf(
+        CategoryGreen, CategoryBlue, CategoryPurple, CategoryYellow,
+        CategoryPink, CategoryOrange, CategoryTeal, CategoryIndigo
+    )
 
     Scaffold(
         topBar = {
@@ -83,8 +87,8 @@ fun MonthlyReportsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(Constants.UI.STANDARD_PADDING_DP.dp),
-            verticalArrangement = Arrangement.spacedBy(Constants.UI.CARD_SPACING_DP.dp)
+            contentPadding = PaddingValues(Spacing.STANDARD_PADDING.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.CARD_SPACING.dp)
         ) {
             // Month Selector
             item {
@@ -159,7 +163,7 @@ fun MonthlyReportsScreen(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
                             Text(
-                                text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
+                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -183,7 +187,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -199,7 +203,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -215,7 +219,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -253,7 +257,7 @@ fun MonthlyReportsScreen(
                                 data = memberData,
                                 modifier = Modifier.fillMaxWidth(),
                                 color = MaterialTheme.colorScheme.primary,
-                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
                             )
                         }
                     }
@@ -296,7 +300,7 @@ fun MonthlyReportsScreen(
                                 data = categoryData,
                                 colors = chartColors,
                                 modifier = Modifier.fillMaxWidth(),
-                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
                             )
                         }
                     }
@@ -343,7 +347,7 @@ fun MonthlyReportsScreen(
                                                 modifier = Modifier.weight(1f)
                                             )
                                             Text(
-                                                text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.totalAmount)}",
+                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.totalAmount)}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -376,7 +380,7 @@ fun MonthlyReportsScreen(
                                                 )
                                             }
                                             Text(
-                                                text = "@${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.rate)}/${item.unit}",
+                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.rate)}/${item.unit}",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                             )
@@ -403,7 +407,7 @@ fun MonthlyReportsScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", monthlySummary!!.perDiemExpenses)}",
+                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", monthlySummary!!.perDiemExpenses)}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

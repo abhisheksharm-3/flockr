@@ -26,9 +26,13 @@ import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
+import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
+import `in`.xroden.flockr.ui.theme.DateFormats
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +48,7 @@ fun AddExpenseScreen(
     var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
+        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember {
@@ -59,7 +63,7 @@ fun AddExpenseScreen(
     var selectedMembers by remember { mutableStateOf<Set<String>>(emptySet()) }
     var customSplits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    val categories = Constants.ExpenseCategories.DEFAULT_CATEGORIES
+    val categories = ExpenseCategories.DEFAULT
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -502,10 +506,9 @@ fun AddExpenseScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = run {
                 try {
-                    LocalDate.parse(date, DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-                        .atStartOfDay(java.time.ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
+                    val localDate = LocalDate.parse(date)
+                    // Convert LocalDate to epoch milliseconds
+                    localDate.toEpochDays() * 24 * 60 * 60 * 1000L
                 } catch (e: Exception) {
                     System.currentTimeMillis()
                 }
@@ -516,10 +519,10 @@ fun AddExpenseScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .toLocalDate()
-                        date = selectedDate.format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
+                        // Convert epoch millis to LocalDate
+                        val epochDays = millis / (24 * 60 * 60 * 1000L)
+                        val selectedDate = LocalDate.fromEpochDays(epochDays.toInt())
+                        date = selectedDate.toString()
                     }
                     showDatePicker = false
                 }) {

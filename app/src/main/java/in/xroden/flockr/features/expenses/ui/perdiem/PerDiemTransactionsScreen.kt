@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.YearMonth
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -34,7 +35,7 @@ fun PerDiemTransactionsScreen(
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
     val entries by viewModel.entriesWithDetails.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(houseId, selectedMonth) {
@@ -219,7 +220,7 @@ private fun PerDiemTransactionCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = entry.itemName,
+                    text = entry.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

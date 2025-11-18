@@ -48,22 +48,39 @@ fun SettingsScreen(
 ) {
     val scope = rememberCoroutineScope()
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-    val profile by profileViewModel.profile.collectAsState()
-    val isProfileLoading by profileViewModel.isLoading.collectAsState()
-    val profileError by profileViewModel.error.collectAsState()
+    val profileUiState by profileViewModel.uiState.collectAsState()
+    val updateState by profileViewModel.updateState.collectAsState()
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var editMode by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        profileViewModel.loadProfile()
+    // Extract profile from UI state
+    val profile = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
+        else -> null
+    }
+
+    val isProfileLoading = profileUiState is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Loading
+    val profileError = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Error -> state.message
+        else -> null
     }
 
     LaunchedEffect(profile) {
         profile?.let {
             editedName = it.fullName ?: ""
+        }
+    }
+
+    // Handle update state
+    LaunchedEffect(updateState) {
+        when (updateState) {
+            is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Success -> {
+                editMode = false
+            }
+            else -> {}
         }
     }
 
@@ -158,9 +175,9 @@ fun SettingsScreen(
                                 )
                             )
 
-                            if (profileError != null) {
+                            if (profileError != null || updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error) {
                                 Text(
-                                    text = profileError ?: "",
+                                    text = profileError ?: (updateState as? `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error)?.message ?: "",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -174,10 +191,10 @@ fun SettingsScreen(
                                     onClick = {
                                         editMode = false
                                         editedName = profile?.fullName ?: ""
-                                        profileViewModel.clearError()
+                                        profileViewModel.resetUpdateState()
                                     },
                                     modifier = Modifier.weight(1f),
-                                    enabled = !isProfileLoading,
+                                    enabled = !(updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading),
                                     shape = MaterialTheme.shapes.medium
                                 ) {
                                     Text("Cancel", fontWeight = FontWeight.SemiBold)
@@ -189,10 +206,10 @@ fun SettingsScreen(
                                         editMode = false
                                     },
                                     modifier = Modifier.weight(1f),
-                                    enabled = !isProfileLoading && editedName.isNotBlank(),
+                                    enabled = !(updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) && editedName.isNotBlank(),
                                     shape = MaterialTheme.shapes.medium
                                 ) {
-                                    if (isProfileLoading) {
+                                    if (updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(20.dp),
                                             strokeWidth = 2.dp,

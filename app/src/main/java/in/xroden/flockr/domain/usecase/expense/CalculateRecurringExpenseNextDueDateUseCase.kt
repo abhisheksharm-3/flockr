@@ -4,6 +4,7 @@ import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
+import kotlinx.datetime.todayIn
 import javax.inject.Inject
 
 /**

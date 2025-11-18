@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState
+import `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,16 +109,11 @@ class HouseSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _updateState.value = UpdateHouseSettingsUiState.Loading
             
-            houseRepository.deleteHouse(houseId).fold(
-                onSuccess = {
-                    _updateState.value = UpdateHouseSettingsUiState.Success
-                },
-                onFailure = { error ->
-                    _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.message ?: "Failed to delete house"
-                    )
-                }
+            // TODO: Implement when backend supports house deletion
+            _updateState.value = UpdateHouseSettingsUiState.Error(
+                message = "House deletion not yet implemented"
             )
+        }
         }
     }
 
@@ -125,6 +122,10 @@ class HouseSettingsViewModel @Inject constructor(
     }
 
     fun getCurrentUserId(): String? {
-        return houseRepository.userId
+        return houseRepository.getCurrentUserId()
+    }
+
+    suspend fun getHouse(houseId: String): `in`.xroden.flockr.features.house.model.House? {
+        return houseRepository.getHouseById(houseId).getOrNull()
     }
 }

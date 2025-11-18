@@ -22,8 +22,10 @@ import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import androidx.compose.foundation.clickable
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +71,7 @@ fun AddRecurringExpenseScreen(
         "Semiannual", "Annual", "Custom"
     )
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -601,27 +603,22 @@ fun AddRecurringExpenseScreen(
                         amount = amt,
                         dueDay = day,
                         category = category,
-                        frequency = frequency,
+                        frequency = ExpenseFrequency.valueOf(frequency.uppercase()),
                         customFrequencyDays = customDays,
                         reminderDaysBefore = reminderDays,
                         reminderEnabled = reminderEnabled,
                         notes = notes.ifBlank { null },
                         splitWith = if (selectedMembers.isNotEmpty()) selectedMembers else null,
-                        splitType = if (selectedMembers.isNotEmpty()) splitType else null,
-                        splitAmounts = if (splitType == "custom" && selectedMembers.isNotEmpty()) customAmounts else null,
+                        splitType = if (selectedMembers.isNotEmpty()) ExpenseSplitType.valueOf(splitType.uppercase()) else null,
+                        splitAmounts = if (splitType == "custom" && selectedMembers.isNotEmpty()) {
+                            customAmounts.mapValues { it.value.toBigDecimal() }
+                        } else null,
                         prepayEnabled = prepayEnabled,
-                        firstPaymentDate = firstPaymentDate,
-                        onSuccess = {
-                            isLoading = false
-                            onExpenseAdded()
-                        },
-                        onError = { errorMessage ->
-                            isLoading = false
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Error: $errorMessage")
-                            }
-                        }
+                        firstPaymentDate = firstPaymentDate
                     )
+
+                    isLoading = false
+                    onExpenseAdded()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !isLoading && name.isNotBlank() && amount.toDoubleOrNull() != null && dueDay.toIntOrNull() != null,

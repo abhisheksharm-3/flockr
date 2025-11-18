@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.launch
 
 @Singleton
 class NotificationRepository @Inject constructor(
@@ -95,12 +96,14 @@ class NotificationRepository @Inject constructor(
             }
 
             awaitClose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     supabase.realtime.removeChannel(channel)
                 } catch (e: Exception) {
                     // Ignore cleanup errors
                 }
             }
+        }
         }
     }
 

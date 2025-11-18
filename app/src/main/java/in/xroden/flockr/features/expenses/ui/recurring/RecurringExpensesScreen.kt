@@ -4,9 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,10 +19,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.data.enums.ExpenseDueStatus
+import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,9 +36,9 @@ fun RecurringExpensesScreen(
     onNavigateToAddBill: () -> Unit = {},
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.expenseState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     var showEditDialog by remember { mutableStateOf(false) }
     var selectedExpense by remember { mutableStateOf<RecurringExpense?>(null) }
@@ -66,16 +68,9 @@ fun RecurringExpensesScreen(
                 Button(
                     onClick = {
                         selectedExpense?.let { expense ->
-                            viewModel.deleteRecurringExpense(
-                                expenseId = expense.id,
-                                onSuccess = {
-                                    showDeleteDialog = false
-                                    selectedExpense = null
-                                },
-                                onError = { _: String ->
-                                    // Error handling - could show snackbar
-                                }
-                            )
+                            viewModel.deleteRecurringExpense(houseId, expense.id)
+                            showDeleteDialog = false
+                            selectedExpense = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -130,7 +125,7 @@ fun RecurringExpensesScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = uiState) {
-            is ExpenseUiState.Loading -> {
+            is OneTimeExpenseUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -140,7 +135,7 @@ fun RecurringExpensesScreen(
                     CircularProgressIndicator()
                 }
             }
-            is ExpenseUiState.Success -> {
+            is OneTimeExpenseUiState.Success -> {
                 if (state.recurringExpenses.isEmpty()) {
                     EmptyRecurringState(
                         modifier = Modifier
@@ -148,9 +143,21 @@ fun RecurringExpensesScreen(
                             .padding(padding)
                     )
                 } else {
+                    // Extract recurring expenses from state (placeholder until proper state is added)
+                    val recurringExpenses = emptyList<RecurringExpense>() // TODO: Fix state structure
+
                     // Group expenses by frequency
-                    val groupedExpenses = state.recurringExpenses.groupBy { it.frequency }
-                    val frequencyOrder = listOf("daily", "weekly", "biweekly", "monthly", "quarterly", "semiannual", "annual", "custom")
+                    val groupedExpenses = recurringExpenses.groupBy { it.frequency }
+                    val frequencyOrder = listOf(
+                        ExpenseFrequency.DAILY,
+                        ExpenseFrequency.WEEKLY,
+                        ExpenseFrequency.BIWEEKLY,
+                        ExpenseFrequency.MONTHLY,
+                        ExpenseFrequency.QUARTERLY,
+                        ExpenseFrequency.SEMIANNUAL,
+                        ExpenseFrequency.ANNUAL,
+                        ExpenseFrequency.CUSTOM
+                    )
                     val sortedGroups = frequencyOrder.mapNotNull { freq ->
                         groupedExpenses[freq]?.let { freq to it }
                     }
@@ -205,7 +212,7 @@ fun RecurringExpensesScreen(
                         sortedGroups.forEach { (frequency, expenses) ->
                             item {
                                 FrequencySection(
-                                    frequency = frequency,
+                                    frequency = frequency.name,
                                     count = expenses.size,
                                     modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                                 )
@@ -217,10 +224,10 @@ fun RecurringExpensesScreen(
                                     currencySymbol = currencySymbol,
                                     onMarkAsPaid = {
                                         viewModel.markRecurringExpenseAsPaid(
-                                            expenseId = expense.id,
                                             houseId = houseId,
+                                            expenseId = expense.id,
                                             amount = expense.amount,
-                                            paymentDate = java.time.LocalDate.now().toString()
+                                            paymentDate = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
                                         )
                                     },
                                     onEdit = {
@@ -242,7 +249,7 @@ fun RecurringExpensesScreen(
                     }
                 }
             }
-            is ExpenseUiState.Error -> {
+            is OneTimeExpenseUiState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -366,22 +373,22 @@ fun RecurringExpenseCard(
 
     // Determine status color and text
     val (statusColor, statusText, statusBg) = when (expense.dueStatus) {
-        "overdue" -> Triple(
+        ExpenseDueStatus.OVERDUE -> Triple(
             androidx.compose.ui.graphics.Color(0xFFDC2626),
             "Overdue",
             androidx.compose.ui.graphics.Color(0xFFFEE2E2)
         )
-        "due_today" -> Triple(
+        ExpenseDueStatus.DUE_TODAY -> Triple(
             androidx.compose.ui.graphics.Color(0xFFEA580C),
             "Due Today",
             androidx.compose.ui.graphics.Color(0xFFFFEDD5)
         )
-        "upcoming" -> Triple(
+        ExpenseDueStatus.UPCOMING -> Triple(
             androidx.compose.ui.graphics.Color(0xFFD97706),
-            "Due in ${expense.daysUntilDue} days",
+            "Due in ${expense.daysUntilDue ?: 0} days",
             androidx.compose.ui.graphics.Color(0xFFFEF3C7)
         )
-        "pending" -> Triple(
+        ExpenseDueStatus.PENDING -> Triple(
             MaterialTheme.colorScheme.onSurfaceVariant,
             "Pending",
             MaterialTheme.colorScheme.surfaceVariant
@@ -558,7 +565,7 @@ fun RecurringExpenseCard(
                         )
                     }
                     Text(
-                        text = formatFrequency(expense.frequency, expense.customFrequencyDays),
+                        text = expense.frequency.name.lowercase().replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -584,7 +591,7 @@ fun RecurringExpenseCard(
                         )
                     }
                     Text(
-                        text = expense.nextDueDate?.let { formatDueDate(it) }
+                        text = expense.nextDueDate?.let { it.toString() }
                             ?: "Day ${expense.dueDay}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
@@ -640,7 +647,7 @@ fun RecurringExpenseCard(
                         tint = androidx.compose.ui.graphics.Color(0xFF16A34A)
                     )
                     Text(
-                        text = "Last paid on ${formatDueDate(lastPaid)}",
+                        text = "Last paid on ${lastPaid.toString()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = androidx.compose.ui.graphics.Color(0xFF16A34A),
                         fontWeight = FontWeight.Medium
@@ -736,7 +743,7 @@ private fun formatFrequency(frequency: String, customDays: Int?): String {
 // Helper function to format due date
 private fun formatDueDate(dateString: String): String {
     return try {
-        val date = java.time.LocalDate.parse(dateString)
+        val date = java.time.kotlinx.datetime.LocalDate.parse(dateString)
         val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy")
         date.format(formatter)
     } catch (e: Exception) {

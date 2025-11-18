@@ -42,6 +42,29 @@ fun JoinHouseScreen(
     var previewHouse by remember { mutableStateOf<House?>(null) }
     
     val scope = rememberCoroutineScope()
+    val joinState by viewModel.joinState.collectAsState()
+
+    // Observe join state
+    LaunchedEffect(joinState) {
+        when (val state = joinState) {
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Success -> {
+                isLoading = false
+                delay(300)
+                onHouseJoined(state.house.id)
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Error -> {
+                isLoading = false
+                errorMessage = state.message
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Loading -> {
+                isLoading = true
+                errorMessage = null
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Idle -> {
+                // Do nothing
+            }
+        }
+    }
 
     // Validate code when it's complete
     LaunchedEffect(inviteCode) {
@@ -213,21 +236,7 @@ fun JoinHouseScreen(
                     isLoading = true
                     errorMessage = null
 
-                    viewModel.joinHouseByInviteCode(
-                        inviteCode = inviteCode,
-                        onSuccess = { houseId: String ->
-                            scope.launch {
-                                isLoading = false
-                                // Add a small delay for visual feedback
-                                delay(300)
-                                onHouseJoined(houseId)
-                            }
-                        },
-                        onError = { error: String ->
-                            isLoading = false
-                            errorMessage = error
-                        }
-                    )
+                    viewModel.joinHouseByInviteCode(inviteCode)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

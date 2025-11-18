@@ -48,13 +48,29 @@ class NotificationViewModel @Inject constructor(
 
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
-            notificationRepository.markNotificationAsRead(notificationId).fold(
+            notificationRepository.markAsRead(notificationId).fold(
                 onSuccess = {
                     // Success - state updated via flow
                 },
                 onFailure = { error ->
                     _uiState.value = NotificationUiState.Error(
                         message = error.message ?: "Failed to mark as read",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
+    fun markAllAsRead() {
+        viewModelScope.launch {
+            notificationRepository.markAllAsRead().fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = NotificationUiState.Error(
+                        message = error.message ?: "Failed to mark all as read",
                         cause = error
                     )
                 }

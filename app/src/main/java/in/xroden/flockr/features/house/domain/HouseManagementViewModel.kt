@@ -55,9 +55,11 @@ class HouseManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _invitationsState.value = InvitationsUiState.Loading
             
-            houseRepository.getPendingInvitations(houseId).fold(
+            houseRepository.getPendingInvitations().fold(
                 onSuccess = { invitations ->
-                    _invitationsState.value = InvitationsUiState.Success(invitations)
+                    // Filter by houseId since API returns all invitations
+                    val filtered = invitations.filter { it.houseId == houseId }
+                    _invitationsState.value = InvitationsUiState.Success(filtered)
                 },
                 onFailure = { error ->
                     _invitationsState.value = InvitationsUiState.Error(
@@ -99,33 +101,25 @@ class HouseManagementViewModel @Inject constructor(
         }
     }
 
+    // Placeholder for future invitation cancellation functionality
     fun cancelInvitation(houseId: String, invitationId: String) {
         viewModelScope.launch {
-            houseRepository.cancelInvitation(invitationId).fold(
-                onSuccess = {
-                    loadInvitations(houseId)
-                },
-                onFailure = { error ->
-                    _invitationsState.value = InvitationsUiState.Error(
-                        message = error.message ?: "Failed to cancel invitation"
-                    )
-                }
+            // TODO: Implement when backend supports canceling invitations
+            _invitationsState.value = InvitationsUiState.Error(
+                message = "Cancel invitation not yet implemented"
             )
         }
     }
 
+    // Placeholder for resending invitation notifications
     fun resendInvitationNotification(invitationId: String) {
         viewModelScope.launch {
-            houseRepository.resendInvitationNotification(invitationId).fold(
-                onSuccess = {
-                    // Success
-                },
-                onFailure = { error ->
-                    _invitationsState.value = InvitationsUiState.Error(
-                        message = error.message ?: "Failed to resend notification"
-                    )
-                }
+            // TODO: Implement when backend supports resending invitations
+            _invitationsState.value = InvitationsUiState.Error(
+                message = "Resend notification not yet implemented"
             )
         }
     }
+
+    suspend fun getHouseMembers(houseId: String) = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 }
