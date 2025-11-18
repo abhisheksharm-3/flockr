@@ -24,12 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.expenses.model.DueStatus
+import `in`.xroden.flockr.data.enums.ExpenseDueStatus
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
-import `in`.xroden.flockr.domain.utils.RecurringExpenseUtils
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -48,7 +49,7 @@ fun BillsScreen(
     onNavigateToAddBill: () -> Unit = {},
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.expenseState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -58,6 +59,11 @@ fun BillsScreen(
     LaunchedEffect(houseId) {
         viewModel.loadRecurringExpenses(houseId)
         viewModel.loadHouseConfig(houseId)
+    }
+
+    val recurringExpenses = when (val state = uiState) {
+        is OneTimeExpenseUiState.Success -> state.expenses
+        else -> emptyList()
     }
 
     Scaffold(
@@ -103,7 +109,7 @@ fun BillsScreen(
             }
 
             when (val state = uiState) {
-                is ExpenseUiState.Loading -> {
+                is OneTimeExpenseUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -111,9 +117,9 @@ fun BillsScreen(
                         CircularProgressIndicator()
                     }
                 }
-                is ExpenseUiState.Success -> {
-                    val recurringExpenses = state.recurringExpenses
-                    val currencySymbol = houseConfig?.currencySymbol ?: "₹"
+                is OneTimeExpenseUiState.Success -> {
+                    val recurringExpenses = emptyList<RecurringExpense>() // TODO: Fix state to separate recurring from one-time
+                    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
 
                     if (selectedTab == 0) {
                         // Recurring Bills View with Calendar
@@ -135,21 +141,23 @@ fun BillsScreen(
                         // Pay Bills View (One-time bills to pay)
                         PayBillsContent(
                             expenses = recurringExpenses.filter {
-                                it.dueStatus == "overdue" || it.dueStatus == "due_today" || it.dueStatus == "due_soon"
+                                it.dueStatus == ExpenseDueStatus.OVERDUE ||
+                                it.dueStatus == ExpenseDueStatus.DUE_TODAY ||
+                                it.dueStatus == ExpenseDueStatus.DUE_SOON
                             },
                             currencySymbol = currencySymbol,
                             onMarkAsPaid = { expense ->
                                 viewModel.markRecurringExpenseAsPaid(
-                                    expenseId = expense.id,
                                     houseId = houseId,
+                                    expenseId = expense.id,
                                     amount = expense.amount,
-                                    paymentDate = LocalDate.now().toString()
+                                    paymentDate = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
                                 )
                             }
                         )
                     }
                 }
-                is ExpenseUiState.Error -> {
+                is OneTimeExpenseUiState.Error -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -349,8 +357,8 @@ fun BillsCalendarGrid(
                             CalendarDay(
                                 day = dayNumber,
                                 isToday = isToday,
-                                hasOverdue = dateExpenses.any { it.dueStatus == "overdue" },
-                                hasDueSoon = dateExpenses.any { it.dueStatus == "due_soon" || it.dueStatus == "due_today" },
+                                hasOverdue = dateExpenses.any { it.dueStatus == ExpenseDueStatus.OVERDUE },
+                                hasDueSoon = dateExpenses.any { it.dueStatus == ExpenseDueStatus.DUE_SOON || it.dueStatus == ExpenseDueStatus.DUE_TODAY },
                                 hasPaid = dateExpenses.any { it.lastPaidDate != null },
                                 onClick = { onDateClick(dayNumber) },
                                 modifier = Modifier.weight(1f)
@@ -458,13 +466,13 @@ fun BillsSummaryRow(
     expenses: List<RecurringExpense>,
     currencySymbol: String
 ) {
-    val upcoming = expenses.filter { it.dueStatus == "upcoming" }
-    val overdue = expenses.filter { it.dueStatus == "overdue" }
+    val upcoming = expenses.filter { it.dueStatus == ExpenseDueStatus.UPCOMING }
+    val overdue = expenses.filter { it.dueStatus == ExpenseDueStatus.OVERDUE }
     val paid = expenses.filter { it.lastPaidDate != null }
 
-    val upcomingTotal = upcoming.sumOf { it.amount }
-    val overdueTotal = overdue.sumOf { it.amount }
-    val paidTotal = paid.sumOf { it.amount }
+    val upcomingTotal = upcoming.sumOf { it.amount.toDouble() }
+    val overdueTotal = overdue.sumOf { it.amount.toDouble() }
+    val paidTotal = paid.sumOf { it.amount.toDouble() }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -519,7 +527,7 @@ fun SummaryCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                RecurringExpenseUtils.formatAmount(amount, currencySymbol),
+                "$currencySymbol${String.format("%.2f", amount)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = color
@@ -559,12 +567,11 @@ fun ModernBillCard(
     onMarkAsPaid: () -> Unit,
     onClick: () -> Unit
 ) {
-    val dueStatus = DueStatus.fromValue(expense.dueStatus)
-    val statusColor = when (dueStatus) {
-        DueStatus.OVERDUE -> Color(0xFFD32F2F)
-        DueStatus.DUE_TODAY -> Color(0xFFFFA726)
-        DueStatus.DUE_SOON -> Color(0xFFFDD835)
-        DueStatus.UPCOMING -> Color(0xFF66BB6A)
+    val statusColor = when (expense.dueStatus) {
+        ExpenseDueStatus.OVERDUE -> Color(0xFFD32F2F)
+        ExpenseDueStatus.DUE_TODAY -> Color(0xFFFFA726)
+        ExpenseDueStatus.DUE_SOON -> Color(0xFFFDD835)
+        ExpenseDueStatus.UPCOMING -> Color(0xFF66BB6A)
         else -> Color.Gray
     }
 
@@ -608,15 +615,12 @@ fun ModernBillCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        RecurringExpenseUtils.formatDueStatusMessage(expense),
+                        formatDueStatusMessage(expense.dueStatus, expense.nextDueDate),
                         style = MaterialTheme.typography.bodySmall,
                         color = statusColor
                     )
                     Text(
-                        RecurringExpenseUtils.getFrequencyDescription(
-                            expense.frequency,
-                            expense.customFrequencyDays
-                        ),
+                        getFrequencyDescription(expense.frequency),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -628,7 +632,7 @@ fun ModernBillCard(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    RecurringExpenseUtils.formatAmount(expense.amount, currencySymbol),
+                    "${currencySymbol}${String.format("%.2f", expense.amount.toDouble())}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -636,8 +640,8 @@ fun ModernBillCard(
 
                 if (expense.nextDueDate != null) {
                     val dueDate = try {
-                        LocalDate.parse(expense.nextDueDate)
-                        expense.nextDueDate.substring(8, 10).toInt() // Extract day
+                        val dateString = expense.nextDueDate.toString()
+                        dateString.substring(8, 10).toInt() // Extract day
                     } catch (e: Exception) {
                         expense.dueDay
                     }
@@ -658,12 +662,11 @@ fun ModernBillCard(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             val month = try {
-                                LocalDate.parse(expense.nextDueDate).month.getDisplayName(
-                                    TextStyle.SHORT,
-                                    Locale.getDefault()
-                                ).uppercase()
+                                val dateString = expense.nextDueDate.toString()
+                                val parsedDate = kotlinx.datetime.LocalDate.parse(dateString)
+                                parsedDate.month.name.take(3).uppercase()
                             } catch (e: Exception) {
-                                LocalDate.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault()).uppercase()
+                                kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).month.name.take(3).uppercase()
                             }
                             Text(
                                 month,
@@ -788,17 +791,17 @@ fun PayBillCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        RecurringExpenseUtils.formatAmount(expense.amount, currencySymbol),
+                        "${currencySymbol}${String.format("%.2f", expense.amount.toDouble())}",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        RecurringExpenseUtils.formatDueStatusMessage(expense),
+                        formatDueStatusMessage(expense.dueStatus, expense.nextDueDate),
                         style = MaterialTheme.typography.bodySmall,
                         color = when (expense.dueStatus) {
-                            "overdue" -> Color(0xFFD32F2F)
-                            "due_today" -> Color(0xFFFFA726)
+                            ExpenseDueStatus.OVERDUE -> Color(0xFFD32F2F)
+                            ExpenseDueStatus.DUE_TODAY -> Color(0xFFFFA726)
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
@@ -823,7 +826,7 @@ fun PayBillCard(
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
             title = { Text("Mark as Paid?") },
-            text = { Text("Confirm payment of ${RecurringExpenseUtils.formatAmount(expense.amount, currencySymbol)} for ${expense.name}") },
+            text = { Text("Confirm payment of ${currencySymbol}${String.format("%.2f", expense.amount.toDouble())} for ${expense.name}") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -842,3 +845,33 @@ fun PayBillCard(
         )
     }
 }
+
+// Helper Functions
+private fun formatDueStatusMessage(dueStatus: ExpenseDueStatus?, nextDueDate: kotlinx.datetime.LocalDate?): String {
+    val daysUntilDue = nextDueDate?.let {
+        val today = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+        (it.toEpochDays() - today.toEpochDays())
+    }
+
+    return when (dueStatus) {
+        ExpenseDueStatus.OVERDUE -> "Overdue"
+        ExpenseDueStatus.DUE_TODAY -> "Due Today"
+        ExpenseDueStatus.DUE_SOON -> "Due in ${daysUntilDue ?: 0} days"
+        ExpenseDueStatus.UPCOMING -> "Upcoming in ${daysUntilDue ?: 0} days"
+        else -> "Not scheduled"
+    }
+}
+
+private fun getFrequencyDescription(frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency): String {
+    return when (frequency) {
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.DAILY -> "Daily"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.WEEKLY -> "Weekly"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.BIWEEKLY -> "Bi-weekly"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.MONTHLY -> "Monthly"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.QUARTERLY -> "Quarterly"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.SEMIANNUAL -> "Semi-annual"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.ANNUAL -> "Annual"
+        `in`.xroden.flockr.data.enums.ExpenseFrequency.CUSTOM -> "Custom"
+    }
+}
+

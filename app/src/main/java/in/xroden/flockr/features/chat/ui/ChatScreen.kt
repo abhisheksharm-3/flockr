@@ -1,9 +1,7 @@
 package `in`.xroden.flockr.features.chat.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +37,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(houseId) {
-        viewModel.loadMessages(houseId, "House")
+        viewModel.loadMessages(houseId)
     }
 
     Scaffold(
@@ -48,11 +45,7 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (uiState is ChatUiState.Success) {
-                            (uiState as ChatUiState.Success).houseName.uppercase()
-                        } else {
-                            "CHAT"
-                        },
+                        "Chat",
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -103,10 +96,7 @@ fun ChatScreen(
                     IconButton(
                         onClick = {
                             if (messageText.isNotBlank()) {
-                                val houseName = if (uiState is ChatUiState.Success) {
-                                    (uiState as ChatUiState.Success).houseName
-                                } else "House"
-                                viewModel.sendMessage(houseId, messageText, houseName)
+                                viewModel.sendMessage(houseId, messageText)
                                 messageText = ""
                             }
                         },
@@ -336,10 +326,10 @@ fun MessageBubble(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                message.createdAt?.let { timestamp ->
+                message.createdAt.let { timestamp ->
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = formatTimestamp(timestamp),
+                        text = formatTimestamp(timestamp.toString()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )

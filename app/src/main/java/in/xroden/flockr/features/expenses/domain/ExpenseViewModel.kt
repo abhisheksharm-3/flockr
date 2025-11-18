@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
+    private val perDiemRepository: PerDiemRepository,
     private val houseRepository: HouseRepository
 ) : ViewModel() {
 
@@ -31,6 +33,18 @@ class ExpenseViewModel @Inject constructor(
 
     private val _createState = MutableStateFlow<CreateExpenseUiState>(CreateExpenseUiState.Idle)
     val createState: StateFlow<CreateExpenseUiState> = _createState.asStateFlow()
+
+    private val _houseConfigState = MutableStateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?>(null)
+    val houseConfig: StateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?> = _houseConfigState.asStateFlow()
+
+    private val _perDiemBillItemizedState = MutableStateFlow<Map<String, BigDecimal>>(emptyMap())
+    val perDiemBillItemized: StateFlow<Map<String, BigDecimal>> = _perDiemBillItemizedState.asStateFlow()
+
+    private val _spendByMemberState = MutableStateFlow<List<`in`.xroden.flockr.features.expenses.model.SpendByMember>>(emptyList())
+    val spendByMember: StateFlow<List<`in`.xroden.flockr.features.expenses.model.SpendByMember>> = _spendByMemberState.asStateFlow()
+
+    private val _spendByCategoryState = MutableStateFlow<List<`in`.xroden.flockr.features.expenses.model.SpendByCategory>>(emptyList())
+    val spendByCategory: StateFlow<List<`in`.xroden.flockr.features.expenses.model.SpendByCategory>> = _spendByCategoryState.asStateFlow()
 
     fun getCurrentUserId(): String? = expenseRepository.getCurrentUserId()
 
@@ -221,5 +235,139 @@ class ExpenseViewModel @Inject constructor(
 
     fun resetCreateState() {
         _createState.value = CreateExpenseUiState.Idle
+    }
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            houseRepository.getHouseConfig(houseId).fold(
+                onSuccess = { config ->
+                    _houseConfigState.value = config
+                },
+                onFailure = { error ->
+                    // Log error but don't update UI state
+                    _houseConfigState.value = null
+                }
+            )
+        }
+    }
+
+    fun loadPerDiemBillItemized(houseId: String, month: String) {
+        viewModelScope.launch {
+            perDiemRepository.getPerDiemBill(houseId, month).fold(
+                onSuccess = { billList ->
+                    // Convert List<PerDiemBillItemized> to Map<String, BigDecimal>
+                    val billMap = billList.associate { it.itemName to it.totalAmount }
+                    _perDiemBillItemizedState.value = billMap
+                },
+                onFailure = { error ->
+                    _perDiemBillItemizedState.value = emptyMap()
+                }
+            )
+        }
+    }
+
+    fun loadSpendByMember(houseId: String, month: String) {
+        viewModelScope.launch {
+            expenseRepository.getSpendByMember(houseId, month).fold(
+                onSuccess = { spending ->
+                    _spendByMemberState.value = spending
+                },
+                onFailure = { error ->
+                    _spendByMemberState.value = emptyList()
+                }
+            )
+        }
+    }
+
+    fun loadSpendByCategory(houseId: String, month: String) {
+        viewModelScope.launch {
+            expenseRepository.getSpendByCategory(houseId, month).fold(
+                onSuccess = { spending ->
+                    _spendByCategoryState.value = spending
+                },
+                onFailure = { error ->
+                    _spendByCategoryState.value = emptyList()
+                }
+            )
+        }
+    }
+
+    fun loadRecurringExpenses(houseId: String) {
+        viewModelScope.launch {
+            _expenseState.value = OneTimeExpenseUiState.Loading
+
+            expenseRepository.getRecurringExpenses(houseId).fold(
+                onSuccess = { expenses ->
+                    // We need to convert RecurringExpense list to something compatible with OneTimeExpenseUiState
+                    // For now, just mark as success with empty list - BillsScreen will need separate state
+                    _expenseState.value = OneTimeExpenseUiState.Success(emptyList())
+                },
+                onFailure = { error ->
+                    _expenseState.value = OneTimeExpenseUiState.Error(
+                        message = error.message ?: "Failed to load recurring expenses",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
+    fun markRecurringExpenseAsPaid(houseId: String, expenseId: String, amount: BigDecimal, paymentDate: LocalDate) {
+        viewModelScope.launch {
+            expenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
+                onSuccess = {
+                    loadRecurringExpenses(houseId)
+                },
+                onFailure = { error ->
+                    _expenseState.value = OneTimeExpenseUiState.Error(
+                        message = error.message ?: "Failed to record payment",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
+    fun deleteRecurringExpense(houseId: String, expenseId: String) {
+        viewModelScope.launch {
+            expenseRepository.deleteRecurringExpense(expenseId).fold(
+                onSuccess = {
+                    loadRecurringExpenses(houseId)
+                },
+                onFailure = { error ->
+                    _expenseState.value = OneTimeExpenseUiState.Error(
+                        message = error.message ?: "Failed to delete expense",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
+    fun formatAmount(amount: BigDecimal, currencySymbol: String = "$"): String {
+        return "$currencySymbol${String.format("%.2f", amount.toDouble())}"
+    }
+
+    fun formatDueStatusMessage(dueStatus: `in`.xroden.flockr.data.enums.ExpenseDueStatus?, daysUntilDue: Int?): String {
+        return when (dueStatus) {
+            `in`.xroden.flockr.data.enums.ExpenseDueStatus.OVERDUE -> "Overdue"
+            `in`.xroden.flockr.data.enums.ExpenseDueStatus.DUE_TODAY -> "Due Today"
+            `in`.xroden.flockr.data.enums.ExpenseDueStatus.DUE_SOON -> "Due in $daysUntilDue days"
+            `in`.xroden.flockr.data.enums.ExpenseDueStatus.UPCOMING -> "Upcoming in $daysUntilDue days"
+            else -> "Not scheduled"
+        }
+    }
+
+    fun getFrequencyDescription(frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency): String {
+        return when (frequency) {
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.DAILY -> "Daily"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.WEEKLY -> "Weekly"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.BIWEEKLY -> "Bi-weekly"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.MONTHLY -> "Monthly"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.QUARTERLY -> "Quarterly"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.SEMIANNUAL -> "Semi-annual"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.ANNUAL -> "Annual"
+            `in`.xroden.flockr.data.enums.ExpenseFrequency.CUSTOM -> "Custom"
+        }
     }
 }

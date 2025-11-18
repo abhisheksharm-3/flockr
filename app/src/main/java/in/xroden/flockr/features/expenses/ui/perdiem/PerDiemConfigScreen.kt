@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 
 /**
  * Modern per-diem configuration screen for managing daily shared items
@@ -39,9 +40,9 @@ fun PerDiemConfigScreen(
     onNavigateToAddEntry: (String) -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configs by viewModel.configs.collectAsState()
+    val configs by viewModel.configState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
     var showDeleteDialog by remember { mutableStateOf<PerDiemConfig?>(null) }

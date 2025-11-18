@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.house.domain.HomeUiState
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
@@ -67,14 +66,26 @@ private fun CreateHouseScreenContent(
         "CNY" to "¥"
     )
 
-    val uiState by viewModel.uiState.collectAsState()
+    val createState by viewModel.createState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState) {
-        if (uiState is HomeUiState.Error) {
-            val msg = (uiState as HomeUiState.Error).message
-            isCreating = false
-            snackbarHostState.showSnackbar(msg)
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Success -> {
+                isCreating = false
+                createdHouse = state.house
+                showSuccessDialog = true
+            }
+            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Error -> {
+                isCreating = false
+                snackbarHostState.showSnackbar(state.message)
+            }
+            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Loading -> {
+                isCreating = true
+            }
+            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Idle -> {
+                // Do nothing
+            }
         }
     }
 
@@ -298,19 +309,12 @@ private fun CreateHouseScreenContent(
                         }
                         
                         isCreating = true
-                        val currencySymbol = currencies.find { it.first == currency }?.second ?: "$"
                         viewModel.createHouse(
                             name = houseName,
                             address = address.takeIf { it.isNotBlank() },
                             latitude = null,
                             longitude = null,
-                            currencyCode = currency,
-                            currencySymbol = currencySymbol,
-                            onSuccess = { house ->
-                                isCreating = false
-                                createdHouse = house
-                                showSuccessDialog = true
-                            }
+                            currencyCode = currency
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),

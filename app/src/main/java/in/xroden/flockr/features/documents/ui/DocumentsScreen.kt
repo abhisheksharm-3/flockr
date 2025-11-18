@@ -155,7 +155,8 @@ fun DocumentsScreen(
                     }
                 }
                 is DocumentUiState.Success -> {
-                    if (currentState.documents.isEmpty()) {
+                    val currentDocuments = if (selectedTab == 0) personalDocsState else houseDocsState
+                    if (currentDocuments.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -199,11 +200,11 @@ fun DocumentsScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(currentState.documents) { document ->
+                            items(currentDocuments) { document ->
                                 DocumentCard(
                                     document = document,
-                                    onDownload = { viewModel.downloadDocument(document, context) },
-                                    onDelete = { viewModel.deleteDocument(document.id) }
+                                    onDownload = { viewModel.downloadDocument(document) },
+                                    onDelete = { viewModel.deleteDocument(document.id, document.storagePath) }
                                 )
                             }
                             item { Spacer(modifier = Modifier.height(80.dp)) }

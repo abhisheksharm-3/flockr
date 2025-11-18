@@ -1,6 +1,8 @@
 package `in`.xroden.flockr.domain.usecase.validation
 
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
+import kotlinx.datetime.todayIn
 import javax.inject.Inject
 
 /**
@@ -31,7 +33,8 @@ class ValidateChoreInputUseCase @Inject constructor() {
         // Validate due date (if provided)
         if (dueDate != null) {
             val today = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
-            if (dueDate < today.minus(1, kotlinx.datetime.DateTimeUnit.DAY)) {
+            val yesterday = today.minus(kotlinx.datetime.DateTimeUnit.DayBased(1))
+            if (dueDate < yesterday) {
                 errors.add("Due date cannot be in the past")
             }
         }

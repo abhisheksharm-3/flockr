@@ -24,6 +24,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.launch
 
 @Singleton
 class ChatRepository @Inject constructor(
@@ -57,10 +59,12 @@ class ChatRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }

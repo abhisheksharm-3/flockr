@@ -8,6 +8,12 @@ enum class ExpenseSplitType {
     @SerialName("equal")
     EQUAL,
     
+    @SerialName("percentage")
+    PERCENTAGE,
+    
+    @SerialName("amount")
+    AMOUNT,
+    
     @SerialName("custom")
     CUSTOM
 }

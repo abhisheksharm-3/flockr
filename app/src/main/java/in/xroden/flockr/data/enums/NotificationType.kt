@@ -20,14 +20,26 @@ enum class NotificationType {
     @SerialName("chore")
     CHORE,
     
+    @SerialName("chore_assigned")
+    CHORE_ASSIGNED,
+    
     @SerialName("shopping")
     SHOPPING,
+    
+    @SerialName("shopping_item")
+    SHOPPING_ITEM,
     
     @SerialName("per_diem")
     PER_DIEM,
     
     @SerialName("house_invite")
-    HOUSE_INVITE
+    HOUSE_INVITE,
+    
+    @SerialName("member_joined")
+    MEMBER_JOINED,
+    
+    @SerialName("message")
+    MESSAGE
 }
 
 

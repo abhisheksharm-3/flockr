@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.ui.components.ExpandableContent
 import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.house.domain.HomeUiState
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
@@ -45,12 +44,19 @@ fun HomeScreen(
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val unreadCount by notificationViewModel.unreadCount.collectAsState()
-    val profile by profileViewModel.profile.collectAsState()
+    val notificationUiState by notificationViewModel.uiState.collectAsState()
+    val profileUiState by profileViewModel.uiState.collectAsState()
 
-    // Load profile data
-    LaunchedEffect(Unit) {
-        profileViewModel.loadProfile()
+    // Extract unread count from notification UI state
+    val unreadCount = when (val state = notificationUiState) {
+        is `in`.xroden.flockr.features.notifications.domain.NotificationUiState.Success -> state.unreadCount
+        else -> 0
+    }
+
+    // Extract profile from UI state
+    val profile = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
+        else -> null
     }
 
     // Get time-based greeting
@@ -411,17 +417,8 @@ fun HomeScreen(
         JoinHouseDialog(
             onDismiss = { showJoinDialog = false },
             onJoinHouse = { inviteCode ->
-                viewModel.joinHouseByInviteCode(
-                    inviteCode = inviteCode,
-                    onSuccess = { houseId ->
-                        showJoinDialog = false
-                        onHouseClick(houseId)
-                    },
-                    onError = { errorMessage ->
-                        showJoinDialog = false
-                        // Error is already handled by ViewModel snackbar
-                    }
-                )
+                viewModel.joinHouseByInviteCode(inviteCode)
+                showJoinDialog = false
             }
         )
     }

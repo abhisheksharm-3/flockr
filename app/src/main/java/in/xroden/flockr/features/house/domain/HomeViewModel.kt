@@ -124,8 +124,10 @@ class HomeViewModel @Inject constructor(
             _joinState.value = JoinHouseUiState.Loading
             
             houseRepository.acceptInvitation(invitationId).fold(
-                onSuccess = { house ->
-                    _joinState.value = JoinHouseUiState.Success(house)
+                onSuccess = {
+                    // Refresh houses after accepting
+                    loadHouses()
+                    _joinState.value = JoinHouseUiState.Success(null)
                     kotlinx.coroutines.delay(1000)
                     _joinState.value = JoinHouseUiState.Idle
                 },

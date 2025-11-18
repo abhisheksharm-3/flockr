@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -24,11 +22,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.ui.theme.DateFormats
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,11 +39,11 @@ fun OneTimeExpensesScreen(
     onAddExpense: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val expenseState by viewModel.expenseState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
-    var selectedMonth by remember { mutableStateOf<YearMonth?>(null) }
+    var selectedYearMonth by remember { mutableStateOf<Pair<Int, Int>?>(null) } // year, month
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
@@ -85,8 +86,8 @@ fun OneTimeExpensesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        when (val state = uiState) {
-            is ExpenseUiState.Loading -> {
+            when (val state = expenseState) {
+                is OneTimeExpenseUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -96,31 +97,20 @@ fun OneTimeExpensesScreen(
                     CircularProgressIndicator()
                 }
             }
-            is ExpenseUiState.Success -> {
+            is OneTimeExpenseUiState.Success -> {
                 // Sort expenses by date DESC, then by createdAt DESC (newest first)
                 val sortedExpenses = state.expenses.sortedWith(
-                    compareByDescending<OneTimeExpense> {
-                        try {
-                            LocalDate.parse(it.date)
-                        } catch (e: Exception) {
-                            LocalDate.MIN
-                        }
-                    }.thenByDescending { it.createdAt }
+                    compareByDescending<OneTimeExpense> { it.date }
+                        .thenByDescending { it.createdAt }
                 )
 
                 // Filter by selected month if one is selected
-                val filteredExpenses = if (selectedMonth != null) {
+                val filteredExpenses = selectedYearMonth?.let { (year, month) ->
                     sortedExpenses.filter { expense ->
-                        try {
-                            val expenseDate = LocalDate.parse(expense.date)
-                            YearMonth.from(expenseDate) == selectedMonth
-                        } catch (e: Exception) {
-                            false
-                        }
+                        expense.date.year == year &&
+                        expense.date.monthNumber == month
                     }
-                } else {
-                    sortedExpenses
-                }
+                } ?: sortedExpenses
 
                 if (sortedExpenses.isEmpty()) {
                     EmptyExpensesState(
@@ -155,7 +145,7 @@ fun OneTimeExpensesScreen(
                                     onMonthChange = { selectedMonth = it },
                                     onClearFilter = { selectedMonth = null },
                                     expenseCount = filteredExpenses.size,
-                                    hasFilter = selectedMonth != null
+                                    hasFilter = selectedYearMonth != null
                                 )
                             }
                         }
@@ -175,7 +165,7 @@ fun OneTimeExpensesScreen(
                     }
                 }
             }
-            is ExpenseUiState.Error -> {
+                is OneTimeExpenseUiState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -248,19 +238,10 @@ fun ModernExpenseCard(
                 Button(
                     onClick = {
                         showDeleteDialog = false
-                        viewModel.deleteOneTimeExpense(
-                            expenseId = expense.id,
-                            onSuccess = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Expense deleted")
-                                }
-                            },
-                            onError = { error ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Failed to delete: $error")
-                                }
-                            }
-                        )
+                        viewModel.deleteOneTimeExpense(houseId, expense.id)
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Expense deleted")
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
@@ -284,24 +265,18 @@ fun ModernExpenseCard(
             onDismiss = { showEditDialog = false },
             onSave = { name, amount, category, notes ->
                 viewModel.updateOneTimeExpense(
+                    houseId = houseId,
                     expenseId = expense.id,
                     name = name,
                     amount = amount,
                     date = expense.date,
                     category = category,
-                    notes = notes,
-                    onSuccess = {
-                        showEditDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Expense updated")
-                        }
-                    },
-                    onError = { error ->
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Failed: $error")
-                        }
-                    }
+                    notes = notes
                 )
+                showEditDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar("Expense updated")
+                }
             }
         )
     }
@@ -528,10 +503,10 @@ fun EmptyExpensesState(
 // Helper Functions
 private fun formatDate(dateString: String): String {
     return try {
-        val date = LocalDate.parse(dateString.substring(0, 10), DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-        date.format(DateTimeFormatter.ofPattern(Constants.DateFormats.DISPLAY_DATE))
+        val date = kotlinx.datetime.LocalDate.parse(dateString, DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH_DAY))
+        date.format(DateTimeFormatter.ofPattern(DateFormats.DISPLAY_DATE))
     } catch (e: Exception) {
-        dateString.substring(0, 10)
+        dateString
     }
 }
 

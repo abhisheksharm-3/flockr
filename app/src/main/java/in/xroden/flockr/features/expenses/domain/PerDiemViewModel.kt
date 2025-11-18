@@ -16,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PerDiemViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
-    private val perDiemRepository: PerDiemRepository
+    private val perDiemRepository: PerDiemRepository,
+    private val houseRepository: `in`.xroden.flockr.features.house.data.HouseRepository
 ) : ViewModel() {
 
     private val _configState = MutableStateFlow<PerDiemConfigUiState>(PerDiemConfigUiState.Loading)
@@ -27,6 +28,9 @@ class PerDiemViewModel @Inject constructor(
 
     private val _billState = MutableStateFlow<PerDiemBillUiState>(PerDiemBillUiState.Loading)
     val billState: StateFlow<PerDiemBillUiState> = _billState.asStateFlow()
+
+    private val _houseConfigState = MutableStateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?>(null)
+    val houseConfig: StateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?> = _houseConfigState.asStateFlow()
 
     fun loadConfigs(houseId: String) {
         viewModelScope.launch {
@@ -49,7 +53,16 @@ class PerDiemViewModel @Inject constructor(
         viewModelScope.launch {
             _entryState.value = PerDiemEntryUiState.Loading
             
-            perDiemRepository.getPerDiemEntriesWithDetails(houseId, month).fold(
+            // Convert String to LocalDate if month is provided
+            val monthDate: kotlinx.datetime.LocalDate? = month?.let {
+                try {
+                    kotlinx.datetime.LocalDate.parse(if (it.length == 7) "$it-01" else it)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            perDiemRepository.getPerDiemEntriesWithDetails(houseId, monthDate).fold(
                 onSuccess = { entries ->
                     _entryState.value = PerDiemEntryUiState.Success(entries)
                 },
@@ -66,8 +79,8 @@ class PerDiemViewModel @Inject constructor(
         viewModelScope.launch {
             _billState.value = PerDiemBillUiState.Loading
             
-            val itemizedResult = expenseRepository.getPerDiemBillItemized(houseId, month)
-            val byMemberResult = expenseRepository.getPerDiemBillByMember(houseId, month)
+            val itemizedResult = perDiemRepository.getPerDiemBill(houseId, month)
+            val byMemberResult = perDiemRepository.getPerDiemBillByMember(houseId, month)
             
             if (itemizedResult.isSuccess && byMemberResult.isSuccess) {
                 _billState.value = PerDiemBillUiState.Success(
@@ -146,10 +159,11 @@ class PerDiemViewModel @Inject constructor(
         configId: String,
         quantity: BigDecimal,
         date: LocalDate,
+        itemName: String,
         notes: String?
     ) {
         viewModelScope.launch {
-            perDiemRepository.createPerDiemEntry(configId, quantity, date, notes).fold(
+            perDiemRepository.addPerDiemEntry(houseId, configId, quantity, date, itemName, notes).fold(
                 onSuccess = {
                     loadEntriesWithDetails(houseId)
                 },
@@ -172,6 +186,20 @@ class PerDiemViewModel @Inject constructor(
                     _entryState.value = PerDiemEntryUiState.Error(
                         message = error.message ?: "Failed to delete entry"
                     )
+                }
+            )
+        }
+    }
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            houseRepository.getHouseConfig(houseId).fold(
+                onSuccess = { config ->
+                    _houseConfigState.value = config
+                },
+                onFailure = { error ->
+                    // Log error but don't update UI state
+                    _houseConfigState.value = null
                 }
             )
         }

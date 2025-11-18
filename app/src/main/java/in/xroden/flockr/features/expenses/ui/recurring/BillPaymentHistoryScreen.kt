@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PaymentHistory
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -30,7 +30,7 @@ fun BillPaymentHistoryScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     
     // For now, we'll fetch via the view model's existing payment history
     // In a real implementation, you'd add a specific flow for this bill's history

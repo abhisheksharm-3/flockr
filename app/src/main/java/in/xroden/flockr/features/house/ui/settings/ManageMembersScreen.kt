@@ -23,11 +23,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
 
@@ -58,9 +57,9 @@ fun ManageMembersScreen(
             viewModel.loadHouse(houseId)
             members = viewModel.getHouseMembers(houseId)
             // Find current user's role
-            currentUserRole = members.find { it.userId == currentUserId }?.role
+            currentUserRole = members.find { it.userId == currentUserId }?.role?.name
             // Only load invitations if user is owner or admin
-            if (currentUserRole == "Owner" || currentUserRole == "Admin") {
+            if (currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name) {
                 pendingInvitations = viewModel.getPendingInvitations(houseId)
             }
             isLoading = false
@@ -68,7 +67,7 @@ fun ManageMembersScreen(
     }
 
     // Check if user has permission to manage members
-    val canManageMembers = currentUserRole == "Owner" || currentUserRole == "Admin"
+    val canManageMembers = currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name
 
     // If not authorized, show message and return
     if (!isLoading && !canManageMembers) {
@@ -366,13 +365,13 @@ fun ManageMembersScreen(
                     MemberListItem(
                         member = member,
                         currentUserRole = currentUserRole,
-                        isOwner = member.role == "Owner",
-                        onRemove = { 
-                            if (member.role == "Owner") {
+                        isOwner = member.role == HouseMemberRole.OWNER,
+                        onRemove = {
+                            if (member.role == HouseMemberRole.OWNER) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Cannot remove the owner of the household")
                                 }
-                            } else if (member.role == "Admin" && currentUserRole != "Owner") {
+                            } else if (member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Only the owner can remove admins")
                                 }
@@ -456,13 +455,13 @@ fun MemberListItem(
                     
                     // Role Badge
                     val roleColor = when (member.role) {
-                        "Owner" -> Color(0xFFFFD700) // Gold
-                        "Admin" -> MaterialTheme.colorScheme.primary
+                        HouseMemberRole.OWNER -> Color(0xFFFFD700) // Gold
+                        HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.secondaryContainer
                     }
                     val roleTextColor = when (member.role) {
-                        "Owner" -> Color(0xFF000000)
-                        "Admin" -> MaterialTheme.colorScheme.onPrimary
+                        HouseMemberRole.OWNER -> Color(0xFF000000)
+                        HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.onPrimary
                         else -> MaterialTheme.colorScheme.onSecondaryContainer
                     }
                     
@@ -472,7 +471,7 @@ fun MemberListItem(
                         modifier = Modifier.padding(0.dp)
                     ) {
                         Text(
-                            text = member.role,
+                            text = member.role.name,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = roleTextColor,

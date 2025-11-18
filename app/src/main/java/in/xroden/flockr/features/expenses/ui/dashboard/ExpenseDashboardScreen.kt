@@ -24,7 +24,9 @@ import `in`.xroden.flockr.ui.components.data.BalanceSize
 import `in`.xroden.flockr.ui.components.data.CompactStatDisplay
 import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -43,14 +45,11 @@ fun ExpenseDashboardScreen(
     onNavigateToReports: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState(initial = ExpenseUiState.Loading)
-    val balancesState = viewModel.balances.collectAsState(initial = emptyList())
-    val balances by remember { derivedStateOf { balancesState.value } }
-    val houseConfigState = viewModel.houseConfig.collectAsState(initial = null as `in`.xroden.flockr.features.house.model.HouseConfig?)
-    val houseConfig = houseConfigState.value
-    val monthlySummaryState = viewModel.monthlySummary.collectAsState(initial = null as `in`.xroden.flockr.features.expenses.model.MonthlySummary?)
-    val monthlySummary = monthlySummaryState.value
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val expenseState by viewModel.expenseState.collectAsState()
+    val balanceState by viewModel.balanceState.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val summaryState by viewModel.summaryState.collectAsState()
+    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
@@ -117,10 +116,18 @@ fun ExpenseDashboardScreen(
             // Quick Stats Row
             item {
                 // Use monthly summary which includes all expense types (one-time, recurring, per diem)
+                val monthlySummary = when (val state = summaryState) {
+                    is MonthlySummaryUiState.Success -> state.summary
+                    else -> null
+                }
                 val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
 
                 val currentUserId = viewModel.getCurrentUserId()
-                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: 0.0
+                val balances = when (val state = balanceState) {
+                    is BalanceUiState.Success -> state.balances
+                    else -> emptyList()
+                }
+                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: java.math.BigDecimal.ZERO
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -134,9 +141,9 @@ fun ExpenseDashboardScreen(
                     )
                     CompactDataCard(
                         label = "Your Balance",
-                        value = "$currencySymbol${"%.2f".format(kotlin.math.abs(userBalance))}",
+                        value = "$currencySymbol${"%.2f".format(kotlin.math.abs(userBalance.toDouble()))}",
                         modifier = Modifier.weight(1f),
-                        accentColor = if (userBalance >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                        accentColor = if (userBalance >= java.math.BigDecimal.ZERO) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -156,8 +163,7 @@ fun ExpenseDashboardScreen(
                     title = "One-Time Expenses",
                     subtitle = "Add and track individual expenses",
                     icon = Icons.Default.ShoppingCart,
-                    onClick = onNavigateToOneTimeExpenses,
-                    showChevron = true
+                    onClick = onNavigateToOneTimeExpenses
                 )
             }
 
@@ -166,8 +172,7 @@ fun ExpenseDashboardScreen(
                     title = "Recurring Expenses",
                     subtitle = "Manage monthly bills and subscriptions",
                     icon = Icons.Default.Refresh,
-                    onClick = onNavigateToRecurringExpenses,
-                    showChevron = true
+                    onClick = onNavigateToRecurringExpenses
                 )
             }
 
@@ -176,8 +181,7 @@ fun ExpenseDashboardScreen(
                     title = "Balances & IOUs",
                     subtitle = "See who owes what and settle up",
                     icon = Icons.Default.AccountBalance,
-                    onClick = onNavigateToBalances,
-                    showChevron = true
+                    onClick = onNavigateToBalances
                 )
             }
 
@@ -186,8 +190,7 @@ fun ExpenseDashboardScreen(
                     title = "Add Per Diem Entry",
                     subtitle = "Quick log daily usage items",
                     icon = Icons.Default.Add,
-                    onClick = onNavigateToQuickPerDiem,
-                    showChevron = true
+                    onClick = onNavigateToQuickPerDiem
                 )
             }
 
@@ -196,8 +199,7 @@ fun ExpenseDashboardScreen(
                     title = "Per-Diem Configuration",
                     subtitle = "Manage per-diem items and rates",
                     icon = Icons.Default.Settings,
-                    onClick = onNavigateToPerDiem,
-                    showChevron = true
+                    onClick = onNavigateToPerDiem
                 )
             }
 
@@ -215,8 +217,7 @@ fun ExpenseDashboardScreen(
                     title = "Monthly Reports",
                     subtitle = "View spending breakdown and summaries",
                     icon = Icons.Default.Assessment,
-                    onClick = onNavigateToReports,
-                    showChevron = true
+                    onClick = onNavigateToReports
                 )
             }
 
@@ -230,8 +231,8 @@ fun ExpenseDashboardScreen(
                 )
             }
 
-            when (val state = uiState) {
-                is ExpenseUiState.Loading -> {
+            when (val state = expenseState) {
+                is OneTimeExpenseUiState.Loading -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -243,7 +244,7 @@ fun ExpenseDashboardScreen(
                         }
                     }
                 }
-                is ExpenseUiState.Error -> {
+                is OneTimeExpenseUiState.Error -> {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -271,7 +272,7 @@ fun ExpenseDashboardScreen(
                         }
                     }
                 }
-                is ExpenseUiState.Success -> {
+                is OneTimeExpenseUiState.Success -> {
                     val recentExpenses = state.expenses.take(5)
                     if (recentExpenses.isEmpty()) {
                         item {
@@ -414,7 +415,7 @@ fun RecentExpenseCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = expense.date,
+                        text = expense.date.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

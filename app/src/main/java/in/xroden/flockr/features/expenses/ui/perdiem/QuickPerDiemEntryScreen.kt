@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -31,10 +32,10 @@ fun QuickPerDiemEntryScreen(
     onNavigateToTransactions: () -> Unit = {},
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configs by viewModel.configs.collectAsState()
+    val configs by viewModel.configState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)

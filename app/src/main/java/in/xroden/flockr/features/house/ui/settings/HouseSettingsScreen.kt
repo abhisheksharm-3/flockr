@@ -34,6 +34,10 @@ fun HouseSettingsScreen(
     onDeleteHouse: () -> Unit = {},
     viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
+    // UI State
+    val settingsUiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
+
     var house by remember { mutableStateOf<House?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
@@ -68,33 +72,56 @@ fun HouseSettingsScreen(
     )
 
     LaunchedEffect(houseId) {
-        isLoading = true
-        scope.launch {
-            // Load house data
-            val loadedHouse = viewModel.getHouse(houseId)
-            if (loadedHouse != null) {
-                house = loadedHouse
-                houseName = loadedHouse.name
-                address = loadedHouse.address ?: ""
-                currentUserId = viewModel.getCurrentUserId()
-                android.util.Log.d("HouseSettingsScreen", "Loaded house: name=${loadedHouse.name}, address=${loadedHouse.address}, currentUserId=$currentUserId, ownerId=${loadedHouse.ownerId}")
-            } else {
-                android.util.Log.e("HouseSettingsScreen", "Failed to load house data")
+        viewModel.loadHouseSettings(houseId)
+    }
+
+    LaunchedEffect(settingsUiState) {
+        when (val state = settingsUiState) {
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Success -> {
+                isLoading = false
+                currency = state.config.currencyCode
+                dateFormat = state.config.dateFormat
+                firstDayOfWeek = state.config.firstDayOfWeek
+                timezone = state.config.timezone
+                // Load house separately for house name and address
+                scope.launch {
+                    val houseResult = viewModel.getHouse(houseId)
+                    val loadedHouse = houseResult.getOrNull()
+                    house = loadedHouse
+                    loadedHouse?.let {
+                        houseName = it.name
+                        address = it.address ?: ""
+                        currentUserId = viewModel.getCurrentUserId()
+                    }
+                }
             }
-            
-            // Load house config
-            val config = viewModel.getHouseConfig(houseId)
-            if (config != null) {
-                currency = config.currencyCode
-                dateFormat = config.dateFormat
-                firstDayOfWeek = config.firstDayOfWeek
-                timezone = config.timezone
-                android.util.Log.d("HouseSettingsScreen", "Loaded config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
-            } else {
-                android.util.Log.d("HouseSettingsScreen", "No config found, using defaults")
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Error -> {
+                isLoading = false
             }
-            
-            isLoading = false
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Loading -> {
+                isLoading = true
+            }
+        }
+    }
+
+    // Observe update state for success/error
+    LaunchedEffect(updateState) {
+        when (val state = updateState) {
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Success -> {
+                isSaving = false
+                snackbarHostState.showSnackbar("Settings saved successfully")
+                onNavigateBack()
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Error -> {
+                isSaving = false
+                snackbarHostState.showSnackbar(state.message)
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Loading -> {
+                isSaving = true
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Idle -> {
+                // Do nothing
+            }
         }
     }
 
@@ -651,49 +678,29 @@ fun HouseSettingsScreen(
                         scope.launch {
                             val nameChanged = houseName != house?.name
                             val addressChanged = address != (house?.address ?: "")
-                            val currencySymbol = currencies.find { it.first == currency }?.second ?: "$"
 
-                            var success = true
-                            
                             // Update house details if changed
                             if (nameChanged || addressChanged) {
                                 android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
-                                val result = viewModel.updateHouse(
+                                viewModel.updateHouse(
                                     houseId = houseId,
                                     name = if (nameChanged) houseName else null,
                                     address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
                                 )
-                                success = result.isSuccess
-                                if (!success) {
-                                    android.util.Log.e("HouseSettingsScreen", "Failed to update house")
-                                }
                             }
 
                             // Update all config fields
-                            if (success) {
-                                android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
-                                val result = viewModel.updateHouseConfig(
-                                    houseId = houseId,
-                                    currencyCode = currency,
-                                    currencySymbol = currencySymbol,
-                                    dateFormat = dateFormat,
-                                    firstDayOfWeek = firstDayOfWeek,
-                                    timezone = timezone
-                                )
-                                success = result.isSuccess
-                                if (!success) {
-                                    android.util.Log.e("HouseSettingsScreen", "Failed to update config")
-                                }
-                            }
+                            android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+                            viewModel.updateHouseConfig(
+                                houseId = houseId,
+                                currencyCode = currency,
+                                dateFormat = dateFormat,
+                                firstDayOfWeek = firstDayOfWeek,
+                                timezone = timezone
+                            )
 
                             isSaving = false
-                            
-                            if (success) {
-                                snackbarHostState.showSnackbar("Settings saved successfully")
-                                onNavigateBack()
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to save settings")
-                            }
+                            snackbarHostState.showSnackbar("Settings saved successfully")
                         }
                     },
                     modifier = Modifier

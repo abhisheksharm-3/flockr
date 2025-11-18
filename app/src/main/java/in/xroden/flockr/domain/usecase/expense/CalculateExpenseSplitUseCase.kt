@@ -36,6 +36,20 @@ class CalculateExpenseSplitUseCase @Inject constructor() {
                     Result.success(memberIds.associateWith { amountPerPerson })
                 }
 
+                ExpenseSplitType.CUSTOM -> {
+                    // For custom splits, treat as EQUAL if no custom splits provided
+                    if (customSplits == null) {
+                        val amountPerPerson = totalAmount.divide(
+                            BigDecimal(memberIds.size),
+                            2,
+                            RoundingMode.HALF_UP
+                        )
+                        Result.success(memberIds.associateWith { amountPerPerson })
+                    } else {
+                        Result.success(customSplits)
+                    }
+                }
+
                 ExpenseSplitType.PERCENTAGE -> {
                     if (customSplits == null) {
                         return Result.failure(Exception("Custom splits required for percentage split"))

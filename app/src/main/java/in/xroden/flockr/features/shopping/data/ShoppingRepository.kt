@@ -21,6 +21,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.launch
 
 @Singleton
 class ShoppingRepository @Inject constructor(
@@ -52,10 +56,12 @@ class ShoppingRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -78,22 +84,22 @@ class ShoppingRepository @Inject constructor(
 
             val items = response.map { obj ->
                 val addedByName = obj["added_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.kotlinx.serialization.json.jsonObject?.get("full_name")?.kotlinx.serialization.json.jsonPrimitive?.content
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
                 val purchasedByName = obj["purchased_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.kotlinx.serialization.json.jsonObject?.get("full_name")?.kotlinx.serialization.json.jsonPrimitive?.content
+                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
 
                 ShoppingItem(
-                    id = obj["id"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    houseId = obj["house_id"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    itemName = obj["item_name"]?.kotlinx.serialization.json.jsonPrimitive?.content ?: "",
-                    quantity = obj["quantity"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
-                    isPurchased = obj["is_purchased"]?.kotlinx.serialization.json.jsonPrimitive?.content?.toBoolean() ?: false,
-                    addedBy = obj["added_by"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
+                    id = obj["id"]?.jsonPrimitive?.content ?: "",
+                    houseId = obj["house_id"]?.jsonPrimitive?.content ?: "",
+                    itemName = obj["item_name"]?.jsonPrimitive?.content ?: "",
+                    quantity = obj["quantity"]?.jsonPrimitive?.contentOrNull,
+                    isPurchased = obj["is_purchased"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    addedBy = obj["added_by"]?.jsonPrimitive?.contentOrNull,
                     addedByName = addedByName,
-                    purchasedBy = obj["purchased_by"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull,
+                    purchasedBy = obj["purchased_by"]?.jsonPrimitive?.contentOrNull,
                     purchasedByName = purchasedByName,
-                    purchasedAt = obj["purchased_at"]?.kotlinx.serialization.json.jsonPrimitive?.kotlinx.serialization.json.contentOrNull?.let { Instant.parse(it) },
-                    createdAt = obj["created_at"]?.kotlinx.serialization.json.jsonPrimitive?.content?.let { Instant.parse(it) }
+                    purchasedAt = obj["purchased_at"]?.jsonPrimitive?.contentOrNull?.let { Instant.parse(it) },
+                    createdAt = obj["created_at"]?.jsonPrimitive?.content?.let { Instant.parse(it) }
                         ?: Instant.DISTANT_PAST
                 )
             }

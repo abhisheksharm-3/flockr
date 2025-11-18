@@ -31,6 +31,10 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.launch
 
 @Singleton
 class HouseRepository @Inject constructor(
@@ -75,10 +79,12 @@ class HouseRepository @Inject constructor(
         }
 
         awaitClose {
-            try {
-                supabase.realtime.removeChannel(channel)
-            } catch (e: Exception) {
-                // Ignore cleanup errors
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
             }
         }
     }
@@ -329,7 +335,7 @@ class HouseRepository @Inject constructor(
                 }
                 .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
 
-            val inviteeUserId = inviteeProfile?.get("id")?.kotlinx.serialization.json.jsonPrimitive?.content
+            val inviteeUserId = inviteeProfile?.get("id")?.jsonPrimitive?.content
 
             supabase.from("house_invitations")
                 .insert(
@@ -528,7 +534,7 @@ class HouseRepository @Inject constructor(
                 }
                 .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
 
-            val userEmail = userProfile?.get("email")?.kotlinx.serialization.json.jsonPrimitive?.content
+            val userEmail = userProfile?.get("email")?.jsonPrimitive?.content
                 ?: return Result.success(emptyList())
 
             val invitations = supabase.from("house_invitations")

@@ -52,14 +52,14 @@ class HouseDetailsViewModel @Inject constructor(
     fun loadHouse(houseId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            _house.value = houseRepository.getHouseById(houseId)
-            _houseConfig.value = houseRepository.getHouseConfig(houseId)
-            
+            _house.value = houseRepository.getHouseById(houseId).getOrNull()
+            _houseConfig.value = houseRepository.getHouseConfig(houseId).getOrNull()
+
             // Get current user's role in this house
-            val members = houseRepository.getHouseMembers(houseId)
+            val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
             val currentUserId = houseRepository.getCurrentUserId()
-            _currentUserRole.value = members.find { it.userId == currentUserId }?.role
-            
+            _currentUserRole.value = members.find { it.userId == currentUserId }?.role?.name
+
             _isLoading.value = false
         }
     }
@@ -212,7 +212,7 @@ fun HouseDetailsScreen(
                         title = "Chat",
                         subtitle = "Group conversations",
                         icon = Icons.Default.Email,
-                        accentColor = FoldPurple,
+                        accentColor = MaterialTheme.colorScheme.tertiary,
                         onClick = onNavigateToChat
                     )
                 }

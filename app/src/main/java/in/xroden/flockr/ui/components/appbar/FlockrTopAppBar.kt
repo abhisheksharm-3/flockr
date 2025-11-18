@@ -26,8 +26,8 @@ fun FlockrTopAppBar(
             )
         },
         modifier = modifier,
-        navigationIcon = navigationIcon ?: {},
-        actions = { actions?.invoke() ?: {} },
+        navigationIcon = { navigationIcon?.invoke() ?: Unit },
+        actions = { actions?.invoke() ?: Unit },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onBackground,

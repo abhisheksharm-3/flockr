@@ -11,6 +11,7 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.util.Objects.isNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -161,9 +162,26 @@ class DocumentRepository @Inject constructor(
     suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> {
         return try {
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
-            val url = supabase.storage.from(bucket).createSignedUrl(storagePath, 3600)
+            val url = supabase.storage.from(bucket).createSignedUrl(storagePath, kotlin.time.Duration.parse("PT1H"))
 
             Result.success(url)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun downloadDocument(storagePath: String): Result<ByteArray> {
+        return try {
+            // Extract bucket from storagePath (format: bucket/path/to/file)
+            val pathParts = storagePath.split("/", limit = 2)
+            if (pathParts.size < 2) {
+                return Result.failure(Exception("Invalid storage path format"))
+            }
+            val bucket = pathParts[0]
+            val filePath = pathParts[1]
+            
+            val data = supabase.storage.from(bucket).downloadAuthenticated(filePath)
+            Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
