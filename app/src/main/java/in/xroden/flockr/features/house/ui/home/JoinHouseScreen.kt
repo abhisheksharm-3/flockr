@@ -121,12 +121,12 @@ fun JoinHouseScreen(
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(MaterialTheme.shapes.large)
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .border(
                         2.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        MaterialTheme.shapes.large
+                        MaterialTheme.shapes.medium
                     ),
                 contentAlignment = Alignment.Center
             ) {

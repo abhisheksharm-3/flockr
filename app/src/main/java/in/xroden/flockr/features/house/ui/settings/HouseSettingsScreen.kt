@@ -575,7 +575,7 @@ fun HouseSettingsScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                     ),
-                    shape = MaterialTheme.shapes.large
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),

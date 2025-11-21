@@ -133,7 +133,7 @@ fun ShoppingListScreen(
                     icon = { Icon(Icons.Default.Add, "Add") },
                     text = { Text("Add Item") },
                     containerColor = MaterialTheme.colorScheme.primary,
-                    shape = MaterialTheme.shapes.large
+                    shape = MaterialTheme.shapes.medium
                 )
             }
         },
@@ -461,7 +461,7 @@ fun EditShoppingItemDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(

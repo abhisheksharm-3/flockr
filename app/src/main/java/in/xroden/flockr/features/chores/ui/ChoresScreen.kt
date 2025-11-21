@@ -163,7 +163,7 @@ fun ChoresScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Chore") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -321,7 +321,7 @@ fun ChoreCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -595,7 +595,7 @@ fun AddChoreDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -688,12 +688,12 @@ fun EmptyChoresState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(MaterialTheme.shapes.large)
+                .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.large
+                    MaterialTheme.shapes.medium
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -752,7 +752,7 @@ fun EditChoreDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )

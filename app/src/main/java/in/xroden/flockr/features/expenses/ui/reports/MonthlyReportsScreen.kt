@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,9 +56,16 @@ fun MonthlyReportsScreen(
     }
 
     // Chart colors from theme
+    // Chart colors from theme
     val chartColors = listOf(
-        CategoryGreen, CategoryBlue, CategoryPurple, CategoryYellow,
-        CategoryPink, CategoryOrange, CategoryTeal, CategoryIndigo
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF10B981), // Emerald
+        Color(0xFFF59E0B), // Amber
+        Color(0xFF8B5CF6), // Violet
+        Color(0xFFEC4899)  // Pink
     )
 
     Scaffold(
@@ -135,7 +143,7 @@ fun MonthlyReportsScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
@@ -307,30 +315,9 @@ fun MonthlyReportsScreen(
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // Build category data - merge regular expenses and per diem
+                            // Category data is now fully aggregated by the RPC
                             val categoryData = spendByCategory.associate {
                                 (it.category ?: "Uncategorized") to (it.totalAmount?.toDouble() ?: 0.0)
-                            }.toMutableMap()
-
-                            val perDiemConfigs = if (perDiemConfigState is PerDiemConfigUiState.Success) {
-                                (perDiemConfigState as PerDiemConfigUiState.Success).configs
-                            } else emptyList()
-
-                            // Create map of item names to categories from configs
-                            val itemNameToCategory = perDiemConfigs.associate { config ->
-                                config.itemName to config.category
-                            }
-
-                            // Group per diem by category using config lookup and add to categoryData
-                            perDiemItemized.groupBy { item ->
-                                itemNameToCategory[item.itemName] ?: "Per Diem"
-                            }.forEach { (category, items) ->
-                                val total = items.fold(java.math.BigDecimal.ZERO) { acc, item ->
-                                    acc.add(item.totalAmount ?: java.math.BigDecimal.ZERO)
-                                }
-                                if (total > java.math.BigDecimal.ZERO) {
-                                    categoryData[category] = (categoryData[category] ?: 0.0) + total.toDouble()
-                                }
                             }
 
                             SimplePieChart(
@@ -367,7 +354,7 @@ fun MonthlyReportsScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                                     ),
-                                    shape = MaterialTheme.shapes.extraSmall
+                                    shape = MaterialTheme.shapes.medium
                                 ) {
                                     Column(
                                         modifier = Modifier

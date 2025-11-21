@@ -130,7 +130,7 @@ fun RecurringExpensesScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Bill") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -186,7 +186,7 @@ fun RecurringExpensesScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 ),
-                                shape = MaterialTheme.shapes.large
+                                shape = MaterialTheme.shapes.medium
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -355,7 +355,7 @@ fun EditRecurringExpenseDialog(
         modifier = Modifier.fillMaxWidth()
     ) {
         Surface(
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
         ) {
@@ -661,7 +661,7 @@ fun RecurringExpenseCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

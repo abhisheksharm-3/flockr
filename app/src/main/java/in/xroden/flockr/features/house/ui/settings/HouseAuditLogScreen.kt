@@ -111,7 +111,7 @@ fun HouseAuditLogScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Column(
                                 modifier = Modifier

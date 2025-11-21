@@ -213,7 +213,7 @@ fun ManageMembersScreen(
                 icon = { Icon(Icons.Default.Add, "Invite") },
                 text = { Text("Invite Member") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -512,7 +512,7 @@ fun InviteMemberDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )

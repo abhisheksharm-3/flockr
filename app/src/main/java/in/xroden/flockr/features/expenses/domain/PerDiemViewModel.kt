@@ -79,16 +79,21 @@ class PerDiemViewModel @Inject constructor(
         viewModelScope.launch {
             _billState.value = PerDiemBillUiState.Loading
             
+            android.util.Log.d("PerDiemViewModel", "loadPerDiemReports called for houseId: $houseId, month: $month")
             val itemizedResult = perDiemRepository.getPerDiemBill(houseId, month)
             val byMemberResult = perDiemRepository.getPerDiemBillByMember(houseId, month)
             
             if (itemizedResult.isSuccess && byMemberResult.isSuccess) {
+                val itemized = itemizedResult.getOrElse { emptyList() }
+                val byMember = byMemberResult.getOrElse { emptyList() }
+                android.util.Log.d("PerDiemViewModel", "loadPerDiemReports success: itemized=${itemized.size}, byMember=${byMember.size}")
                 _billState.value = PerDiemBillUiState.Success(
-                    itemized = itemizedResult.getOrElse { emptyList() },
-                    byMember = byMemberResult.getOrElse { emptyList() }
+                    itemized = itemized,
+                    byMember = byMember
                 )
             } else {
                 val error = itemizedResult.exceptionOrNull() ?: byMemberResult.exceptionOrNull()
+                android.util.Log.e("PerDiemViewModel", "loadPerDiemReports failed", error)
                 _billState.value = PerDiemBillUiState.Error(
                     message = error?.message ?: "Failed to load per-diem reports"
                 )
