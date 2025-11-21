@@ -51,8 +51,11 @@ class HomeViewModel @Inject constructor(
 
                             val monthlyExpenseDeferred = async {
                                 val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                                val currentMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}"
-                                expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: java.math.BigDecimal.ZERO
+                                val currentMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}-01"
+                                android.util.Log.d("HomeViewModel", "Loading monthly summary for house ${house.id}, month: $currentMonth")
+                                val result = expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: java.math.BigDecimal.ZERO
+                                android.util.Log.d("HomeViewModel", "Monthly expense for house ${house.id}: $result")
+                                result
                             }
 
                             val configDeferred = async {

@@ -1,24 +1,24 @@
 package `in`.xroden.flockr.features.shopping.ui
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -35,7 +35,6 @@ import kotlinx.datetime.toLocalDateTime
 fun ShoppingListScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    onNavigateToAddExpense: () -> Unit = {},
     onNavigateToAddExpenseWithData: (String, Int) -> Unit = { _, _ -> },
     viewModel: ShoppingViewModel = hiltViewModel()
 ) {
@@ -43,6 +42,8 @@ fun ShoppingListScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var showConvertDialog by remember { mutableStateOf<ShoppingItem?>(null) }
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("To Buy", "Purchased")
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -126,117 +127,157 @@ fun ShoppingListScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Item") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
-            )
+            if (selectedTab == 0) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    icon = { Icon(Icons.Default.Add, "Add") },
+                    text = { Text("Add Item") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    shape = MaterialTheme.shapes.large
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        when (val state = uiState) {
-            is ShoppingUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.primary,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                        height = 3.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = {
+                            Text(
+                                title,
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            is ShoppingUiState.Success -> {
-                if (state.items.isEmpty()) {
-                    EmptyShoppingState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        onAddItem = { showAddDialog = true }
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Header
-                        item {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "Shopping Items",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "${state.items.size} items to buy",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
 
-                        // Shopping Items
-                        items(state.items, key = { it.id }) { item ->
-                            ShoppingItemCard(
-                                item = item,
-                                onChecked = {
-                                    scope.launch {
-                                        viewModel.markAsPurchased(item.id, houseId, item.itemName)
-                                        showConvertDialog = item
-                                    }
-                                },
-                                onEdit = {
-                                    showEditDialog = item
-                                },
-                                onDelete = {
-                                    scope.launch {
-                                        viewModel.deleteItem(item.id)
-                                        snackbarHostState.showSnackbar("Item removed")
+            when (val state = uiState) {
+                is ShoppingUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ShoppingUiState.Success -> {
+                    val items = state.items
+                    val pendingItems = items.filter { !it.isPurchased }
+                    val purchasedItems = items.filter { it.isPurchased }
+                    val currentItems = if (selectedTab == 0) pendingItems else purchasedItems
+
+                    if (currentItems.isEmpty()) {
+                        EmptyShoppingState(
+                            modifier = Modifier.fillMaxSize(),
+                            onAddItem = { showAddDialog = true },
+                            isPurchasedTab = selectedTab == 1
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Header for Purchased Tab
+                            if (selectedTab == 1) {
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${purchasedItems.size} items purchased",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        TextButton(
+                                            onClick = { viewModel.clearPurchasedItems(houseId) },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                        ) {
+                                            Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Clear All")
+                                        }
                                     }
                                 }
-                            )
-                        }
+                            }
 
-                        // Bottom Spacer
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
+                            items(currentItems, key = { it.id }) { item ->
+                                ShoppingItemCard(
+                                    item = item,
+                                    onChecked = {
+                                        if (!item.isPurchased) {
+                                            scope.launch {
+                                                viewModel.markAsPurchased(item.id, houseId, item.itemName)
+                                                showConvertDialog = item
+                                            }
+                                        }
+                                    },
+                                    onEdit = { showEditDialog = item },
+                                    onDelete = {
+                                        scope.launch {
+                                            viewModel.deleteItem(item.id)
+                                            snackbarHostState.showSnackbar("Item removed")
+                                        }
+                                    },
+                                    isPurchasedTab = selectedTab == 1
+                                )
+                            }
+
+                            item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
                     }
                 }
-            }
-            is ShoppingUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                is ShoppingUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = "Error loading shopping list",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Button(
-                            onClick = { viewModel.loadShoppingItems(houseId) },
-                            shape = MaterialTheme.shapes.medium
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry")
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "Error loading shopping list",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Button(
+                                onClick = { viewModel.loadShoppingItems(houseId) },
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Retry")
+                            }
                         }
                     }
                 }
@@ -250,202 +291,109 @@ fun ShoppingItemCard(
     item: ShoppingItem,
     onChecked: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    isPurchasedTab: Boolean
 ) {
-    var isChecked by remember { mutableStateOf(false) }
+    var isChecked by remember { mutableStateOf(item.isPurchased) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = if (isChecked)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            else
+            containerColor = if (isPurchasedTab) 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
+            else 
                 MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isChecked) 1.dp else 2.dp
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Custom Checkbox with icon
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isChecked)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    .border(
-                        width = 2.dp,
-                        color = if (isChecked)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = isChecked,
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
-                Checkbox(
-                    checked = isChecked,
-                    onCheckedChange = {
-                        isChecked = it
-                        if (it) onChecked()
-                    },
+            if (!isPurchasedTab) {
+                // Custom Checkbox
+                Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .alpha(0f),
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = androidx.compose.ui.graphics.Color.Transparent,
-                        uncheckedColor = androidx.compose.ui.graphics.Color.Transparent
-                    )
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .clickable { 
+                            isChecked = true
+                            onChecked() 
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isChecked) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+            } else {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
             // Item Details
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = item.itemName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (isChecked) TextDecoration.LineThrough else null
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isPurchasedTab) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (isPurchasedTab) TextDecoration.LineThrough else null
                 )
 
-                // Info row 1: Quantity and Date
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     item.quantity?.let { qty ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = qty,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Added date
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                         Text(
-                            text = formatDate(item.createdAt.toString()),
+                            text = qty,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                MaterialTheme.shapes.extraSmall
+                            ).padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
-                }
-
-                // Info row 2: Added by
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    )
+                    
                     Text(
-                        text = "Added by ${item.addedByName ?: "Unknown"}",
+                        text = if (isPurchasedTab) 
+                            "Purchased by ${item.purchasedByName ?: "Unknown"}" 
+                        else 
+                            "Added by ${item.addedByName ?: "Unknown"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Action Buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Edit Button with background
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            "Edit",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+            // Actions
+            if (!isPurchasedTab) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 }
-
-                // Delete Button with background
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            "Delete",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Outlined.Delete, "Delete", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -460,68 +408,41 @@ fun AddShoppingItemDialog(
     var itemName by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("") }
 
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
+                modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Add Item",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
+                Text("Add Item", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                
                 OutlinedTextField(
                     value = itemName,
                     onValueChange = { itemName = it },
-                    label = { Text("Item Name *") },
-                    placeholder = { Text("e.g., Milk, Bread") },
+                    label = { Text("Item Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    singleLine = true
                 )
-
+                
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { quantity = it },
                     label = { Text("Quantity (Optional)") },
-                    placeholder = { Text("e.g., 2L, 1 loaf") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    singleLine = true
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel")
-                    }
+                
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = {
-                            onAdd(itemName, quantity.takeIf { it.isNotBlank() })
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = itemName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Add")
-                    }
+                        onClick = { onAdd(itemName, quantity.takeIf { it.isNotBlank() }) },
+                        enabled = itemName.isNotBlank()
+                    ) { Text("Add") }
                 }
             }
         }
@@ -539,67 +460,39 @@ fun EditShoppingItemDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Edit Item",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
+                Text("Edit Item", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                
                 OutlinedTextField(
                     value = itemName,
                     onValueChange = { itemName = it },
-                    label = { Text("Item Name *") },
-                    placeholder = { Text("e.g., Milk, Bread") },
+                    label = { Text("Item Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    singleLine = true
                 )
-
+                
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { quantity = it },
                     label = { Text("Quantity (Optional)") },
-                    placeholder = { Text("e.g., 2L, 1 loaf") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    singleLine = true
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel")
-                    }
+                
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = {
-                            onSave(itemName, quantity.takeIf { it.isNotBlank() })
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = itemName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Save")
-                    }
+                        onClick = { onSave(itemName, quantity.takeIf { it.isNotBlank() }) },
+                        enabled = itemName.isNotBlank()
+                    ) { Text("Save") }
                 }
             }
         }
@@ -615,100 +508,55 @@ fun ConvertToExpenseDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary
-            )
-        },
-        title = {
-            Text(
-                text = "Item Purchased!",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Text(
-                text = "Would you like to convert \"${item.itemName}\" into an expense entry?",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConvert,
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text("Convert to Expense")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onSkip,
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text("Skip")
-            }
-        }
+        icon = { Icon(Icons.Default.ShoppingCart, null) },
+        title = { Text("Item Purchased!") },
+        text = { Text("Convert \"${item.itemName}\" to an expense?") },
+        confirmButton = { Button(onClick = onConvert) { Text("Convert") } },
+        dismissButton = { TextButton(onClick = onSkip) { Text("Skip") } }
     )
 }
 
 @Composable
 fun EmptyShoppingState(
     modifier: Modifier = Modifier,
-    onAddItem: () -> Unit
+    onAddItem: () -> Unit,
+    isPurchasedTab: Boolean
 ) {
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.large
-                ),
-            contentAlignment = Alignment.Center
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(80.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    if (isPurchasedTab) Icons.Default.ShoppingBag else Icons.Default.ShoppingCart,
+                    null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Shopping List Empty",
-            style = MaterialTheme.typography.headlineSmall,
+            if (isPurchasedTab) "No purchased items" else "Shopping list empty",
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Add items you need to buy for the household",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onAddItem,
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Add First Item")
+        if (!isPurchasedTab) {
+            Text(
+                "Add items you need to buy",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onAddItem) {
+                Text("Add Item")
+            }
         }
     }
 }

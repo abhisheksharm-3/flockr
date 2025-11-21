@@ -76,8 +76,8 @@ class ShoppingRepository @Inject constructor(
                 """.trimIndent())) {
                     filter {
                         eq("house_id", houseId)
-                        eq("is_purchased", false)
                     }
+                    order("is_purchased", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<kotlinx.serialization.json.JsonObject>()
@@ -105,6 +105,21 @@ class ShoppingRepository @Inject constructor(
             }
 
             Result.success(items)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun clearPurchasedItems(houseId: String): Result<Unit> {
+        return try {
+            supabase.from("shopping_items")
+                .delete {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("is_purchased", true)
+                    }
+                }
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -48,12 +48,13 @@ data class PerDiemEntry(
 data class PerDiemBillItemized(
     @SerialName("item_name")
     val itemName: String,
+    val category: String,
+    val unit: String,
+    @Serializable(with = BigDecimalSerializer::class)
+    val rate: BigDecimal,
     @SerialName("total_quantity")
     @Serializable(with = BigDecimalSerializer::class)
     val totalQuantity: BigDecimal,
-    @Serializable(with = BigDecimalSerializer::class)
-    val rate: BigDecimal,
-    val unit: String,
     @SerialName("total_amount")
     @Serializable(with = BigDecimalSerializer::class)
     val totalAmount: BigDecimal

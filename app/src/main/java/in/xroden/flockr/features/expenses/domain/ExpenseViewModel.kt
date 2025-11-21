@@ -91,6 +91,7 @@ class ExpenseViewModel @Inject constructor(
 
     fun loadMonthlySummary(houseId: String, month: String) {
         viewModelScope.launch {
+            android.util.Log.d("ExpenseViewModel", "loadMonthlySummary called - houseId: $houseId, month: $month")
             _summaryState.value = MonthlySummaryUiState.Loading
             
             val summaryResult = expenseRepository.getMonthlySummary(houseId, month)
@@ -100,17 +101,21 @@ class ExpenseViewModel @Inject constructor(
             if (summaryResult.isSuccess) {
                 val summary = summaryResult.getOrNull()
                 if (summary != null) {
+                    android.util.Log.d("ExpenseViewModel", "Summary loaded successfully: ${summary.totalExpenses}")
                     _summaryState.value = MonthlySummaryUiState.Success(
                         summary = summary,
                         spendByMember = memberResult.getOrElse { emptyList() },
                         spendByCategory = categoryResult.getOrElse { emptyList() }
                     )
                 } else {
+                    android.util.Log.w("ExpenseViewModel", "Summary result was null")
                     _summaryState.value = MonthlySummaryUiState.Error("No summary data available")
                 }
             } else {
+                val error = summaryResult.exceptionOrNull()
+                android.util.Log.e("ExpenseViewModel", "Failed to load summary", error)
                 _summaryState.value = MonthlySummaryUiState.Error(
-                    message = summaryResult.exceptionOrNull()?.message ?: "Failed to load summary"
+                    message = error?.message ?: "Failed to load summary"
                 )
             }
         }

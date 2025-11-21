@@ -25,6 +25,9 @@ class RecurringExpenseViewModel @Inject constructor(
     private val _createState = MutableStateFlow<CreateExpenseUiState>(CreateExpenseUiState.Idle)
     val createState: StateFlow<CreateExpenseUiState> = _createState.asStateFlow()
 
+    private val _paymentHistoryState = MutableStateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>>(emptyList())
+    val paymentHistoryState: StateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>> = _paymentHistoryState.asStateFlow()
+
     fun loadRecurringExpenses(houseId: String) {
         viewModelScope.launch {
             _uiState.value = RecurringExpenseUiState.Loading
@@ -141,13 +144,19 @@ class RecurringExpenseViewModel @Inject constructor(
         paymentDate: LocalDate
     ) {
         viewModelScope.launch {
+            android.util.Log.d("RecurringExpenseViewModel", "markAsPaid called - houseId: $houseId, expenseId: $expenseId")
+            
+            _uiState.value = RecurringExpenseUiState.Loading
+            
             expenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
                 onSuccess = {
+                    android.util.Log.d("RecurringExpenseViewModel", "markAsPaid successful, reloading expenses")
                     loadRecurringExpenses(houseId)
                 },
                 onFailure = { error ->
+                    android.util.Log.e("RecurringExpenseViewModel", "markAsPaid failed", error)
                     _uiState.value = RecurringExpenseUiState.Error(
-                        message = error.message ?: "Failed to record payment",
+                        message = error.message ?: "Failed to mark expense as paid",
                         cause = error
                     )
                 }
@@ -173,5 +182,18 @@ class RecurringExpenseViewModel @Inject constructor(
 
     fun resetCreateState() {
         _createState.value = CreateExpenseUiState.Idle
+    }
+
+    fun loadPaymentHistory(recurringExpenseId: String) {
+        viewModelScope.launch {
+            expenseRepository.getPaymentHistory(recurringExpenseId).fold(
+                onSuccess = { history ->
+                    _paymentHistoryState.value = history
+                },
+                onFailure = {
+                    _paymentHistoryState.value = emptyList()
+                }
+            )
+        }
     }
 }

@@ -66,16 +66,36 @@ class DocumentRepository @Inject constructor(
         mimeType: String
     ): Result<Document> {
         return try {
+            android.util.Log.d("DocumentRepository", "uploadDocument called - fileName: $fileName, houseId: $houseId, fileSize: ${fileData.size}")
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            // Check limits
+            if (houseId != null) {
+                val houseDocs = getHouseDocuments(houseId).getOrDefault(emptyList())
+                android.util.Log.d("DocumentRepository", "House documents count: ${houseDocs.size}/3")
+                if (houseDocs.size >= 3) {
+                    android.util.Log.w("DocumentRepository", "House document limit reached (max 3)")
+                    return Result.failure(Exception("House document limit reached (max 3)"))
+                }
+            } else {
+                val personalDocs = getPersonalDocuments().getOrDefault(emptyList())
+                android.util.Log.d("DocumentRepository", "Personal documents count: ${personalDocs.size}/2")
+                if (personalDocs.size >= 2) {
+                    android.util.Log.w("DocumentRepository", "Personal document limit reached (max 2)")
+                    return Result.failure(Exception("Personal document limit reached (max 2)"))
+                }
+            }
 
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
             val path = if (houseId != null) {
-                "$houseId/$currentUserId/$fileName"
+                "$houseId/$currentUserId/${System.currentTimeMillis()}_$fileName"
             } else {
-                "$currentUserId/$fileName"
+                "$currentUserId/${System.currentTimeMillis()}_$fileName"
             }
+            android.util.Log.d("DocumentRepository", "Uploading to bucket: $bucket, path: $path")
 
             supabase.storage.from(bucket).upload(path, fileData, upsert = false)
+            android.util.Log.d("DocumentRepository", "File uploaded to storage successfully")
 
             val document = supabase.from("documents")
                 .insert(
@@ -91,6 +111,7 @@ class DocumentRepository @Inject constructor(
                     select()
                 }
                 .decodeSingle<Document>()
+            android.util.Log.d("DocumentRepository", "Document metadata inserted, ID: ${document.id}")
 
             if (houseId != null) {
                 try {
@@ -126,8 +147,11 @@ class DocumentRepository @Inject constructor(
                 }
             }
 
+            android.util.Log.d("DocumentRepository", "uploadDocument completed successfully")
             Result.success(document)
         } catch (e: Exception) {
+            android.util.Log.e("DocumentRepository", "uploadDocument failed", e)
+            android.util.Log.e("DocumentRepository", "Exception message: ${e.message}")
             Result.failure(e)
         }
     }

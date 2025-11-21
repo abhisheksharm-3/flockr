@@ -54,6 +54,7 @@ fun BillsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onNavigateToAddBill: () -> Unit = {},
+    onNavigateToHistory: (String, String) -> Unit = { _, _ -> },
     viewModel: ExpenseViewModel = hiltViewModel(),
     recurringViewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
@@ -130,6 +131,7 @@ fun BillsScreen(
                             selectedMonth = selectedMonth,
                             currencySymbol = currencySymbol,
                             onExpenseClick = { /* TODO: Navigate to details */ },
+                            onHistoryClick = { expense -> onNavigateToHistory(expense.id, expense.name) },
                             onMarkAsPaid = { expense ->
                                 recurringViewModel.markAsPaid(
                                     houseId = houseId,
@@ -252,6 +254,7 @@ fun RecurringBillsContent(
     selectedMonth: YearMonth,
     currencySymbol: String,
     onExpenseClick: (RecurringExpense) -> Unit,
+    onHistoryClick: (RecurringExpense) -> Unit,
     onMarkAsPaid: (RecurringExpense) -> Unit
 ) {
     Column(
@@ -293,6 +296,7 @@ fun RecurringBillsContent(
                     expense = expense,
                     currencySymbol = currencySymbol,
                     onMarkAsPaid = { onMarkAsPaid(expense) },
+                    onHistoryClick = { onHistoryClick(expense) },
                     onClick = { onExpenseClick(expense) }
                 )
             }
@@ -567,6 +571,7 @@ fun ModernBillCard(
     expense: RecurringExpense,
     currencySymbol: String,
     onMarkAsPaid: () -> Unit,
+    onHistoryClick: () -> Unit,
     onClick: () -> Unit
 ) {
     val statusColor = when (expense.dueStatus) {
@@ -678,6 +683,62 @@ fun ModernBillCard(
                         }
                     }
                 }
+            }
+        }
+        
+        // Buttons Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onHistoryClick) {
+                Icon(Icons.Default.History, "History", modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("History")
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            var showConfirmation by remember { mutableStateOf(false) }
+            
+            Button(
+                onClick = { showConfirmation = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Icon(Icons.Default.Check, "Mark Paid", modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Mark Paid")
+            }
+
+            if (showConfirmation) {
+                AlertDialog(
+                    onDismissRequest = { showConfirmation = false },
+                    title = { Text("Mark as Paid?") },
+                    text = { Text("Confirm payment of ${currencySymbol}${String.format("%.2f", expense.amount.toDouble())} for ${expense.name}") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onMarkAsPaid()
+                                showConfirmation = false
+                            }
+                        ) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showConfirmation = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }

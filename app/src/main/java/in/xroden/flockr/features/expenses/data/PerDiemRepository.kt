@@ -226,18 +226,44 @@ class PerDiemRepository @Inject constructor(
         }
     }
 
+    suspend fun updatePerDiemEntry(
+        entryId: String,
+        quantity: BigDecimal?,
+        date: LocalDate?,
+        notes: String?
+    ): Result<Unit> {
+        return try {
+            supabase.from("per_diem_entries")
+                .update(
+                    `in`.xroden.flockr.data.dto.PerDiemEntryUpdate(
+                        quantity = quantity,
+                        date = date,
+                        notes = notes
+                    )
+                ) {
+                    filter {
+                        eq("id", entryId)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getPerDiemBill(houseId: String, month: String): Result<List<PerDiemBillItemized>> {
         return try {
             @Serializable
             data class PerDiemBillParams(
-                @SerialName("target_house_id")
+                @SerialName("p_house_id")
                 val houseId: String,
-                @SerialName("target_year_month")
+                @SerialName("p_month")
                 val month: String
             )
 
             val bill = supabase.postgrest.rpc(
-                function = "get_per_diem_bill",
+                function = "get_per_diem_bill_itemized",
                 parameters = PerDiemBillParams(
                     houseId = houseId,
                     month = month

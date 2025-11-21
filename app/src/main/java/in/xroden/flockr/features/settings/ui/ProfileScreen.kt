@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.settings.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -119,131 +120,185 @@ fun ProfileScreen(
                             .padding(horizontal = 24.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Profile Icon
-                        Surface(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .align(Alignment.CenterHorizontally),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer
+                        // Profile Header Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(50.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                                // Avatar
+                                Surface(
+                                    modifier = Modifier.size(80.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = profile?.fullName?.firstOrNull()?.toString() ?: "?",
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+
+                                // Name and Email
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = profile?.fullName ?: "No name",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = profile?.email ?: "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
 
-                        // Header
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = profile?.fullName ?: "No name",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = profile?.email ?: "",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
-
                         // Profile Details Section
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = "Profile Information",
+                                text = "Personal Information",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(start = 4.dp)
                             )
 
-                            if (editMode) {
-                                // Edit Mode
-                                OutlinedTextField(
-                                    value = editedName,
-                                    onValueChange = { editedName = it },
-                                    label = { Text("Full Name") },
-                                    placeholder = { Text("Enter your name") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
-
-                                val errorMessage = when (val state = updateState) {
-                                    is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error -> state.message
-                                    else -> null
-                                }
-
-                                if (errorMessage != null) {
-                                    Text(
-                                        text = errorMessage,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.padding(horizontal = 4.dp)
-                                    )
-                                }
-
-                                val isUpdating = updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(20.dp)
                                 ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            editMode = false
-                                            editedName = profile?.fullName ?: ""
-                                            viewModel.resetUpdateState()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        enabled = !isUpdating
-                                    ) {
-                                        Text("Cancel")
+                                    if (editMode) {
+                                        // Edit Mode
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(
+                                                text = "Full Name",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            OutlinedTextField(
+                                                value = editedName,
+                                                onValueChange = { editedName = it },
+                                                placeholder = { Text("Enter your name") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = true,
+                                                shape = MaterialTheme.shapes.medium
+                                            )
+                                        }
+
+                                        val errorMessage = when (val state = updateState) {
+                                            is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error -> state.message
+                                            else -> null
+                                        }
+
+                                        if (errorMessage != null) {
+                                            Text(
+                                                text = errorMessage,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.padding(horizontal = 4.dp)
+                                            )
+                                        }
+
+                                        val isUpdating = updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    editMode = false
+                                                    editedName = profile?.fullName ?: ""
+                                                    viewModel.resetUpdateState()
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                enabled = !isUpdating,
+                                                shape = MaterialTheme.shapes.medium
+                                            ) {
+                                                Text("Cancel")
+                                            }
+
+                                            Button(
+                                                onClick = {
+                                                    viewModel.updateProfile(editedName)
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                enabled = !isUpdating && editedName.isNotBlank(),
+                                                shape = MaterialTheme.shapes.medium
+                                            ) {
+                                                if (isUpdating) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary,
+                                                        strokeWidth = 2.dp
+                                                    )
+                                                } else {
+                                                    Text("Save Changes")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // View Mode
+                                        ProfileInfoItem(
+                                            label = "Full Name",
+                                            value = profile?.fullName ?: "Not set"
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                        ProfileInfoItem(
+                                            label = "Email",
+                                            value = profile?.email ?: ""
+                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                        ProfileInfoItem(
+                                            label = "Member Since",
+                                            value = profile?.createdAt?.toString()?.take(10) ?: "Unknown"
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        OutlinedButton(
+                                            onClick = { editMode = true },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = MaterialTheme.shapes.medium
+                                        ) {
+                                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Edit Profile")
+                                        }
                                     }
-
-                                    FlockrPrimaryButton(
-                                        onClick = {
-                                            viewModel.updateProfile(editedName)
-                                        },
-                                        text = "Save",
-                                        modifier = Modifier.weight(1f),
-                                        enabled = !isUpdating && editedName.isNotBlank()
-                                    )
                                 }
-                            } else {
-                                // View Mode
-                                ProfileInfoItem(
-                                    label = "Full Name",
-                                    value = profile?.fullName ?: "Not set"
-                                )
-
-                                ProfileInfoItem(
-                                    label = "Email",
-                                    value = profile?.email ?: ""
-                                )
-
-                                ProfileInfoItem(
-                                    label = "Member Since",
-                                    value = profile?.createdAt?.toString()?.take(10) ?: "Unknown"
-                                )
-
-                                FlockrPrimaryButton(
-                                    onClick = { editMode = true },
-                                    text = "Edit Profile",
-                                    icon = Icons.Default.Edit,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
                             }
                         }
                     }

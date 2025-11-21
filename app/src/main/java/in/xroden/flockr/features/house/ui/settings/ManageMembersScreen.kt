@@ -398,17 +398,14 @@ fun MemberListItem(
     isOwner: Boolean,
     onRemove: () -> Unit
 ) {
-    // Can delete if: you're owner (can delete anyone except owner), or you're admin (can delete regular members only)
     val canDelete = when {
-        isOwner -> false // Can't delete owner
-        member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name -> false // Only owner can delete admins
-        currentUserRole == "Owner" || currentUserRole == "Admin" -> true // Owner/Admin can delete others
-        else -> false
+        member.role == HouseMemberRole.OWNER -> false
+        member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name -> false
+        else -> currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -452,7 +449,7 @@ fun MemberListItem(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     // Role Badge
                     val roleColor = when (member.role) {
                         HouseMemberRole.OWNER -> Color(0xFFFFD700) // Gold
@@ -464,7 +461,7 @@ fun MemberListItem(
                         HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.onPrimary
                         else -> MaterialTheme.colorScheme.onSecondaryContainer
                     }
-                    
+
                     Surface(
                         shape = MaterialTheme.shapes.small,
                         color = roleColor,

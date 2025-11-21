@@ -59,7 +59,7 @@ fun ExpenseDashboardScreen(
         // Load monthly summary for current month
         val currentMonth = kotlinx.datetime.Clock.System.now()
             .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-            .date.toString().substring(0, 7)  // Get YYYY-MM format
+            .date.toString().substring(0, 7) + "-01"  // Get YYYY-MM-01 format
         viewModel.loadMonthlySummary(houseId, currentMonth)
     }
 

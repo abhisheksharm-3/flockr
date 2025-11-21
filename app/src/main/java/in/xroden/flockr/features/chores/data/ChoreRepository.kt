@@ -342,4 +342,20 @@ class ChoreRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun clearCompletedChores(houseId: String): Result<Unit> {
+        return try {
+            supabase.from("chores")
+                .delete {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("is_completed", true)
+                    }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

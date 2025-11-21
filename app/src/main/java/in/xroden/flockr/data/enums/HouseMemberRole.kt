@@ -7,12 +7,10 @@ import kotlinx.serialization.Serializable
 enum class HouseMemberRole {
     @SerialName("Owner")
     OWNER,
-    
+
     @SerialName("Admin")
     ADMIN,
-    
+
     @SerialName("Member")
     MEMBER
 }
-
-

@@ -20,6 +20,7 @@ import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.datetime.*
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.math.BigDecimal
 
 /**
  * Screen to view all per diem transactions
@@ -212,7 +213,11 @@ fun PerDiemTransactionsScreen(
                             items(dateEntries) { entry ->
                                 PerDiemTransactionCard(
                                     entry = entry,
-                                    currencySymbol = currencySymbol
+                                    currencySymbol = currencySymbol,
+                                    onDelete = { viewModel.deletePerDiemEntry(houseId, entry.entryId) },
+                                    onUpdate = { quantity, date, notes ->
+                                        viewModel.updatePerDiemEntry(houseId, entry.entryId, quantity, date, notes)
+                                    }
                                 )
                             }
                         }
@@ -231,8 +236,14 @@ fun PerDiemTransactionsScreen(
 @Composable
 private fun PerDiemTransactionCard(
     entry: PerDiemEntryWithDetails,
-    currencySymbol: String
+    currencySymbol: String,
+    onDelete: () -> Unit,
+    onUpdate: (BigDecimal?, LocalDate?, String?) -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -245,14 +256,14 @@ private fun PerDiemTransactionCard(
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = entry.itemName, // Corrected property name
+                    text = entry.itemName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -302,14 +313,142 @@ private fun PerDiemTransactionCard(
                 }
             }
 
-            Text(
-                text = "$currencySymbol${String.format("%.2f", entry.totalCost)}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "$currencySymbol${String.format("%.2f", entry.totalCost)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "More options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                showMenu = false
+                                showEditDialog = true
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                showDeleteDialog = true
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            colors = MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Transaction") },
+            text = { Text("Are you sure you want to delete this transaction?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showEditDialog) {
+        EditTransactionDialog(
+            entry = entry,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { quantity, notes ->
+                onUpdate(quantity, null, notes) // Date editing omitted for simplicity for now
+                showEditDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun EditTransactionDialog(
+    entry: PerDiemEntryWithDetails,
+    onDismiss: () -> Unit,
+    onConfirm: (BigDecimal, String?) -> Unit
+) {
+    var quantityStr by remember { mutableStateOf(entry.quantity.toString()) }
+    var notes by remember { mutableStateOf(entry.notes ?: "") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Transaction") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = quantityStr,
+                    onValueChange = { quantityStr = it },
+                    label = { Text("Quantity (${entry.unit})") },
+                    singleLine = true
+                )
+                
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes") },
+                    minLines = 2,
+                    maxLines = 4
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val quantity = quantityStr.toBigDecimalOrNull()
+                    if (quantity != null) {
+                        onConfirm(quantity, notes.ifBlank { null })
+                    }
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

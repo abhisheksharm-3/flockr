@@ -403,8 +403,17 @@ class ExpenseRepository @Inject constructor(
         paymentDate: LocalDate
     ): Result<Unit> {
         return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+            android.util.Log.d("ExpenseRepository", "markRecurringExpenseAsPaid called - expenseId: $expenseId, amount: $amount, date: $paymentDate")
+            
+            val currentUserId = userId ?: run {
+                android.util.Log.e("ExpenseRepository", "markRecurringExpenseAsPaid failed - No user logged in")
+                return Result.failure(Exception("No user logged in"))
+            }
+            
+            android.util.Log.d("ExpenseRepository", "Current user ID: $currentUserId")
 
+            // Insert payment history
+            android.util.Log.d("ExpenseRepository", "Inserting payment history...")
             supabase.from("payment_history")
                 .insert(
                     PaymentHistoryInsert(
@@ -414,7 +423,10 @@ class ExpenseRepository @Inject constructor(
                         paymentDate = paymentDate
                     )
                 )
+            android.util.Log.d("ExpenseRepository", "Payment history inserted successfully")
 
+            // Update recurring expense with last paid date
+            android.util.Log.d("ExpenseRepository", "Updating recurring expense last_paid_date...")
             supabase.from("recurring_expenses")
                 .update(
                     RecurringExpenseUpdate(
@@ -423,9 +435,14 @@ class ExpenseRepository @Inject constructor(
                 ) {
                     filter { eq("id", expenseId) }
                 }
+            android.util.Log.d("ExpenseRepository", "Recurring expense updated successfully")
 
+            android.util.Log.d("ExpenseRepository", "markRecurringExpenseAsPaid completed successfully")
             Result.success(Unit)
         } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "markRecurringExpenseAsPaid failed with exception", e)
+            android.util.Log.e("ExpenseRepository", "Exception message: ${e.message}")
+            android.util.Log.e("ExpenseRepository", "Exception stack trace: ${e.stackTraceToString()}")
             Result.failure(e)
         }
     }
@@ -586,6 +603,8 @@ class ExpenseRepository @Inject constructor(
 
     suspend fun getMonthlySummary(houseId: String, month: String): Result<MonthlySummary> {
         return try {
+            android.util.Log.d("ExpenseRepository", "getMonthlySummary called - houseId: $houseId, month: $month")
+            
             @Serializable
             data class GetMonthlySummaryParams(
                 @SerialName("p_house_id")
@@ -594,22 +613,29 @@ class ExpenseRepository @Inject constructor(
                 val month: String
             )
 
-            val summary = supabase.postgrest.rpc(
+            // RPC returns an array with a single object, not a single object directly
+            val summaryList = supabase.postgrest.rpc(
                 function = "get_monthly_summary",
                 parameters = GetMonthlySummaryParams(
                     houseId = houseId,
                     month = month
                 )
-            ).decodeAs<MonthlySummary>()
+            ).decodeList<MonthlySummary>()
 
+            val summary = summaryList.firstOrNull() ?: throw Exception("No summary data returned from RPC")
+            
+            android.util.Log.d("ExpenseRepository", "getMonthlySummary result: totalExpenses=${summary.totalExpenses}, oneTimeExpenses=${summary.oneTimeExpenses}, recurringExpenses=${summary.recurringExpenses}, perDiemExpenses=${summary.perDiemExpenses}")
             Result.success(summary)
         } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "getMonthlySummary failed", e)
+            android.util.Log.e("ExpenseRepository", "Exception message: ${e.message}")
             Result.failure(e)
         }
     }
 
     suspend fun getSpendByMember(houseId: String, month: String): Result<List<SpendByMember>> {
         return try {
+            android.util.Log.d("ExpenseRepository", "getSpendByMember called - houseId: $houseId, month: $month")
             @Serializable
             data class GetSpendByMemberParams(
                 @SerialName("p_house_id")
@@ -626,8 +652,10 @@ class ExpenseRepository @Inject constructor(
                 )
             ).decodeList<SpendByMember>()
 
+            android.util.Log.d("ExpenseRepository", "getSpendByMember result: ${spending.size} members, data: $spending")
             Result.success(spending)
         } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "getSpendByMember failed", e)
             Result.failure(e)
         }
     }

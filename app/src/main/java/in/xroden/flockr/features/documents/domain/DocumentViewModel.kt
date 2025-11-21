@@ -84,34 +84,51 @@ class DocumentViewModel @Inject constructor(
 
     fun uploadDocument(uri: Uri, fileName: String, context: Context, houseId: String? = null) {
         viewModelScope.launch {
+            android.util.Log.d("DocumentViewModel", "uploadDocument called - fileName: $fileName, houseId: $houseId")
             _uploadState.value = UploadDocumentUiState.Uploading
             
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                 val fileData = inputStream?.readBytes()
                 if (fileData == null) {
+                    android.util.Log.w("DocumentViewModel", "Could not read file data")
                     _uploadState.value = UploadDocumentUiState.Error("Could not read file")
                     return@launch
                 }
                 val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                android.util.Log.d("DocumentViewModel", "File read successfully, size: ${fileData.size}, mimeType: $mimeType")
 
                 documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
                     onSuccess = {
+                        android.util.Log.d("DocumentViewModel", "Document uploaded successfully")
                         _uploadState.value = UploadDocumentUiState.Success
                         loadDocuments(currentHouseId)
                         kotlinx.coroutines.delay(1000)
                         _uploadState.value = UploadDocumentUiState.Idle
                     },
                     onFailure = { error ->
+                        android.util.Log.e("DocumentViewModel", "Upload failed: ${error.message}")
                         _uploadState.value = UploadDocumentUiState.Error(
                             message = error.message ?: "Upload failed"
                         )
                     }
                 )
             } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Exception during upload", e)
                 _uploadState.value = UploadDocumentUiState.Error(e.message ?: "Upload failed")
             }
         }
+    }
+
+    // Wrapper methods for clarity in UI
+    fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
+        android.util.Log.d("DocumentViewModel", "uploadPersonalDocument called")
+        uploadDocument(uri, fileName, context, houseId = null)
+    }
+
+    fun uploadHouseDocument(houseId: String, uri: Uri, fileName: String, context: Context) {
+        android.util.Log.d("DocumentViewModel", "uploadHouseDocument called - houseId: $houseId")
+        uploadDocument(uri, fileName, context, houseId = houseId)
     }
 
     fun deleteDocument(documentId: String, storagePath: String) {
@@ -169,15 +186,7 @@ class DocumentViewModel @Inject constructor(
             }
         }
     }
-
-    fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
-        uploadDocument(uri, fileName, context, houseId = null)
-    }
-
-    fun uploadHouseDocument(houseId: String, uri: Uri, fileName: String, context: Context) {
-        currentHouseId = houseId
-        uploadDocument(uri, fileName, context, houseId = houseId)
-    }
+    
 
     fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
         viewModelScope.launch {

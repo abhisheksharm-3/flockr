@@ -43,6 +43,7 @@ fun ChoresScreen(
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<Chore?>(null) }
+    var showProductivityDialog by remember { mutableStateOf(false) }
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -114,6 +115,14 @@ fun ChoresScreen(
         )
     }
 
+    if (showProductivityDialog) {
+        val allChores = (uiState as? ChoreUiState.Success)?.allChores ?: emptyList()
+        ProductivityDialog(
+            chores = allChores,
+            onDismiss = { showProductivityDialog = false }
+        )
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
@@ -136,7 +145,16 @@ fun ChoresScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
-                )
+                ),
+                actions = {
+                    IconButton(onClick = { showProductivityDialog = true }) {
+                        Icon(
+                            Icons.Default.Assessment,
+                            "Productivity",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -210,6 +228,21 @@ fun ChoresScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+
+                                if (filterOption == ChoreFilter.COMPLETED && filteredChores.isNotEmpty()) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.clearCompletedChores(houseId) },
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        ),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Clear Completed")
+                                    }
+                                }
                             }
                         }
 
