@@ -3,7 +3,6 @@ package `in`.xroden.flockr.features.shopping.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.features.shopping.data.ShoppingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,15 +18,25 @@ class ShoppingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ShoppingUiState>(ShoppingUiState.Loading)
     val uiState: StateFlow<ShoppingUiState> = _uiState.asStateFlow()
 
+    private val _addItemState = MutableStateFlow<AddShoppingItemUiState>(AddShoppingItemUiState.Idle)
+    val addItemState: StateFlow<AddShoppingItemUiState> = _addItemState.asStateFlow()
+
     fun loadShoppingItems(houseId: String) {
         viewModelScope.launch {
             _uiState.value = ShoppingUiState.Loading
-            try {
-                shoppingRepository.getShoppingItemsFlow(houseId).collect { items ->
-                    _uiState.value = ShoppingUiState.Success(items)
-                }
-            } catch (e: Exception) {
-                _uiState.value = ShoppingUiState.Error(e.message ?: "Failed to load items")
+            
+            shoppingRepository.getShoppingItemsFlow(houseId).collect { result ->
+                result.fold(
+                    onSuccess = { items ->
+                        _uiState.value = ShoppingUiState.Success(items)
+                    },
+                    onFailure = { error ->
+                        _uiState.value = ShoppingUiState.Error(
+                            message = error.message ?: "Failed to load shopping items",
+                            cause = error
+                        )
+                    }
+                )
             }
         }
     }
@@ -35,79 +44,95 @@ class ShoppingViewModel @Inject constructor(
     fun addItem(
         houseId: String,
         itemName: String,
-        quantity: String?,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        quantity: String?
     ) {
         viewModelScope.launch {
-            try {
-                android.util.Log.d("ShoppingViewModel", "Adding item: $itemName for house: $houseId")
-                val result = shoppingRepository.addShoppingItem(houseId, itemName, quantity)
-                result.fold(
-                    onSuccess = {
-                        android.util.Log.d("ShoppingViewModel", "Item added successfully")
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        val errorMessage = error.message ?: "Failed to add item"
-                        android.util.Log.e("ShoppingViewModel", "Failed to add item: $errorMessage", error)
-                        onError(errorMessage)
-                    }
-                )
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Failed to add item"
-                android.util.Log.e("ShoppingViewModel", "Exception adding item: $errorMessage", e)
-                onError(errorMessage)
-            }
+            _addItemState.value = AddShoppingItemUiState.Loading
+            
+            shoppingRepository.addShoppingItem(houseId, itemName, quantity).fold(
+                onSuccess = {
+                    _addItemState.value = AddShoppingItemUiState.Success
+                    kotlinx.coroutines.delay(1000)
+                    _addItemState.value = AddShoppingItemUiState.Idle
+                },
+                onFailure = { error ->
+                    _addItemState.value = AddShoppingItemUiState.Error(
+                        message = error.message ?: "Failed to add item"
+                    )
+                }
+            )
         }
     }
 
     fun markAsPurchased(itemId: String, houseId: String, itemName: String) {
         viewModelScope.launch {
-            shoppingRepository.markAsPurchased(itemId, houseId, itemName)
+            shoppingRepository.markAsPurchased(itemId, houseId, itemName).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ShoppingUiState.Error(
+                        message = error.message ?: "Failed to mark item as purchased",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
     fun updateItem(
         itemId: String,
-        itemName: String,
-        quantity: String?,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        itemName: String?,
+        quantity: String?
     ) {
         viewModelScope.launch {
-            try {
-                android.util.Log.d("ShoppingViewModel", "Updating item: $itemId")
-                val result = shoppingRepository.updateShoppingItem(itemId, itemName, quantity)
-                result.fold(
-                    onSuccess = {
-                        android.util.Log.d("ShoppingViewModel", "Item updated successfully")
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        val errorMessage = error.message ?: "Failed to update item"
-                        android.util.Log.e("ShoppingViewModel", "Failed to update item: $errorMessage", error)
-                        onError(errorMessage)
-                    }
-                )
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Failed to update item"
-                android.util.Log.e("ShoppingViewModel", "Exception updating item: $errorMessage", e)
-                onError(errorMessage)
-            }
+            shoppingRepository.updateShoppingItem(itemId, itemName, quantity).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ShoppingUiState.Error(
+                        message = error.message ?: "Failed to update item",
+                        cause = error
+                    )
+                }
+            )
         }
     }
 
     fun deleteItem(itemId: String) {
         viewModelScope.launch {
-            shoppingRepository.deleteShoppingItem(itemId)
+            shoppingRepository.deleteShoppingItem(itemId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ShoppingUiState.Error(
+                        message = error.message ?: "Failed to delete item",
+                        cause = error
+                    )
+                }
+            )
         }
     }
-}
 
-sealed class ShoppingUiState {
-    object Loading : ShoppingUiState()
-    data class Success(val items: List<ShoppingItem>) : ShoppingUiState()
-    data class Error(val message: String) : ShoppingUiState()
-}
+    fun clearPurchasedItems(houseId: String) {
+        viewModelScope.launch {
+            shoppingRepository.clearPurchasedItems(houseId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ShoppingUiState.Error(
+                        message = error.message ?: "Failed to clear purchased items",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
 
+    fun resetAddItemState() {
+        _addItemState.value = AddShoppingItemUiState.Idle
+    }
+}

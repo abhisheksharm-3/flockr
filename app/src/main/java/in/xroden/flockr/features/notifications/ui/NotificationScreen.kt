@@ -1,11 +1,9 @@
 package `in`.xroden.flockr.features.notifications.ui
 
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,17 +39,22 @@ fun NotificationScreen(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "NOTIFICATIONS",
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        "Notifications",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 actions = {
@@ -66,18 +69,18 @@ fun NotificationScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                "MARK ALL",
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
+                                "Mark All",
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = uiState) {
             is NotificationUiState.Loading -> {
@@ -88,8 +91,7 @@ fun NotificationScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -106,30 +108,25 @@ fun NotificationScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Surface(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .border(
-                                        width = 2.dp,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(12.dp)
-                                    ),
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                modifier = Modifier.size(80.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Default.Notifications,
                                         contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
+                                        modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                             Text(
-                                text = "NO NOTIFICATIONS",
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = "No notifications",
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "You're all caught up!",
@@ -143,19 +140,17 @@ fun NotificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
-                            FadeInListItem {
-                                IndustrialNotificationItem(
-                                    notification = notification,
-                                    onClick = {
-                                        viewModel.markAsRead(notification.id)
-                                        onNotificationClick(notification)
-                                    }
-                                )
-                            }
+                            NotificationItem(
+                                notification = notification,
+                                onClick = {
+                                    viewModel.markAsRead(notification.id)
+                                    onNotificationClick(notification)
+                                }
+                            )
                         }
                         item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
@@ -172,9 +167,15 @@ fun NotificationScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
                         Text(
-                            text = "ERROR",
-                            style = MaterialTheme.typography.titleLarge,
+                            text = "Error loading notifications",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -191,56 +192,41 @@ fun NotificationScreen(
 }
 
 @Composable
-private fun IndustrialNotificationItem(
+private fun NotificationItem(
     notification: Notification,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = if (!notification.isRead) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         ),
-        label = "notification_scale"
-    )
-    
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        color = if (!notification.isRead) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = if (!notification.isRead) 2.dp else 0.dp
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Unread indicator dot
             Box(
                 modifier = Modifier
                     .padding(top = 6.dp)
-                    .size(if (!notification.isRead) 8.dp else 6.dp)
+                    .size(10.dp)
                     .background(
                         color = if (!notification.isRead) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         },
                         shape = CircleShape
                     )
@@ -252,29 +238,27 @@ private fun IndustrialNotificationItem(
             ) {
                 // Title
                 Text(
-                    text = notification.title.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
+                    text = notification.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 1.sp
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 // Message
                 Text(
                     text = notification.message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
                 // Timestamp
                 notification.createdAt?.let { timestamp ->
                     Text(
-                        text = formatTimestamp(timestamp),
+                        text = formatTimestamp(timestamp.toString()),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Normal,
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
@@ -284,19 +268,18 @@ private fun IndustrialNotificationItem(
 
 private fun formatTimestamp(timestamp: String): String {
     return try {
-        val notifTime = java.time.Instant.parse(timestamp)
-        val now = java.time.Instant.now()
-        val diff = java.time.Duration.between(notifTime, now)
+        val notifTime = kotlinx.datetime.Instant.parse(timestamp)
+        val now = kotlinx.datetime.Clock.System.now()
+        val diff = now - notifTime
 
         when {
-            diff.toMinutes() < 1 -> "Just now"
-            diff.toMinutes() < 60 -> "${diff.toMinutes()} minute${if (diff.toMinutes() == 1L) "" else "s"} ago"
-            diff.toHours() < 24 -> "${diff.toHours()} hour${if (diff.toHours() == 1L) "" else "s"} ago"
-            diff.toDays() < 7 -> "${diff.toDays()} day${if (diff.toDays() == 1L) "" else "s"} ago"
+            diff.inWholeMinutes < 1 -> "Just now"
+            diff.inWholeMinutes < 60 -> "${diff.inWholeMinutes} minute${if (diff.inWholeMinutes == 1L) "" else "s"} ago"
+            diff.inWholeHours < 24 -> "${diff.inWholeHours} hour${if (diff.inWholeHours == 1L) "" else "s"} ago"
+            diff.inWholeDays < 7 -> "${diff.inWholeDays} day${if (diff.inWholeDays == 1L) "" else "s"} ago"
             else -> {
-                // Format as date
-                val date = java.time.LocalDateTime.ofInstant(notifTime, java.time.ZoneId.systemDefault())
-                val month = date.month.toString().take(3).lowercase().replaceFirstChar { it.uppercase() }
+                val date = notifTime.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
                 "$month ${date.dayOfMonth}, ${date.year}"
             }
         }

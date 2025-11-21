@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import `in`.xroden.flockr.data.enums.NotificationType
 import `in`.xroden.flockr.features.auth.ui.LoginScreen
 import `in`.xroden.flockr.features.auth.ui.SignupScreen
 import `in`.xroden.flockr.features.chat.ui.ChatScreen
@@ -224,30 +225,30 @@ fun FlockrNavigation(
                             // Deep link navigation based on notification data
                             val houseId = notification.houseId
                             if (houseId != null) {
-                                when (notification.notificationType) {
-                                    "house_invitation" -> {
+                                when (notification.type) {
+                                    NotificationType.HOUSE_INVITE -> {
                                         // Navigate to home screen - user can see the invitation in notifications
                                         // Or we could show a dialog to accept/decline
                                         navController.navigate(Screen.Home.route) {
                                             popUpTo(Screen.Home.route) { inclusive = true }
                                         }
                                     }
-                                    "expense", "settlement" -> {
+                                    NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT -> {
                                         navController.navigate(Screen.Expenses.createRoute(houseId))
                                     }
-                                    "shopping" -> {
+                                    NotificationType.SHOPPING -> {
                                         navController.navigate(Screen.ShoppingList.createRoute(houseId))
                                     }
-                                    "chore" -> {
+                                    NotificationType.CHORE -> {
                                         navController.navigate(Screen.Chores.createRoute(houseId))
                                     }
-                                    "message" -> {
+                                    NotificationType.MESSAGE -> {
                                         navController.navigate(Screen.Chat.createRoute(houseId))
                                     }
-                                    "document" -> {
+                                    NotificationType.GENERAL -> {
                                         navController.navigate(Screen.Documents.createRoute(houseId))
                                     }
-                                    "per_diem" -> {
+                                    NotificationType.PER_DIEM -> {
                                         navController.navigate(Screen.ExpenseDashboard.createRoute(houseId))
                                     }
                                     else -> {
@@ -501,7 +502,6 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) },
                         onNavigateToAddExpenseWithData = { _: String, _: Int ->
                             navController.navigate(Screen.AddExpense.createRoute(houseId))
                         }

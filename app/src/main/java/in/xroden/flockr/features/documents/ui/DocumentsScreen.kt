@@ -8,18 +8,18 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
 import `in`.xroden.flockr.features.documents.domain.DocumentUiState
+import `in`.xroden.flockr.features.documents.domain.UploadDocumentUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +44,7 @@ fun DocumentsScreen(
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("PERSONAL", "HOUSE")
+    val tabs = listOf("Personal", "House")
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -105,136 +105,186 @@ fun DocumentsScreen(
                     }
                     filePickerLauncher.launch(intent)
                 },
-                icon = { Icon(Icons.Default.Add, "Upload") },
-                text = { Text("Upload Document") },
+                icon = { Icon(Icons.Default.Upload, "Upload") },
+                text = { Text("Upload") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        height = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
+            val uiState by viewModel.uiState.collectAsState()
+            val uploadState by viewModel.uploadState.collectAsState()
+
+            // Show upload progress/error
+            when (val state = uploadState) {
+                is UploadDocumentUiState.Uploading -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
                     )
                 }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                title,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                    )
+                is UploadDocumentUiState.Error -> {
+                    LaunchedEffect(state) {
+                        snackbarHostState.showSnackbar(state.message)
+                        viewModel.resetUploadState()
+                    }
                 }
+                is UploadDocumentUiState.Success -> {
+                    LaunchedEffect(state) {
+                        snackbarHostState.showSnackbar("Document uploaded successfully")
+                        viewModel.resetUploadState()
+                    }
+                }
+                else -> {}
             }
 
-            val currentState = if (selectedTab == 0) personalDocsState else houseDocsState
-
-            when (currentState) {
-                is DocumentUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Custom Tab Row
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
+                                Text(
+                                    title,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                is DocumentUiState.Success -> {
-                    if (currentState.documents.isEmpty()) {
+
+                when (val currentState = if (selectedTab == 0) personalDocsState else houseDocsState) {
+                    is DocumentUiState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is DocumentUiState.Success -> {
+                        val docs = if (selectedTab == 0) currentState.personalDocuments else currentState.houseDocuments
+
+                        // Usage Stats
+                        val limit = if (selectedTab == 0) 2 else 3
+                        val count = docs.size
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Usage Banner
+                            item {
                                 Surface(
-                                    modifier = Modifier.size(80.dp).border(
-                                        2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                    shape = MaterialTheme.shapes.medium,
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.Info,
-                                            contentDescription = null,
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Storage Usage",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Text(
+                                                text = "$count / $limit documents",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                        CircularProgressIndicator(
+                                            progress = { count.toFloat() / limit.toFloat() },
                                             modifier = Modifier.size(40.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
                                         )
                                     }
                                 }
-                                Text(
-                                    "NO DOCUMENTS",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Text(
-                                    "Upload documents to get started",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(currentState.documents) { document ->
-                                FadeInListItem {
+
+                            if (docs.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.size(80.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        Icons.Default.Description,
+                                                        null,
+                                                        modifier = Modifier.size(32.dp),
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                "No documents yet",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                "Upload important files to keep them handy",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(docs) { document ->
                                     DocumentCard(
                                         document = document,
-                                        onDownload = { viewModel.downloadDocument(document, context) },
-                                        onDelete = { viewModel.deleteDocument(document.id) }
+                                        onDownload = { viewModel.downloadDocument(document) },
+                                        onDelete = { viewModel.deleteDocument(document.id, document.storagePath) }
                                     )
                                 }
+                                item { Spacer(modifier = Modifier.height(80.dp)) }
                             }
-                            item { Spacer(modifier = Modifier.height(80.dp)) }
                         }
                     }
-                }
-                is DocumentUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    is DocumentUiState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                "ERROR",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Text(
-                                currentState.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                            Text("Error: ${currentState.message}", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -249,122 +299,82 @@ fun DocumentCard(
     onDownload: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "document_scale"
-    )
-    
     Card(
-        modifier = Modifier.fillMaxWidth().scale(scale)
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp)),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            // Icon
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(48.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(48.dp)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp)),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = document.fileName.uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        letterSpacing = 0.5.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "Uploaded by: ${document.userId}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                        maxLines = 1
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Description,
+                        null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val downloadInteraction = remember { MutableInteractionSource() }
-                val isDownloadPressed by downloadInteraction.collectIsPressedAsState()
-                
-                val downloadScale by animateFloatAsState(
-                    targetValue = if (isDownloadPressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+            // Info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = document.fileName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
                 )
-                
-                Surface(
-                    modifier = Modifier.size(40.dp).scale(downloadScale)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                        .clickable(interactionSource = downloadInteraction, indication = null, onClick = onDownload),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Star,
-                            "Download",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Size: ${formatFileSize(document.fileSize ?: 0L)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                val deleteInteraction = remember { MutableInteractionSource() }
-                val isDeletePressed by deleteInteraction.collectIsPressedAsState()
-                
-                val deleteScale by animateFloatAsState(
-                    targetValue = if (isDeletePressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                )
-                
-                Surface(
-                    modifier = Modifier.size(40.dp).scale(deleteScale)
-                        .border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(6.dp))
-                        .clickable(interactionSource = deleteInteraction, indication = null, onClick = onDelete),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.errorContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Delete,
-                            "Delete",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+            // Actions
+            Row {
+                IconButton(onClick = onDownload) {
+                    Icon(
+                        Icons.Default.Download,
+                        "Download",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        "Delete",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
+    }
+}
+
+fun formatFileSize(size: Long): String {
+    val kb = size / 1024.0
+    val mb = kb / 1024.0
+    return when {
+        mb >= 1 -> String.format("%.1f MB", mb)
+        kb >= 1 -> String.format("%.1f KB", kb)
+        else -> "$size B"
     }
 }
 
