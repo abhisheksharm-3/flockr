@@ -82,7 +82,7 @@ fun ChatScreen(
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Type a message...") },
                         maxLines = 4,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.medium,
                         colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                             unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -227,9 +227,9 @@ fun MessageBubble(
 ) {
     val isCurrentUser = currentUserId != null && message.userId == currentUserId
     val bubbleShape = if (isCurrentUser) {
-        RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp)
+        RoundedCornerShape(12.dp, 12.dp, 4.dp, 12.dp)
     } else {
-        RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
+        RoundedCornerShape(12.dp, 12.dp, 12.dp, 4.dp)
     }
     
     Column(

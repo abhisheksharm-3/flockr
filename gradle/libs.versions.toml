@@ -21,6 +21,7 @@ mapsCompose = "6.2.1"
 accompanist = "0.36.0"
 kotlinxSerialization = "1.6.3"
 foundation = "1.9.4"
+uiGraphics = "1.9.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -83,6 +84,7 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 # Accompanist (System UI Controller for theme)
 accompanist-systemuicontroller = { group = "com.google.accompanist", name = "accompanist-systemuicontroller", version.ref = "accompanist" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

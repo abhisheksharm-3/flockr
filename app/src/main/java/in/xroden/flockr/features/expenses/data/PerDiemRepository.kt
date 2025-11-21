@@ -262,6 +262,7 @@ class PerDiemRepository @Inject constructor(
                 val month: String
             )
 
+            android.util.Log.d("PerDiemRepository", "getPerDiemBill called for houseId: $houseId, month: $month")
             val bill = supabase.postgrest.rpc(
                 function = "get_per_diem_bill_itemized",
                 parameters = PerDiemBillParams(
@@ -269,9 +270,10 @@ class PerDiemRepository @Inject constructor(
                     month = month
                 )
             ).decodeAs<List<PerDiemBillItemized>>()
-
+            android.util.Log.d("PerDiemRepository", "getPerDiemBill result: ${bill.size} items")
             Result.success(bill)
         } catch (e: Exception) {
+            android.util.Log.e("PerDiemRepository", "getPerDiemBill failed", e)
             Result.failure(e)
         }
     }
@@ -286,6 +288,7 @@ class PerDiemRepository @Inject constructor(
                 val month: String
             )
 
+            android.util.Log.d("PerDiemRepository", "getPerDiemBillByMember called for houseId: $houseId, month: $month")
             val bill = supabase.postgrest.rpc(
                 function = "get_per_diem_bill_by_member",
                 parameters = PerDiemBillByMemberParams(
@@ -293,9 +296,10 @@ class PerDiemRepository @Inject constructor(
                     month = month
                 )
             ).decodeAs<List<PerDiemBillByMember>>()
-
+            android.util.Log.d("PerDiemRepository", "getPerDiemBillByMember result: ${bill.size} items")
             Result.success(bill)
         } catch (e: Exception) {
+            android.util.Log.e("PerDiemRepository", "getPerDiemBillByMember failed", e)
             Result.failure(e)
         }
     }

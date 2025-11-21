@@ -375,9 +375,9 @@ fun HouseCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 0.dp,

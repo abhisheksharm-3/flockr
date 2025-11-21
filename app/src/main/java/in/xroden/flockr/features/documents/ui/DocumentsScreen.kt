@@ -108,7 +108,8 @@ fun DocumentsScreen(
                 icon = { Icon(Icons.Default.Upload, "Upload") },
                 text = { Text("Upload") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }

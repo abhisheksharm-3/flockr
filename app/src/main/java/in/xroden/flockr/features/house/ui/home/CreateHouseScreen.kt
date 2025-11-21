@@ -336,7 +336,7 @@ fun HouseCreatedSuccessDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -352,9 +352,9 @@ fun HouseCreatedSuccessDialog(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .clip(MaterialTheme.shapes.extraLarge)
+                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
-                        .border(2.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge),
+                        .border(2.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.medium),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

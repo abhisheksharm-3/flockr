@@ -86,7 +86,7 @@ fun OneTimeExpensesScreen(
                 icon = { Icon(Icons.Default.Add, "Add") },
                 text = { Text("Add Expense") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -564,12 +564,12 @@ fun EmptyExpensesState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(MaterialTheme.shapes.large)
+                .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(
                     2.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.large
+                    MaterialTheme.shapes.medium
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -630,7 +630,7 @@ fun EditExpenseDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
