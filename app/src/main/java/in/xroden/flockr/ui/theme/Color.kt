@@ -90,3 +90,4 @@ val CategoryPink = Color(0xFFE91E63)       // Shopping
 val CategoryOrange = Color(0xFFFF5722)     // Rent, Housing
 val CategoryTeal = Color(0xFF009688)       // Healthcare
 val CategoryIndigo = Color(0xFF3F51B5)     // Education
+val CategoryRed = Color(0xFFEF4444)        // Negative/Error

@@ -14,9 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
@@ -27,6 +29,7 @@ import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,8 +133,9 @@ fun ChoresScreen(
                 title = {
                     Text(
                         "Chores",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -161,8 +165,9 @@ fun ChoresScreen(
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Chore") },
+                text = { Text("Add Chore", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium
             )
         },
@@ -175,7 +180,9 @@ fun ChoresScreen(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             is ChoreUiState.Success -> {
@@ -193,8 +200,8 @@ fun ChoresScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
-                        contentPadding = PaddingValues(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Header & Filters
                         item {
@@ -218,7 +225,11 @@ fun ChoresScreen(
                                             label = { Text(filter.label) },
                                             leadingIcon = if (filterOption == filter) {
                                                 { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                                            } else null
+                                            } else null,
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
                                         )
                                     }
                                 }
@@ -235,12 +246,13 @@ fun ChoresScreen(
                                         colors = ButtonDefaults.outlinedButtonColors(
                                             contentColor = MaterialTheme.colorScheme.error
                                         ),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                                        modifier = Modifier.fillMaxWidth()
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = MaterialTheme.shapes.medium
                                     ) {
                                         Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Clear Completed")
+                                        Text("Clear Completed", fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -293,15 +305,19 @@ fun ChoresScreen(
                         Text(
                             text = "Error loading chores",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
                         )
                         Button(
                             onClick = { viewModel.loadChores(houseId) },
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
-                            Icon(Icons.Default.Refresh, null)
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry")
+                            Text("Retry", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -328,9 +344,9 @@ fun ChoreCard(
         border = BorderStroke(
             width = 1.dp,
             color = if (chore.isCompleted) {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             } else {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -350,7 +366,7 @@ fun ChoreCard(
                 // Custom Checkbox with larger hit area
                 Surface(
                     onClick = onToggleComplete,
-                    shape = MaterialTheme.shapes.extraSmall,
+                    shape = MaterialTheme.shapes.small,
                     color = if (chore.isCompleted) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -362,7 +378,7 @@ fun ChoreCard(
                         if (chore.isCompleted) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                         }
                     )
                 ) {
@@ -426,8 +442,8 @@ fun ChoreCard(
                         DropdownMenuItem(
                             text = { Text("Delete") },
                             onClick = {
-                                showMenu = false
-                                onDelete()
+                                    showMenu = false
+                                    onDelete()
                             },
                             leadingIcon = {
                                 Icon(
@@ -468,7 +484,7 @@ fun ChoreCard(
                         }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -484,13 +500,14 @@ fun ChoreCard(
                             )
                             Text(
                                 text = formatDate(date.toString()),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = when {
                                     isOverdue -> MaterialTheme.colorScheme.onErrorContainer
                                     chore.isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant
                                     else -> MaterialTheme.colorScheme.onPrimaryContainer
-                                }
+                                },
+                                letterSpacing = 0.5.sp
                             )
                         }
                     }
@@ -500,10 +517,10 @@ fun ChoreCard(
                 chore.createdByName?.let { name ->
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
-                        color = MaterialTheme.colorScheme.tertiaryContainer
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -515,9 +532,10 @@ fun ChoreCard(
                             )
                             Text(
                                 text = name,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                letterSpacing = 0.5.sp
                             )
                         }
                     }
@@ -527,10 +545,10 @@ fun ChoreCard(
                 chore.assignedToName?.let { name ->
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -542,9 +560,10 @@ fun ChoreCard(
                             )
                             Text(
                                 text = name,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                letterSpacing = 0.5.sp
                             )
                         }
                     }
@@ -557,7 +576,7 @@ fun ChoreCard(
                         color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -569,9 +588,10 @@ fun ChoreCard(
                             )
                             Text(
                                 text = chore.completedByName,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.tertiary
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                letterSpacing = 0.5.sp
                             )
                         }
                     }
@@ -598,7 +618,8 @@ fun AddChoreDialog(
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
@@ -652,7 +673,7 @@ fun AddChoreDialog(
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = {
@@ -665,9 +686,12 @@ fun AddChoreDialog(
                         },
                         modifier = Modifier.weight(1f),
                         enabled = taskName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Add")
+                        Text("Add", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -689,12 +713,7 @@ fun EmptyChoresState(
             modifier = Modifier
                 .size(80.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.medium
-                ),
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -710,7 +729,8 @@ fun EmptyChoresState(
         Text(
             text = "No Chores Yet",
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -726,11 +746,14 @@ fun EmptyChoresState(
 
         Button(
             onClick = onAddChore,
-            shape = MaterialTheme.shapes.medium
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Add First Chore")
+            Text("Add First Chore", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -755,7 +778,8 @@ fun EditChoreDialog(
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
@@ -808,7 +832,7 @@ fun EditChoreDialog(
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = {
@@ -816,14 +840,17 @@ fun EditChoreDialog(
                                 taskName,
                                 description.takeIf { it.isNotBlank() },
                                 dueDate.takeIf { it.isNotBlank() },
-                                chore.assignedTo  // Keep existing assignment
+                                null // assignedTo
                             )
                         },
                         modifier = Modifier.weight(1f),
                         enabled = taskName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Save")
+                        Text("Save", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -831,33 +858,30 @@ fun EditChoreDialog(
     }
 }
 
-enum class ChoreFilter(val label: String) {
-    ALL("All"),
-    ACTIVE("Active"),
-    COMPLETED("Completed")
-}
 
-private fun formatDate(dateString: String): String {
+
+// Helper functions
+private fun isOverdue(dateStr: String): Boolean {
     return try {
-        // Handle short dates safely
-        if (dateString.length < 10) return dateString
-        val date = LocalDate.parse(dateString.take(10))
-        // Format as "MMM dd, yyyy" manually
-        val monthName = listOf("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[date.monthNumber]
-        "$monthName ${date.dayOfMonth}, ${date.year}"
-    } catch (_: Exception) {
-        // Return safe default if parsing fails
-        dateString.take(10)
+        val date = LocalDate.parse(dateStr)
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        date < today
+    } catch (e: Exception) {
+        false
     }
 }
 
-private fun isOverdue(dateString: String): Boolean {
+private fun formatDate(dateStr: String): String {
     return try {
-        val dueDate = LocalDate.parse(dateString.take(10))
-        val now = Clock.System.now()
-        val today = now.toLocalDateTime(TimeZone.currentSystemDefault()).date
-        dueDate < today
-    } catch (_: Exception) {
-        false
+        val date = LocalDate.parse(dateStr)
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val tomorrow = today.plus(1, kotlinx.datetime.DateTimeUnit.DAY)
+        when (date) {
+            today -> "Today"
+            tomorrow -> "Tomorrow"
+            else -> "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }} ${date.dayOfMonth}"
+        }
+    } catch (e: Exception) {
+        dateStr
     }
 }

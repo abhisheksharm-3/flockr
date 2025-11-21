@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.HouseMemberRole
@@ -77,8 +79,9 @@ fun ManageMembersScreen(
                     title = {
                         Text(
                             "Manage Members",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
                         )
                     },
                     navigationIcon = {
@@ -121,7 +124,7 @@ fun ManageMembersScreen(
                     )
                     Text(
                         text = "Only house owners and admins can manage members.",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -189,8 +192,9 @@ fun ManageMembersScreen(
                 title = {
                     Text(
                         "Manage Members",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -211,8 +215,9 @@ fun ManageMembersScreen(
             ExtendedFloatingActionButton(
                 onClick = { showInviteDialog = true },
                 icon = { Icon(Icons.Default.Add, "Invite") },
-                text = { Text("Invite Member") },
+                text = { Text("Invite Member", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium
             )
         },
@@ -226,15 +231,17 @@ fun ManageMembersScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Header Section
                 item {
@@ -246,7 +253,7 @@ fun ManageMembersScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = "Members",
-                                style = MaterialTheme.typography.headlineSmall,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
@@ -267,7 +274,8 @@ fun ManageMembersScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
                             ),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.medium,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
                         ) {
                             Column {
                                 // Header - Always visible
@@ -300,7 +308,7 @@ fun ManageMembersScreen(
                                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(
                                                 text = "Pending Invitations",
-                                                style = MaterialTheme.typography.titleSmall,
+                                                style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
@@ -322,7 +330,7 @@ fun ManageMembersScreen(
                                 if (expandedInvitations) {
                                     Column(
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         pendingInvitations.forEach { invitation ->
                                             PendingInvitationItem(
@@ -353,7 +361,7 @@ fun ManageMembersScreen(
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
                                 }
                             }
                         }
@@ -406,24 +414,26 @@ fun MemberListItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Icon
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -472,13 +482,13 @@ fun MemberListItem(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = roleTextColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
                 Text(
                     text = member.email,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -488,7 +498,7 @@ fun MemberListItem(
                 IconButton(
                     onClick = onRemove,
                     colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                     )
                 ) {
                     Icon(
@@ -515,25 +525,22 @@ fun InviteMemberDialog(
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Icon
                 Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(MaterialTheme.shapes.extraLarge)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .border(
-                            2.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            MaterialTheme.shapes.extraLarge
-                        )
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                         .align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center
                 ) {
@@ -545,21 +552,25 @@ fun InviteMemberDialog(
                     )
                 }
 
-                // Title
-                Text(
-                    text = "Invite Member",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Invite Member",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Text(
-                    text = "Enter the email address of the person you want to invite to this household",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                    Text(
+                        text = "Enter the email address of the person you want to invite to this household",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 // Email Field
                 OutlinedTextField(
@@ -573,27 +584,39 @@ fun InviteMemberDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !isLoading,
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
                 )
 
                 // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = !isLoading,
-                        shape = MaterialTheme.shapes.medium
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = !isLoading && email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
-                        shape = MaterialTheme.shapes.medium
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -602,7 +625,7 @@ fun InviteMemberDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Send Invite")
+                            Text("Send Invite", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -645,7 +668,7 @@ fun RemoveMemberDialog(
                 ),
                 shape = MaterialTheme.shapes.medium
             ) {
-                Text("Remove")
+                Text("Remove", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -653,9 +676,11 @@ fun RemoveMemberDialog(
                 onClick = onDismiss,
                 shape = MaterialTheme.shapes.medium
             ) {
-                Text("Cancel")
+                Text("Cancel", fontWeight = FontWeight.SemiBold)
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
     )
 }
 
@@ -671,7 +696,8 @@ fun PendingInvitationItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -684,14 +710,14 @@ fun PendingInvitationItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Email,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -710,7 +736,7 @@ fun PendingInvitationItem(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -721,7 +747,7 @@ fun PendingInvitationItem(
                     )
                     Text(
                         text = "Pending",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
