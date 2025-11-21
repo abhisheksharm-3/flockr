@@ -91,8 +91,9 @@ fun SettingsScreen(
                 title = {
                     Text(
                         "Settings",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -125,11 +126,12 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
                 Column(
                     modifier = Modifier
@@ -142,15 +144,15 @@ fun SettingsScreen(
                     Surface(
                         modifier = Modifier.size(100.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        shadowElevation = 8.dp
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = (profile?.fullName?.firstOrNull()?.uppercase() ?: "U"),
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -168,7 +170,7 @@ fun SettingsScreen(
                                 placeholder = { Text("Enter your name") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = MaterialTheme.shapes.large,
+                                shape = MaterialTheme.shapes.medium,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -207,7 +209,10 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier.weight(1f),
                                     enabled = !(updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) && editedName.isNotBlank(),
-                                    shape = MaterialTheme.shapes.medium
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
                                 ) {
                                     if (updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) {
                                         CircularProgressIndicator(
@@ -303,9 +308,9 @@ fun SettingsScreen(
                         showChevron = false
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     SettingsItem(
@@ -315,9 +320,9 @@ fun SettingsScreen(
                         showChevron = false
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     val context = androidx.compose.ui.platform.LocalContext.current
@@ -333,9 +338,9 @@ fun SettingsScreen(
                         }
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     SettingsItem(
@@ -544,7 +549,8 @@ fun SettingsScreen(
                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = MaterialTheme.shapes.large
+            shape = MaterialTheme.shapes.medium,
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 }
@@ -569,11 +575,12 @@ private fun SettingsSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -643,78 +650,6 @@ private fun SettingsItem(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun IndustrialSettingsCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    isDanger: Boolean = false
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        onClick = onClick,
-        shape = MaterialTheme.shapes.extraSmall,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDanger) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-        ),
-        border = CardDefaults.outlinedCardBorder().copy(
-            width = 2.dp,
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-            )
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .border(
-                        width = 2.dp,
-                        color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.small
-                    ),
-                shape = MaterialTheme.shapes.small,
-                color = if (isDanger) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title.uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

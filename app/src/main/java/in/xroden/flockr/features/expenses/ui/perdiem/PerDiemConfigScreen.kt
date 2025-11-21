@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.ui.perdiem
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
@@ -26,7 +28,7 @@ import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
-import java.math.BigDecimal // Added Import
+import java.math.BigDecimal
 
 /**
  * Modern per-diem configuration screen for managing daily shared items
@@ -64,7 +66,6 @@ fun PerDiemConfigScreen(
             onDismiss = {
                 showAddDialog = false
             },
-            // FIX: Callback now accepts BigDecimal
             onAdd = { itemName, rate, category, unit ->
                 viewModel.createConfig(houseId, itemName, rate, category, unit)
                 showAddDialog = false
@@ -80,7 +81,6 @@ fun PerDiemConfigScreen(
             config = config,
             currencySymbol = currencySymbol,
             onDismiss = { showEditDialog = null },
-            // FIX: Callback now accepts BigDecimal
             onSave = { itemName, rate, category, unit ->
                 viewModel.updateConfig(houseId, config.id, itemName, rate, category, unit)
                 showEditDialog = null
@@ -117,15 +117,17 @@ fun PerDiemConfigScreen(
                 title = {
                     Text(
                         "Per-Diem Items",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Navigate back"
+                            contentDescription = "Navigate back",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -140,9 +142,10 @@ fun PerDiemConfigScreen(
                     showAddDialog = true
                 },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Item") },
+                text = { Text("Add Item", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = MaterialTheme.shapes.large
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -160,8 +163,8 @@ fun PerDiemConfigScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -214,13 +217,14 @@ private fun PerDiemConfigCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -236,34 +240,34 @@ private fun PerDiemConfigCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Surface(
-                        shape = MaterialTheme.shapes.small,
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = CategoryBlue.copy(alpha = 0.15f),
-                        modifier = Modifier.border(
+                        border = BorderStroke(
                             1.dp,
-                            CategoryBlue.copy(alpha = 0.3f),
-                            MaterialTheme.shapes.small
+                            CategoryBlue.copy(alpha = 0.3f)
                         )
                     ) {
                         Text(
                             text = config.category,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = CategoryBlue,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            letterSpacing = 0.5.sp
                         )
                     }
                 }
 
                 Surface(
                     shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 ) {
                     Text(
                         text = "$currencySymbol${"%.2f".format(config.rate)}",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -274,16 +278,19 @@ private fun PerDiemConfigCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
                     onClick = onAddEntry,
                     modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(
                         Icons.Default.Add,
@@ -291,42 +298,36 @@ private fun PerDiemConfigCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Log Usage")
+                    Text("Log Usage", fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
                     onClick = onEdit,
-                    modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.medium
+                    modifier = Modifier.weight(0.5f),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Edit")
                 }
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth()
-            ) {
                 OutlinedButton(
                     onClick = onDelete,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(0.5f),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                 ) {
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Remove")
                 }
             }
         }
@@ -341,7 +342,6 @@ private fun PerDiemConfigCard(
 private fun AddPerDiemConfigDialog(
     currencySymbol: String = "$",
     onDismiss: () -> Unit,
-    // FIX: Changed parameter from Double to BigDecimal
     onAdd: (String, BigDecimal, String, String) -> Unit
 ) {
     var itemName by remember { mutableStateOf("") }
@@ -366,7 +366,7 @@ private fun AddPerDiemConfigDialog(
                         Text(
                             "Add Per-Diem Item",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     },
                     navigationIcon = {
@@ -463,16 +463,17 @@ private fun AddPerDiemConfigDialog(
 
                 Button(
                     onClick = {
-                        // FIX: Convert to BigDecimal instead of Double
                         val rateValue = rate.toBigDecimalOrNull()
                         if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
                             onAdd(itemName, rateValue, category, unit)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    // FIX: Validation check using BigDecimal conversion
                     enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(Icons.Default.Add, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -492,7 +493,6 @@ private fun EditPerDiemConfigDialog(
     config: PerDiemConfig,
     currencySymbol: String = "$",
     onDismiss: () -> Unit,
-    // FIX: Changed parameter from Double to BigDecimal
     onSave: (String, BigDecimal, String, String) -> Unit
 ) {
     var itemName by remember { mutableStateOf(config.itemName) }
@@ -517,7 +517,7 @@ private fun EditPerDiemConfigDialog(
                         Text(
                             "Edit Per-Diem Item",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     },
                     navigationIcon = {
@@ -614,16 +614,17 @@ private fun EditPerDiemConfigDialog(
 
                 Button(
                     onClick = {
-                        // FIX: Convert to BigDecimal instead of Double
                         val rateValue = rate.toBigDecimalOrNull()
                         if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
                             onSave(itemName, rateValue, category, unit)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    // FIX: Validation check using BigDecimal conversion
                     enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(Icons.Default.Check, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -650,13 +651,8 @@ private fun EmptyPerDiemState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.large
-                ),
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -689,11 +685,14 @@ private fun EmptyPerDiemState(
 
         Button(
             onClick = onAddItem,
-            shape = MaterialTheme.shapes.medium
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Add First Item")
+            Text("Add First Item", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -722,7 +721,7 @@ private fun DeletePerDiemConfigDialog(
             Text(
                 text = "Delete Per-Diem Item?",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
@@ -736,9 +735,10 @@ private fun DeletePerDiemConfigDialog(
 
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier
@@ -773,9 +773,10 @@ private fun DeletePerDiemConfigDialog(
 
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
                     ),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier
@@ -801,54 +802,37 @@ private fun DeletePerDiemConfigDialog(
                             )
                         }
                         Text(
-                            text = "Both the item configuration and all logged usage will be permanently deleted. This cannot be undone.",
+                            text = "The item and ALL historical usage records will be permanently deleted. This cannot be undone.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Button(
+                onClick = { onConfirm(false) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = MaterialTheme.shapes.medium
             ) {
-                Button(
-                    onClick = { onConfirm(false) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(Icons.Default.Check, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Keep Usage & Delete Item", fontWeight = FontWeight.SemiBold)
-                }
-
-                Button(
-                    onClick = { onConfirm(true) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(Icons.Default.DeleteForever, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Delete Everything", fontWeight = FontWeight.SemiBold)
-                }
-
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
-                }
+                Text("Keep Usage", fontWeight = FontWeight.SemiBold)
             }
         },
-        dismissButton = {},
-        shape = MaterialTheme.shapes.large
+        dismissButton = {
+            TextButton(
+                onClick = { onConfirm(true) },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text("Delete All", fontWeight = FontWeight.SemiBold)
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
     )
 }

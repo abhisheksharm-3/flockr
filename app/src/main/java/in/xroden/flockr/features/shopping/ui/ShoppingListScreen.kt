@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
@@ -108,8 +109,9 @@ fun ShoppingListScreen(
                 title = {
                     Text(
                         "Shopping List",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -131,8 +133,9 @@ fun ShoppingListScreen(
                 ExtendedFloatingActionButton(
                     onClick = { showAddDialog = true },
                     icon = { Icon(Icons.Default.Add, "Add") },
-                    text = { Text("Add Item") },
+                    text = { Text("Add Item", fontWeight = FontWeight.SemiBold) },
                     containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = MaterialTheme.shapes.medium
                 )
             }
@@ -154,7 +157,7 @@ fun ShoppingListScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 },
-                divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
+                divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -178,7 +181,9 @@ fun ShoppingListScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
                 is ShoppingUiState.Success -> {
@@ -196,8 +201,8 @@ fun ShoppingListScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Header for Purchased Tab
                             if (selectedTab == 1) {
@@ -218,7 +223,7 @@ fun ShoppingListScreen(
                                         ) {
                                             Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Clear All")
+                                            Text("Clear All", fontWeight = FontWeight.SemiBold)
                                         }
                                     }
                                 }
@@ -268,15 +273,19 @@ fun ShoppingListScreen(
                             Text(
                                 text = "Error loading shopping list",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
                             )
                             Button(
                                 onClick = { viewModel.loadShoppingItems(houseId) },
-                                shape = MaterialTheme.shapes.medium
+                                shape = MaterialTheme.shapes.medium,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
                             ) {
                                 Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Retry")
+                                Text("Retry", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -301,12 +310,12 @@ fun ShoppingItemCard(
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = if (isPurchasedTab) 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
             else 
                 MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -321,7 +330,11 @@ fun ShoppingItemCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(
+                            2.dp, 
+                            if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, 
+                            CircleShape
+                        )
                         .clickable { 
                             isChecked = true
                             onChecked() 
@@ -341,7 +354,7 @@ fun ShoppingItemCard(
                 Icon(
                     Icons.Default.CheckCircle,
                     null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -355,7 +368,7 @@ fun ShoppingItemCard(
                     text = item.itemName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isPurchasedTab) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    color = if (isPurchasedTab) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (isPurchasedTab) TextDecoration.LineThrough else null
                 )
 
@@ -366,12 +379,16 @@ fun ShoppingItemCard(
                     item.quantity?.let { qty ->
                         Text(
                             text = qty,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.extraSmall
-                            ).padding(horizontal = 4.dp, vertical = 2.dp)
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.shapes.extraSmall
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            letterSpacing = 0.5.sp
                         )
                     }
                     
@@ -411,21 +428,27 @@ fun AddShoppingItemDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Add Item", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Add Item", 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold
+                )
                 
                 OutlinedTextField(
                     value = itemName,
                     onValueChange = { itemName = it },
                     label = { Text("Item Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
                 )
                 
                 OutlinedTextField(
@@ -433,16 +456,21 @@ fun AddShoppingItemDialog(
                     onValueChange = { quantity = it },
                     label = { Text("Quantity (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
                 )
                 
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onAdd(itemName, quantity.takeIf { it.isNotBlank() }) },
-                        enabled = itemName.isNotBlank()
-                    ) { Text("Add") }
+                        enabled = itemName.isNotBlank(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) { Text("Add", fontWeight = FontWeight.SemiBold) }
                 }
             }
         }
@@ -462,20 +490,26 @@ fun EditShoppingItemDialog(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Edit Item", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Edit Item", 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold
+                )
                 
                 OutlinedTextField(
                     value = itemName,
                     onValueChange = { itemName = it },
                     label = { Text("Item Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
                 )
                 
                 OutlinedTextField(
@@ -483,16 +517,21 @@ fun EditShoppingItemDialog(
                     onValueChange = { quantity = it },
                     label = { Text("Quantity (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
                 )
                 
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onSave(itemName, quantity.takeIf { it.isNotBlank() }) },
-                        enabled = itemName.isNotBlank()
-                    ) { Text("Save") }
+                        enabled = itemName.isNotBlank(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) { Text("Save", fontWeight = FontWeight.SemiBold) }
                 }
             }
         }
@@ -508,11 +547,26 @@ fun ConvertToExpenseDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.ShoppingCart, null) },
-        title = { Text("Item Purchased!") },
+        icon = { Icon(Icons.Default.ShoppingCart, null, tint = MaterialTheme.colorScheme.primary) },
+        title = { Text("Item Purchased!", fontWeight = FontWeight.Bold) },
         text = { Text("Convert \"${item.itemName}\" to an expense?") },
-        confirmButton = { Button(onClick = onConvert) { Text("Convert") } },
-        dismissButton = { TextButton(onClick = onSkip) { Text("Skip") } }
+        confirmButton = { 
+            Button(
+                onClick = onConvert,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) { 
+                Text("Convert", fontWeight = FontWeight.SemiBold) 
+            } 
+        },
+        dismissButton = { 
+            TextButton(onClick = onSkip) { 
+                Text("Skip", fontWeight = FontWeight.SemiBold) 
+            } 
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
     )
 }
 
@@ -545,7 +599,8 @@ fun EmptyShoppingState(
         Text(
             if (isPurchasedTab) "No purchased items" else "Shopping list empty",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
         if (!isPurchasedTab) {
             Text(
@@ -554,8 +609,14 @@ fun EmptyShoppingState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onAddItem) {
-                Text("Add Item")
+            Button(
+                onClick = onAddItem,
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("Add Item", fontWeight = FontWeight.SemiBold)
             }
         }
     }

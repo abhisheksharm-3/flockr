@@ -1,7 +1,9 @@
 package `in`.xroden.flockr.features.expenses.ui.onetime
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -62,8 +64,9 @@ fun OneTimeExpensesScreen(
                 title = {
                     Text(
                         "Expenses",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -84,8 +87,9 @@ fun OneTimeExpensesScreen(
             ExtendedFloatingActionButton(
                 onClick = onAddExpense,
                 icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Expense") },
+                text = { Text("Add Expense", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium
             )
         },
@@ -99,7 +103,9 @@ fun OneTimeExpensesScreen(
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             is OneTimeExpenseUiState.Success -> {
@@ -129,8 +135,8 @@ fun OneTimeExpensesScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Header with month filter
                         item {
@@ -139,7 +145,7 @@ fun OneTimeExpensesScreen(
                             ) {
                                 Text(
                                     text = "All Expenses",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
@@ -201,11 +207,14 @@ fun OneTimeExpensesScreen(
                         )
                         Button(
                             onClick = { viewModel.loadExpenses(houseId) },
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry")
+                            Text("Retry", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -231,7 +240,8 @@ fun MonthSelectorCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
@@ -309,7 +319,8 @@ fun MonthSelectorCard(
                 OutlinedButton(
                     onClick = onClearFilter,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Icon(
                         Icons.Default.Close,
@@ -347,7 +358,7 @@ fun ModernExpenseCard(
                     tint = MaterialTheme.colorScheme.error
                 )
             },
-            title = { Text("Delete Expense?") },
+            title = { Text("Delete Expense?", fontWeight = FontWeight.Bold) },
             text = {
                 Text("Are you sure you want to delete '${expense.name}'? This action cannot be undone.")
             },
@@ -362,16 +373,22 @@ fun ModernExpenseCard(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    shape = MaterialTheme.shapes.medium
                 ) {
-                    Text("Delete")
+                    Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium
         )
     }
 
@@ -404,7 +421,8 @@ fun ModernExpenseCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
@@ -421,7 +439,7 @@ fun ModernExpenseCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = expense.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -439,26 +457,36 @@ fun ModernExpenseCard(
                 ) {
                     // Amount Badge
                     Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                     ) {
                         Text(
                             text = "$currencySymbol${"%.2f".format(expense.amount)}",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
 
                     // Menu Button
                     Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, "Options")
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                "Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Edit") },
@@ -498,28 +526,27 @@ fun ModernExpenseCard(
                 // Category Badge
                 Surface(
                     shape = MaterialTheme.shapes.extraSmall,
-                    color = getCategoryColor(expense.category).copy(alpha = 0.15f),
-                    modifier = Modifier.border(
+                    color = getCategoryColor(expense.category).copy(alpha = 0.1f),
+                    border = BorderStroke(
                         1.dp,
-                        getCategoryColor(expense.category).copy(alpha = 0.3f),
-                        MaterialTheme.shapes.extraSmall
+                        getCategoryColor(expense.category).copy(alpha = 0.2f)
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = getCategoryIcon(expense.category),
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                             tint = getCategoryColor(expense.category)
                         )
                         Text(
-                            text = expense.category,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            text = expense.category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = getCategoryColor(expense.category)
                         )
                     }
@@ -540,7 +567,10 @@ fun ModernExpenseCard(
 
             // Notes (if available)
             expense.notes?.let { notes ->
-                HorizontalDivider()
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
                 Text(
                     text = notes,
                     style = MaterialTheme.typography.bodyMedium,
@@ -565,12 +595,7 @@ fun EmptyExpensesState(
             modifier = Modifier
                 .size(80.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    MaterialTheme.shapes.medium
-                ),
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -603,7 +628,10 @@ fun EmptyExpensesState(
 
         Button(
             onClick = onAddExpense,
-            shape = MaterialTheme.shapes.medium
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -611,7 +639,7 @@ fun EmptyExpensesState(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Add First Expense")
+            Text("Add First Expense", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -631,7 +659,8 @@ fun EditExpenseDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
@@ -649,7 +678,8 @@ fun EditExpenseDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -658,14 +688,16 @@ fun EditExpenseDialog(
                     label = { Text("Amount") },
                     prefix = { Text(currencySymbol) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
                     value = category,
                     onValueChange = { category = it },
                     label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 OutlinedTextField(
@@ -673,18 +705,20 @@ fun EditExpenseDialog(
                     onValueChange = { notes = it },
                     label = { Text("Notes (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
+                    maxLines = 3,
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = {
@@ -692,9 +726,13 @@ fun EditExpenseDialog(
                                 onSave(name, amt, category, notes.takeIf { it.isNotBlank() })
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Save")
+                        Text("Save", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.notifications.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,17 +39,22 @@ fun NotificationScreen(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "NOTIFICATIONS",
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        "Notifications",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 actions = {
@@ -63,18 +69,18 @@ fun NotificationScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                "MARK ALL",
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
+                                "Mark All",
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = uiState) {
             is NotificationUiState.Loading -> {
@@ -85,8 +91,7 @@ fun NotificationScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -103,30 +108,25 @@ fun NotificationScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Surface(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .border(
-                                        width = 2.dp,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        shape = MaterialTheme.shapes.medium
-                                    ),
-                                shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                modifier = Modifier.size(80.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Default.Notifications,
                                         contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
+                                        modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                             Text(
-                                text = "NO NOTIFICATIONS",
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = "No notifications",
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = "You're all caught up!",
@@ -140,11 +140,11 @@ fun NotificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
-                            IndustrialNotificationItem(
+                            NotificationItem(
                                 notification = notification,
                                 onClick = {
                                     viewModel.markAsRead(notification.id)
@@ -167,9 +167,15 @@ fun NotificationScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
                         Text(
-                            text = "ERROR",
-                            style = MaterialTheme.typography.titleLarge,
+                            text = "Error loading notifications",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -186,38 +192,41 @@ fun NotificationScreen(
 }
 
 @Composable
-private fun IndustrialNotificationItem(
+private fun NotificationItem(
     notification: Notification,
     onClick: () -> Unit
 ) {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        color = if (!notification.isRead) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
         shape = MaterialTheme.shapes.medium,
-        tonalElevation = if (!notification.isRead) 2.dp else 0.dp
+        colors = CardDefaults.cardColors(
+            containerColor = if (!notification.isRead) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Unread indicator dot
             Box(
                 modifier = Modifier
                     .padding(top = 6.dp)
-                    .size(if (!notification.isRead) 8.dp else 6.dp)
+                    .size(10.dp)
                     .background(
                         color = if (!notification.isRead) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         },
                         shape = CircleShape
                     )
@@ -229,19 +238,17 @@ private fun IndustrialNotificationItem(
             ) {
                 // Title
                 Text(
-                    text = notification.title.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
+                    text = notification.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 1.sp
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 // Message
                 Text(
                     text = notification.message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
                 // Timestamp
@@ -249,9 +256,9 @@ private fun IndustrialNotificationItem(
                     Text(
                         text = formatTimestamp(timestamp.toString()),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Normal,
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }

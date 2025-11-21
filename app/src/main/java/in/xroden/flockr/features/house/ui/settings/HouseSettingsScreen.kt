@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -132,8 +133,9 @@ fun HouseSettingsScreen(
                 title = {
                     Text(
                         "House Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -160,7 +162,9 @@ fun HouseSettingsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         } else {
             Column(
@@ -168,7 +172,7 @@ fun HouseSettingsScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Header
@@ -269,7 +273,7 @@ fun HouseSettingsScreen(
                                     .fillMaxWidth()
                                     .height(120.dp),
                                 shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -296,7 +300,8 @@ fun HouseSettingsScreen(
                                     snackbarHostState.showSnackbar("Image upload feature coming soon!")
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 Icons.Default.Image,
@@ -304,7 +309,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Upload Header Image")
+                            Text("Upload Header Image", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -532,9 +537,10 @@ fun HouseSettingsScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         ),
-                        shape = MaterialTheme.shapes.medium
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -573,9 +579,10 @@ fun HouseSettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -608,7 +615,11 @@ fun HouseSettingsScreen(
                         Button(
                             onClick = onNavigateToAuditLog,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Visibility,
@@ -616,7 +627,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("View Activity Log")
+                            Text("View Activity Log", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -624,7 +635,7 @@ fun HouseSettingsScreen(
                 // Delete House Section (Owner Only)
                 if (house?.ownerId == currentUserId) {
                     Spacer(modifier = Modifier.height(24.dp))
-                    Divider()
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -642,10 +653,7 @@ fun HouseSettingsScreen(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                width = 1.dp,
-                                brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
-                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
@@ -654,7 +662,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Delete House")
+                            Text("Delete House", fontWeight = FontWeight.SemiBold)
                         }
 
                         Text(
@@ -707,7 +715,10 @@ fun HouseSettingsScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isSaving && nameError == null && houseName.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -788,7 +799,8 @@ fun HouseSettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     ),
-                    enabled = !isSaving
+                    enabled = !isSaving,
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -797,20 +809,17 @@ fun HouseSettingsScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Delete")
+                        Text("Delete", fontWeight = FontWeight.SemiBold)
                     }
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showDeleteDialog = false },
-                    enabled = !isSaving
-                ) {
-                    Text("Cancel")
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = MaterialTheme.shapes.large
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium
         )
     }
 }
-
