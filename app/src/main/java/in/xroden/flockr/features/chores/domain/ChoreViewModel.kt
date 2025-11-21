@@ -150,6 +150,22 @@ class ChoreViewModel @Inject constructor(
         }
     }
 
+    fun clearCompletedChores(houseId: String) {
+        viewModelScope.launch {
+            choreRepository.clearCompletedChores(houseId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ChoreUiState.Error(
+                        message = error.message ?: "Failed to clear completed chores",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
     fun resetCreateState() {
         _createState.value = CreateChoreUiState.Idle
     }

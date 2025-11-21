@@ -17,5 +17,7 @@ data class Message(
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
     @SerialName("sender_name")
-    val senderName: String? = null
+    val senderName: String? = null,
+    @kotlinx.serialization.Transient
+    val isPending: Boolean = false
 )

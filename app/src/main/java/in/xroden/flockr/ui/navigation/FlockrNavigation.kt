@@ -502,7 +502,6 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) },
                         onNavigateToAddExpenseWithData = { _: String, _: Int ->
                             navController.navigate(Screen.AddExpense.createRoute(houseId))
                         }

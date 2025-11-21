@@ -43,7 +43,7 @@ fun MonthlyReportsScreen(
     val houseConfig by viewModel.houseConfig.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
-        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH))
+        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH)) + "-01"
         viewModel.loadMonthlySummary(houseId, monthStr)
         viewModel.loadMonthlySummary(houseId, monthStr)
         // viewModel.loadPerDiemBillItemized(houseId, monthStr) // Removed from ExpenseViewModel

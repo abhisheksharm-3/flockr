@@ -30,9 +30,10 @@ class CalculatePerDiemBillUseCase @Inject constructor() {
                 
                 PerDiemBillItemized(
                     itemName = itemName,
-                    totalQuantity = totalQuantity,
-                    rate = rate,
+                    category = itemEntries.first().category,
                     unit = unit,
+                    rate = rate,
+                    totalQuantity = totalQuantity,
                     totalAmount = totalQuantity * rate
                 )
             }
@@ -70,4 +71,3 @@ class CalculatePerDiemBillUseCase @Inject constructor() {
         return entries.sumOf { it.totalCost }
     }
 }
-

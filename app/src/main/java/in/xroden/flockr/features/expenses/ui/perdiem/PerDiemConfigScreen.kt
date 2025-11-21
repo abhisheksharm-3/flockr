@@ -55,6 +55,7 @@ fun PerDiemConfigScreen(
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     if (showAddDialog) {

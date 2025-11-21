@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.ui.recurring
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -135,7 +136,7 @@ fun BillPaymentHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(paymentHistory) { payment ->
-                        PaymentHistoryCard(
+                        BillPaymentHistoryItem(
                             payment = payment,
                             currencySymbol = currencySymbol
                         )
@@ -147,7 +148,7 @@ fun BillPaymentHistoryScreen(
 }
 
 @Composable
-private fun PaymentHistoryCard(
+private fun BillPaymentHistoryItem(
     payment: PaymentHistory,
     currencySymbol: String
 ) {
@@ -157,7 +158,8 @@ private fun PaymentHistoryCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -170,7 +172,7 @@ private fun PaymentHistoryCard(
                 // Amount
                 Text(
                     "$currencySymbol${String.format("%.2f", payment.amount)}",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -183,29 +185,21 @@ private fun PaymentHistoryCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Paid by (if we have the info)
-                Text(
-                    "Payment recorded",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
             }
 
             // Status indicator
             Surface(
-                shape = MaterialTheme.shapes.extraSmall,
-                color = MaterialTheme.colorScheme.primaryContainer
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             ) {
                 Text(
                     "PAID",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    letterSpacing = 1.sp
+                    letterSpacing = 0.5.sp
                 )
             }
         }

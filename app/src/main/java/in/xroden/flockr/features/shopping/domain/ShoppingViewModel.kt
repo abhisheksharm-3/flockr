@@ -116,6 +116,22 @@ class ShoppingViewModel @Inject constructor(
         }
     }
 
+    fun clearPurchasedItems(houseId: String) {
+        viewModelScope.launch {
+            shoppingRepository.clearPurchasedItems(houseId).fold(
+                onSuccess = {
+                    // Success - state updated via flow
+                },
+                onFailure = { error ->
+                    _uiState.value = ShoppingUiState.Error(
+                        message = error.message ?: "Failed to clear purchased items",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
     fun resetAddItemState() {
         _addItemState.value = AddShoppingItemUiState.Idle
     }

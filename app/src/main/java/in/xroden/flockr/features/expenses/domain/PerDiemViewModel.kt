@@ -191,6 +191,27 @@ class PerDiemViewModel @Inject constructor(
         }
     }
 
+    fun updatePerDiemEntry(
+        houseId: String,
+        entryId: String,
+        quantity: BigDecimal?,
+        date: LocalDate?,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            perDiemRepository.updatePerDiemEntry(entryId, quantity, date, notes).fold(
+                onSuccess = {
+                    loadEntriesWithDetails(houseId)
+                },
+                onFailure = { error ->
+                    _entryState.value = PerDiemEntryUiState.Error(
+                        message = error.message ?: "Failed to update entry"
+                    )
+                }
+            )
+        }
+    }
+
     fun loadHouseConfig(houseId: String) {
         viewModelScope.launch {
             houseRepository.getHouseConfig(houseId).fold(

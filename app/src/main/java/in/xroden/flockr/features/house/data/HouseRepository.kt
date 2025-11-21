@@ -255,7 +255,11 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun addMemberToHouse(houseId: String, userId: String, role: HouseMemberRole = HouseMemberRole.MEMBER): Result<Unit> {
+    suspend fun addMemberToHouse(
+        houseId: String,
+        userId: String,
+        role: HouseMemberRole = HouseMemberRole.MEMBER
+    ): Result<Unit> {
         return try {
             supabase.from("house_members")
                 .insert(
@@ -293,7 +297,11 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun updateMemberRole(houseId: String, userId: String, newRole: HouseMemberRole): Result<Unit> {
+    suspend fun updateMemberRole(
+        houseId: String,
+        userId: String,
+        newRole: HouseMemberRole
+    ): Result<Unit> {
         return try {
             supabase.from("house_members")
                 .update(
@@ -316,7 +324,8 @@ class HouseRepository @Inject constructor(
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             val houseResult = getHouseById(houseId)
-            val house = houseResult.getOrNull() ?: return Result.failure(Exception("House not found"))
+            val house =
+                houseResult.getOrNull() ?: return Result.failure(Exception("House not found"))
 
             val inviteeProfile = supabase.from("profiles")
                 .select(Columns.raw("id")) {
@@ -439,19 +448,25 @@ class HouseRepository @Inject constructor(
                 return Result.failure(Exception(errorMsg))
             }
 
-            val houseId = joinResult.houseId ?: return Result.failure(Exception("No house ID returned"))
+            val houseId =
+                joinResult.houseId ?: return Result.failure(Exception("No house ID returned"))
 
             val houseResult = getHouseById(houseId)
-            val house = houseResult.getOrNull() ?: return Result.failure(Exception("Could not load house details"))
+            val house = houseResult.getOrNull()
+                ?: return Result.failure(Exception("Could not load house details"))
 
             Result.success(house)
         } catch (e: Exception) {
-            Result.failure(e)
+            return Result.failure(e)
         }
     }
 
     suspend fun getHouseMembers(houseId: String): Result<List<MemberWithProfile>> {
         return try {
+            android.util.Log.d(
+                "HouseRepository",
+                "getHouseMembers called - houseId: $houseId"
+            )
             @Serializable
             data class GetMembersParams(
                 @SerialName("p_house_id")
@@ -463,8 +478,13 @@ class HouseRepository @Inject constructor(
                 parameters = GetMembersParams(houseId = houseId)
             ).decodeList<MemberWithProfile>()
 
+            android.util.Log.d(
+                "HouseRepository",
+                "getHouseMembers result: ${members.size} members"
+            )
             Result.success(members)
         } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "getHouseMembers failed", e)
             Result.failure(e)
         }
     }
@@ -545,7 +565,8 @@ class HouseRepository @Inject constructor(
 
     suspend fun acceptInvitation(invitationId: String): Result<Unit> {
         return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+            val currentUserId =
+                userId ?: return Result.failure(Exception("No user logged in"))
 
             val invitation = supabase.from("house_invitations")
                 .select(Columns.ALL) {
