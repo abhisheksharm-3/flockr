@@ -27,7 +27,20 @@ enum class ExpenseFrequency {
     ANNUAL,
     
     @SerialName("custom")
-    CUSTOM
+    CUSTOM;
+
+    fun toDisplayName(): String {
+        return when (this) {
+            DAILY -> "Daily"
+            WEEKLY -> "Weekly"
+            BIWEEKLY -> "Bi-weekly"
+            MONTHLY -> "Monthly"
+            QUARTERLY -> "Quarterly"
+            SEMIANNUAL -> "Semi-annual"
+            ANNUAL -> "Annual"
+            CUSTOM -> "Custom"
+        }
+    }
 }
 
 

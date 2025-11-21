@@ -32,8 +32,12 @@ fun QuickPerDiemEntryScreen(
     onNavigateToTransactions: () -> Unit = {},
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configs by viewModel.configState.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val configsState by viewModel.configState.collectAsState()
+    val configs = when (val state = configsState) {
+        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        else -> emptyList()
+    }
+    val isLoading = configsState is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Loading
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 

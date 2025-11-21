@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.ui.recurring
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,11 +22,15 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
-import androidx.compose.foundation.clickable
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
+// Kotlinx DateTime Imports
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +45,10 @@ fun AddRecurringExpenseScreen(
     var amount by remember { mutableStateOf("") }
     var dueDay by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Utilities") }
-    var frequency by remember { mutableStateOf("monthly") }
+
+    // FIX: Use ExpenseFrequency Enum directly (Default: Monthly)
+    var frequency by remember { mutableStateOf(ExpenseFrequency.MONTHLY) }
+
     var customFrequencyDays by remember { mutableStateOf("") }
     var reminderDaysBefore by remember { mutableStateOf("3") }
     var reminderEnabled by remember { mutableStateOf(true) }
@@ -48,12 +56,12 @@ fun AddRecurringExpenseScreen(
     var expandedCategory by remember { mutableStateOf(false) }
     var expandedFrequency by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    
+
     // New fields for prepay and custom date
     var prepayEnabled by remember { mutableStateOf(false) }
-    var firstPaymentDate by remember { mutableStateOf<String?>(null) }
+    var firstPaymentDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    
+
     // New fields for bill splitting
     var selectedMembers by remember { mutableStateOf<List<String>>(emptyList()) }
     var splitType by remember { mutableStateOf("equal") }
@@ -66,10 +74,6 @@ fun AddRecurringExpenseScreen(
         "Healthcare", "Education", "Other"
     )
 
-    val frequencies = listOf(
-        "Daily", "Weekly", "Biweekly", "Monthly", "Quarterly",
-        "Semiannual", "Annual", "Custom"
-    )
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
@@ -78,7 +82,6 @@ fun AddRecurringExpenseScreen(
 
     LaunchedEffect(houseId) {
         expenseViewModel.loadHouseConfig(houseId)
-        // Load house members for splitting
         try {
             val members = expenseViewModel.getHouseMembers(houseId)
             houseMembers = members
@@ -197,8 +200,8 @@ fun AddRecurringExpenseScreen(
                         readOnly = true,
                         label = { Text("Category *") },
                         leadingIcon = { Icon(Icons.Default.Category, null) },
-                        trailingIcon = { 
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) 
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -226,13 +229,13 @@ fun AddRecurringExpenseScreen(
                     }
                 }
 
-                // Frequency Dropdown
+                // Frequency Dropdown (Using Enum entries)
                 ExposedDropdownMenuBox(
                     expanded = expandedFrequency,
                     onExpandedChange = { expandedFrequency = !expandedFrequency && !isLoading }
                 ) {
                     OutlinedTextField(
-                        value = frequency.capitalize(),
+                        value = frequency.toDisplayName(), // Uses helper function below
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Frequency *") },
@@ -254,11 +257,11 @@ fun AddRecurringExpenseScreen(
                         expanded = expandedFrequency,
                         onDismissRequest = { expandedFrequency = false }
                     ) {
-                        frequencies.forEach { freq ->
+                        ExpenseFrequency.entries.forEach { freq ->
                             DropdownMenuItem(
-                                text = { Text(freq) },
+                                text = { Text(freq.toDisplayName()) },
                                 onClick = {
-                                    frequency = freq.lowercase()
+                                    frequency = freq
                                     expandedFrequency = false
                                 }
                             )
@@ -266,8 +269,8 @@ fun AddRecurringExpenseScreen(
                     }
                 }
 
-                // Custom Frequency Days (if frequency is custom)
-                if (frequency.lowercase() == "custom") {
+                // Custom Frequency Days (Check Enum directly)
+                if (frequency == ExpenseFrequency.CUSTOM) {
                     OutlinedTextField(
                         value = customFrequencyDays,
                         onValueChange = { customFrequencyDays = it },
@@ -290,7 +293,6 @@ fun AddRecurringExpenseScreen(
 
             // Reminder Settings
             SectionCard(title = "Reminder Settings") {
-                // Reminder Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -316,7 +318,6 @@ fun AddRecurringExpenseScreen(
                     )
                 }
 
-                // Reminder Days Before (if enabled)
                 if (reminderEnabled) {
                     OutlinedTextField(
                         value = reminderDaysBefore,
@@ -357,10 +358,9 @@ fun AddRecurringExpenseScreen(
                     )
                 )
             }
-            
+
             // Payment Options Section
             SectionCard(title = "Payment Options") {
-                // Prepay Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -385,9 +385,9 @@ fun AddRecurringExpenseScreen(
                         enabled = !isLoading
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 // Custom First Payment Date
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -411,7 +411,7 @@ fun AddRecurringExpenseScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                firstPaymentDate ?: "Use default schedule",
+                                firstPaymentDate?.toString() ?: "Use default schedule",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -420,7 +420,7 @@ fun AddRecurringExpenseScreen(
                     }
                 }
             }
-            
+
             // Split Bill Section (Optional)
             if (houseMembers.size > 1) {
                 SectionCard(title = "Split Bill (Optional)") {
@@ -429,9 +429,9 @@ fun AddRecurringExpenseScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     // Member selection chips
                     androidx.compose.foundation.layout.FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -453,19 +453,19 @@ fun AddRecurringExpenseScreen(
                             )
                         }
                     }
-                    
+
                     // Split type selector (if members selected)
                     if (selectedMembers.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Text(
                             "Split Method",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium
                         )
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -485,19 +485,19 @@ fun AddRecurringExpenseScreen(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        
+
                         // Custom amounts input (if custom selected)
                         if (splitType == "custom") {
                             Spacer(modifier = Modifier.height(16.dp))
-                            
+
                             Text(
                                 "Enter amount for each member",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            
+
                             Spacer(modifier = Modifier.height(8.dp))
-                            
+
                             selectedMembers.forEach { memberId ->
                                 val memberName = houseMembers.find { it.userId == memberId }?.fullName ?: memberId
                                 Row(
@@ -512,7 +512,7 @@ fun AddRecurringExpenseScreen(
                                     )
                                     OutlinedTextField(
                                         value = customAmounts[memberId]?.toString() ?: "",
-                                        onValueChange = { 
+                                        onValueChange = {
                                             val amt = it.toDoubleOrNull()
                                             if (amt != null) {
                                                 customAmounts = customAmounts + (memberId to amt)
@@ -539,9 +539,9 @@ fun AddRecurringExpenseScreen(
             // Submit Button
             Button(
                 onClick = {
-                    val amt = amount.toDoubleOrNull()
+                    val amt = amount.toBigDecimalOrNull()
                     val day = dueDay.toIntOrNull()
-                    
+
                     if (name.isBlank()) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Please enter a bill name")
@@ -555,7 +555,7 @@ fun AddRecurringExpenseScreen(
                         }
                         return@Button
                     }
-                    
+
                     if (day == null || day !in 1..31) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Please enter a valid day (1-31)")
@@ -564,7 +564,7 @@ fun AddRecurringExpenseScreen(
                     }
 
                     // Validate custom frequency days if frequency is custom
-                    val customDays = if (frequency.lowercase() == "custom") {
+                    val customDays = if (frequency == ExpenseFrequency.CUSTOM) {
                         customFrequencyDays.toIntOrNull()?.also {
                             if (it <= 0) {
                                 scope.launch {
@@ -584,10 +584,10 @@ fun AddRecurringExpenseScreen(
                         reminderDaysBefore.toIntOrNull() ?: 3
                     } else 3
 
-                    // Validate custom amounts if custom split selected
+                    // Validate custom amounts
                     if (splitType == "custom" && selectedMembers.isNotEmpty()) {
                         val totalCustom = customAmounts.values.sum()
-                        if (totalCustom > amt) {
+                        if (totalCustom > amount.toDoubleOrNull() ?: 0.0) {
                             scope.launch {
                                 snackbarHostState.showSnackbar("Custom amounts exceed total bill amount")
                             }
@@ -603,7 +603,7 @@ fun AddRecurringExpenseScreen(
                         amount = amt,
                         dueDay = day,
                         category = category,
-                        frequency = ExpenseFrequency.valueOf(frequency.uppercase()),
+                        frequency = frequency, // Passed directly as Enum
                         customFrequencyDays = customDays,
                         reminderDaysBefore = reminderDays,
                         reminderEnabled = reminderEnabled,
@@ -621,7 +621,7 @@ fun AddRecurringExpenseScreen(
                     onExpenseAdded()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = !isLoading && name.isNotBlank() && amount.toDoubleOrNull() != null && dueDay.toIntOrNull() != null,
+                enabled = !isLoading && name.isNotBlank() && amount.toBigDecimalOrNull() != null && dueDay.toIntOrNull() != null,
                 shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
@@ -646,8 +646,8 @@ fun AddRecurringExpenseScreen(
             }
         }
     }
-    
-    // DatePicker dialog for custom first payment date
+
+    // DatePicker dialog
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = System.currentTimeMillis()
@@ -657,8 +657,8 @@ fun AddRecurringExpenseScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = LocalDate.ofEpochDay(millis / (1000 * 60 * 60 * 24))
-                        firstPaymentDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        val instant = Instant.fromEpochMilliseconds(millis)
+                        firstPaymentDate = instant.toLocalDateTime(TimeZone.UTC).date
                     }
                     showDatePicker = false
                 }) {
@@ -675,4 +675,3 @@ fun AddRecurringExpenseScreen(
         }
     }
 }
-

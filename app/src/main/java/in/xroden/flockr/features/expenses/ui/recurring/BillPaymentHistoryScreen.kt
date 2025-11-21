@@ -3,7 +3,6 @@ package `in`.xroden.flockr.features.expenses.ui.recurring
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -17,7 +16,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PaymentHistory
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
-import java.time.LocalDate
+// FIX: Import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDate
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,7 +31,7 @@ fun BillPaymentHistoryScreen(
 ) {
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
-    
+
     // For now, we'll fetch via the view model's existing payment history
     // In a real implementation, you'd add a specific flow for this bill's history
     var paymentHistory by remember { mutableStateOf<List<PaymentHistory>>(emptyList()) }
@@ -174,18 +174,18 @@ private fun PaymentHistoryCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 // Date
                 Text(
                     formatPaymentDate(payment.paymentDate),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
                 Spacer(modifier = Modifier.height(2.dp))
-                
+
                 // Paid by (if we have the info)
                 Text(
                     "Payment recorded",
@@ -193,7 +193,7 @@ private fun PaymentHistoryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
-            
+
             // Status indicator
             Surface(
                 shape = MaterialTheme.shapes.extraSmall,
@@ -212,12 +212,14 @@ private fun PaymentHistoryCard(
     }
 }
 
-private fun formatPaymentDate(dateString: String): String {
+// FIX: Function now accepts kotlinx.datetime.LocalDate directly
+private fun formatPaymentDate(date: LocalDate): String {
     return try {
-        val date = LocalDate.parse(dateString)
+        // Convert Kotlinx date to Java date for formatting
+        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
         val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-        date.format(formatter)
+        javaDate.format(formatter)
     } catch (e: Exception) {
-        dateString
+        "${date.dayOfMonth}/${date.monthNumber}/${date.year}"
     }
 }

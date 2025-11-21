@@ -16,6 +16,7 @@ import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
@@ -273,28 +274,18 @@ class HouseRepository @Inject constructor(
 
     suspend fun removeMemberFromHouse(houseId: String, userId: String): Result<Unit> {
         return try {
-            val beforeCheck = supabase.from("house_members")
-                .select(Columns.raw("user_id, is_active, role")) {
-                    filter {
-                        eq("house_id", houseId)
-                        eq("user_id", userId)
-                    }
-                }
-                .decodeList<kotlinx.serialization.json.JsonObject>()
+            @Serializable
+            data class LeaveHouseParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_user_id")
+                val userId: String
+            )
 
-            if (beforeCheck.isEmpty()) {
-                return Result.failure(Exception("Member not found"))
-            }
-
-            supabase.from("house_members")
-                .update(
-                    HouseMemberUpdate(role = null)
-                ) {
-                    filter {
-                        eq("house_id", houseId)
-                        eq("user_id", userId)
-                    }
-                }
+            supabase.postgrest.rpc(
+                function = "remove_house_member",
+                parameters = LeaveHouseParams(houseId = houseId, userId = userId)
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -468,7 +459,7 @@ class HouseRepository @Inject constructor(
             )
 
             val members = supabase.postgrest.rpc(
-                function = "get_house_members",
+                function = "get_house_members_with_profiles",
                 parameters = GetMembersParams(houseId = houseId)
             ).decodeList<MemberWithProfile>()
 
@@ -604,6 +595,83 @@ class HouseRepository @Inject constructor(
                         eq("id", invitationId)
                     }
                 }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHouseAuditLogs(houseId: String): List<`in`.xroden.flockr.features.house.model.HouseAuditLog> {
+        return try {
+            supabase.from("house_audit_logs")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                    order(column = "created_at", order = Order.DESCENDING)
+                }
+                .decodeList<`in`.xroden.flockr.features.house.model.HouseAuditLog>()
+        } catch (e: Exception) {
+            android.util.Log.e("HouseRepository", "Error fetching audit logs", e)
+            emptyList()
+        }
+    }
+
+    suspend fun cancelInvitation(houseId: String, email: String): Result<Unit> {
+        return try {
+            @Serializable
+            data class CancelInviteParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_email")
+                val email: String
+            )
+
+            supabase.postgrest.rpc(
+                function = "cancel_invitation",
+                parameters = CancelInviteParams(houseId = houseId, email = email)
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resendInvitationNotification(houseId: String, email: String): Result<Unit> {
+        return try {
+            @Serializable
+            data class ResendInviteParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_email")
+                val email: String
+            )
+
+            supabase.postgrest.rpc(
+                function = "resend_invitation",
+                parameters = ResendInviteParams(houseId = houseId, email = email)
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteHouse(houseId: String): Result<Unit> {
+        return try {
+            @Serializable
+            data class DeleteHouseParams(
+                @SerialName("p_house_id")
+                val houseId: String
+            )
+
+            supabase.postgrest.rpc(
+                function = "delete_house",
+                parameters = DeleteHouseParams(houseId = houseId)
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {

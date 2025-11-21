@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -56,7 +57,9 @@ fun ExpenseDashboardScreen(
         viewModel.loadBalances(houseId)
         viewModel.loadHouseConfig(houseId)
         // Load monthly summary for current month
-        val currentMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+        val currentMonth = kotlinx.datetime.Clock.System.now()
+            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            .date.toString().substring(0, 7)  // Get YYYY-MM format
         viewModel.loadMonthlySummary(houseId, currentMonth)
     }
 
@@ -415,7 +418,7 @@ fun RecentExpenseCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = expense.date.toString(),
+                        text = expense.date.toString(), // LocalDate.toString() already formats as YYYY-MM-DD
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

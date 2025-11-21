@@ -105,16 +105,18 @@ class HouseSettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteHouse(houseId: String) {
-        viewModelScope.launch {
-            _updateState.value = UpdateHouseSettingsUiState.Loading
-            
-            // TODO: Implement when backend supports house deletion
-            _updateState.value = UpdateHouseSettingsUiState.Error(
-                message = "House deletion not yet implemented"
-            )
+    suspend fun deleteHouse(houseId: String): Result<Unit> {
+        _updateState.value = UpdateHouseSettingsUiState.Loading
+        
+        val result = houseRepository.deleteHouse(houseId)
+        
+        result.onSuccess {
+            _updateState.value = UpdateHouseSettingsUiState.Success
+        }.onFailure { e ->
+            _updateState.value = UpdateHouseSettingsUiState.Error(message = e.message ?: "Failed to delete house")
         }
-        }
+        
+        return result
     }
 
     fun resetUpdateState() {

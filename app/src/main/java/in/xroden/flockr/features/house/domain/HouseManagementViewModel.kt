@@ -4,11 +4,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed interface HouseManagementUiState {
+    data object Idle : HouseManagementUiState
+    data object Loading : HouseManagementUiState
+    data object Success : HouseManagementUiState
+    data class Error(val message: String) : HouseManagementUiState
+}
 
 @HiltViewModel
 class HouseManagementViewModel @Inject constructor(
@@ -20,6 +30,9 @@ class HouseManagementViewModel @Inject constructor(
 
     private val _invitationsState = MutableStateFlow<InvitationsUiState>(InvitationsUiState.Loading)
     val invitationsState: StateFlow<InvitationsUiState> = _invitationsState.asStateFlow()
+
+    private val _uiState = MutableStateFlow<HouseManagementUiState>(HouseManagementUiState.Idle)
+    val uiState: StateFlow<HouseManagementUiState> = _uiState.asStateFlow()
 
     fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
 
@@ -70,55 +83,34 @@ class HouseManagementViewModel @Inject constructor(
         }
     }
 
-    fun removeMember(houseId: String, userId: String) {
-        viewModelScope.launch {
-            houseRepository.removeMemberFromHouse(houseId, userId).fold(
-                onSuccess = {
-                    loadHouseDetails(houseId)
-                },
-                onFailure = { error ->
-                    _detailState.value = HouseDetailUiState.Error(
-                        message = error.message ?: "Failed to remove member",
-                        cause = error
-                    )
-                }
-            )
+    fun loadHouse(houseId: String) {
+        loadHouseDetails(houseId)
+    }
+
+    suspend fun getPendingInvitations(houseId: String): List<HouseInvitation> {
+        return houseRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
+    }
+
+    suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
+        return houseRepository.removeMemberFromHouse(houseId, userId).onSuccess {
+            loadHouseDetails(houseId)
         }
     }
 
-    fun inviteMember(houseId: String, email: String) {
-        viewModelScope.launch {
-            houseRepository.inviteMember(houseId, email).fold(
-                onSuccess = {
-                    loadInvitations(houseId)
-                },
-                onFailure = { error ->
-                    _invitationsState.value = InvitationsUiState.Error(
-                        message = error.message ?: "Failed to invite member"
-                    )
-                }
-            )
+    suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
+        return houseRepository.inviteMember(houseId, email).onSuccess {
+            loadInvitations(houseId)
         }
     }
 
-    // Placeholder for future invitation cancellation functionality
-    fun cancelInvitation(houseId: String, invitationId: String) {
-        viewModelScope.launch {
-            // TODO: Implement when backend supports canceling invitations
-            _invitationsState.value = InvitationsUiState.Error(
-                message = "Cancel invitation not yet implemented"
-            )
+    suspend fun cancelInvitation(houseId: String, email: String): Result<Unit> {
+        return houseRepository.cancelInvitation(houseId, email).onSuccess {
+            loadInvitations(houseId)
         }
     }
 
-    // Placeholder for resending invitation notifications
-    fun resendInvitationNotification(invitationId: String) {
-        viewModelScope.launch {
-            // TODO: Implement when backend supports resending invitations
-            _invitationsState.value = InvitationsUiState.Error(
-                message = "Resend notification not yet implemented"
-            )
-        }
+    suspend fun resendInvitationNotification(houseId: String, email: String): Result<Unit> {
+        return houseRepository.resendInvitationNotification(houseId, email)
     }
 
     suspend fun getHouseMembers(houseId: String) = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }

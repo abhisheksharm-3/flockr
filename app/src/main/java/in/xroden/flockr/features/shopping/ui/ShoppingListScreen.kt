@@ -28,6 +28,7 @@ import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -373,7 +374,7 @@ fun ShoppingItemCard(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = formatDate(item.createdAt),
+                            text = formatDate(item.createdAt.toString()),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -715,11 +716,10 @@ fun EmptyShoppingState(
 // Helper function to format date
 private fun formatDate(isoDate: String): String {
     return try {
-        val instant = java.time.Instant.parse(isoDate)
-        val formatter = java.time.format.DateTimeFormatter
-            .ofPattern("MMM dd")
-            .withZone(java.time.ZoneId.systemDefault())
-        formatter.format(instant)
+        val instant = kotlinx.datetime.Instant.parse(isoDate)
+        val date = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+        val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+        "$month ${date.dayOfMonth}"
     } catch (e: Exception) {
         "Recently"
     }

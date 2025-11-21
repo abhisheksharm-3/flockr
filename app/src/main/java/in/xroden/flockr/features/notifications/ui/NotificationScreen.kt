@@ -24,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,7 +247,7 @@ private fun IndustrialNotificationItem(
                 // Timestamp
                 notification.createdAt?.let { timestamp ->
                     Text(
-                        text = formatTimestamp(timestamp),
+                        text = formatTimestamp(timestamp.toString()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         fontWeight = FontWeight.Normal,
@@ -260,19 +261,18 @@ private fun IndustrialNotificationItem(
 
 private fun formatTimestamp(timestamp: String): String {
     return try {
-        val notifTime = java.time.Instant.parse(timestamp)
-        val now = java.time.Instant.now()
-        val diff = java.time.Duration.between(notifTime, now)
+        val notifTime = kotlinx.datetime.Instant.parse(timestamp)
+        val now = kotlinx.datetime.Clock.System.now()
+        val diff = now - notifTime
 
         when {
-            diff.toMinutes() < 1 -> "Just now"
-            diff.toMinutes() < 60 -> "${diff.toMinutes()} minute${if (diff.toMinutes() == 1L) "" else "s"} ago"
-            diff.toHours() < 24 -> "${diff.toHours()} hour${if (diff.toHours() == 1L) "" else "s"} ago"
-            diff.toDays() < 7 -> "${diff.toDays()} day${if (diff.toDays() == 1L) "" else "s"} ago"
+            diff.inWholeMinutes < 1 -> "Just now"
+            diff.inWholeMinutes < 60 -> "${diff.inWholeMinutes} minute${if (diff.inWholeMinutes == 1L) "" else "s"} ago"
+            diff.inWholeHours < 24 -> "${diff.inWholeHours} hour${if (diff.inWholeHours == 1L) "" else "s"} ago"
+            diff.inWholeDays < 7 -> "${diff.inWholeDays} day${if (diff.inWholeDays == 1L) "" else "s"} ago"
             else -> {
-                // Format as date
-                val date = java.time.LocalDateTime.ofInstant(notifTime, java.time.ZoneId.systemDefault())
-                val month = date.month.toString().take(3).lowercase().replaceFirstChar { it.uppercase() }
+                val date = notifTime.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
                 "$month ${date.dayOfMonth}, ${date.year}"
             }
         }

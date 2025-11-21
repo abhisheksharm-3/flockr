@@ -3,7 +3,6 @@ package `in`.xroden.flockr.features.house.ui.settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -152,18 +151,16 @@ fun HouseAuditLogScreen(
 
 @Composable
 private fun AuditLogCard(log: HouseAuditLog) {
-    val inputFormat = remember { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    } }
     val outputFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault()) }
 
     val formattedDate = remember(log.createdAt) {
         try {
-            val date = inputFormat.parse(log.createdAt)
-            date?.let { outputFormat.format(it) } ?: log.createdAt
+            val instant = log.createdAt
+            val date = Date(instant.toEpochMilliseconds())
+            outputFormat.format(date)
         } catch (e: Exception) {
             android.util.Log.e("AuditLogCard", "Error parsing date: ${log.createdAt}", e)
-            log.createdAt
+            log.createdAt.toString()
         }
     }
 
@@ -205,7 +202,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    getActionDescription(log.action, log.targetUserId),
+                    text = getActionDescription(log.action, log.targetUserId),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -263,7 +260,9 @@ private fun getActionDescription(action: String, targetUserId: String?): String 
         "house_updated" -> "House settings updated"
         "expense_added" -> "New expense added"
         "chore_created" -> "New chore created"
-        else -> action.replace("_", " ").capitalize()
+        else -> action.replace("_", " ").replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+        }
     }
 }
 

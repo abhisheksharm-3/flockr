@@ -21,6 +21,12 @@ object BigDecimalSerializer : KSerializer<BigDecimal> {
     }
 
     override fun deserialize(decoder: Decoder): BigDecimal {
+        if (decoder is kotlinx.serialization.json.JsonDecoder) {
+            val element = decoder.decodeJsonElement()
+            if (element is kotlinx.serialization.json.JsonPrimitive) {
+                return BigDecimal(element.content)
+            }
+        }
         return BigDecimal(decoder.decodeString())
     }
 }

@@ -24,31 +24,34 @@ import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
+import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthlyReportsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: ExpenseViewModel = hiltViewModel(),
+    perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
-    val perDiemItemized by viewModel.perDiemBillItemized.collectAsState()
-    val spendByMember by viewModel.spendByMember.collectAsState()
-    val spendByCategory by viewModel.spendByCategory.collectAsState()
+    val summaryState by viewModel.summaryState.collectAsState()
+    val perDiemBillState by perDiemViewModel.billState.collectAsState()
+    val perDiemConfigState by perDiemViewModel.configState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val monthlySummary by viewModel.monthlySummary.collectAsState()
-
-    val perDiemViewModel: PerDiemViewModel = hiltViewModel()
-    val perDiemConfigs by perDiemViewModel.configs.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
         val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH))
         viewModel.loadMonthlySummary(houseId, monthStr)
-        viewModel.loadPerDiemBillItemized(houseId, monthStr)
-        viewModel.loadSpendByCategory(houseId, monthStr)
-        viewModel.loadSpendByMember(houseId, monthStr)
+        viewModel.loadMonthlySummary(houseId, monthStr)
+        // viewModel.loadPerDiemBillItemized(houseId, monthStr) // Removed from ExpenseViewModel
+        // viewModel.loadSpendByCategory(houseId, monthStr) // Loaded via loadMonthlySummary
+        // viewModel.loadSpendByMember(houseId, monthStr) // Loaded via loadMonthlySummary
         viewModel.loadHouseConfig(houseId)
         perDiemViewModel.loadConfigs(houseId)
+        perDiemViewModel.loadPerDiemReports(houseId, monthStr)
     }
 
     // Chart colors from theme
@@ -162,8 +165,12 @@ fun MonthlyReportsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
+                            val totalExpenses = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary.totalExpenses
+                            } else java.math.BigDecimal.ZERO
+
                             Text(
-                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
+                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(totalExpenses),
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -177,6 +184,10 @@ fun MonthlyReportsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
+                            val summary = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary
+                            } else null
+
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -187,7 +198,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.oneTimeExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -203,7 +214,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.recurringExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -219,7 +230,7 @@ fun MonthlyReportsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.perDiemExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -233,6 +244,14 @@ fun MonthlyReportsScreen(
             // Spending by Member
             item {
                 SectionCard(title = "Spending by Member") {
+                    val spendByMember = if (summaryState is MonthlySummaryUiState.Success) {
+                        (summaryState as MonthlySummaryUiState.Success).spendByMember
+                    } else emptyList()
+
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (spendByMember.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
@@ -244,13 +263,16 @@ fun MonthlyReportsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Build member data map - individual spending
                             val memberData = spendByMember.associate {
-                                (it.fullName ?: "Unknown") to (it.totalSpent ?: 0.0)
+                                (it.fullName ?: "Unknown") to (it.totalSpent?.toDouble() ?: 0.0)
                             }.toMutableMap()
 
                             // Add per diem as "House" spending
-                            val perDiemTotal = perDiemItemized.sumOf { it.totalAmount ?: 0.0 }
-                            if (perDiemTotal > 0) {
-                                memberData["House (Per Diem)"] = perDiemTotal
+                            val perDiemTotal = perDiemItemized.fold(java.math.BigDecimal.ZERO) { acc, item ->
+                                acc.add(item.totalAmount ?: java.math.BigDecimal.ZERO)
+                            }
+                            
+                            if (perDiemTotal > java.math.BigDecimal.ZERO) {
+                                memberData["House (Per Diem)"] = perDiemTotal.toDouble()
                             }
 
                             SimpleBarChart(
@@ -265,8 +287,17 @@ fun MonthlyReportsScreen(
             }
 
             // Spending by Category
+            // Spending by Category
             item {
                 SectionCard(title = "Spending by Category") {
+                    val spendByCategory = if (summaryState is MonthlySummaryUiState.Success) {
+                        (summaryState as MonthlySummaryUiState.Success).spendByCategory
+                    } else emptyList()
+
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (spendByCategory.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
@@ -278,8 +309,12 @@ fun MonthlyReportsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Build category data - merge regular expenses and per diem
                             val categoryData = spendByCategory.associate {
-                                (it.category ?: "Uncategorized") to (it.totalAmount ?: 0.0)
+                                (it.category ?: "Uncategorized") to (it.totalAmount?.toDouble() ?: 0.0)
                             }.toMutableMap()
+
+                            val perDiemConfigs = if (perDiemConfigState is PerDiemConfigUiState.Success) {
+                                (perDiemConfigState as PerDiemConfigUiState.Success).configs
+                            } else emptyList()
 
                             // Create map of item names to categories from configs
                             val itemNameToCategory = perDiemConfigs.associate { config ->
@@ -290,9 +325,11 @@ fun MonthlyReportsScreen(
                             perDiemItemized.groupBy { item ->
                                 itemNameToCategory[item.itemName] ?: "Per Diem"
                             }.forEach { (category, items) ->
-                                val total = items.sumOf { it.totalAmount ?: 0.0 }
-                                if (total > 0) {
-                                    categoryData[category] = (categoryData[category] ?: 0.0) + total
+                                val total = items.fold(java.math.BigDecimal.ZERO) { acc, item ->
+                                    acc.add(item.totalAmount ?: java.math.BigDecimal.ZERO)
+                                }
+                                if (total > java.math.BigDecimal.ZERO) {
+                                    categoryData[category] = (categoryData[category] ?: 0.0) + total.toDouble()
                                 }
                             }
 
@@ -308,8 +345,13 @@ fun MonthlyReportsScreen(
             }
 
             // Per Diem Itemized
+            // Per Diem Itemized
             item {
                 SectionCard(title = "Per Diem Usage by Item") {
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (perDiemItemized.isEmpty()) {
                         Text(
                             text = "No per diem items used this month",
@@ -390,7 +432,11 @@ fun MonthlyReportsScreen(
                             }
 
                             // Total per diem
-                            if (monthlySummary?.perDiemExpenses != null && monthlySummary!!.perDiemExpenses > 0) {
+                            val summary = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary
+                            } else null
+
+                            if (summary?.perDiemExpenses != null && summary.perDiemExpenses > java.math.BigDecimal.ZERO) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 8.dp),
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
@@ -407,7 +453,7 @@ fun MonthlyReportsScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", monthlySummary!!.perDiemExpenses)}",
+                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", summary.perDiemExpenses)}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
