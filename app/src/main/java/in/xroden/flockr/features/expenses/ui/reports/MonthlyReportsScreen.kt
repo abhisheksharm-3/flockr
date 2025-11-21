@@ -1,9 +1,9 @@
 package `in`.xroden.flockr.features.expenses.ui.reports
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -11,57 +11,76 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.utils.Constants
+import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.ui.theme.DateFormats
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
+import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthlyReportsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: ExpenseViewModel = hiltViewModel(),
+    perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
-    val perDiemItemized by viewModel.perDiemBillItemized.collectAsState()
-    val spendByMember by viewModel.spendByMember.collectAsState()
-    val spendByCategory by viewModel.spendByCategory.collectAsState()
+    val summaryState by viewModel.summaryState.collectAsState()
+    val perDiemBillState by perDiemViewModel.billState.collectAsState()
+    val perDiemConfigState by perDiemViewModel.configState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val monthlySummary by viewModel.monthlySummary.collectAsState()
-
-    val perDiemViewModel: PerDiemViewModel = hiltViewModel()
-    val perDiemConfigs by perDiemViewModel.configs.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
-        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH))
+        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH)) + "-01"
         viewModel.loadMonthlySummary(houseId, monthStr)
-        viewModel.loadPerDiemBillItemized(houseId, monthStr)
-        viewModel.loadSpendByCategory(houseId, monthStr)
-        viewModel.loadSpendByMember(houseId, monthStr)
+        viewModel.loadMonthlySummary(houseId, monthStr)
+        // viewModel.loadPerDiemBillItemized(houseId, monthStr) // Removed from ExpenseViewModel
+        // viewModel.loadSpendByCategory(houseId, monthStr) // Loaded via loadMonthlySummary
+        // viewModel.loadSpendByMember(houseId, monthStr) // Loaded via loadMonthlySummary
         viewModel.loadHouseConfig(houseId)
         perDiemViewModel.loadConfigs(houseId)
+        perDiemViewModel.loadPerDiemReports(houseId, monthStr)
     }
 
-    // Chart colors from constants
-    val chartColors = Constants.ChartColors.PIE_CHART_COLORS.map { Color(it) }
+    // Chart colors from theme
+    val chartColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF10B981), // Emerald
+        Color(0xFFF59E0B), // Amber
+        Color(0xFF8B5CF6), // Violet
+        Color(0xFFEC4899)  // Pink
+    )
 
     Scaffold(
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         "Monthly Report",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -84,8 +103,8 @@ fun MonthlyReportsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(Constants.UI.STANDARD_PADDING_DP.dp),
-            verticalArrangement = Arrangement.spacedBy(Constants.UI.CARD_SPACING_DP.dp)
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Month Selector
             item {
@@ -99,27 +118,38 @@ fun MonthlyReportsScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
-                    Row(
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     ) {
-                        IconButton(onClick = { selectedMonth = selectedMonth.minusMonths(1) }) {
-                            Icon(Icons.Default.ChevronLeft, "Previous Month")
-                        }
-
-                        Text(
-                            text = selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        IconButton(
-                            onClick = { selectedMonth = selectedMonth.plusMonths(1) },
-                            enabled = selectedMonth < YearMonth.now()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.ChevronRight, "Next Month")
+                            IconButton(onClick = { selectedMonth = selectedMonth.minusMonths(1) }) {
+                                Icon(Icons.Default.ChevronLeft, "Previous Month")
+                            }
+
+                            Text(
+                                text = selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            IconButton(
+                                onClick = { selectedMonth = selectedMonth.plusMonths(1) },
+                                enabled = selectedMonth < YearMonth.now()
+                            ) {
+                                Icon(Icons.Default.ChevronRight, "Next Month")
+                            }
                         }
                     }
                 }
@@ -129,11 +159,11 @@ fun MonthlyReportsScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -159,8 +189,12 @@ fun MonthlyReportsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
+                            val totalExpenses = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary.totalExpenses
+                            } else java.math.BigDecimal.ZERO
+
                             Text(
-                                text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.totalExpenses ?: 0.0),
+                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(totalExpenses),
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -174,17 +208,23 @@ fun MonthlyReportsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
+                            val summary = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary
+                            } else null
+
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = "One-Time",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.oneTimeExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.oneTimeExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -196,11 +236,13 @@ fun MonthlyReportsScreen(
                             ) {
                                 Text(
                                     text = "Recurring",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.recurringExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.recurringExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -212,11 +254,13 @@ fun MonthlyReportsScreen(
                             ) {
                                 Text(
                                     text = "Per Diem",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${houseConfig?.currencySymbol ?: "$"}%.2f".format(monthlySummary?.perDiemExpenses ?: 0.0),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.perDiemExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -230,6 +274,14 @@ fun MonthlyReportsScreen(
             // Spending by Member
             item {
                 SectionCard(title = "Spending by Member") {
+                    val spendByMember = if (summaryState is MonthlySummaryUiState.Success) {
+                        (summaryState as MonthlySummaryUiState.Success).spendByMember
+                    } else emptyList()
+
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (spendByMember.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
@@ -241,20 +293,23 @@ fun MonthlyReportsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Build member data map - individual spending
                             val memberData = spendByMember.associate {
-                                (it.fullName ?: "Unknown") to (it.totalSpent ?: 0.0)
+                                (it.fullName ?: "Unknown") to (it.totalSpent?.toDouble() ?: 0.0)
                             }.toMutableMap()
 
                             // Add per diem as "House" spending
-                            val perDiemTotal = perDiemItemized.sumOf { it.totalAmount ?: 0.0 }
-                            if (perDiemTotal > 0) {
-                                memberData["House (Per Diem)"] = perDiemTotal
+                            val perDiemTotal = perDiemItemized.fold(java.math.BigDecimal.ZERO) { acc, item ->
+                                acc.add(item.totalAmount ?: java.math.BigDecimal.ZERO)
+                            }
+                            
+                            if (perDiemTotal > java.math.BigDecimal.ZERO) {
+                                memberData["House (Per Diem)"] = perDiemTotal.toDouble()
                             }
 
                             SimpleBarChart(
                                 data = memberData,
                                 modifier = Modifier.fillMaxWidth(),
                                 color = MaterialTheme.colorScheme.primary,
-                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
                             )
                         }
                     }
@@ -264,6 +319,14 @@ fun MonthlyReportsScreen(
             // Spending by Category
             item {
                 SectionCard(title = "Spending by Category") {
+                    val spendByCategory = if (summaryState is MonthlySummaryUiState.Success) {
+                        (summaryState as MonthlySummaryUiState.Success).spendByCategory
+                    } else emptyList()
+
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (spendByCategory.isEmpty() && perDiemItemized.isEmpty()) {
                         Text(
                             text = "No expenses recorded this month",
@@ -273,31 +336,16 @@ fun MonthlyReportsScreen(
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // Build category data - merge regular expenses and per diem
+                            // Category data is now fully aggregated by the RPC
                             val categoryData = spendByCategory.associate {
-                                (it.category ?: "Uncategorized") to (it.totalAmount ?: 0.0)
-                            }.toMutableMap()
-
-                            // Create map of item names to categories from configs
-                            val itemNameToCategory = perDiemConfigs.associate { config ->
-                                config.itemName to config.category
-                            }
-
-                            // Group per diem by category using config lookup and add to categoryData
-                            perDiemItemized.groupBy { item ->
-                                itemNameToCategory[item.itemName] ?: "Per Diem"
-                            }.forEach { (category, items) ->
-                                val total = items.sumOf { it.totalAmount ?: 0.0 }
-                                if (total > 0) {
-                                    categoryData[category] = (categoryData[category] ?: 0.0) + total
-                                }
+                                (it.category ?: "Uncategorized") to (it.totalAmount?.toDouble() ?: 0.0)
                             }
 
                             SimplePieChart(
                                 data = categoryData,
                                 colors = chartColors,
                                 modifier = Modifier.fillMaxWidth(),
-                                currencySymbol = houseConfig?.currencySymbol ?: "$"
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
                             )
                         }
                     }
@@ -307,6 +355,10 @@ fun MonthlyReportsScreen(
             // Per Diem Itemized
             item {
                 SectionCard(title = "Per Diem Usage by Item") {
+                    val perDiemItemized = if (perDiemBillState is PerDiemBillUiState.Success) {
+                        (perDiemBillState as PerDiemBillUiState.Success).itemized
+                    } else emptyList()
+
                     if (perDiemItemized.isEmpty()) {
                         Text(
                             text = "No per diem items used this month",
@@ -320,9 +372,10 @@ fun MonthlyReportsScreen(
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        containerColor = MaterialTheme.colorScheme.surface
                                     ),
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = MaterialTheme.shapes.medium,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -340,11 +393,10 @@ fun MonthlyReportsScreen(
                                                 text = item.itemName,
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.weight(1f)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.totalAmount)}",
+                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.totalAmount)}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -352,7 +404,7 @@ fun MonthlyReportsScreen(
                                         }
 
                                         HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                         )
 
                                         // Quantity and rate details
@@ -377,7 +429,7 @@ fun MonthlyReportsScreen(
                                                 )
                                             }
                                             Text(
-                                                text = "@${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", item.rate)}/${item.unit}",
+                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.rate)}/${item.unit}",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                             )
@@ -387,10 +439,14 @@ fun MonthlyReportsScreen(
                             }
 
                             // Total per diem
-                            if (monthlySummary?.perDiemExpenses != null && monthlySummary!!.perDiemExpenses > 0) {
+                            val summary = if (summaryState is MonthlySummaryUiState.Success) {
+                                (summaryState as MonthlySummaryUiState.Success).summary
+                            } else null
+
+                            if (summary?.perDiemExpenses != null && summary.perDiemExpenses > java.math.BigDecimal.ZERO) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 8.dp),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -404,7 +460,7 @@ fun MonthlyReportsScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${houseConfig?.currencySymbol ?: "$"}${String.format("%.2f", monthlySummary!!.perDiemExpenses)}",
+                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", summary.perDiemExpenses)}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

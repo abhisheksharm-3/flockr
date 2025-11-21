@@ -1,5 +1,7 @@
 package `in`.xroden.flockr.features.auth.model
 
+import `in`.xroden.flockr.data.serialization.InstantSerializer
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,6 +14,6 @@ data class Profile(
     @SerialName("has_completed_onboarding")
     val hasCompletedOnboarding: Boolean = false,
     @SerialName("created_at")
-    val createdAt: String? = null
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant? = null
 )
-

@@ -1,13 +1,13 @@
 package `in`.xroden.flockr.features.expenses.ui.onetime
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -21,15 +21,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
-import `in`.xroden.flockr.utils.Constants
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.*
+import java.math.BigDecimal
+import java.util.Locale // Used only for string capitalization
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,11 +39,18 @@ fun OneTimeExpensesScreen(
     onAddExpense: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val expenseState by viewModel.expenseState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
-    var selectedMonth by remember { mutableStateOf<YearMonth?>(null) }
+    // State for filtering. We use LocalDate set to the 1st of the month to represent a "Month"
+    var selectedMonth by remember { mutableStateOf<LocalDate?>(null) }
+
+    // Calculate the current real-world month (Day 1) for validation
+    val currentMonthStart = remember {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        LocalDate(now.year, now.month, 1)
+    }
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
@@ -51,14 +58,15 @@ fun OneTimeExpensesScreen(
     }
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         "Expenses",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -79,49 +87,41 @@ fun OneTimeExpensesScreen(
             ExtendedFloatingActionButton(
                 onClick = onAddExpense,
                 icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Expense") },
+                text = { Text("Add Expense", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        when (val state = uiState) {
-            is ExpenseUiState.Loading -> {
+        when (val state = expenseState) {
+            is OneTimeExpenseUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
-            is ExpenseUiState.Success -> {
+            is OneTimeExpenseUiState.Success -> {
                 // Sort expenses by date DESC, then by createdAt DESC (newest first)
                 val sortedExpenses = state.expenses.sortedWith(
-                    compareByDescending<OneTimeExpense> {
-                        try {
-                            LocalDate.parse(it.date)
-                        } catch (e: Exception) {
-                            LocalDate.MIN
-                        }
-                    }.thenByDescending { it.createdAt }
+                    compareByDescending<OneTimeExpense> { it.date }
+                        .thenByDescending { it.createdAt }
                 )
 
-                // Filter by selected month if one is selected
-                val filteredExpenses = if (selectedMonth != null) {
+                // Filter logic using kotlinx-datetime properties
+                val filteredExpenses = selectedMonth?.let { filterDate ->
                     sortedExpenses.filter { expense ->
-                        try {
-                            val expenseDate = LocalDate.parse(expense.date)
-                            YearMonth.from(expenseDate) == selectedMonth
-                        } catch (e: Exception) {
-                            false
-                        }
+                        expense.date.year == filterDate.year &&
+                                expense.date.month == filterDate.month
                     }
-                } else {
-                    sortedExpenses
-                }
+                } ?: sortedExpenses
 
                 if (sortedExpenses.isEmpty()) {
                     EmptyExpensesState(
@@ -135,8 +135,8 @@ fun OneTimeExpensesScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Header with month filter
                         item {
@@ -145,7 +145,7 @@ fun OneTimeExpensesScreen(
                             ) {
                                 Text(
                                     text = "All Expenses",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
@@ -153,10 +153,10 @@ fun OneTimeExpensesScreen(
                                 // Month Selector
                                 MonthSelectorCard(
                                     selectedMonth = selectedMonth,
+                                    currentDate = currentMonthStart,
                                     onMonthChange = { selectedMonth = it },
                                     onClearFilter = { selectedMonth = null },
-                                    expenseCount = filteredExpenses.size,
-                                    hasFilter = selectedMonth != null
+                                    expenseCount = filteredExpenses.size
                                 )
                             }
                         }
@@ -165,6 +165,7 @@ fun OneTimeExpensesScreen(
                         items(filteredExpenses) { expense ->
                             ModernExpenseCard(
                                 expense = expense,
+                                houseId = houseId,
                                 currencySymbol = currencySymbol
                             )
                         }
@@ -176,7 +177,7 @@ fun OneTimeExpensesScreen(
                     }
                 }
             }
-            is ExpenseUiState.Error -> {
+            is OneTimeExpenseUiState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -206,11 +207,14 @@ fun OneTimeExpensesScreen(
                         )
                         Button(
                             onClick = { viewModel.loadExpenses(houseId) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry")
+                            Text("Retry", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -220,8 +224,121 @@ fun OneTimeExpensesScreen(
 }
 
 @Composable
+fun MonthSelectorCard(
+    selectedMonth: LocalDate?,
+    currentDate: LocalDate,
+    onMonthChange: (LocalDate) -> Unit,
+    onClearFilter: () -> Unit,
+    expenseCount: Int
+) {
+    // Default to current date if no filter is selected for display purposes
+    val displayDate = selectedMonth ?: currentDate
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        val prevMonth = displayDate.minus(1, DateTimeUnit.MONTH)
+                        onMonthChange(prevMonth)
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous month",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Format Month Name (e.g. "October 2025")
+                    val monthName = displayDate.month.name.lowercase()
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+                    Text(
+                        text = "$monthName ${displayDate.year}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (selectedMonth != null) {
+                        Text(
+                            text = "$expenseCount expenses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Logic to disable "Next" if it goes beyond current real-world date
+                val nextMonth = displayDate.plus(1, DateTimeUnit.MONTH)
+                // Simple check: is next month later than "currentDate"?
+                // Since both are day 1, strict comparison works.
+                val isFuture = nextMonth > currentDate
+
+                IconButton(
+                    onClick = {
+                        if (!isFuture) {
+                            onMonthChange(nextMonth)
+                        }
+                    },
+                    enabled = !isFuture
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        "Next month",
+                        tint = if (!isFuture)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                }
+            }
+
+            if (selectedMonth != null) {
+                OutlinedButton(
+                    onClick = onClearFilter,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ModernExpenseCard(
     expense: OneTimeExpense,
+    houseId: String,
     currencySymbol: String = "$",
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
@@ -241,7 +358,7 @@ fun ModernExpenseCard(
                     tint = MaterialTheme.colorScheme.error
                 )
             },
-            title = { Text("Delete Expense?") },
+            title = { Text("Delete Expense?", fontWeight = FontWeight.Bold) },
             text = {
                 Text("Are you sure you want to delete '${expense.name}'? This action cannot be undone.")
             },
@@ -249,32 +366,29 @@ fun ModernExpenseCard(
                 Button(
                     onClick = {
                         showDeleteDialog = false
-                        viewModel.deleteOneTimeExpense(
-                            expenseId = expense.id,
-                            onSuccess = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Expense deleted")
-                                }
-                            },
-                            onError = { error ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Failed to delete: $error")
-                                }
-                            }
-                        )
+                        viewModel.deleteOneTimeExpense(houseId, expense.id)
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Expense deleted")
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    shape = MaterialTheme.shapes.medium
                 ) {
-                    Text("Delete")
+                    Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium
         )
     }
 
@@ -285,35 +399,30 @@ fun ModernExpenseCard(
             onDismiss = { showEditDialog = false },
             onSave = { name, amount, category, notes ->
                 viewModel.updateOneTimeExpense(
+                    houseId = houseId,
                     expenseId = expense.id,
                     name = name,
                     amount = amount,
                     date = expense.date,
                     category = category,
-                    notes = notes,
-                    onSuccess = {
-                        showEditDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Expense updated")
-                        }
-                    },
-                    onError = { error ->
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Failed: $error")
-                        }
-                    }
+                    notes = notes
                 )
+                showEditDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar("Expense updated")
+                }
             }
         )
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
@@ -330,7 +439,7 @@ fun ModernExpenseCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = expense.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -348,26 +457,36 @@ fun ModernExpenseCard(
                 ) {
                     // Amount Badge
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                     ) {
                         Text(
                             text = "$currencySymbol${"%.2f".format(expense.amount)}",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
 
                     // Menu Button
                     Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, "Options")
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                "Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Edit") },
@@ -406,36 +525,34 @@ fun ModernExpenseCard(
             ) {
                 // Category Badge
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = getCategoryColor(expense.category).copy(alpha = 0.15f),
-                    modifier = Modifier.border(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = getCategoryColor(expense.category).copy(alpha = 0.1f),
+                    border = BorderStroke(
                         1.dp,
-                        getCategoryColor(expense.category).copy(alpha = 0.3f),
-                        RoundedCornerShape(8.dp)
+                        getCategoryColor(expense.category).copy(alpha = 0.2f)
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = getCategoryIcon(expense.category),
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                             tint = getCategoryColor(expense.category)
                         )
                         Text(
-                            text = expense.category,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            text = expense.category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = getCategoryColor(expense.category)
                         )
                     }
                 }
 
-                // Paid By Indicator (if available)
-                // This would need the user profile data
+                // Paid By Indicator
                 Text(
                     text = "•",
                     style = MaterialTheme.typography.bodySmall,
@@ -450,7 +567,10 @@ fun ModernExpenseCard(
 
             // Notes (if available)
             expense.notes?.let { notes ->
-                HorizontalDivider()
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
                 Text(
                     text = notes,
                     style = MaterialTheme.typography.bodyMedium,
@@ -474,13 +594,8 @@ fun EmptyExpensesState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    RoundedCornerShape(20.dp)
-                ),
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -513,7 +628,10 @@ fun EmptyExpensesState(
 
         Button(
             onClick = onAddExpense,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -521,19 +639,111 @@ fun EmptyExpensesState(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Add First Expense")
+            Text("Add First Expense", fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
-// Helper Functions
-private fun formatDate(dateString: String): String {
-    return try {
-        val date = LocalDate.parse(dateString.substring(0, 10), DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-        date.format(DateTimeFormatter.ofPattern(Constants.DateFormats.DISPLAY_DATE))
-    } catch (e: Exception) {
-        dateString.substring(0, 10)
+@Composable
+fun EditExpenseDialog(
+    expense: OneTimeExpense,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onSave: (name: String, amount: BigDecimal, category: String, notes: String?) -> Unit
+) {
+    var name by remember { mutableStateOf(expense.name) }
+    var amount by remember { mutableStateOf(expense.amount.toString()) }
+    var category by remember { mutableStateOf(expense.category) }
+    var notes by remember { mutableStateOf(expense.notes ?: "") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "Edit Expense",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Amount") },
+                    prefix = { Text(currencySymbol) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    }
+                    Button(
+                        onClick = {
+                            amount.toBigDecimalOrNull()?.let { amt ->
+                                onSave(name, amt, category, notes.takeIf { it.isNotBlank() })
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Save", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
     }
+}
+
+// --- Helper Functions ---
+
+private fun formatDate(date: LocalDate): String {
+    return "${date.dayOfMonth.toString().padStart(2, '0')}/${date.monthNumber.toString().padStart(2, '0')}/${date.year}"
 }
 
 private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
@@ -561,191 +771,5 @@ private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vect
         "healthcare" -> Icons.Default.LocalHospital
         "education" -> Icons.Default.School
         else -> Icons.Default.Receipt
-    }
-}
-
-@Composable
-fun MonthSelectorCard(
-    selectedMonth: YearMonth?,
-    onMonthChange: (YearMonth?) -> Unit,
-    onClearFilter: () -> Unit,
-    expenseCount: Int,
-    hasFilter: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        val newMonth = selectedMonth?.minusMonths(1) ?: YearMonth.now().minusMonths(1)
-                        onMonthChange(newMonth)
-                    }
-                ) {
-                    Icon(
-                        Icons.Default.ChevronLeft,
-                        "Previous month",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = (selectedMonth ?: YearMonth.now()).format(
-                            DateTimeFormatter.ofPattern("MMMM yyyy")
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (hasFilter) {
-                        Text(
-                            text = "$expenseCount expenses",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = {
-                        val newMonth = selectedMonth?.plusMonths(1) ?: YearMonth.now().plusMonths(1)
-                        if (!newMonth.isAfter(YearMonth.now())) {
-                            onMonthChange(newMonth)
-                        }
-                    },
-                    enabled = selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now())
-                ) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        "Next month",
-                        tint = if (selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now()))
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                }
-            }
-
-            if (hasFilter) {
-                OutlinedButton(
-                    onClick = onClearFilter,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EditExpenseDialog(
-    expense: OneTimeExpense,
-    currencySymbol: String,
-    onDismiss: () -> Unit,
-    onSave: (name: String, amount: Double, category: String, notes: String?) -> Unit
-) {
-    var name by remember { mutableStateOf(expense.name) }
-    var amount by remember { mutableStateOf(expense.amount.toString()) }
-    var category by remember { mutableStateOf(expense.category) }
-    var notes by remember { mutableStateOf(expense.notes ?: "") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    "Edit Expense",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount") },
-                    prefix = { Text(currencySymbol) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            amount.toDoubleOrNull()?.let { amt ->
-                                onSave(name, amt, category, notes.takeIf { it.isNotBlank() })
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Save")
-                    }
-                }
-            }
-        }
     }
 }

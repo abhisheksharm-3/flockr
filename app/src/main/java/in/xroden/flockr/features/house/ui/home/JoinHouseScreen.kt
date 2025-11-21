@@ -26,7 +26,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +42,29 @@ fun JoinHouseScreen(
     var previewHouse by remember { mutableStateOf<House?>(null) }
     
     val scope = rememberCoroutineScope()
+    val joinState by viewModel.joinState.collectAsState()
+
+    // Observe join state
+    LaunchedEffect(joinState) {
+        when (val state = joinState) {
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Success -> {
+                isLoading = false
+                delay(300)
+                onHouseJoined(state.house?.id ?: "")
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Error -> {
+                isLoading = false
+                errorMessage = state.message
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Loading -> {
+                isLoading = true
+                errorMessage = null
+            }
+            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Idle -> {
+                // Do nothing
+            }
+        }
+    }
 
     // Validate code when it's complete
     LaunchedEffect(inviteCode) {
@@ -99,12 +121,12 @@ fun JoinHouseScreen(
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .border(
                         2.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        RoundedCornerShape(20.dp)
+                        MaterialTheme.shapes.medium
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -181,7 +203,7 @@ fun JoinHouseScreen(
                             inviteCode.length == 6 && errorMessage == null -> Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Valid",
-                                tint = PositiveGreen
+                                tint = MaterialTheme.colorScheme.tertiary
                             )
                         }
                     },
@@ -190,7 +212,7 @@ fun JoinHouseScreen(
                     ),
                     singleLine = true,
                     enabled = !isLoading,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Text(
@@ -214,27 +236,13 @@ fun JoinHouseScreen(
                     isLoading = true
                     errorMessage = null
 
-                    viewModel.joinHouseByInviteCode(
-                        inviteCode = inviteCode,
-                        onSuccess = { houseId: String ->
-                            scope.launch {
-                                isLoading = false
-                                // Add a small delay for visual feedback
-                                delay(300)
-                                onHouseJoined(houseId)
-                            }
-                        },
-                        onError = { error: String ->
-                            isLoading = false
-                            errorMessage = error
-                        }
-                    )
+                    viewModel.joinHouseByInviteCode(inviteCode)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = !isLoading && inviteCode.length == 6 && errorMessage == null,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
                     Row(
@@ -275,7 +283,7 @@ fun JoinHouseScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),

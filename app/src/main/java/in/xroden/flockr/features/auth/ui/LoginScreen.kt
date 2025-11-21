@@ -142,7 +142,7 @@ fun LoginScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text(
                         text = (uiState as AuthUiState.Error).message,
@@ -181,7 +181,7 @@ fun LoginScreen(
             OutlinedButton(
                 onClick = onNavigateToSignup,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Create Account", fontWeight = FontWeight.SemiBold)
             }

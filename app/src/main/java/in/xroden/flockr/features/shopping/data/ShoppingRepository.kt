@@ -1,13 +1,8 @@
 package `in`.xroden.flockr.features.shopping.data
 
+import `in`.xroden.flockr.data.dto.ShoppingItemInsert
+import `in`.xroden.flockr.data.dto.ShoppingItemUpdate
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.data.model.CreateNotificationWithTypeParams
-import `in`.xroden.flockr.data.model.CreateNotificationParams
-import `in`.xroden.flockr.data.model.ShoppingItemInsert
-import `in`.xroden.flockr.data.model.ShoppingItemUpdate
-import `in`.xroden.flockr.data.model.ShoppingItemUpdateModel
-import `in`.xroden.flockr.features.auth.model.Profile
-import `in`.xroden.flockr.utils.FlockrLogger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -18,12 +13,18 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.launch
 
 @Singleton
 class ShoppingRepository @Inject constructor(
@@ -31,55 +32,41 @@ class ShoppingRepository @Inject constructor(
 ) {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
-    
-    companion object {
-        private const val TAG = "ShoppingRepository"
-    }
 
-    fun getShoppingItemsFlow(houseId: String): Flow<List<ShoppingItem>> {
-        FlockrLogger.realtimeEvent(TAG, "getShoppingItemsFlow", "Starting for house=$houseId")
-        return kotlinx.coroutines.flow.flow {
-            // Emit initial value immediately
-            val initialItems = getShoppingItems(houseId)
-            FlockrLogger.d(TAG, "getShoppingItemsFlow: Emitting initial ${initialItems.size} items")
-            emit(initialItems)
+    fun getShoppingItemsFlow(houseId: String): Flow<Result<List<ShoppingItem>>> = callbackFlow {
+        val channelId = "shopping_items_$houseId"
+        val channel = supabase.realtime.channel(channelId)
 
-            // Then listen for realtime updates
-            val channelId = "shopping_${houseId}_${System.currentTimeMillis()}"
-            val channel = supabase.realtime.channel(channelId)
+        try {
+            send(getShoppingItems(houseId))
 
-            try {
-                val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                    table = "shopping_items"
-                }
-                
-                FlockrLogger.realtimeEvent(TAG, "getShoppingItemsFlow", "Subscribing to channel $channelId")
-                channel.subscribe(blockUntilSubscribed = true)
-                FlockrLogger.realtimeEvent(TAG, "getShoppingItemsFlow", "Successfully subscribed")
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "shopping_items"
+                filter = "house_id=eq.$houseId"
+            }
 
-                changeFlow.collect { action ->
-                    FlockrLogger.realtimeEvent(TAG, "getShoppingItemsFlow", "Received update: $action")
-                    // Small delay to ensure database consistency
-                    kotlinx.coroutines.delay(100)
-                    val updatedItems = getShoppingItems(houseId)
-                    FlockrLogger.d(TAG, "getShoppingItemsFlow: Emitting ${updatedItems.size} items after update")
-                    emit(updatedItems)
-                }
-            } catch (e: Exception) {
-                FlockrLogger.repoError(TAG, "getShoppingItemsFlow", e)
-            } finally {
+            channel.subscribe(blockUntilSubscribed = true)
+
+            changeFlow.collect {
+                kotlinx.coroutines.delay(100)
+                send(getShoppingItems(houseId))
+            }
+        } catch (e: Exception) {
+            send(Result.failure(e))
+        }
+
+        awaitClose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
-                    FlockrLogger.d(TAG, "getShoppingItemsFlow: Cleaning up channel")
                     supabase.realtime.removeChannel(channel)
                 } catch (e: Exception) {
-                    FlockrLogger.e(TAG, "getShoppingItemsFlow: Error removing channel", e)
+                    // Ignore cleanup errors
                 }
             }
         }
     }
 
-    suspend fun getShoppingItems(houseId: String): List<ShoppingItem> {
-        FlockrLogger.repoStart(TAG, "getShoppingItems", mapOf("houseId" to houseId))
+    suspend fun getShoppingItems(houseId: String): Result<List<ShoppingItem>> {
         return try {
             val response = supabase.from("shopping_items")
                 .select(Columns.raw("""
@@ -89,8 +76,8 @@ class ShoppingRepository @Inject constructor(
                 """.trimIndent())) {
                     filter {
                         eq("house_id", houseId)
-                        eq("is_purchased", false)
                     }
+                    order("is_purchased", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<kotlinx.serialization.json.JsonObject>()
@@ -111,16 +98,30 @@ class ShoppingRepository @Inject constructor(
                     addedByName = addedByName,
                     purchasedBy = obj["purchased_by"]?.jsonPrimitive?.contentOrNull,
                     purchasedByName = purchasedByName,
-                    purchasedAt = obj["purchased_at"]?.jsonPrimitive?.contentOrNull,
-                    createdAt = obj["created_at"]?.jsonPrimitive?.content ?: ""
+                    purchasedAt = obj["purchased_at"]?.jsonPrimitive?.contentOrNull?.let { Instant.parse(it) },
+                    createdAt = obj["created_at"]?.jsonPrimitive?.content?.let { Instant.parse(it) }
+                        ?: Instant.DISTANT_PAST
                 )
             }
-            
-            FlockrLogger.repoSuccess(TAG, "getShoppingItems", "Found ${items.size} items")
-            items
+
+            Result.success(items)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getShoppingItems", e)
-            emptyList()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun clearPurchasedItems(houseId: String): Result<Unit> {
+        return try {
+            supabase.from("shopping_items")
+                .delete {
+                    filter {
+                        eq("house_id", houseId)
+                        eq("is_purchased", true)
+                    }
+                }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -129,149 +130,136 @@ class ShoppingRepository @Inject constructor(
         itemName: String,
         quantity: String?
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "addShoppingItem", mapOf(
-            "houseId" to houseId,
-            "itemName" to itemName
-        ))
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "addShoppingItem: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            val shoppingItemInsert = ShoppingItemInsert(
-                houseId = houseId,
-                itemName = itemName,
-                quantity = quantity,
-                addedBy = currentUserId
-            )
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             supabase.from("shopping_items")
-                .insert(shoppingItemInsert)
-
-            // Create notification for shopping item added
-            FlockrLogger.d(TAG, "addShoppingItem: Creating notification")
-            try {
-                val quantityText = if (quantity.isNullOrBlank()) "" else " ($quantity)"
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "Shopping Item Added",
-                    message = "Added $itemName$quantityText to the shopping list.",
-                    type = "shopping",
-                    data = """{"type":"shopping","item":"$itemName"}""",
-                    excludeUserId = currentUserId
+                .insert(
+                    ShoppingItemInsert(
+                        houseId = houseId,
+                        itemName = itemName,
+                        quantity = quantity,
+                        addedBy = currentUserId
+                    )
                 )
+
+            try {
+                @Serializable
+                data class HouseNotificationParams(
+                    @SerialName("p_house_id")
+                    val houseId: String,
+                    @SerialName("p_title")
+                    val title: String,
+                    @SerialName("p_message")
+                    val message: String,
+                    @SerialName("p_type")
+                    val type: String,
+                    @SerialName("p_data")
+                    val data: String,
+                    @SerialName("p_exclude_user_id")
+                    val excludeUserId: String?
+                )
+
                 supabase.postgrest.rpc(
                     function = "create_notification_for_house",
-                    parameters = notificationParams
+                    parameters = HouseNotificationParams(
+                        houseId = houseId,
+                        title = "Shopping List Updated",
+                        message = "New item added: $itemName",
+                        type = "shopping",
+                        data = """{"type":"shopping","itemName":"$itemName"}""",
+                        excludeUserId = currentUserId
+                    )
                 )
-            } catch (notificationError: Exception) {
-                FlockrLogger.e(TAG, "addShoppingItem: Failed to create notification", notificationError)
-                // Don't fail the whole operation if notification fails
-            }
-
-            FlockrLogger.repoSuccess(TAG, "addShoppingItem", "Item added successfully")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "addShoppingItem", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun markAsPurchased(itemId: String, houseId: String, itemName: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "markAsPurchased", mapOf(
-            "itemId" to itemId,
-            "itemName" to itemName
-        ))
-        return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "markAsPurchased: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            val currentTime = java.time.Instant.now().toString()
-            val updateModel = ShoppingItemUpdate(
-                isPurchased = true,
-                purchasedBy = currentUserId,
-                purchasedAt = currentTime
-            )
-
-            supabase.from("shopping_items")
-                .update(updateModel) {
-                    filter {
-                        eq("id", itemId)
-                    }
-                }
-
-            // Get current user's name for notification
-            val currentUserProfile = try {
-                supabase.from("profiles")
-                    .select(Columns.raw("full_name")) {
-                        filter {
-                            eq("id", currentUserId)
-                        }
-                    }
-                    .decodeSingle<Profile>()
             } catch (e: Exception) {
-                null
+                // Ignore notification errors
             }
-            val purchaserName = currentUserProfile?.fullName ?: "Someone"
 
-            FlockrLogger.d(TAG, "markAsPurchased: Creating notification")
-            // Create notification
-            val notificationParams = CreateNotificationWithTypeParams(
-                houseId = houseId,
-                title = "Item Purchased",
-                message = "$purchaserName just bought the $itemName.",
-                type = "shopping",
-                data = """{"id":"$itemId","purchaser":"$purchaserName"}""",
-                excludeUserId = currentUserId
-            )
-            supabase.postgrest.rpc(
-                function = "create_notification_for_house",
-                parameters = notificationParams
-            )
-
-            FlockrLogger.repoSuccess(TAG, "markAsPurchased", "Item marked as purchased")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "markAsPurchased", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateShoppingItem(
         itemId: String,
-        itemName: String,
+        itemName: String?,
         quantity: String?
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "updateShoppingItem", mapOf(
-            "itemId" to itemId,
-            "itemName" to itemName
-        ))
         return try {
-            val updateModel = ShoppingItemUpdateModel(
-                itemName = itemName,
-                quantity = quantity
-            )
-
             supabase.from("shopping_items")
-                .update(updateModel) {
+                .update(
+                    ShoppingItemUpdate(
+                        itemName = itemName,
+                        quantity = quantity
+                    )
+                ) {
                     filter {
                         eq("id", itemId)
                     }
                 }
 
-            FlockrLogger.repoSuccess(TAG, "updateShoppingItem", "Item updated successfully")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "updateShoppingItem", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markAsPurchased(itemId: String, houseId: String, itemName: String): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            supabase.from("shopping_items")
+                .update(
+                    ShoppingItemUpdate(
+                        isPurchased = true,
+                        purchasedBy = currentUserId
+                    )
+                ) {
+                    filter {
+                        eq("id", itemId)
+                    }
+                }
+
+            try {
+                @Serializable
+                data class HouseNotificationParams(
+                    @SerialName("p_house_id")
+                    val houseId: String,
+                    @SerialName("p_title")
+                    val title: String,
+                    @SerialName("p_message")
+                    val message: String,
+                    @SerialName("p_type")
+                    val type: String,
+                    @SerialName("p_data")
+                    val data: String,
+                    @SerialName("p_exclude_user_id")
+                    val excludeUserId: String?
+                )
+
+                supabase.postgrest.rpc(
+                    function = "create_notification_for_house",
+                    parameters = HouseNotificationParams(
+                        houseId = houseId,
+                        title = "Item Purchased",
+                        message = "Purchased: $itemName",
+                        type = "shopping",
+                        data = """{"type":"shopping","itemId":"$itemId"}""",
+                        excludeUserId = currentUserId
+                    )
+                )
+            } catch (e: Exception) {
+                // Ignore notification errors
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     suspend fun deleteShoppingItem(itemId: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "deleteShoppingItem", mapOf("itemId" to itemId))
         return try {
             supabase.from("shopping_items")
                 .delete {
@@ -280,12 +268,9 @@ class ShoppingRepository @Inject constructor(
                     }
                 }
 
-            FlockrLogger.repoSuccess(TAG, "deleteShoppingItem", "Item deleted")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "deleteShoppingItem", e)
             Result.failure(e)
         }
     }
 }
-

@@ -1,7 +1,16 @@
 package `in`.xroden.flockr.features.expenses.model
 
-import kotlinx.serialization.SerialName
+import `in`.xroden.flockr.data.enums.ExpenseDueStatus
+import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
+import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+import java.math.BigDecimal
 
 @Serializable
 data class OneTimeExpense(
@@ -9,14 +18,17 @@ data class OneTimeExpense(
     @SerialName("house_id")
     val houseId: String,
     val name: String,
-    val amount: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
     val category: String,
     @SerialName("paid_by")
     val paidBy: String,
-    val date: String,
+    @Serializable(with = LocalDateSerializer::class)
+    val date: LocalDate,
     val notes: String? = null,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
 
 @Serializable
@@ -25,7 +37,8 @@ data class RecurringExpense(
     @SerialName("house_id")
     val houseId: String,
     val name: String,
-    val amount: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
     @SerialName("due_day")
     val dueDay: Int,
     val category: String,
@@ -34,13 +47,15 @@ data class RecurringExpense(
     @SerialName("is_active")
     val isActive: Boolean = true,
     @SerialName("created_at")
-    val createdAt: String,
-    // Enhanced fields (to be added to database)
-    val frequency: String = "monthly", // daily, weekly, biweekly, monthly, quarterly, semiannual, annual, custom
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    val frequency: ExpenseFrequency = ExpenseFrequency.MONTHLY,
     @SerialName("next_due_date")
-    val nextDueDate: String? = null,
+    @Serializable(with = LocalDateSerializer::class)
+    val nextDueDate: LocalDate? = null,
     @SerialName("last_paid_date")
-    val lastPaidDate: String? = null,
+    @Serializable(with = LocalDateSerializer::class)
+    val lastPaidDate: LocalDate? = null,
     @SerialName("custom_frequency_days")
     val customFrequencyDays: Int? = null,
     @SerialName("reminder_days_before")
@@ -48,23 +63,22 @@ data class RecurringExpense(
     @SerialName("reminder_enabled")
     val reminderEnabled: Boolean = true,
     val notes: String? = null,
-    // Split functionality
     @SerialName("split_with")
-    val splitWith: List<String>? = null, // Array of user IDs to split with
+    val splitWith: List<String>? = null,
     @SerialName("split_type")
-    val splitType: String? = null, // "equal" or "custom"
+    val splitType: ExpenseSplitType? = null,
     @SerialName("split_amounts")
-    val splitAmounts: Map<String, Double>? = null, // Custom amounts: {"user_id": amount}
-    // Prepay and custom payment date
+    val splitAmounts: Map<String, @Serializable(with = BigDecimalSerializer::class) BigDecimal>? = null,
     @SerialName("prepay_enabled")
     val prepayEnabled: Boolean = false,
     @SerialName("first_payment_date")
-    val firstPaymentDate: String? = null,
+    @Serializable(with = LocalDateSerializer::class)
+    val firstPaymentDate: LocalDate? = null,
     @SerialName("next_payment_date")
-    val nextPaymentDate: String? = null,
-    // Computed fields from RPC
+    @Serializable(with = LocalDateSerializer::class)
+    val nextPaymentDate: LocalDate? = null,
     @SerialName("due_status")
-    val dueStatus: String? = null,
+    val dueStatus: ExpenseDueStatus? = null,
     @SerialName("days_until_due")
     val daysUntilDue: Int? = null
 )
@@ -77,11 +91,13 @@ data class ExpenseSplit(
     @SerialName("user_id")
     val userId: String,
     @SerialName("amount_owed")
-    val amountOwed: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amountOwed: BigDecimal,
     @SerialName("is_settled")
     val isSettled: Boolean = false,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
 
 @Serializable
@@ -93,12 +109,14 @@ data class Transaction(
     val payerId: String,
     @SerialName("payee_id")
     val payeeId: String,
-    val amount: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
     @SerialName("is_settlement")
     val isSettlement: Boolean = false,
     val description: String? = null,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
 
 @Serializable
@@ -108,11 +126,14 @@ data class PaymentHistory(
     val recurringExpenseId: String,
     @SerialName("paid_by")
     val paidBy: String,
-    val amount: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
     @SerialName("payment_date")
-    val paymentDate: String,
+    @Serializable(with = LocalDateSerializer::class)
+    val paymentDate: LocalDate,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
 
 @Serializable
@@ -121,19 +142,24 @@ data class UserBalance(
     val userId: String = "",
     @SerialName("full_name")
     val fullName: String? = null,
-    val balance: Double = 0.0
+    @Serializable(with = BigDecimalSerializer::class)
+    val balance: BigDecimal = BigDecimal.ZERO
 )
 
 @Serializable
 data class MonthlySummary(
     @SerialName("total_expenses")
-    val totalExpenses: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val totalExpenses: BigDecimal,
     @SerialName("recurring_expenses")
-    val recurringExpenses: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val recurringExpenses: BigDecimal,
     @SerialName("one_time_expenses")
-    val oneTimeExpenses: Double,
+    @Serializable(with = BigDecimalSerializer::class)
+    val oneTimeExpenses: BigDecimal,
     @SerialName("per_diem_expenses")
-    val perDiemExpenses: Double
+    @Serializable(with = BigDecimalSerializer::class)
+    val perDiemExpenses: BigDecimal
 )
 
 @Serializable
@@ -143,13 +169,14 @@ data class SpendByMember(
     @SerialName("full_name")
     val fullName: String?,
     @SerialName("total_spent")
-    val totalSpent: Double
+    @Serializable(with = BigDecimalSerializer::class)
+    val totalSpent: BigDecimal
 )
 
 @Serializable
 data class SpendByCategory(
     val category: String,
     @SerialName("total_amount")
-    val totalAmount: Double
+    @Serializable(with = BigDecimalSerializer::class)
+    val totalAmount: BigDecimal
 )
-

@@ -1,9 +1,12 @@
 package `in`.xroden.flockr.features.expenses.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,22 +16,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
-import `in`.xroden.flockr.ui.components.cards.DataCard
-import `in`.xroden.flockr.ui.components.cards.CompactDataCard
-import `in`.xroden.flockr.ui.components.data.BalanceDisplay
-import `in`.xroden.flockr.ui.components.data.BalanceSize
-import `in`.xroden.flockr.ui.components.data.CompactStatDisplay
-import `in`.xroden.flockr.ui.components.lists.ModernListItem
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.ui.theme.CategoryRed
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Central Finance Dashboard - Hub for all finance features
- * Inspired by fold.money's data-rich, clean design
+ * Updated to match app-wide aesthetics
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,21 +48,20 @@ fun ExpenseDashboardScreen(
     onNavigateToReports: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState(initial = ExpenseUiState.Loading)
-    val balancesState = viewModel.balances.collectAsState(initial = emptyList())
-    val balances by remember { derivedStateOf { balancesState.value } }
-    val houseConfigState = viewModel.houseConfig.collectAsState(initial = null as `in`.xroden.flockr.features.house.model.HouseConfig?)
-    val houseConfig = houseConfigState.value
-    val monthlySummaryState = viewModel.monthlySummary.collectAsState(initial = null as `in`.xroden.flockr.features.expenses.model.MonthlySummary?)
-    val monthlySummary = monthlySummaryState.value
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val expenseState by viewModel.expenseState.collectAsState()
+    val balanceState by viewModel.balanceState.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val summaryState by viewModel.summaryState.collectAsState()
+    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
         viewModel.loadBalances(houseId)
         viewModel.loadHouseConfig(houseId)
         // Load monthly summary for current month
-        val currentMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+        val currentMonth = kotlinx.datetime.Clock.System.now()
+            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            .date.toString().substring(0, 7) + "-01"  // Get YYYY-MM-01 format
         viewModel.loadMonthlySummary(houseId, currentMonth)
     }
 
@@ -68,8 +72,9 @@ fun ExpenseDashboardScreen(
                 title = {
                     Text(
                         "Finance",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -92,7 +97,7 @@ fun ExpenseDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(24.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Header Section
@@ -102,13 +107,13 @@ fun ExpenseDashboardScreen(
                 ) {
                     Text(
                         text = "Finance Hub",
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "Manage expenses, split bills, and track spending",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -117,26 +122,35 @@ fun ExpenseDashboardScreen(
             // Quick Stats Row
             item {
                 // Use monthly summary which includes all expense types (one-time, recurring, per diem)
+                val monthlySummary = when (val state = summaryState) {
+                    is MonthlySummaryUiState.Success -> state.summary
+                    else -> null
+                }
                 val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
 
                 val currentUserId = viewModel.getCurrentUserId()
-                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: 0.0
+                val balances = when (val state = balanceState) {
+                    is BalanceUiState.Success -> state.balances
+                    else -> emptyList()
+                }
+                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: java.math.BigDecimal.ZERO
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    CompactDataCard(
-                        label = "This Month",
+                    FinanceStatCard(
+                        label = "THIS MONTH",
                         value = "$currencySymbol${"%.2f".format(totalThisMonth)}",
                         modifier = Modifier.weight(1f),
                         accentColor = MaterialTheme.colorScheme.primary
                     )
-                    CompactDataCard(
-                        label = "Your Balance",
-                        value = "$currencySymbol${"%.2f".format(kotlin.math.abs(userBalance))}",
+                    FinanceStatCard(
+                        label = "YOUR BALANCE",
+                        value = "$currencySymbol${"%.2f".format(kotlin.math.abs(userBalance.toDouble()))}",
                         modifier = Modifier.weight(1f),
-                        accentColor = if (userBalance >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                        accentColor = if (userBalance >= java.math.BigDecimal.ZERO) CategoryGreen else CategoryRed,
+                        isPositive = userBalance >= java.math.BigDecimal.ZERO
                     )
                 }
             }
@@ -145,78 +159,80 @@ fun ExpenseDashboardScreen(
             item {
                 Text(
                     text = "Manage",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "One-Time Expenses",
                     subtitle = "Add and track individual expenses",
                     icon = Icons.Default.ShoppingCart,
-                    onClick = onNavigateToOneTimeExpenses,
-                    showChevron = true
+                    accentColor = CategoryBlue,
+                    onClick = onNavigateToOneTimeExpenses
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "Recurring Expenses",
                     subtitle = "Manage monthly bills and subscriptions",
                     icon = Icons.Default.Refresh,
-                    onClick = onNavigateToRecurringExpenses,
-                    showChevron = true
+                    accentColor = CategoryPurple,
+                    onClick = onNavigateToRecurringExpenses
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "Balances & IOUs",
                     subtitle = "See who owes what and settle up",
                     icon = Icons.Default.AccountBalance,
-                    onClick = onNavigateToBalances,
-                    showChevron = true
+                    accentColor = CategoryOrange,
+                    onClick = onNavigateToBalances
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "Add Per Diem Entry",
                     subtitle = "Quick log daily usage items",
                     icon = Icons.Default.Add,
-                    onClick = onNavigateToQuickPerDiem,
-                    showChevron = true
+                    accentColor = CategoryGreen,
+                    onClick = onNavigateToQuickPerDiem
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "Per-Diem Configuration",
                     subtitle = "Manage per-diem items and rates",
                     icon = Icons.Default.Settings,
-                    onClick = onNavigateToPerDiem,
-                    showChevron = true
+                    accentColor = MaterialTheme.colorScheme.tertiary,
+                    onClick = onNavigateToPerDiem
                 )
             }
 
             item {
                 Text(
                     text = "Reports",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             item {
-                ModernListItem(
+                FinanceFeatureCard(
                     title = "Monthly Reports",
                     subtitle = "View spending breakdown and summaries",
                     icon = Icons.Default.Assessment,
-                    onClick = onNavigateToReports,
-                    showChevron = true
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToReports
                 )
             }
 
@@ -224,14 +240,15 @@ fun ExpenseDashboardScreen(
             item {
                 Text(
                     text = "Recent Expenses",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
-            when (val state = uiState) {
-                is ExpenseUiState.Loading -> {
+            when (val state = expenseState) {
+                is OneTimeExpenseUiState.Loading -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -239,18 +256,21 @@ fun ExpenseDashboardScreen(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
-                is ExpenseUiState.Error -> {
+                is OneTimeExpenseUiState.Error -> {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -265,40 +285,49 @@ fun ExpenseDashboardScreen(
                                 Text(
                                     text = state.message,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
                     }
                 }
-                is ExpenseUiState.Success -> {
+                is OneTimeExpenseUiState.Success -> {
                     val recentExpenses = state.expenses.take(5)
                     if (recentExpenses.isEmpty()) {
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 ),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(24.dp),
+                                        .padding(32.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Receipt,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(64.dp)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Receipt,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(32.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     Text(
                                         text = "No expenses yet",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "Start by adding your first expense",
@@ -321,14 +350,19 @@ fun ExpenseDashboardScreen(
                         item {
                             TextButton(
                                 onClick = onNavigateToOneTimeExpenses,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 12.dp)
                             ) {
-                                Text("View All Expenses")
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "View All Expenses",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -336,32 +370,120 @@ fun ExpenseDashboardScreen(
                 }
             }
 
-            // Info Card
+            // Bottom spacer
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "All household members can view and add expenses. Split bills automatically and settle up with ease.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(40.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun FinanceStatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color,
+    isPositive: Boolean = true
+) {
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = accentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun FinanceFeatureCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon with accent color background
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(accentColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Text content
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Arrow indicator
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -376,11 +498,12 @@ fun RecentExpenseCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -396,25 +519,28 @@ fun RecentExpenseCard(
             ) {
                 Text(
                     text = expense.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = expense.category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                     Text(
-                        text = expense.category,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = expense.date,
+                        text = expense.date.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -422,18 +548,12 @@ fun RecentExpenseCard(
             }
 
             // Right side - amount
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text(
-                    text = "$currencySymbol${"%.2f".format(expense.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
+            Text(
+                text = "$currencySymbol${"%.2f".format(expense.amount)}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

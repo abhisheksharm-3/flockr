@@ -1,11 +1,6 @@
 package `in`.xroden.flockr.features.chat.ui
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,13 +16,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
-import `in`.xroden.flockr.ui.components.FadeInListItem
 import `in`.xroden.flockr.features.chat.domain.ChatUiState
 import `in`.xroden.flockr.features.chat.domain.ChatViewModel
 
@@ -43,21 +37,17 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(houseId) {
-        viewModel.loadMessages(houseId, "House")
+        viewModel.loadMessages(houseId)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        if (uiState is ChatUiState.Success) {
-                            (uiState as ChatUiState.Success).houseName.uppercase()
-                        } else {
-                            "CHAT"
-                        },
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        "Chat",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
@@ -65,87 +55,66 @@ fun ChatScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
+            // Minimal Input Area
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                    ),
-                tonalElevation = 3.dp,
-                shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedTextField(
+                    // Input Field
+                    TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Type a message...") },
-                        maxLines = 3,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        maxLines = 4,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     )
                     
-                    val sendInteraction = remember { MutableInteractionSource() }
-                    val isSendPressed by sendInteraction.collectIsPressedAsState()
-                    
-                    val sendScale by animateFloatAsState(
-                        targetValue = if (isSendPressed) 0.9f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                    )
-                    
-                    Surface(
+                    // Send Button
+                    val isEnabled = messageText.isNotBlank()
+                    IconButton(
+                        onClick = {
+                            if (isEnabled) {
+                                viewModel.sendMessage(houseId, messageText)
+                                messageText = ""
+                            }
+                        },
+                        enabled = isEnabled,
                         modifier = Modifier
                             .size(48.dp)
-                            .scale(sendScale)
-                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            .clickable(
-                                interactionSource = sendInteraction,
-                                indication = null,
-                                enabled = messageText.isNotBlank()
-                            ) {
-                                if (messageText.isNotBlank()) {
-                                    val houseName = if (uiState is ChatUiState.Success) {
-                                        (uiState as ChatUiState.Success).houseName
-                                    } else "House"
-                                    viewModel.sendMessage(houseId, messageText, houseName)
-                                    messageText = ""
-                                }
-                            },
-                        shape = CircleShape,
-                        color = if (messageText.isNotBlank()) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                "Send",
-                                tint = if (messageText.isNotBlank()) 
-                                    MaterialTheme.colorScheme.onPrimary 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                            .background(
+                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
                             )
-                        }
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            "Send",
+                            tint = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -157,103 +126,50 @@ fun ChatScreen(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp
-                    )
+                    CircularProgressIndicator()
                 }
             }
             is ChatUiState.Success -> {
                 if (state.messages.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(80.dp).border(
-                                    2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.Chat,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Text(
-                                "NO MESSAGES",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                "Start a conversation with your household",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    EmptyChatState(modifier = Modifier.fillMaxSize().padding(padding))
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
                         state = listState,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         reverseLayout = true
                     ) {
-                        items(state.messages.reversed()) { message ->
-                            FadeInListItem {
-                                MessageBubble(
-                                    message = message,
-                                    currentUserId = viewModel.getCurrentUserId()
-                                )
-                            }
+                        items(state.messages.reversed(), key = { it.id }) { message ->
+                            MessageBubble(
+                                message = message,
+                                currentUserId = viewModel.getCurrentUserId()
+                            )
                         }
 
-                        // Security Warning Banner at the bottom (shows at top due to reverseLayout)
+                        // Security Warning (Minimal)
                         item {
-                            Card(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                )
+                                    .padding(vertical = 16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Icon(
-                                        Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "⚠️ This chat is not encrypted. Please do not share sensitive information like passwords or financial details. We do not access your messages, but they are stored in a way that could be viewed. Use this chat for household coordination only.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                Icon(
+                                    Icons.Default.Lock,
+                                    null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Messages are not end-to-end encrypted",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
                             }
                         }
-
-                        item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
                 }
             }
@@ -262,25 +178,45 @@ fun ChatScreen(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "ERROR",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            state.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
+    }
+}
+
+@Composable
+fun EmptyChatState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+            modifier = Modifier.size(80.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Chat,
+                    null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "No messages yet",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            "Start the conversation!",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -290,65 +226,67 @@ fun MessageBubble(
     currentUserId: String? = null
 ) {
     val isCurrentUser = currentUserId != null && message.userId == currentUserId
+    val bubbleShape = if (isCurrentUser) {
+        RoundedCornerShape(12.dp, 12.dp, 4.dp, 12.dp)
+    } else {
+        RoundedCornerShape(12.dp, 12.dp, 12.dp, 4.dp)
+    }
     
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
     ) {
-        Card(
+        if (!isCurrentUser && message.senderName != null) {
+            Text(
+                text = message.senderName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+            )
+        }
+
+        Surface(
+            shape = bubbleShape,
+            color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier
                 .widthIn(max = 280.dp)
-                .border(
-                    width = 2.dp,
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(
-                        topStart = 12.dp,
-                        topEnd = 12.dp,
-                        bottomStart = if (isCurrentUser) 12.dp else 4.dp,
-                        bottomEnd = if (isCurrentUser) 4.dp else 12.dp
-                    )
-                ),
-            shape = RoundedCornerShape(
-                topStart = 12.dp,
-                topEnd = 12.dp,
-                bottomStart = if (isCurrentUser) 12.dp else 4.dp,
-                bottomEnd = if (isCurrentUser) 4.dp else 12.dp
-            ),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isCurrentUser) 
-                    MaterialTheme.colorScheme.primaryContainer 
-                else 
-                    MaterialTheme.colorScheme.surface
-            )
+                .then(if (message.isPending) Modifier.alpha(0.7f) else Modifier)
         ) {
             Column(
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Show sender name for all messages
-                Text(
-                    text = if (isCurrentUser) "You" else (message.senderName ?: "Unknown"),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isCurrentUser)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.secondary,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-
                 Text(
                     text = message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                message.createdAt?.let { timestamp ->
-                    Spacer(modifier = Modifier.height(4.dp))
+                
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
                     Text(
-                        text = formatTimestamp(timestamp),
+                        text = formatTimestamp(message.createdAt.toString()),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = if (isCurrentUser) 
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) 
+                        else 
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontSize = 10.sp
                     )
+                    
+                    if (message.isPending) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Schedule,
+                            null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
         }

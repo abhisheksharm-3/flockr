@@ -1,5 +1,7 @@
 package `in`.xroden.flockr.features.shopping.model
 
+import `in`.xroden.flockr.data.serialization.InstantSerializer
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -22,8 +24,9 @@ data class ShoppingItem(
     @SerialName("purchased_by_name")
     val purchasedByName: String? = null,
     @SerialName("purchased_at")
-    val purchasedAt: String? = null,
+    @Serializable(with = InstantSerializer::class)
+    val purchasedAt: Instant? = null,
     @SerialName("created_at")
-    val createdAt: String
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant
 )
-

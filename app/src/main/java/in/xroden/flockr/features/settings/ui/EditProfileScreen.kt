@@ -30,7 +30,14 @@ fun EditProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val profile by viewModel.profile.collectAsState()
+    val profileUiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
+
+    val profile = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
+        else -> null
+    }
+
     var fullName by remember { mutableStateOf(profile?.fullName ?: "") }
     var profileImageUrl by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -42,9 +49,7 @@ fun EditProfileScreen(
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
                 val imageData = inputStream?.readBytes() ?: return@let
-                viewModel.uploadProfilePicture(imageData) { url ->
-                    profileImageUrl = url
-                }
+                viewModel.uploadProfilePicture(imageData)
             } catch (e: Exception) {
                 // Handle error
             }
@@ -134,7 +139,7 @@ fun EditProfileScreen(
 
             Button(
                 onClick = {
-                    viewModel.updateProfileName(fullName)
+                    viewModel.updateProfile(fullName)
                     onNavigateBack()
                 },
                 modifier = Modifier.fillMaxWidth(),

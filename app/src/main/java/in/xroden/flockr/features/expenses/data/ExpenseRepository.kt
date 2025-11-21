@@ -1,9 +1,20 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.features.expenses.model.*
-import `in`.xroden.flockr.features.auth.model.Profile
-import `in`.xroden.flockr.data.model.*
-import `in`.xroden.flockr.utils.FlockrLogger
+import `in`.xroden.flockr.data.dto.ExpenseSplitInsert
+import `in`.xroden.flockr.data.dto.OneTimeExpenseInsert
+import `in`.xroden.flockr.data.dto.OneTimeExpenseUpdate
+import `in`.xroden.flockr.data.dto.PaymentHistoryInsert
+import `in`.xroden.flockr.data.dto.RecurringExpenseInsert
+import `in`.xroden.flockr.data.dto.RecurringExpenseUpdate
+import `in`.xroden.flockr.data.dto.TransactionInsert
+import `in`.xroden.flockr.features.expenses.model.MonthlySummary
+import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
+import `in`.xroden.flockr.features.expenses.model.PaymentHistory
+import `in`.xroden.flockr.features.expenses.model.RecurringExpense
+import `in`.xroden.flockr.features.expenses.model.SpendByCategory
+import `in`.xroden.flockr.features.expenses.model.SpendByMember
+import `in`.xroden.flockr.features.expenses.model.Transaction
+import `in`.xroden.flockr.features.expenses.model.UserBalance
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -14,8 +25,16 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.datetime.LocalDate
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.launch
 
 @Singleton
 class ExpenseRepository @Inject constructor(
@@ -23,110 +42,45 @@ class ExpenseRepository @Inject constructor(
 ) {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
-    
+
     fun getCurrentUserId(): String? = userId
-    
-    companion object {
-        private const val TAG = "ExpenseRepository"
-    }
 
-    /**
-     * Helper function to get house currency symbol for notifications
-     */
-    private suspend fun getHouseCurrency(houseId: String): String {
-        return try {
-            val result = supabase.from("house_config")
-                .select(columns = Columns.list("currency_symbol")) {
-                    filter { eq("house_id", houseId) }
-                }
-                .decodeSingle<Map<String, String>>()
-            result["currency_symbol"] ?: "$"
+    // ONE-TIME EXPENSES
+
+    fun getOneTimeExpensesFlow(houseId: String): Flow<Result<List<OneTimeExpense>>> = callbackFlow {
+        val channelId = "one_time_expenses_$houseId"
+        val channel = supabase.realtime.channel(channelId)
+
+        try {
+            send(getOneTimeExpenses(houseId))
+
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "one_time_expenses"
+                filter = "house_id=eq.$houseId"
+            }
+
+            channel.subscribe(blockUntilSubscribed = true)
+
+            changeFlow.collect {
+                kotlinx.coroutines.delay(100)
+                send(getOneTimeExpenses(houseId))
+            }
         } catch (e: Exception) {
-            FlockrLogger.d(TAG, "Failed to get house currency, using default: ${e.message}")
-            "$" // Fallback to USD
+            send(Result.failure(e))
+        }
+
+        awaitClose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
+            }
         }
     }
 
-    /**
-     * Helper function to get current user's display name for notifications
-     */
-    private suspend fun getCurrentUserName(): String {
-        val currentUserId = userId ?: return "Someone"
-        return try {
-            val profile = supabase.from("profiles")
-                .select(Columns.raw("full_name")) {
-                    filter { eq("id", currentUserId) }
-                }
-                .decodeSingle<Profile>()
-            profile.fullName ?: "Someone"
-        } catch (e: Exception) {
-            FlockrLogger.d(TAG, "Failed to get user name, using default: ${e.message}")
-            "Someone"
-        }
-    }
-
-    /**
-     * Delete a one-time expense and its splits
-     */
-    suspend fun deleteOneTimeExpense(expenseId: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "deleteOneTimeExpense", mapOf("expenseId" to expenseId))
-        return try {
-            // Delete splits first (foreign key constraint)
-            supabase.from("expense_splits")
-                .delete {
-                    filter { eq("expense_id", expenseId) }
-                }
-
-            // Delete the expense
-            supabase.from("one_time_expenses")
-                .delete {
-                    filter { eq("id", expenseId) }
-                }
-
-            FlockrLogger.repoSuccess(TAG, "deleteOneTimeExpense", "Expense deleted successfully")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "deleteOneTimeExpense", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Update a one-time expense
-     */
-    suspend fun updateOneTimeExpense(
-        expenseId: String,
-        name: String,
-        amount: Double,
-        date: String,
-        category: String,
-        notes: String?
-    ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "updateOneTimeExpense", mapOf("expenseId" to expenseId))
-        return try {
-            val update = mapOf(
-                "name" to name,
-                "amount" to amount,
-                "date" to date,
-                "category" to category,
-                "notes" to notes
-            )
-
-            supabase.from("one_time_expenses")
-                .update(update) {
-                    filter { eq("id", expenseId) }
-                }
-
-            FlockrLogger.repoSuccess(TAG, "updateOneTimeExpense", "Expense updated successfully")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "updateOneTimeExpense", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getOneTimeExpenses(houseId: String): List<OneTimeExpense> {
-        FlockrLogger.repoStart(TAG, "getOneTimeExpenses", mapOf("houseId" to houseId))
+    suspend fun getOneTimeExpenses(houseId: String): Result<List<OneTimeExpense>> {
         return try {
             val expenses = supabase.from("one_time_expenses")
                 .select(Columns.ALL) {
@@ -136,870 +90,596 @@ class ExpenseRepository @Inject constructor(
                     order("date", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<OneTimeExpense>()
-            FlockrLogger.repoSuccess(TAG, "getOneTimeExpenses", "Found ${expenses.size} expenses")
-            expenses
+
+            Result.success(expenses)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getOneTimeExpenses", e)
-            emptyList()
+            Result.failure(e)
         }
     }
 
-    fun getOneTimeExpensesFlow(houseId: String): kotlinx.coroutines.flow.Flow<List<OneTimeExpense>> {
-        FlockrLogger.realtimeEvent(TAG, "getOneTimeExpensesFlow", "Starting for house=$houseId")
-        return kotlinx.coroutines.flow.flow {
-            // Emit initial value
-            val initialExpenses = getOneTimeExpenses(houseId)
-            FlockrLogger.d(TAG, "getOneTimeExpensesFlow: Emitting initial ${initialExpenses.size} expenses")
-            emit(initialExpenses)
-
-            // Create and subscribe to realtime channel
-            val channelId = "expenses_${houseId}_${System.currentTimeMillis()}"
-            val channel = supabase.realtime.channel(channelId)
-
-            try {
-                // Configure realtime subscription BEFORE subscribing
-                val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                    table = "one_time_expenses"
-                }
-                
-                FlockrLogger.realtimeEvent(TAG, "getOneTimeExpensesFlow", "Subscribing to channel $channelId")
-                // Subscribe and wait for it to be ready
-                channel.subscribe(blockUntilSubscribed = true)
-                FlockrLogger.realtimeEvent(TAG, "getOneTimeExpensesFlow", "Successfully subscribed")
-
-                // Now listen for changes
-                changeFlow.collect { action ->
-                    FlockrLogger.realtimeEvent(TAG, "getOneTimeExpensesFlow", "Received update: $action")
-                    kotlinx.coroutines.delay(100)
-                    val updatedExpenses = getOneTimeExpenses(houseId)
-                    FlockrLogger.d(TAG, "getOneTimeExpensesFlow: Emitting ${updatedExpenses.size} expenses after update")
-                    emit(updatedExpenses)
-                }
-            } catch (e: Exception) {
-                // If realtime fails, just keep the initial value
-                FlockrLogger.repoError(TAG, "getOneTimeExpensesFlow", e)
-            } finally {
-                try {
-                    FlockrLogger.d(TAG, "getOneTimeExpensesFlow: Cleaning up channel")
-                    supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
-                    FlockrLogger.e(TAG, "getOneTimeExpensesFlow: Error removing channel", e)
-                }
-            }
-        }
-    }
-
-    /**
-     * Create a one-time expense.
-     *
-     * Split Logic:
-     * - splits = null: No splitting, just track the expense
-     * - splits = list: Split expense among specified users
-     *
-     * IMPORTANT: If only the payer is in the splits list, splits are NOT created
-     * to prevent "owing yourself" scenarios. This is filtered out automatically.
-     *
-     * Example Scenarios:
-     * 1. Solo expense: You pay 676, no splits → No balance change
-     * 2. Split expense: You pay 900, split among 3 → You're owed 600, others owe 300 each
-     * 3. Full expense shown in house total regardless of splits
-     */
     suspend fun createOneTimeExpense(
         houseId: String,
         name: String,
-        amount: Double,
-        date: String,
+        amount: BigDecimal,
         category: String,
+        date: LocalDate,
         notes: String?,
-        splits: List<Pair<String, Double>>? = null
+        splitWith: List<String>? = null,
+        splitType: `in`.xroden.flockr.data.enums.ExpenseSplitType? = null,
+        splitAmounts: Map<String, BigDecimal>? = null
     ): Result<OneTimeExpense> {
-        FlockrLogger.repoStart(TAG, "createOneTimeExpense", mapOf(
-            "houseId" to houseId,
-            "name" to name,
-            "amount" to amount,
-            "hasSplits" to (splits != null && splits.isNotEmpty())
-        ))
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "createOneTimeExpense: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            val expenseInsert = OneTimeExpenseInsert(
-                houseId = houseId,
-                name = name,
-                amount = amount,
-                date = date,
-                paidBy = currentUserId,
-                category = category,
-                notes = notes
-            )
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             val expense = supabase.from("one_time_expenses")
-                .insert(expenseInsert) {
+                .insert(
+                    OneTimeExpenseInsert(
+                        houseId = houseId,
+                        name = name,
+                        amount = amount,
+                        date = date,
+                        paidBy = currentUserId,
+                        category = category,
+                        notes = notes
+                    )
+                ) {
                     select()
                 }
                 .decodeSingle<OneTimeExpense>()
 
-            FlockrLogger.d(TAG, "createOneTimeExpense: Expense created with id=${expense.id}")
-
-            // Create splits if provided (but ALWAYS filter out the payer to prevent self-owing)
-            if (splits != null && splits.isNotEmpty()) {
-                // CRITICAL FIX: Remove payer from splits list to prevent "owing yourself" bug
-                val validSplits = splits.filter { (splitUserId, _) -> 
-                    splitUserId != currentUserId 
+            if (splitAmounts != null && splitAmounts.isNotEmpty()) {
+                val validSplits = splitAmounts.filter { (splitUserId, _) ->
+                    splitUserId != currentUserId
                 }
-                
-                if (validSplits.isEmpty()) {
-                    FlockrLogger.d(TAG, "createOneTimeExpense: No valid splits after filtering out payer")
-                } else {
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Creating ${validSplits.size} splits (payer filtered out)")
-                    validSplits.forEach { (splitUserId, amountOwed) ->
-                        val split = ExpenseSplitInsert(
-                            expenseId = expense.id,
-                            userId = splitUserId,
-                            amountOwed = amountOwed
+
+                validSplits.forEach { (splitUserId, amountOwed) ->
+                    supabase.from("expense_splits")
+                        .insert(
+                            ExpenseSplitInsert(
+                                expenseId = expense.id,
+                                userId = splitUserId,
+                                amountOwed = amountOwed
+                            )
                         )
-                        supabase.from("expense_splits")
-                            .insert(split)
-                    }
                 }
 
-                // Get currency and user name for notification
-                val currency = getHouseCurrency(houseId)
-                val userName = getCurrentUserName()
-
-                // Create notification for house members about the split expense
-                FlockrLogger.d(TAG, "createOneTimeExpense: Creating split notification")
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "New Expense Split",
-                    message = "$userName added a $currency$amount expense for $name and split it.",
-                    type = "expense",
-                    data = """{"id":"${expense.id}","type":"expense"}""",
-                    excludeUserId = currentUserId
-                )
                 try {
+                    @Serializable
+                    data class HouseNotificationParams(
+                        @SerialName("p_house_id")
+                        val houseId: String,
+                        @SerialName("p_title")
+                        val title: String,
+                        @SerialName("p_message")
+                        val message: String,
+                        @SerialName("p_type")
+                        val type: String,
+                        @SerialName("p_data")
+                        val data: String,
+                        @SerialName("p_exclude_user_id")
+                        val excludeUserId: String?
+                    )
+
                     supabase.postgrest.rpc(
                         function = "create_notification_for_house",
-                        parameters = notificationParams
-                    ).decodeAs<Unit>()
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Split notification created successfully")
+                        parameters = HouseNotificationParams(
+                            houseId = houseId,
+                            title = "New Expense Split",
+                            message = "Added a $amount expense for $name and split it.",
+                            type = "expense",
+                            data = """{"id":"${expense.id}","type":"expense"}""",
+                            excludeUserId = currentUserId
+                        )
+                    )
                 } catch (e: Exception) {
-                    // Ignore notification errors, they shouldn't fail the expense creation
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Notification failed (non-critical): ${e.message}")
-                }
-            } else {
-                // Get currency and user name for notification
-                val currency = getHouseCurrency(houseId)
-                val userName = getCurrentUserName()
-
-                // Create notification for simple expense (not split)
-                FlockrLogger.d(TAG, "createOneTimeExpense: Creating simple notification")
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "New Expense",
-                    message = "$userName added a $currency$amount expense for $name.",
-                    type = "expense",
-                    data = """{"id":"${expense.id}","type":"expense"}""",
-                    excludeUserId = currentUserId
-                )
-                try {
-                    supabase.postgrest.rpc(
-                        function = "create_notification_for_house",
-                        parameters = notificationParams
-                    ).decodeAs<Unit>()
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Simple notification created successfully")
-                } catch (e: Exception) {
-                    // Ignore notification errors, they shouldn't fail the expense creation
-                    FlockrLogger.d(TAG, "createOneTimeExpense: Notification failed (non-critical): ${e.message}")
+                    // Ignore notification errors
                 }
             }
 
-            FlockrLogger.repoSuccess(TAG, "createOneTimeExpense", "expense_id=${expense.id}")
             Result.success(expense)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "createOneTimeExpense", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Get user balances for a house.
-     *
-     * Balance Calculation Logic:
-     * - Positive balance: User is OWED money (they paid more than they owe)
-     * - Negative balance: User OWES money (they owe more than they paid)
-     *
-     * IMPORTANT: If you see "you owe yourself" bugs, the RPC function needs to be updated.
-     * See FIX_BALANCE_RPC.sql and BALANCE_FIX_GUIDE.md for the database fix.
-     *
-     * The RPC function must exclude splits where user_id == payer_id to prevent
-     * self-owing scenarios.
-     */
-    suspend fun getUserBalances(houseId: String): List<UserBalance> {
-        FlockrLogger.repoStart(TAG, "getUserBalances", mapOf("houseId" to houseId))
-        return try {
-            val balances = supabase.postgrest.rpc(
-                "get_user_balances",
-                mapOf("p_house_id" to houseId)
-            ).decodeList<UserBalance>()
-            FlockrLogger.repoSuccess(TAG, "getUserBalances", "Found ${balances.size} balances")
-            balances
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getUserBalances", e)
-            emptyList()
-        }
-    }
-
-    suspend fun settleBalance(
-        houseId: String,
-        payeeId: String,
-        amount: Double,
-        description: String?
+    suspend fun updateOneTimeExpense(
+        expenseId: String,
+        name: String?,
+        amount: BigDecimal?,
+        date: LocalDate?,
+        category: String?,
+        notes: String?
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "settleBalance", mapOf(
-            "houseId" to houseId,
-            "payeeId" to payeeId,
-            "amount" to amount
-        ))
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "settleBalance: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            // Get current user's name for notification
-            val currentUserProfile = try {
-                supabase.from("profiles")
-                    .select(Columns.raw("full_name")) {
-                        filter {
-                            eq("id", currentUserId)
-                        }
-                    }
-                    .decodeSingle<Profile>()
-            } catch (e: Exception) {
-                null
-            }
-            val payerName = currentUserProfile?.fullName ?: "Someone"
-
-            val transactionInsert = TransactionInsert(
-                houseId = houseId,
-                payerId = currentUserId,
-                payeeId = payeeId,
-                amount = amount,
-                isSettlement = true,
-                description = description
-            )
-
-            // Insert transaction - this will trigger the settle_expense_splits() function
-            // which automatically marks related expense_splits as settled
-            supabase.from("transactions")
-                .insert(transactionInsert)
-
-            FlockrLogger.d(TAG, "settleBalance: Transaction recorded, splits auto-marked as settled")
-
-            // Get house currency for notification
-            val currency = getHouseCurrency(houseId)
-
-            FlockrLogger.d(TAG, "settleBalance: Creating notification for payee")
-            // Create notification for payee
-            val notificationInsert = NotificationInsert(
-                userId = payeeId,
-                houseId = houseId,
-                title = "Balance Settled",
-                message = "$payerName has settled their balance with you ($currency$amount).",
-                type = "settlement",
-                isRead = false,
-                data = """{"amount":"${amount}","payer_name":"$payerName","currency":"$currency"}"""
-            )
-
-            supabase.from("notifications")
-                .insert(notificationInsert)
-
-            FlockrLogger.repoSuccess(TAG, "settleBalance", "Settlement completed")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "settleBalance", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getMonthlySummary(houseId: String, month: String): MonthlySummary? {
-        FlockrLogger.repoStart(TAG, "getMonthlySummary", mapOf("houseId" to houseId, "month" to month))
-        return try {
-            // Ensure month is in yyyy-MM-dd format for date type parameter
-            val monthDate = if (month.length == 7) "$month-01" else month
-            val result = supabase.postgrest.rpc(
-                "get_monthly_summary",
-                mapOf(
-                    "p_house_id" to houseId,
-                    "p_month" to monthDate
-                )
-            ).decodeList<MonthlySummary>()
-
-            val summary = result.firstOrNull()
-            FlockrLogger.repoSuccess(TAG, "getMonthlySummary", "summary=$summary")
-            summary
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getMonthlySummary", e)
-            null
-        }
-    }
-
-    suspend fun getSpendByMember(houseId: String, month: String): List<SpendByMember> {
-        FlockrLogger.repoStart(TAG, "getSpendByMember", mapOf("houseId" to houseId, "month" to month))
-        return try {
-            // Ensure month is in yyyy-MM-dd format for date type parameter
-            val monthDate = if (month.length == 7) "$month-01" else month
-            val params = GetPerDiemBillByMonthParams(houseId = houseId, month = monthDate)
-            val members = supabase.postgrest.rpc(
-                function = "get_spend_by_member",
-                parameters = params
-            ).decodeList<SpendByMember>()
-            FlockrLogger.repoSuccess(TAG, "getSpendByMember", "Found ${members.size} members")
-            members
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getSpendByMember", e)
-            emptyList()
-        }
-    }
-
-    suspend fun getSpendByCategory(houseId: String, month: String): List<SpendByCategory> {
-        FlockrLogger.repoStart(TAG, "getSpendByCategory", mapOf("houseId" to houseId, "month" to month))
-        return try {
-            // Ensure month is in yyyy-MM-dd format for date type parameter
-            val monthDate = if (month.length == 7) "$month-01" else month
-            val params = GetSpendByCategoryParams(houseId = houseId, month = monthDate)
-            val categories = supabase.postgrest.rpc(
-                function = "get_spend_by_category",
-                parameters = params
-            ).decodeList<SpendByCategory>()
-            FlockrLogger.repoSuccess(TAG, "getSpendByCategory", "Found ${categories.size} categories")
-            categories
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getSpendByCategory", e)
-            emptyList()
-        }
-    }
-
-    suspend fun getPerDiemBillItemized(houseId: String, month: String): List<PerDiemBillItemized> {
-        FlockrLogger.repoStart(TAG, "getPerDiemBillItemized", mapOf("houseId" to houseId, "month" to month))
-        return try {
-            // Ensure month is in yyyy-MM-dd format for date type parameter
-            val monthDate = if (month.length == 7) "$month-01" else month
-            val params = GetPerDiemBillByMonthParams(houseId = houseId, month = monthDate)
-            val items = supabase.postgrest.rpc(
-                function = "get_per_diem_bill_itemized",
-                parameters = params
-            ).decodeList<PerDiemBillItemized>()
-            FlockrLogger.repoSuccess(TAG, "getPerDiemBillItemized", "Found ${items.size} items")
-            items
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getPerDiemBillItemized", e)
-            emptyList()
-        }
-    }
-
-    suspend fun getPerDiemBillByMember(houseId: String, month: String): List<PerDiemBillByMember> {
-        FlockrLogger.repoStart(TAG, "getPerDiemBillByMember", mapOf("houseId" to houseId, "month" to month))
-        return try {
-            // Ensure month is in yyyy-MM-dd format for date type parameter
-            val monthDate = if (month.length == 7) "$month-01" else month
-            val params = GetPerDiemBillByMonthParams(houseId = houseId, month = monthDate)
-            val members = supabase.postgrest.rpc(
-                function = "get_per_diem_bill_by_member",
-                parameters = params
-            ).decodeList<PerDiemBillByMember>()
-            FlockrLogger.repoSuccess(TAG, "getPerDiemBillByMember", "Found ${members.size} members")
-            members
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getPerDiemBillByMember", e)
-            emptyList()
-        }
-    }
-
-    suspend fun createPerDiemEntry(
-        configId: String,
-        houseId: String,
-        quantity: Double,
-        date: String,
-        notes: String?,
-        itemName: String
-    ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "createPerDiemEntry", mapOf(
-            "configId" to configId,
-            "houseId" to houseId,
-            "quantity" to quantity,
-            "itemName" to itemName
-        ))
-        return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "createPerDiemEntry: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            val entryInsert = PerDiemEntryInsert(
-                configId = configId,
-                quantity = quantity,
-                date = date,
-                addedBy = currentUserId,
-                notes = notes
-            )
-            supabase.from("per_diem_entries")
-                .insert(entryInsert)
-
-            // Get currency and user name for notification
-            val currency = getHouseCurrency(houseId)
-            val userName = getCurrentUserName()
-
-            FlockrLogger.d(TAG, "createPerDiemEntry: Creating notification")
-            // Create notification
-            try {
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "Per Diem Entry Added",
-                    message = "$userName added $itemName entry: $quantity units.",
-                    type = "per_diem",
-                    data = """{"type":"per_diem","item":"$itemName"}""",
-                    excludeUserId = currentUserId
-                )
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                )
-            } catch (notificationError: Exception) {
-                FlockrLogger.e(TAG, "createPerDiemEntry: Failed to create notification (non-critical)", notificationError)
-                // Continue - notification failure shouldn't fail the entry creation
-            }
-
-            FlockrLogger.repoSuccess(TAG, "createPerDiemEntry", "Entry created successfully")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "createPerDiemEntry", e)
-            Result.failure(e)
-        }
-    }
-
-    // ========================================
-    // RECURRING EXPENSES METHODS
-    // ========================================
-
-    /**
-     * Get all recurring expenses for a house with due status
-     */
-    suspend fun getRecurringExpenses(houseId: String): Result<List<RecurringExpense>> {
-        FlockrLogger.repoStart(TAG, "getRecurringExpenses", mapOf("houseId" to houseId))
-        return try {
-            // Use RPC function to get expenses with calculated due status
-            val expenses = supabase.postgrest.rpc(
-                function = "get_recurring_expenses_with_status",
-                parameters = mapOf("p_house_id" to houseId)
-            ).decodeList<RecurringExpense>()
-
-            FlockrLogger.repoSuccess(TAG, "getRecurringExpenses", "Found ${expenses.size} recurring expenses")
-            Result.success(expenses)
-        } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getRecurringExpenses", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Get recurring expenses with real-time updates
-     */
-    fun getRecurringExpensesFlow(houseId: String): kotlinx.coroutines.flow.Flow<List<RecurringExpense>> {
-        FlockrLogger.realtimeEvent(TAG, "getRecurringExpensesFlow", "Starting for house=$houseId")
-
-        return kotlinx.coroutines.flow.flow {
-            // First emit initial data
-            val initialExpenses = getRecurringExpenses(houseId)
-            val expenses = initialExpenses.getOrElse { emptyList() }
-            FlockrLogger.d(TAG, "getRecurringExpensesFlow: Emitting initial ${expenses.size} expenses")
-            emit(expenses)
-
-            // Create and subscribe to realtime channel
-            val channelId = "recurring_expenses_${houseId}_${System.currentTimeMillis()}"
-            val channel = supabase.realtime.channel(channelId)
-
-            try {
-                // Configure realtime subscription BEFORE subscribing
-                val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                    table = "recurring_expenses"
+            supabase.from("one_time_expenses")
+                .update(
+                    OneTimeExpenseUpdate(
+                        name = name,
+                        amount = amount,
+                        date = date,
+                        category = category,
+                        notes = notes
+                    )
+                ) {
+                    filter { eq("id", expenseId) }
                 }
 
-                FlockrLogger.realtimeEvent(TAG, "getRecurringExpensesFlow", "Subscribing to channel $channelId")
-                // Subscribe and wait for it to be ready
-                channel.subscribe(blockUntilSubscribed = true)
-                FlockrLogger.realtimeEvent(TAG, "getRecurringExpensesFlow", "Successfully subscribed")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-                // Listen for changes
-                changeFlow.collect { change ->
-                    FlockrLogger.realtimeEvent(TAG, "getRecurringExpensesFlow", "Change detected: ${change::class.simpleName}")
-
-                    // Add a small delay to ensure database consistency
-                    kotlinx.coroutines.delay(100)
-
-                    // Reload all expenses (filtered by houseId in the query)
-                    val updatedExpenses = getRecurringExpenses(houseId)
-                    val newExpenses = updatedExpenses.getOrElse { emptyList() }
-                    FlockrLogger.d(TAG, "getRecurringExpensesFlow: Emitting updated ${newExpenses.size} expenses")
-                    emit(newExpenses)
+    suspend fun deleteOneTimeExpense(expenseId: String): Result<Unit> {
+        return try {
+            supabase.from("expense_splits")
+                .delete {
+                    filter { eq("expense_id", expenseId) }
                 }
-            } catch (e: Exception) {
-                // If realtime fails, just keep the initial value
-                FlockrLogger.repoError(TAG, "getRecurringExpensesFlow", e)
-            } finally {
+
+            supabase.from("one_time_expenses")
+                .delete {
+                    filter { eq("id", expenseId) }
+                }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // RECURRING EXPENSES
+
+    fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>> = callbackFlow {
+        val channelId = "recurring_expenses_$houseId"
+        val channel = supabase.realtime.channel(channelId)
+
+        try {
+            send(getRecurringExpenses(houseId))
+
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "recurring_expenses"
+                filter = "house_id=eq.$houseId"
+            }
+
+            channel.subscribe(blockUntilSubscribed = true)
+
+            changeFlow.collect {
+                kotlinx.coroutines.delay(100)
+                send(getRecurringExpenses(houseId))
+            }
+        } catch (e: Exception) {
+            send(Result.failure(e))
+        }
+
+        awaitClose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
-                    FlockrLogger.d(TAG, "getRecurringExpensesFlow: Cleaning up channel")
                     supabase.realtime.removeChannel(channel)
                 } catch (e: Exception) {
-                    FlockrLogger.e(TAG, "getRecurringExpensesFlow: Error removing channel", e)
+                    // Ignore cleanup errors
                 }
             }
         }
     }
 
-    /**
-     * Create a new recurring expense
-     */
+    suspend fun getRecurringExpenses(houseId: String): Result<List<RecurringExpense>> {
+        return try {
+            @Serializable
+            data class GetRecurringExpensesParams(
+                @SerialName("p_house_id")
+                val houseId: String
+            )
+
+            val expenses = supabase.postgrest.rpc(
+                function = "get_recurring_expenses_with_status",
+                parameters = GetRecurringExpensesParams(houseId = houseId)
+            ).decodeList<RecurringExpense>()
+
+            Result.success(expenses)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun createRecurringExpense(
         houseId: String,
         name: String,
-        amount: Double,
+        amount: BigDecimal,
         dueDay: Int,
         category: String,
-        frequency: String = "monthly",
-        customFrequencyDays: Int? = null,
-        reminderDaysBefore: Int = 3,
-        reminderEnabled: Boolean = true,
-        notes: String? = null,
-        prepayEnabled: Boolean = false,
-        firstPaymentDate: String? = null
+        frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency,
+        customFrequencyDays: Int?,
+        reminderDaysBefore: Int,
+        reminderEnabled: Boolean,
+        notes: String?,
+        splitWith: List<String>?,
+        splitType: `in`.xroden.flockr.data.enums.ExpenseSplitType?,
+        splitAmounts: Map<String, BigDecimal>?,
+        prepayEnabled: Boolean,
+        firstPaymentDate: LocalDate?
     ): Result<RecurringExpense> {
-        FlockrLogger.repoStart(TAG, "createRecurringExpense", mapOf(
-            "houseId" to houseId,
-            "name" to name,
-            "amount" to amount,
-            "frequency" to frequency,
-            "prepayEnabled" to prepayEnabled,
-            "firstPaymentDate" to firstPaymentDate
-        ))
-
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "createRecurringExpense: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
-
-            val expenseInsert = RecurringExpenseInsert(
-                houseId = houseId,
-                name = name,
-                amount = amount,
-                dueDay = dueDay,
-                category = category,
-                createdBy = currentUserId,
-                frequency = frequency,
-                customFrequencyDays = customFrequencyDays,
-                reminderDaysBefore = reminderDaysBefore,
-                reminderEnabled = reminderEnabled,
-                notes = notes,
-                prepayEnabled = prepayEnabled,
-                firstPaymentDate = firstPaymentDate
-            )
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             val expense = supabase.from("recurring_expenses")
-                .insert(expenseInsert) {
+                .insert(
+                    RecurringExpenseInsert(
+                        houseId = houseId,
+                        name = name,
+                        amount = amount,
+                        dueDay = dueDay,
+                        category = category,
+                        createdBy = currentUserId,
+                        frequency = frequency,
+                        customFrequencyDays = customFrequencyDays,
+                        reminderDaysBefore = reminderDaysBefore,
+                        reminderEnabled = reminderEnabled,
+                        notes = notes,
+                        splitWith = splitWith,
+                        splitType = splitType,
+                        splitAmounts = splitAmounts,
+                        prepayEnabled = prepayEnabled,
+                        firstPaymentDate = firstPaymentDate
+                    )
+                ) {
                     select()
                 }
                 .decodeSingle<RecurringExpense>()
 
-            FlockrLogger.d(TAG, "createRecurringExpense: Expense created with id=${expense.id}")
-
-            // Get currency and user name for notification
-            val currency = getHouseCurrency(houseId)
-            val userName = getCurrentUserName()
-
-            // Create notification for house members
-            val notificationParams = CreateNotificationParams(
-                houseId = houseId,
-                title = "New Recurring Bill",
-                message = "$userName added $frequency bill: $name for $currency$amount.",
-                type = "recurring_expense",
-                data = """{"id":"${expense.id}","type":"recurring_expense"}""",
-                excludeUserId = currentUserId
-            )
-
-            try {
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
-                FlockrLogger.d(TAG, "createRecurringExpense: Notification created successfully")
-            } catch (e: Exception) {
-                FlockrLogger.d(TAG, "createRecurringExpense: Notification failed (non-critical): ${e.message}")
-            }
-
-            FlockrLogger.repoSuccess(TAG, "createRecurringExpense", "Expense created successfully")
             Result.success(expense)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "createRecurringExpense", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Update a recurring expense
-     */
     suspend fun updateRecurringExpense(
         expenseId: String,
-        name: String? = null,
-        amount: Double? = null,
-        dueDay: Int? = null,
-        category: String? = null,
-        isActive: Boolean? = null,
-        frequency: String? = null,
-        customFrequencyDays: Int? = null,
-        reminderDaysBefore: Int? = null,
-        reminderEnabled: Boolean? = null,
-        notes: String? = null
+        name: String?,
+        amount: BigDecimal?,
+        dueDay: Int?,
+        category: String?,
+        isActive: Boolean?,
+        frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency?,
+        lastPaidDate: LocalDate?,
+        customFrequencyDays: Int?,
+        reminderDaysBefore: Int?,
+        reminderEnabled: Boolean?,
+        notes: String?,
+        splitWith: List<String>?,
+        splitType: `in`.xroden.flockr.data.enums.ExpenseSplitType?,
+        splitAmounts: Map<String, BigDecimal>?
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "updateRecurringExpense", mapOf(
-            "expenseId" to expenseId,
-            "name" to name,
-            "amount" to amount
-        ))
-
         return try {
-            val update = RecurringExpenseUpdate(
-                name = name,
-                amount = amount,
-                dueDay = dueDay,
-                category = category,
-                isActive = isActive,
-                frequency = frequency,
-                customFrequencyDays = customFrequencyDays,
-                reminderDaysBefore = reminderDaysBefore,
-                reminderEnabled = reminderEnabled,
-                notes = notes
-            )
-
             supabase.from("recurring_expenses")
-                .update(update) {
-                    filter {
-                        eq("id", expenseId)
-                    }
+                .update(
+                    RecurringExpenseUpdate(
+                        name = name,
+                        amount = amount,
+                        dueDay = dueDay,
+                        category = category,
+                        isActive = isActive,
+                        frequency = frequency,
+                        lastPaidDate = lastPaidDate,
+                        customFrequencyDays = customFrequencyDays,
+                        reminderDaysBefore = reminderDaysBefore,
+                        reminderEnabled = reminderEnabled,
+                        notes = notes,
+                        splitWith = splitWith,
+                        splitType = splitType,
+                        splitAmounts = splitAmounts
+                    )
+                ) {
+                    filter { eq("id", expenseId) }
                 }
 
-            FlockrLogger.repoSuccess(TAG, "updateRecurringExpense", "Expense updated")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "updateRecurringExpense", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Delete a recurring expense
-     */
     suspend fun deleteRecurringExpense(expenseId: String): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "deleteRecurringExpense", mapOf("expenseId" to expenseId))
         return try {
-            // Delete payment history first
             supabase.from("payment_history")
                 .delete {
                     filter { eq("recurring_expense_id", expenseId) }
                 }
 
-            // Delete the recurring expense
             supabase.from("recurring_expenses")
                 .delete {
                     filter { eq("id", expenseId) }
                 }
 
-            FlockrLogger.repoSuccess(TAG, "deleteRecurringExpense", "Recurring expense deleted")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "deleteRecurringExpense", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Toggle active status of a recurring expense
-     */
-    suspend fun toggleRecurringExpenseActive(
-        expenseId: String,
-        isActive: Boolean
-    ): Result<Unit> {
-        return updateRecurringExpense(expenseId, isActive = isActive)
-    }
-
-    /**
-     * Mark a recurring expense as paid for this period
-     * This records the payment in payment_history and updates the last_paid_date
-     */
     suspend fun markRecurringExpenseAsPaid(
         expenseId: String,
-        houseId: String,
-        amount: Double,
-        paymentDate: String
+        amount: BigDecimal,
+        paymentDate: LocalDate
     ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "markRecurringExpenseAsPaid", mapOf(
-            "expenseId" to expenseId,
-            "amount" to amount,
-            "paymentDate" to paymentDate
-        ))
-
         return try {
+            android.util.Log.d("ExpenseRepository", "markRecurringExpenseAsPaid called - expenseId: $expenseId, amount: $amount, date: $paymentDate")
+            
             val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "markRecurringExpenseAsPaid: No user logged in")
+                android.util.Log.e("ExpenseRepository", "markRecurringExpenseAsPaid failed - No user logged in")
                 return Result.failure(Exception("No user logged in"))
             }
+            
+            android.util.Log.d("ExpenseRepository", "Current user ID: $currentUserId")
 
-            // 1. Record payment in payment_history
-            val paymentInsert = PaymentHistoryInsert(
-                recurringExpenseId = expenseId,
-                paidBy = currentUserId,
-                amount = amount,
-                paymentDate = paymentDate
-            )
-
+            // Insert payment history
+            android.util.Log.d("ExpenseRepository", "Inserting payment history...")
             supabase.from("payment_history")
-                .insert(paymentInsert) {
-                    select()
-                }
-
-            // 2. Update last_paid_date in recurring_expenses (trigger will calc next_due_date)
-            val update = RecurringExpenseUpdate(
-                lastPaidDate = paymentDate
-            )
-
-            supabase.from("recurring_expenses")
-                .update(update) {
-                    filter {
-                        eq("id", expenseId)
-                    }
-                }
-
-            FlockrLogger.d(TAG, "markRecurringExpenseAsPaid: Creating notification")
-
-            // Get currency and user name for notification
-            val currency = getHouseCurrency(houseId)
-            val userName = getCurrentUserName()
-
-            // 3. Create notification
-            try {
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "Bill Paid",
-                    message = "$userName marked recurring bill as paid ($currency$amount).",
-                    type = "payment",
-                    data = """{"id":"$expenseId","type":"payment","amount":"$amount"}""",
-                    excludeUserId = currentUserId
+                .insert(
+                    PaymentHistoryInsert(
+                        recurringExpenseId = expenseId,
+                        paidBy = currentUserId,
+                        amount = amount,
+                        paymentDate = paymentDate
+                    )
                 )
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
-            } catch (e: Exception) {
-                FlockrLogger.d(TAG, "markRecurringExpenseAsPaid: Notification failed (non-critical)")
-            }
+            android.util.Log.d("ExpenseRepository", "Payment history inserted successfully")
 
-            FlockrLogger.repoSuccess(TAG, "markRecurringExpenseAsPaid", "Payment recorded")
+            // Update recurring expense with last paid date
+            android.util.Log.d("ExpenseRepository", "Updating recurring expense last_paid_date...")
+            supabase.from("recurring_expenses")
+                .update(
+                    RecurringExpenseUpdate(
+                        lastPaidDate = paymentDate
+                    )
+                ) {
+                    filter { eq("id", expenseId) }
+                }
+            android.util.Log.d("ExpenseRepository", "Recurring expense updated successfully")
+
+            android.util.Log.d("ExpenseRepository", "markRecurringExpenseAsPaid completed successfully")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "markRecurringExpenseAsPaid", e)
+            android.util.Log.e("ExpenseRepository", "markRecurringExpenseAsPaid failed with exception", e)
+            android.util.Log.e("ExpenseRepository", "Exception message: ${e.message}")
+            android.util.Log.e("ExpenseRepository", "Exception stack trace: ${e.stackTraceToString()}")
             Result.failure(e)
         }
     }
 
-    /**
-     * Get payment history for a recurring expense
-     */
-    suspend fun getRecurringExpensePayments(expenseId: String): Result<List<PaymentHistory>> {
-        FlockrLogger.repoStart(TAG, "getRecurringExpensePayments", mapOf("expenseId" to expenseId))
-
+    suspend fun getPaymentHistory(recurringExpenseId: String): Result<List<PaymentHistory>> {
         return try {
-            val payments = supabase.from("payment_history")
+            val history = supabase.from("payment_history")
                 .select(Columns.ALL) {
                     filter {
-                        eq("recurring_expense_id", expenseId)
+                        eq("recurring_expense_id", recurringExpenseId)
                     }
                     order("payment_date", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
                 .decodeList<PaymentHistory>()
 
-            FlockrLogger.repoSuccess(TAG, "getRecurringExpensePayments", "Found ${payments.size} payments")
-            Result.success(payments)
+            Result.success(history)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "getRecurringExpensePayments", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Prepay a recurring bill (make advance payment)
-     * This allows users to pay bills before their due date
-     */
-    suspend fun prepayRecurringBill(
-        expenseId: String,
-        houseId: String,
-        amount: Double,
-        paymentDate: String,
-        billName: String
-    ): Result<Unit> {
-        FlockrLogger.repoStart(TAG, "prepayRecurringBill", mapOf(
-            "expenseId" to expenseId,
-            "amount" to amount,
-            "paymentDate" to paymentDate
-        ))
+    // TRANSACTIONS & SETTLEMENTS
 
+    fun getTransactionsFlow(houseId: String): Flow<Result<List<Transaction>>> = callbackFlow {
+        val channelId = "transactions_$houseId"
+        val channel = supabase.realtime.channel(channelId)
+
+        try {
+            send(getTransactions(houseId))
+
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "transactions"
+                filter = "house_id=eq.$houseId"
+            }
+
+            channel.subscribe(blockUntilSubscribed = true)
+
+            changeFlow.collect {
+                kotlinx.coroutines.delay(100)
+                send(getTransactions(houseId))
+            }
+        } catch (e: Exception) {
+            send(Result.failure(e))
+        }
+
+        awaitClose {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    supabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+    }
+
+    suspend fun getTransactions(houseId: String): Result<List<Transaction>> {
         return try {
-            val currentUserId = userId ?: run {
-                FlockrLogger.e(TAG, "prepayRecurringBill: No user logged in")
-                return Result.failure(Exception("No user logged in"))
-            }
+            val transactions = supabase.from("transactions")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("house_id", houseId)
+                    }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }
+                .decodeList<Transaction>()
 
-            // 1. Record payment in payment_history
-            val paymentInsert = PaymentHistoryInsert(
-                recurringExpenseId = expenseId,
-                paidBy = currentUserId,
-                amount = amount,
-                paymentDate = paymentDate
-            )
+            Result.success(transactions)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-            supabase.from("payment_history")
-                .insert(paymentInsert)
+    suspend fun createTransaction(
+        houseId: String,
+        payerId: String,
+        payeeId: String,
+        amount: BigDecimal,
+        isSettlement: Boolean,
+        description: String?
+    ): Result<Transaction> {
+        return try {
+            val transaction = supabase.from("transactions")
+                .insert(
+                    TransactionInsert(
+                        houseId = houseId,
+                        payerId = payerId,
+                        payeeId = payeeId,
+                        amount = amount,
+                        isSettlement = isSettlement,
+                        description = description
+                    )
+                ) {
+                    select()
+                }
+                .decodeSingle<Transaction>()
 
-            FlockrLogger.d(TAG, "prepayRecurringBill: Payment recorded")
+            Result.success(transaction)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-            // Get currency and user name for notification
-            val currency = getHouseCurrency(houseId)
-            val userName = getCurrentUserName()
+    suspend fun deleteTransaction(transactionId: String): Result<Unit> {
+        return try {
+            supabase.from("transactions")
+                .delete {
+                    filter { eq("id", transactionId) }
+                }
 
-            // 2. Create notification
-            try {
-                val notificationParams = CreateNotificationParams(
-                    houseId = houseId,
-                    title = "Bill Prepaid",
-                    message = "$userName prepaid $billName ($currency$amount).",
-                    type = "payment",
-                    data = """{"id":"$expenseId","type":"prepayment","amount":"$amount"}""",
-                    excludeUserId = currentUserId
-                )
-                supabase.postgrest.rpc(
-                    function = "create_notification_for_house",
-                    parameters = notificationParams
-                ).decodeAs<Unit>()
-            } catch (e: Exception) {
-                FlockrLogger.d(TAG, "prepayRecurringBill: Notification failed (non-critical)")
-            }
-
-            FlockrLogger.repoSuccess(TAG, "prepayRecurringBill", "Prepayment recorded successfully")
             Result.success(Unit)
         } catch (e: Exception) {
-            FlockrLogger.repoError(TAG, "prepayRecurringBill", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun settleBalance(
+        houseId: String,
+        payerId: String,
+        payeeId: String,
+        amount: BigDecimal,
+        description: String?
+    ): Result<Unit> {
+        return try {
+            createTransaction(
+                houseId = houseId,
+                payerId = payerId,
+                payeeId = payeeId,
+                amount = amount,
+                isSettlement = true,
+                description = description ?: "Balance settlement"
+            ).map { Unit }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ANALYTICS & SUMMARIES
+
+    suspend fun getUserBalances(houseId: String): Result<List<UserBalance>> {
+        return try {
+            @Serializable
+            data class GetUserBalancesParams(
+                @SerialName("p_house_id")
+                val houseId: String
+            )
+
+            val balances = supabase.postgrest.rpc(
+                function = "get_user_balances",
+                parameters = GetUserBalancesParams(houseId = houseId)
+            ).decodeList<UserBalance>()
+
+            Result.success(balances)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMonthlySummary(houseId: String, month: String): Result<MonthlySummary> {
+        return try {
+            android.util.Log.d("ExpenseRepository", "getMonthlySummary called - houseId: $houseId, month: $month")
+            
+            @Serializable
+            data class GetMonthlySummaryParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_month")
+                val month: String
+            )
+
+            // RPC returns an array with a single object, not a single object directly
+            val summaryList = supabase.postgrest.rpc(
+                function = "get_monthly_summary",
+                parameters = GetMonthlySummaryParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeList<MonthlySummary>()
+
+            val summary = summaryList.firstOrNull() ?: throw Exception("No summary data returned from RPC")
+            
+            android.util.Log.d("ExpenseRepository", "getMonthlySummary result: totalExpenses=${summary.totalExpenses}, oneTimeExpenses=${summary.oneTimeExpenses}, recurringExpenses=${summary.recurringExpenses}, perDiemExpenses=${summary.perDiemExpenses}")
+            Result.success(summary)
+        } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "getMonthlySummary failed", e)
+            android.util.Log.e("ExpenseRepository", "Exception message: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSpendByMember(houseId: String, month: String): Result<List<SpendByMember>> {
+        return try {
+            android.util.Log.d("ExpenseRepository", "getSpendByMember called - houseId: $houseId, month: $month")
+            @Serializable
+            data class GetSpendByMemberParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_month")
+                val month: String
+            )
+
+            val spending = supabase.postgrest.rpc(
+                function = "get_spend_by_member",
+                parameters = GetSpendByMemberParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeList<SpendByMember>()
+
+            android.util.Log.d("ExpenseRepository", "getSpendByMember result: ${spending.size} members, data: $spending")
+            Result.success(spending)
+        } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "getSpendByMember failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSpendByCategory(houseId: String, month: String): Result<List<SpendByCategory>> {
+        return try {
+            @Serializable
+            data class GetSpendByCategoryParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_month")
+                val month: String
+            )
+
+            val spending = supabase.postgrest.rpc(
+                function = "get_spend_by_category",
+                parameters = GetSpendByCategoryParams(
+                    houseId = houseId,
+                    month = month
+                )
+            ).decodeList<SpendByCategory>()
+
+            Result.success(spending)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

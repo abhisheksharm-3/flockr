@@ -23,9 +23,16 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
-import `in`.xroden.flockr.utils.Constants
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
+import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
+import `in`.xroden.flockr.ui.theme.DateFormats
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +48,7 @@ fun AddExpenseScreen(
     var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(LocalDate.now().format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY)))
+        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember {
@@ -56,16 +63,38 @@ fun AddExpenseScreen(
     var selectedMembers by remember { mutableStateOf<Set<String>>(emptySet()) }
     var customSplits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    val categories = Constants.ExpenseCategories.DEFAULT_CATEGORIES
+    val categories = ExpenseCategories.DEFAULT
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val createState by viewModel.createState.collectAsState()
+    
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
     LaunchedEffect(houseId) {
-        houseMembers = houseManagementViewModel.getHouseMembers(houseId)
         viewModel.loadHouseConfig(houseId)
+        houseMembers = houseManagementViewModel.getHouseMembers(houseId)
+    }
+
+    // Handle create state
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CreateExpenseUiState.Success -> {
+                isLoading = false
+                onExpenseAdded()
+            }
+            is CreateExpenseUiState.Error -> {
+                isLoading = false
+                snackbarHostState.showSnackbar("Error: ${state.message}")
+            }
+            is CreateExpenseUiState.Loading -> {
+                isLoading = true
+            }
+            else -> {
+                isLoading = false
+            }
+        }
     }
 
     Scaffold(
@@ -123,7 +152,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -141,7 +170,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -153,7 +182,7 @@ fun AddExpenseScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = !isLoading) { showDatePicker = true },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.outlinedCardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
@@ -217,7 +246,7 @@ fun AddExpenseScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -250,7 +279,7 @@ fun AddExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     minLines = 3,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -356,7 +385,7 @@ fun AddExpenseScreen(
                                     modifier = Modifier.width(100.dp),
                                     enabled = !isLoading,
                                     singleLine = true,
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = MaterialTheme.shapes.extraSmall
                                 )
                             }
                         }
@@ -411,40 +440,44 @@ fun AddExpenseScreen(
 
                     isLoading = true
 
-                    val splits = if (enableSplitting && selectedMembers.isNotEmpty()) {
-                        if (splitEqually) {
-                            val splitAmount = amt / selectedMembers.size
-                            selectedMembers.map { it to splitAmount }
-                        } else {
-                            selectedMembers.mapNotNull { userId ->
-                                customSplits[userId]?.toDoubleOrNull()?.let { userId to it }
-                            }
-                        }
+                    // Prepare split parameters
+                    val splitWith = if (enableSplitting && selectedMembers.isNotEmpty()) {
+                        selectedMembers.toList()
+                    } else null
+                    
+                    val splitType = if (enableSplitting && selectedMembers.isNotEmpty()) {
+                        if (splitEqually) ExpenseSplitType.EQUAL else ExpenseSplitType.AMOUNT
+                    } else null
+                    
+                    val splitAmounts = if (enableSplitting && !splitEqually && selectedMembers.isNotEmpty()) {
+                        selectedMembers.mapNotNull { userId ->
+                            customSplits[userId]?.toBigDecimalOrNull()?.let { userId to it }
+                        }.toMap()
                     } else null
 
-                    viewModel.createExpense(
+                    // Parse date to kotlinx.datetime.LocalDate
+                    val parsedDate: LocalDate = try {
+                        val parts = date.split("-")
+                        LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
+                    } catch (e: Exception) {
+                        kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    }
+
+                    viewModel.createOneTimeExpense(
                         houseId = houseId,
                         name = name,
-                        amount = amt,
-                        date = date,
+                        amount = BigDecimal.valueOf(amt),
                         category = category,
+                        date = parsedDate,
                         notes = notes.takeIf { it.isNotBlank() },
-                        splits = splits,
-                        onSuccess = {
-                            isLoading = false
-                            onExpenseAdded()
-                        },
-                        onError = { errorMessage ->
-                            isLoading = false
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Error: $errorMessage")
-                            }
-                        }
+                        splitWith = splitWith,
+                        splitType = splitType,
+                        splitAmounts = splitAmounts
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !isLoading && name.isNotBlank() && amount.toDoubleOrNull() != null && date.isNotBlank(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -474,10 +507,9 @@ fun AddExpenseScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = run {
                 try {
-                    LocalDate.parse(date, DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
-                        .atStartOfDay(java.time.ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
+                    val localDate = LocalDate.parse(date)
+                    // Convert LocalDate to epoch milliseconds
+                    localDate.toEpochDays() * 24 * 60 * 60 * 1000L
                 } catch (e: Exception) {
                     System.currentTimeMillis()
                 }
@@ -488,10 +520,10 @@ fun AddExpenseScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .toLocalDate()
-                        date = selectedDate.format(DateTimeFormatter.ofPattern(Constants.DateFormats.YEAR_MONTH_DAY))
+                        // Convert epoch millis to LocalDate
+                        val epochDays = millis / (24 * 60 * 60 * 1000L)
+                        val selectedDate = LocalDate.fromEpochDays(epochDays.toInt())
+                        date = selectedDate.toString()
                     }
                     showDatePicker = false
                 }) {

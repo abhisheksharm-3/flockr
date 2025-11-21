@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,14 +22,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.ui.components.lists.ModernListItem
-import `in`.xroden.flockr.ui.theme.PositiveGreen
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
 
@@ -59,9 +59,9 @@ fun ManageMembersScreen(
             viewModel.loadHouse(houseId)
             members = viewModel.getHouseMembers(houseId)
             // Find current user's role
-            currentUserRole = members.find { it.userId == currentUserId }?.role
+            currentUserRole = members.find { it.userId == currentUserId }?.role?.name
             // Only load invitations if user is owner or admin
-            if (currentUserRole == "Owner" || currentUserRole == "Admin") {
+            if (currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name) {
                 pendingInvitations = viewModel.getPendingInvitations(houseId)
             }
             isLoading = false
@@ -69,7 +69,7 @@ fun ManageMembersScreen(
     }
 
     // Check if user has permission to manage members
-    val canManageMembers = currentUserRole == "Owner" || currentUserRole == "Admin"
+    val canManageMembers = currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name
 
     // If not authorized, show message and return
     if (!isLoading && !canManageMembers) {
@@ -79,8 +79,9 @@ fun ManageMembersScreen(
                     title = {
                         Text(
                             "Manage Members",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
                         )
                     },
                     navigationIcon = {
@@ -123,7 +124,7 @@ fun ManageMembersScreen(
                     )
                     Text(
                         text = "Only house owners and admins can manage members.",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -191,8 +192,9 @@ fun ManageMembersScreen(
                 title = {
                     Text(
                         "Manage Members",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -213,9 +215,10 @@ fun ManageMembersScreen(
             ExtendedFloatingActionButton(
                 onClick = { showInviteDialog = true },
                 icon = { Icon(Icons.Default.Add, "Invite") },
-                text = { Text("Invite Member") },
+                text = { Text("Invite Member", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -228,15 +231,17 @@ fun ManageMembersScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Header Section
                 item {
@@ -248,7 +253,7 @@ fun ManageMembersScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = "Members",
-                                style = MaterialTheme.typography.headlineSmall,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
@@ -269,7 +274,8 @@ fun ManageMembersScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
                         ) {
                             Column {
                                 // Header - Always visible
@@ -288,7 +294,7 @@ fun ManageMembersScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(40.dp)
-                                                .clip(RoundedCornerShape(10.dp))
+                                                .clip(MaterialTheme.shapes.medium)
                                                 .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -302,7 +308,7 @@ fun ManageMembersScreen(
                                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(
                                                 text = "Pending Invitations",
-                                                style = MaterialTheme.typography.titleSmall,
+                                                style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
@@ -324,14 +330,14 @@ fun ManageMembersScreen(
                                 if (expandedInvitations) {
                                     Column(
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         pendingInvitations.forEach { invitation ->
                                             PendingInvitationItem(
                                                 invitation = invitation,
                                                 onCancel = {
                                                     scope.launch {
-                                                        val result = viewModel.cancelInvitation(invitation.id)
+                                                        val result = viewModel.cancelInvitation(houseId, invitation.inviteeEmail)
                                                         if (result.isSuccess) {
                                                             pendingInvitations = viewModel.getPendingInvitations(houseId)
                                                             snackbarHostState.showSnackbar("Invitation cancelled")
@@ -342,7 +348,7 @@ fun ManageMembersScreen(
                                                 },
                                                 onResend = {
                                                     scope.launch {
-                                                        val result = viewModel.resendInvitationNotification(invitation.id)
+                                                        val result = viewModel.resendInvitationNotification(houseId, invitation.inviteeEmail)
                                                         if (result.isSuccess) {
                                                             snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
                                                         } else {
@@ -355,7 +361,7 @@ fun ManageMembersScreen(
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
                                 }
                             }
                         }
@@ -367,13 +373,13 @@ fun ManageMembersScreen(
                     MemberListItem(
                         member = member,
                         currentUserRole = currentUserRole,
-                        isOwner = member.role == "Owner",
-                        onRemove = { 
-                            if (member.role == "Owner") {
+                        isOwner = member.role == HouseMemberRole.OWNER,
+                        onRemove = {
+                            if (member.role == HouseMemberRole.OWNER) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Cannot remove the owner of the household")
                                 }
-                            } else if (member.role == "Admin" && currentUserRole != "Owner") {
+                            } else if (member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Only the owner can remove admins")
                                 }
@@ -400,35 +406,34 @@ fun MemberListItem(
     isOwner: Boolean,
     onRemove: () -> Unit
 ) {
-    // Can delete if: you're owner (can delete anyone except owner), or you're admin (can delete regular members only)
     val canDelete = when {
-        isOwner -> false // Can't delete owner
-        member.role == "Admin" && currentUserRole != "Owner" -> false // Only owner can delete admins
-        currentUserRole == "Owner" || currentUserRole == "Admin" -> true // Owner/Admin can delete others
-        else -> false
+        member.role == HouseMemberRole.OWNER -> false
+        member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name -> false
+        else -> currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Icon
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -454,36 +459,36 @@ fun MemberListItem(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     // Role Badge
                     val roleColor = when (member.role) {
-                        "Owner" -> Color(0xFFFFD700) // Gold
-                        "Admin" -> MaterialTheme.colorScheme.primary
+                        HouseMemberRole.OWNER -> Color(0xFFFFD700) // Gold
+                        HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.secondaryContainer
                     }
                     val roleTextColor = when (member.role) {
-                        "Owner" -> Color(0xFF000000)
-                        "Admin" -> MaterialTheme.colorScheme.onPrimary
+                        HouseMemberRole.OWNER -> Color(0xFF000000)
+                        HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.onPrimary
                         else -> MaterialTheme.colorScheme.onSecondaryContainer
                     }
-                    
+
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = roleColor,
                         modifier = Modifier.padding(0.dp)
                     ) {
                         Text(
-                            text = member.role,
+                            text = member.role.name,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = roleTextColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
                 Text(
                     text = member.email,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -493,7 +498,7 @@ fun MemberListItem(
                 IconButton(
                     onClick = onRemove,
                     colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                     )
                 ) {
                     Icon(
@@ -517,28 +522,25 @@ fun InviteMemberDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Icon
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .border(
-                            2.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            RoundedCornerShape(28.dp)
-                        )
+                        .clip(MaterialTheme.shapes.extraLarge)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                         .align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center
                 ) {
@@ -550,21 +552,25 @@ fun InviteMemberDialog(
                     )
                 }
 
-                // Title
-                Text(
-                    text = "Invite Member",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Invite Member",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Text(
-                    text = "Enter the email address of the person you want to invite to this household",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                    Text(
+                        text = "Enter the email address of the person you want to invite to this household",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 // Email Field
                 OutlinedTextField(
@@ -578,27 +584,39 @@ fun InviteMemberDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !isLoading,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
                 )
 
                 // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = !isLoading && email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -607,7 +625,7 @@ fun InviteMemberDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Send Invite")
+                            Text("Send Invite", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -648,19 +666,21 @@ fun RemoveMemberDialog(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
-                Text("Remove")
+                Text("Remove", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
-                Text("Cancel")
+                Text("Cancel", fontWeight = FontWeight.SemiBold)
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
     )
 }
 
@@ -672,11 +692,12 @@ fun PendingInvitationItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -689,14 +710,14 @@ fun PendingInvitationItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Email,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -715,7 +736,7 @@ fun PendingInvitationItem(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -726,7 +747,7 @@ fun PendingInvitationItem(
                     )
                     Text(
                         text = "Pending",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

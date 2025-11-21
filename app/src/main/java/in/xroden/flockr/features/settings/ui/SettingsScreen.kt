@@ -1,11 +1,8 @@
 package `in`.xroden.flockr.features.settings.ui
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -51,22 +48,39 @@ fun SettingsScreen(
 ) {
     val scope = rememberCoroutineScope()
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-    val profile by profileViewModel.profile.collectAsState()
-    val isProfileLoading by profileViewModel.isLoading.collectAsState()
-    val profileError by profileViewModel.error.collectAsState()
+    val profileUiState by profileViewModel.uiState.collectAsState()
+    val updateState by profileViewModel.updateState.collectAsState()
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var editMode by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        profileViewModel.loadProfile()
+    // Extract profile from UI state
+    val profile = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
+        else -> null
+    }
+
+    val isProfileLoading = profileUiState is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Loading
+    val profileError = when (val state = profileUiState) {
+        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Error -> state.message
+        else -> null
     }
 
     LaunchedEffect(profile) {
         profile?.let {
             editedName = it.fullName ?: ""
+        }
+    }
+
+    // Handle update state
+    LaunchedEffect(updateState) {
+        when (updateState) {
+            is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Success -> {
+                editMode = false
+            }
+            else -> {}
         }
     }
 
@@ -77,8 +91,9 @@ fun SettingsScreen(
                 title = {
                     Text(
                         "Settings",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -111,11 +126,12 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
                 Column(
                     modifier = Modifier
@@ -128,15 +144,15 @@ fun SettingsScreen(
                     Surface(
                         modifier = Modifier.size(100.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        shadowElevation = 8.dp
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = (profile?.fullName?.firstOrNull()?.uppercase() ?: "U"),
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -154,16 +170,16 @@ fun SettingsScreen(
                                 placeholder = { Text("Enter your name") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                                 )
                             )
 
-                            if (profileError != null) {
+                            if (profileError != null || updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error) {
                                 Text(
-                                    text = profileError ?: "",
+                                    text = profileError ?: (updateState as? `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Error)?.message ?: "",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -177,11 +193,11 @@ fun SettingsScreen(
                                     onClick = {
                                         editMode = false
                                         editedName = profile?.fullName ?: ""
-                                        profileViewModel.clearError()
+                                        profileViewModel.resetUpdateState()
                                     },
                                     modifier = Modifier.weight(1f),
-                                    enabled = !isProfileLoading,
-                                    shape = RoundedCornerShape(12.dp)
+                                    enabled = !(updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading),
+                                    shape = MaterialTheme.shapes.medium
                                 ) {
                                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                                 }
@@ -192,10 +208,13 @@ fun SettingsScreen(
                                         editMode = false
                                     },
                                     modifier = Modifier.weight(1f),
-                                    enabled = !isProfileLoading && editedName.isNotBlank(),
-                                    shape = RoundedCornerShape(12.dp)
+                                    enabled = !(updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) && editedName.isNotBlank(),
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
                                 ) {
-                                    if (isProfileLoading) {
+                                    if (updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(20.dp),
                                             strokeWidth = 2.dp,
@@ -231,7 +250,7 @@ fun SettingsScreen(
                             Button(
                                 onClick = { editMode = true },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
@@ -289,9 +308,9 @@ fun SettingsScreen(
                         showChevron = false
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     SettingsItem(
@@ -301,9 +320,9 @@ fun SettingsScreen(
                         showChevron = false
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     val context = androidx.compose.ui.platform.LocalContext.current
@@ -319,9 +338,9 @@ fun SettingsScreen(
                         }
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
                     SettingsItem(
@@ -401,29 +420,16 @@ fun SettingsScreen(
 
                 ThemeMode.entries.forEach { mode ->
                     val selected = currentTheme == mode
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.97f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "theme_option_scale"
-                    )
 
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .scale(scale),
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             scope.launch {
                                 viewModel.setThemeMode(mode)
                                 showThemeDialog = false
                             }
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = if (selected)
                                 MaterialTheme.colorScheme.primaryContainer
@@ -533,7 +539,7 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Sign Out", fontWeight = FontWeight.SemiBold)
                 }
@@ -543,7 +549,8 @@ fun SettingsScreen(
                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(16.dp)
+            shape = MaterialTheme.shapes.medium,
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 }
@@ -568,11 +575,12 @@ private fun SettingsSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -593,14 +601,11 @@ private fun SettingsItem(
     showChevron: Boolean = onClick != null,
     iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Surface(
         onClick = { onClick?.invoke() },
         modifier = Modifier.fillMaxWidth(),
         enabled = onClick != null,
-        color = Color.Transparent,
-        interactionSource = interactionSource
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -645,94 +650,6 @@ private fun SettingsItem(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun IndustrialSettingsCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    isDanger: Boolean = false
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "settings_card_scale"
-    )
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .border(
-                width = 2.dp,
-                color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(8.dp)
-            ),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDanger) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .border(
-                        width = 2.dp,
-                        color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(6.dp)
-                    ),
-                shape = RoundedCornerShape(6.dp),
-                color = if (isDanger) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title.uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

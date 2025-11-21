@@ -23,8 +23,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
+import java.math.BigDecimal
 
 /**
  * Modern screen for adding usage entries to a per-diem item configuration.
@@ -40,16 +44,22 @@ fun AddPerDiemEntryScreen(
 ) {
     var quantity by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
+    var date by remember { 
+        mutableStateOf(kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).toString())
+    }
     var showDatePicker by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val configs by viewModel.configs.collectAsState()
+    val configsState by viewModel.configState.collectAsState()
+    val configs = when (val state = configsState) {
+        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        else -> emptyList()
+    }
     val config = configs.firstOrNull { it.id == configId }
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
@@ -131,7 +141,7 @@ fun AddPerDiemEntryScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
@@ -156,7 +166,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -168,7 +178,7 @@ fun AddPerDiemEntryScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.large,
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             ),
@@ -192,7 +202,7 @@ fun AddPerDiemEntryScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "$currencySymbol${"%.2f".format(quantityDouble * config.rate)}",
+                                    text = "$currencySymbol${"%.2f".format(quantityDouble * config.rate.toDouble())}",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -208,7 +218,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(enabled = !isLoading) { showDatePicker = true },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.outlinedCardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
@@ -264,7 +274,7 @@ fun AddPerDiemEntryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
                         enabled = !isLoading,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -281,25 +291,15 @@ fun AddPerDiemEntryScreen(
                             scope.launch {
                                 try {
                                     viewModel.createPerDiemEntry(
-                                        configId = configId,
                                         houseId = houseId,
-                                        quantity = quantityDouble,
-                                        date = date,
-                                        notes = notes.takeIf { it.isNotBlank() },
+                                        configId = configId,
+                                        quantity = BigDecimal(quantityDouble),
+                                        date = LocalDate.parse(date),
                                         itemName = config.itemName,
-                                        onSuccess = {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Usage logged successfully")
-                                                onNavigateBack()
-                                            }
-                                        },
-                                        onError = { errorMessage ->
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Failed to log usage: $errorMessage")
-                                                isLoading = false
-                                            }
-                                        }
+                                        notes = notes.takeIf { it.isNotBlank() }
                                     )
+                                    snackbarHostState.showSnackbar("Usage logged successfully")
+                                    onNavigateBack()
                                 } catch (e: Exception) {
                                     snackbarHostState.showSnackbar("Failed to log usage: ${e.message}")
                                     isLoading = false
@@ -315,7 +315,7 @@ fun AddPerDiemEntryScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isLoading && quantity.toDoubleOrNull()?.let { it > 0 } == true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
@@ -346,12 +346,11 @@ fun AddPerDiemEntryScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = run {
                 try {
-                    LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
-                        .atStartOfDay(java.time.ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
+                    val localDate = LocalDate.parse(date)
+                    val instant = localDate.atStartOfDayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    instant.toEpochMilliseconds()
                 } catch (e: Exception) {
-                    System.currentTimeMillis()
+                    kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                 }
             }
         )
@@ -360,10 +359,9 @@ fun AddPerDiemEntryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .toLocalDate()
-                        date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(millis)
+                        val selectedDate = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
+                        date = selectedDate.toString() // ISO format YYYY-MM-DD
                     }
                     showDatePicker = false
                 }) {

@@ -3,89 +3,115 @@ package `in`.xroden.flockr.features.house.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed interface HouseManagementUiState {
+    data object Idle : HouseManagementUiState
+    data object Loading : HouseManagementUiState
+    data object Success : HouseManagementUiState
+    data class Error(val message: String) : HouseManagementUiState
+}
+
 @HiltViewModel
 class HouseManagementViewModel @Inject constructor(
     private val houseRepository: HouseRepository
 ) : ViewModel() {
 
-    private val _currentHouse = MutableStateFlow<House?>(null)
-    val currentHouse: StateFlow<House?> = _currentHouse.asStateFlow()
+    private val _detailState = MutableStateFlow<HouseDetailUiState>(HouseDetailUiState.Loading)
+    val detailState: StateFlow<HouseDetailUiState> = _detailState.asStateFlow()
+
+    private val _invitationsState = MutableStateFlow<InvitationsUiState>(InvitationsUiState.Loading)
+    val invitationsState: StateFlow<InvitationsUiState> = _invitationsState.asStateFlow()
+
+    private val _uiState = MutableStateFlow<HouseManagementUiState>(HouseManagementUiState.Idle)
+    val uiState: StateFlow<HouseManagementUiState> = _uiState.asStateFlow()
 
     fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
 
-    fun loadHouse(houseId: String) {
+    fun loadHouseDetails(houseId: String) {
         viewModelScope.launch {
-            android.util.Log.d("HouseManagementViewModel", "Loading house: $houseId")
-            _currentHouse.value = houseRepository.getHouseById(houseId)
-            android.util.Log.d("HouseManagementViewModel", "House loaded: ${_currentHouse.value?.name}")
+            _detailState.value = HouseDetailUiState.Loading
+            
+            val houseResult = houseRepository.getHouseById(houseId)
+            val configResult = houseRepository.getHouseConfig(houseId)
+            val membersResult = houseRepository.getHouseMembers(houseId)
+            
+            if (houseResult.isSuccess) {
+                val house = houseResult.getOrNull()
+                if (house != null) {
+                    _detailState.value = HouseDetailUiState.Success(
+                        house = house,
+                        config = configResult.getOrNull(),
+                        members = membersResult.getOrElse { emptyList() }
+                    )
+                } else {
+                    _detailState.value = HouseDetailUiState.Error("House not found", null)
+                }
+            } else {
+                _detailState.value = HouseDetailUiState.Error(
+                    message = houseResult.exceptionOrNull()?.message ?: "Failed to load house",
+                    cause = houseResult.exceptionOrNull()
+                )
+            }
         }
     }
 
-    suspend fun getHouseMembers(houseId: String): List<MemberWithProfile> {
-        android.util.Log.d("HouseManagementViewModel", "Fetching members for house: $houseId")
-        val members = houseRepository.getHouseMembers(houseId)
-        android.util.Log.d("HouseManagementViewModel", "Fetched ${members.size} members")
-        return members
+    fun loadInvitations(houseId: String) {
+        viewModelScope.launch {
+            _invitationsState.value = InvitationsUiState.Loading
+            
+            houseRepository.getPendingInvitations().fold(
+                onSuccess = { invitations ->
+                    // Filter by houseId since API returns all invitations
+                    val filtered = invitations.filter { it.houseId == houseId }
+                    _invitationsState.value = InvitationsUiState.Success(filtered)
+                },
+                onFailure = { error ->
+                    _invitationsState.value = InvitationsUiState.Error(
+                        message = error.message ?: "Failed to load invitations"
+                    )
+                }
+            )
+        }
     }
 
-    suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
-        android.util.Log.d("HouseManagementViewModel", "Removing member: userId=$userId from house=$houseId")
-        val result = houseRepository.removeMemberFromHouse(houseId, userId)
-        if (result.isSuccess) {
-            android.util.Log.d("HouseManagementViewModel", "Member removed successfully")
-        } else {
-            android.util.Log.e("HouseManagementViewModel", "Failed to remove member: ${result.exceptionOrNull()?.message}")
-        }
-        return result
-    }
-
-    suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
-        android.util.Log.d("HouseManagementViewModel", "Inviting member: email=$email to house=$houseId")
-        val result = houseRepository.inviteMember(houseId, email)
-        if (result.isSuccess) {
-            android.util.Log.d("HouseManagementViewModel", "Invitation sent successfully")
-        } else {
-            android.util.Log.e("HouseManagementViewModel", "Failed to invite member: ${result.exceptionOrNull()?.message}")
-        }
-        return result
+    fun loadHouse(houseId: String) {
+        loadHouseDetails(houseId)
     }
 
     suspend fun getPendingInvitations(houseId: String): List<HouseInvitation> {
-        android.util.Log.d("HouseManagementViewModel", "Fetching pending invitations for house: $houseId")
-        val invitations = houseRepository.getPendingInvitations(houseId)
-        android.util.Log.d("HouseManagementViewModel", "Fetched ${invitations.size} pending invitations")
-        return invitations
+        return houseRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
     }
 
-    suspend fun cancelInvitation(invitationId: String): Result<Unit> {
-        android.util.Log.d("HouseManagementViewModel", "Cancelling invitation: $invitationId")
-        val result = houseRepository.cancelInvitation(invitationId)
-        if (result.isSuccess) {
-            android.util.Log.d("HouseManagementViewModel", "Invitation cancelled successfully")
-        } else {
-            android.util.Log.e("HouseManagementViewModel", "Failed to cancel invitation: ${result.exceptionOrNull()?.message}")
+    suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
+        return houseRepository.removeMemberFromHouse(houseId, userId).onSuccess {
+            loadHouseDetails(houseId)
         }
-        return result
     }
 
-    suspend fun resendInvitationNotification(invitationId: String): Result<Unit> {
-        android.util.Log.d("HouseManagementViewModel", "Resending invitation notification: $invitationId")
-        val result = houseRepository.resendInvitationNotification(invitationId)
-        if (result.isSuccess) {
-            android.util.Log.d("HouseManagementViewModel", "Notification resent successfully")
-        } else {
-            android.util.Log.e("HouseManagementViewModel", "Failed to resend notification: ${result.exceptionOrNull()?.message}")
+    suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
+        return houseRepository.inviteMember(houseId, email).onSuccess {
+            loadInvitations(houseId)
         }
-        return result
     }
+
+    suspend fun cancelInvitation(houseId: String, email: String): Result<Unit> {
+        return houseRepository.cancelInvitation(houseId, email).onSuccess {
+            loadInvitations(houseId)
+        }
+    }
+
+    suspend fun resendInvitationNotification(houseId: String, email: String): Result<Unit> {
+        return houseRepository.resendInvitationNotification(houseId, email)
+    }
+
+    suspend fun getHouseMembers(houseId: String) = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 }

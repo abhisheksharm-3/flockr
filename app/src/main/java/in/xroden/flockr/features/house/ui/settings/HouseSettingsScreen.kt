@@ -1,11 +1,13 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +36,10 @@ fun HouseSettingsScreen(
     onDeleteHouse: () -> Unit = {},
     viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
+    // UI State
+    val settingsUiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
+
     var house by remember { mutableStateOf<House?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
@@ -68,33 +74,55 @@ fun HouseSettingsScreen(
     )
 
     LaunchedEffect(houseId) {
-        isLoading = true
-        scope.launch {
-            // Load house data
-            val loadedHouse = viewModel.getHouse(houseId)
-            if (loadedHouse != null) {
-                house = loadedHouse
-                houseName = loadedHouse.name
-                address = loadedHouse.address ?: ""
-                currentUserId = viewModel.getCurrentUserId()
-                android.util.Log.d("HouseSettingsScreen", "Loaded house: name=${loadedHouse.name}, address=${loadedHouse.address}, currentUserId=$currentUserId, ownerId=${loadedHouse.ownerId}")
-            } else {
-                android.util.Log.e("HouseSettingsScreen", "Failed to load house data")
+        viewModel.loadHouseSettings(houseId)
+    }
+
+    LaunchedEffect(settingsUiState) {
+        when (val state = settingsUiState) {
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Success -> {
+                isLoading = false
+                currency = state.config.currencyCode
+                dateFormat = state.config.dateFormat
+                firstDayOfWeek = state.config.firstDayOfWeek
+                timezone = state.config.timezone
+                // Load house separately for house name and address
+                scope.launch {
+                    val loadedHouse = viewModel.getHouse(houseId)
+                    house = loadedHouse
+                    loadedHouse?.let {
+                        houseName = it.name
+                        address = it.address ?: ""
+                        currentUserId = viewModel.getCurrentUserId()
+                    }
+                }
             }
-            
-            // Load house config
-            val config = viewModel.getHouseConfig(houseId)
-            if (config != null) {
-                currency = config.currencyCode
-                dateFormat = config.dateFormat
-                firstDayOfWeek = config.firstDayOfWeek
-                timezone = config.timezone
-                android.util.Log.d("HouseSettingsScreen", "Loaded config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
-            } else {
-                android.util.Log.d("HouseSettingsScreen", "No config found, using defaults")
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Error -> {
+                isLoading = false
             }
-            
-            isLoading = false
+            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Loading -> {
+                isLoading = true
+            }
+        }
+    }
+
+    // Observe update state for success/error
+    LaunchedEffect(updateState) {
+        when (val state = updateState) {
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Success -> {
+                isSaving = false
+                snackbarHostState.showSnackbar("Settings saved successfully")
+                onNavigateBack()
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Error -> {
+                isSaving = false
+                snackbarHostState.showSnackbar(state.message)
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Loading -> {
+                isSaving = true
+            }
+            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Idle -> {
+                // Do nothing
+            }
         }
     }
 
@@ -105,8 +133,9 @@ fun HouseSettingsScreen(
                 title = {
                     Text(
                         "House Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
@@ -133,7 +162,9 @@ fun HouseSettingsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         } else {
             Column(
@@ -141,7 +172,7 @@ fun HouseSettingsScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Header
@@ -241,8 +272,8 @@ fun HouseSettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                             ) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -269,7 +300,8 @@ fun HouseSettingsScreen(
                                     snackbarHostState.showSnackbar("Image upload feature coming soon!")
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 Icons.Default.Image,
@@ -277,7 +309,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Upload Header Image")
+                            Text("Upload Header Image", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -505,9 +537,10 @@ fun HouseSettingsScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -546,9 +579,10 @@ fun HouseSettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -581,7 +615,11 @@ fun HouseSettingsScreen(
                         Button(
                             onClick = onNavigateToAuditLog,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Visibility,
@@ -589,7 +627,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("View Activity Log")
+                            Text("View Activity Log", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -597,7 +635,7 @@ fun HouseSettingsScreen(
                 // Delete House Section (Owner Only)
                 if (house?.ownerId == currentUserId) {
                     Spacer(modifier = Modifier.height(24.dp))
-                    Divider()
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -615,11 +653,8 @@ fun HouseSettingsScreen(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                width = 1.dp,
-                                brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -627,7 +662,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Delete House")
+                            Text("Delete House", fontWeight = FontWeight.SemiBold)
                         }
 
                         Text(
@@ -651,56 +686,39 @@ fun HouseSettingsScreen(
                         scope.launch {
                             val nameChanged = houseName != house?.name
                             val addressChanged = address != (house?.address ?: "")
-                            val currencySymbol = currencies.find { it.first == currency }?.second ?: "$"
 
-                            var success = true
-                            
                             // Update house details if changed
                             if (nameChanged || addressChanged) {
                                 android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
-                                val result = viewModel.updateHouse(
+                                viewModel.updateHouse(
                                     houseId = houseId,
                                     name = if (nameChanged) houseName else null,
                                     address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
                                 )
-                                success = result.isSuccess
-                                if (!success) {
-                                    android.util.Log.e("HouseSettingsScreen", "Failed to update house")
-                                }
                             }
 
                             // Update all config fields
-                            if (success) {
-                                android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
-                                val result = viewModel.updateHouseConfig(
-                                    houseId = houseId,
-                                    currencyCode = currency,
-                                    currencySymbol = currencySymbol,
-                                    dateFormat = dateFormat,
-                                    firstDayOfWeek = firstDayOfWeek,
-                                    timezone = timezone
-                                )
-                                success = result.isSuccess
-                                if (!success) {
-                                    android.util.Log.e("HouseSettingsScreen", "Failed to update config")
-                                }
-                            }
+                            android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+                            viewModel.updateHouseConfig(
+                                houseId = houseId,
+                                currencyCode = currency,
+                                dateFormat = dateFormat,
+                                firstDayOfWeek = firstDayOfWeek,
+                                timezone = timezone
+                            )
 
                             isSaving = false
-                            
-                            if (success) {
-                                snackbarHostState.showSnackbar("Settings saved successfully")
-                                onNavigateBack()
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to save settings")
-                            }
+                            snackbarHostState.showSnackbar("Settings saved successfully")
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isSaving && nameError == null && houseName.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -781,7 +799,8 @@ fun HouseSettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     ),
-                    enabled = !isSaving
+                    enabled = !isSaving,
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -790,20 +809,17 @@ fun HouseSettingsScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Delete")
+                        Text("Delete", fontWeight = FontWeight.SemiBold)
                     }
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showDeleteDialog = false },
-                    enabled = !isSaving
-                ) {
-                    Text("Cancel")
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(16.dp)
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium
         )
     }
 }
-

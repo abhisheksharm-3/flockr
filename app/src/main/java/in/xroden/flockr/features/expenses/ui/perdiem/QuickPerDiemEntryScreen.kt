@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.ui.util.getCurrencySymbol
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -31,10 +32,14 @@ fun QuickPerDiemEntryScreen(
     onNavigateToTransactions: () -> Unit = {},
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configs by viewModel.configs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val configsState by viewModel.configState.collectAsState()
+    val configs = when (val state = configsState) {
+        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        else -> emptyList()
+    }
+    val isLoading = configsState is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Loading
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencySymbol ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
@@ -114,7 +119,7 @@ fun QuickPerDiemEntryScreen(
                     OutlinedButton(
                         onClick = onNavigateToTransactions,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Icon(
                             imageVector = Icons.Default.Receipt,
@@ -151,7 +156,7 @@ private fun PerDiemQuickSelectCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -245,7 +250,7 @@ private fun EmptyPerDiemConfigState(
 
         Button(
             onClick = onSetupConfig,
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
