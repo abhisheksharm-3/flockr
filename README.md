@@ -1,8 +1,88 @@
-# 🏠 Flockr - Modern Household Management Platform
+<div align="center">
 
-A full-stack, multi-tenant household management application built with Kotlin, Jetpack Compose, and Supabase.
+# 🏠 Flockr
+
+**Modern Household Management Platform**
+
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/abhisheksharm-3/flockr)
+[![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://www.android.com/)
+[![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
+[![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org/)
+[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-blue.svg)](https://developer.android.com/jetpack/compose)
+
+*A full-stack, multi-tenant household management application built with Kotlin, Jetpack Compose, and Supabase.*
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#️-architecture) • [Screenshots](#-screenshots) • [Contributing](#-contributing)
+
+</div>
+
+---
+
+---
+
+## 📚 Table of Contents
+
+- [What's New](#-whats-new-in-v150)
+- [Features](#-features)
+  - [Finance Suite](#-finance-suite)
+  - [Organization Suite](#-organization-suite)
+  - [Communication Hub](#-communication-hub)
+  - [Document Vault](#-document-vault)
+  - [Modern UI/UX](#-modern-uiux)
+- [Architecture](#️-architecture)
+- [Quick Start](#-quick-start)
+- [Screenshots](#-screenshots)
+- [Configuration](#-configuration)
+- [Database Schema](#️-database-schema)
+- [Security](#️-security)
+- [Testing](#-testing)
+- [Contributing](#-contributing)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+
+---
+
+## 🎉 What's New in v1.5.0
+
+This is our **biggest release yet** - a complete rebuild from the ground up!
+
+### 🎨 Fresh New Look
+✨ **Complete UI Redesign** - Every screen has been redesigned with a modern, polished appearance  
+🎯 **Better User Experience** - Improved navigation, cleaner layouts, and enhanced readability  
+🌈 **Consistent Design** - All screens now follow the same beautiful design language  
+
+### 🏗️ Under the Hood
+🔧 **Complete Code Reorganization** - We've rebuilt the entire app structure for better performance and maintainability  
+⚡ **Faster & More Stable** - Better organized code means faster load times and fewer bugs  
+🛠️ **Future-Ready** - This foundation makes it easier to add exciting new features  
+
+### 💪 What This Means for You
+- **Same features you love**, just better organized and more beautiful
+- **All your data is safe** - nothing was lost in the transition
+- **Better performance** across the entire app
+- **More polished experience** from start to finish
+
+[See full changelog →](CHANGELOG.md)
+
+---
 
 ## 🌟 Features
+
+### 🎯 Key Highlights
+
+<div align="center">
+
+| 💰 **Complete Finance Management** | 🏠 **Multi-Household Support** | 🔄 **Real-Time Sync** |
+|:--:|:--:|:--:|
+| Track expenses, split bills, manage recurring payments, and generate detailed reports | Join unlimited households with role-based permissions and isolated data | Everything updates instantly across all devices via WebSocket |
+
+| 📱 **Modern UI** | 🔒 **Secure & Private** | 🌍 **Fully Configurable** |
+|:--:|:--:|:--:|
+| Material 3 design with dark mode, smooth animations, and intuitive navigation | Row-level security, JWT auth, and encrypted storage | Per-household currency, timezone, and locale settings |
+
+</div>
+
+---
 
 ### 💰 Finance Suite
 - **Expense Tracking** - Track one-time and recurring expenses with automatic categorization
@@ -56,6 +136,18 @@ Everything syncs instantly across all devices:
 - Notifications
 - Balance changes
 - House membership
+
+---
+
+## 🎯 Who Is Flockr For?
+
+Flockr is perfect for anyone sharing living spaces and expenses:
+
+- **🏘️ Roommates & Flatmates** - Split rent, utilities, and groceries fairly
+- **👨‍👩‍👧‍👦 Joint Families** - Track shared household expenses and coordinate tasks
+- **🏠 Co-living Spaces** - Manage multiple members with clear financial tracking
+- **🎓 Student Housing** - Keep track of who owes what without awkward conversations
+- **👥 Shared Vacation Homes** - Coordinate expenses when multiple families share a property
 
 ---
 
@@ -140,7 +232,9 @@ app/src/main/java/in/xroden/flockr/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+> **Get Flockr running in 4 simple steps!**
+
+### ⚙️ Prerequisites
 - **Android Studio**: Hedgehog (2023.1.1) or later
 - **JDK**: 11 or higher
 - **Android SDK**: API 29+ (Android 10+)
@@ -428,6 +522,58 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Jetpack Compose** team for modern Android UI
 - **Material Design** for design guidelines
 - **Google Fonts** for beautiful typography
+
+---
+
+---
+
+## ❓ Frequently Asked Questions
+
+<details>
+<summary><b>Is Flockr free to use?</b></summary>
+
+Yes! Flockr is open-source and free to use. You only need a free Supabase account for the backend, which offers generous free tier limits suitable for most households.
+</details>
+
+<details>
+<summary><b>How many households can I join?</b></summary>
+
+There's no limit! You can join as many households as you want. Each household has its own isolated data, expenses, and settings.
+</details>
+
+<details>
+<summary><b>Is my financial data secure?</b></summary>
+
+Absolutely! We use:
+- Row-Level Security (RLS) to ensure you can only access data from households you're a member of
+- JWT-based authentication with Supabase Auth
+- Encrypted HTTPS connections for all data transfers
+- Private storage buckets for documents
+</details>
+
+<details>
+<summary><b>Can I use Flockr offline?</b></summary>
+
+Currently, Flockr requires an internet connection. Offline mode with local caching is planned for a future release.
+</details>
+
+<details>
+<summary><b>What currencies are supported?</b></summary>
+
+Flockr supports all major currencies! Each household can configure its own currency (USD, EUR, GBP, INR, JPY, and more) with the appropriate symbol.
+</details>
+
+<details>
+<summary><b>Can I export my expense data?</b></summary>
+
+Yes! Monthly reports can be generated and shared. PDF export functionality is planned for future releases.
+</details>
+
+<details>
+<summary><b>What's the minimum Android version required?</b></summary>
+
+Flockr requires Android 10 (API 29) or higher.
+</details>
 
 ---
 
