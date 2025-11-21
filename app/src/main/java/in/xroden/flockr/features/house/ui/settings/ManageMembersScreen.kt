@@ -329,7 +329,7 @@ fun ManageMembersScreen(
                                                 invitation = invitation,
                                                 onCancel = {
                                                     scope.launch {
-                                                        val result = viewModel.cancelInvitation(invitation.id)
+                                                        val result = viewModel.cancelInvitation(houseId, invitation.inviteeEmail)
                                                         if (result.isSuccess) {
                                                             pendingInvitations = viewModel.getPendingInvitations(houseId)
                                                             snackbarHostState.showSnackbar("Invitation cancelled")
@@ -340,7 +340,7 @@ fun ManageMembersScreen(
                                                 },
                                                 onResend = {
                                                     scope.launch {
-                                                        val result = viewModel.resendInvitationNotification(invitation.id)
+                                                        val result = viewModel.resendInvitationNotification(houseId, invitation.inviteeEmail)
                                                         if (result.isSuccess) {
                                                             snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
                                                         } else {
@@ -401,7 +401,7 @@ fun MemberListItem(
     // Can delete if: you're owner (can delete anyone except owner), or you're admin (can delete regular members only)
     val canDelete = when {
         isOwner -> false // Can't delete owner
-        member.role == "Admin" && currentUserRole != "Owner" -> false // Only owner can delete admins
+        member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name -> false // Only owner can delete admins
         currentUserRole == "Owner" || currentUserRole == "Admin" -> true // Owner/Admin can delete others
         else -> false
     }

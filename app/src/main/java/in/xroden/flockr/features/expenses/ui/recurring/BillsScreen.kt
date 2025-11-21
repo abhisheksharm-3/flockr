@@ -25,17 +25,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseDueStatus
-import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
-import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
+import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
-import java.time.LocalDate
+
+// FIX: Correct Kotlinx DateTime Imports
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toLocalDate
+
+// Java Time Imports (Only for YearMonth logic which is missing in Kotlinx)
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.*
+import java.util.Locale
 
 /**
  * Modern Bills Screen with Calendar View
@@ -47,23 +54,18 @@ fun BillsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onNavigateToAddBill: () -> Unit = {},
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: ExpenseViewModel = hiltViewModel(),
+    recurringViewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.expenseState.collectAsState()
+    val uiState by recurringViewModel.uiState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
-    var selectedFilter by remember { mutableStateOf("All") }
 
     LaunchedEffect(houseId) {
-        viewModel.loadRecurringExpenses(houseId)
+        recurringViewModel.loadRecurringExpenses(houseId)
         viewModel.loadHouseConfig(houseId)
-    }
-
-    val recurringExpenses = when (val state = uiState) {
-        is OneTimeExpenseUiState.Success -> state.expenses
-        else -> emptyList()
     }
 
     Scaffold(
@@ -109,7 +111,7 @@ fun BillsScreen(
             }
 
             when (val state = uiState) {
-                is OneTimeExpenseUiState.Loading -> {
+                is RecurringExpenseUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -117,47 +119,47 @@ fun BillsScreen(
                         CircularProgressIndicator()
                     }
                 }
-                is OneTimeExpenseUiState.Success -> {
-                    val recurringExpenses = emptyList<RecurringExpense>() // TODO: Fix state to separate recurring from one-time
+                is RecurringExpenseUiState.Success -> {
+                    val expenses = state.expenses
                     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
 
                     if (selectedTab == 0) {
                         // Recurring Bills View with Calendar
                         RecurringBillsContent(
-                            expenses = recurringExpenses,
+                            expenses = expenses,
                             selectedMonth = selectedMonth,
                             currencySymbol = currencySymbol,
                             onExpenseClick = { /* TODO: Navigate to details */ },
                             onMarkAsPaid = { expense ->
-                                viewModel.markRecurringExpenseAsPaid(
-                                    expenseId = expense.id,
+                                recurringViewModel.markAsPaid(
                                     houseId = houseId,
+                                    expenseId = expense.id,
                                     amount = expense.amount,
-                                    paymentDate = LocalDate.now().toString()
+                                    paymentDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
                                 )
                             }
                         )
                     } else {
                         // Pay Bills View (One-time bills to pay)
                         PayBillsContent(
-                            expenses = recurringExpenses.filter {
+                            expenses = expenses.filter {
                                 it.dueStatus == ExpenseDueStatus.OVERDUE ||
-                                it.dueStatus == ExpenseDueStatus.DUE_TODAY ||
-                                it.dueStatus == ExpenseDueStatus.DUE_SOON
+                                        it.dueStatus == ExpenseDueStatus.DUE_TODAY ||
+                                        it.dueStatus == ExpenseDueStatus.DUE_SOON
                             },
                             currencySymbol = currencySymbol,
                             onMarkAsPaid = { expense ->
-                                viewModel.markRecurringExpenseAsPaid(
+                                recurringViewModel.markAsPaid(
                                     houseId = houseId,
                                     expenseId = expense.id,
                                     amount = expense.amount,
-                                    paymentDate = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                                    paymentDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
                                 )
                             }
                         )
                     }
                 }
-                is OneTimeExpenseUiState.Error -> {
+                is RecurringExpenseUiState.Error -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -304,7 +306,7 @@ fun BillsCalendarGrid(
     expenses: List<RecurringExpense>,
     onDateClick: (Int) -> Unit
 ) {
-    val today = LocalDate.now()
+    val today = java.time.LocalDate.now() // Use Java Time for Calendar math
     val daysInMonth = selectedMonth.lengthOfMonth()
     val firstDayOfWeek = selectedMonth.atDay(1).dayOfWeek.value % 7
 
@@ -351,8 +353,8 @@ fun BillsCalendarGrid(
                         if (dayNumber in 1..daysInMonth) {
                             val dateExpenses = expensesByDay[dayNumber] ?: emptyList()
                             val isToday = selectedMonth.year == today.year &&
-                                         selectedMonth.month == today.month &&
-                                         dayNumber == today.dayOfMonth
+                                    selectedMonth.monthValue == today.monthValue &&
+                                    dayNumber == today.dayOfMonth
 
                             CalendarDay(
                                 day = dayNumber,
@@ -662,11 +664,11 @@ fun ModernBillCard(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             val month = try {
-                                val dateString = expense.nextDueDate.toString()
-                                val parsedDate = kotlinx.datetime.LocalDate.parse(dateString)
-                                parsedDate.month.name.take(3).uppercase()
+                                val parsedDate = expense.nextDueDate!! // It is not null here
+                                // FIX: Explicitly specify Locale to avoid overload ambiguity
+                                parsedDate.month.name.take(3).uppercase(Locale.getDefault())
                             } catch (e: Exception) {
-                                kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).month.name.take(3).uppercase()
+                                Clock.System.todayIn(TimeZone.currentSystemDefault()).month.name.take(3).uppercase(Locale.getDefault())
                             }
                             Text(
                                 month,
@@ -849,7 +851,8 @@ fun PayBillCard(
 // Helper Functions
 private fun formatDueStatusMessage(dueStatus: ExpenseDueStatus?, nextDueDate: kotlinx.datetime.LocalDate?): String {
     val daysUntilDue = nextDueDate?.let {
-        val today = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+        // FIX: Use Kotlinx DateTime logic
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         (it.toEpochDays() - today.toEpochDays())
     }
 
@@ -874,4 +877,3 @@ private fun getFrequencyDescription(frequency: `in`.xroden.flockr.data.enums.Exp
         `in`.xroden.flockr.data.enums.ExpenseFrequency.CUSTOM -> "Custom"
     }
 }
-

@@ -53,7 +53,8 @@ class NotificationPreferencesViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 // Get user's houses first
-                val houses = houseRepository.getHouses()
+                val housesResult = houseRepository.getHouses()
+                val houses = housesResult.getOrDefault(emptyList())
                 val houseNameMap = mutableMapOf<String, String>()
 
                 houses.forEach { house ->
@@ -78,7 +79,7 @@ class NotificationPreferencesViewModel @Inject constructor(
     fun updatePreference(houseId: String, key: String, enabled: Boolean) {
         viewModelScope.launch {
             try {
-                notificationRepository.updateNotificationPreference(houseId, key, enabled)
+                notificationRepository.updateNotificationPreferences(houseId, key, enabled)
                 loadPreferences() // Reload to get updated data
                 _message.value = "Preference updated"
             } catch (e: Exception) {

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +26,7 @@ import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import java.math.BigDecimal // Added Import
 
 /**
  * Modern per-diem configuration screen for managing daily shared items
@@ -40,7 +40,11 @@ fun PerDiemConfigScreen(
     onNavigateToAddEntry: (String) -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configs by viewModel.configState.collectAsState()
+    val configsState by viewModel.configState.collectAsState()
+    val configs = when (val state = configsState) {
+        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        else -> emptyList()
+    }
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     var showAddDialog by remember { mutableStateOf(false) }
@@ -53,34 +57,18 @@ fun PerDiemConfigScreen(
         viewModel.loadConfigs(houseId)
     }
 
-    // Add logging for state changes
-    LaunchedEffect(showAddDialog) {
-        android.util.Log.d("PerDiemConfigScreen", "showAddDialog state changed to: $showAddDialog")
-    }
-
-    LaunchedEffect(showEditDialog) {
-        android.util.Log.d("PerDiemConfigScreen", "showEditDialog state changed to: $showEditDialog")
-    }
-
     if (showAddDialog) {
-        android.util.Log.d("PerDiemConfigScreen", "Rendering AddPerDiemConfigDialog")
         AddPerDiemConfigDialog(
             currencySymbol = currencySymbol,
             onDismiss = {
-                android.util.Log.d("PerDiemConfigScreen", "AddDialog onDismiss called")
                 showAddDialog = false
             },
+            // FIX: Callback now accepts BigDecimal
             onAdd = { itemName, rate, category, unit ->
-                android.util.Log.d("PerDiemConfigScreen", "AddDialog onAdd called: $itemName, $rate, $category, $unit")
+                viewModel.createConfig(houseId, itemName, rate, category, unit)
+                showAddDialog = false
                 scope.launch {
-                    val result = viewModel.createConfig(houseId, itemName, rate, category, unit)
-                    if (result.isSuccess) {
-                        viewModel.loadConfigs(houseId)
-                        showAddDialog = false
-                        snackbarHostState.showSnackbar("Per-diem item added")
-                    } else {
-                        snackbarHostState.showSnackbar("Failed to add: ${result.exceptionOrNull()?.message}")
-                    }
+                    snackbarHostState.showSnackbar("Per-diem item added")
                 }
             }
         )
@@ -91,20 +79,12 @@ fun PerDiemConfigScreen(
             config = config,
             currencySymbol = currencySymbol,
             onDismiss = { showEditDialog = null },
+            // FIX: Callback now accepts BigDecimal
             onSave = { itemName, rate, category, unit ->
+                viewModel.updateConfig(houseId, config.id, itemName, rate, category, unit)
+                showEditDialog = null
                 scope.launch {
-                    try {
-                        val result = viewModel.updateConfig(config.id, itemName, rate, category, unit)
-                        if (result.isSuccess) {
-                            viewModel.loadConfigs(houseId)
-                            showEditDialog = null
-                            snackbarHostState.showSnackbar("Per-diem item updated")
-                        } else {
-                            snackbarHostState.showSnackbar("Failed to update: ${result.exceptionOrNull()?.message}")
-                        }
-                    } catch (e: Exception) {
-                        snackbarHostState.showSnackbar("Failed to update: ${e.message}")
-                    }
+                    snackbarHostState.showSnackbar("Per-diem item updated")
                 }
             }
         )
@@ -115,24 +95,15 @@ fun PerDiemConfigScreen(
             config = config,
             onDismiss = { showDeleteDialog = null },
             onConfirm = { deleteUsage ->
+                viewModel.deleteConfig(houseId, config.id, deleteUsage)
+                showDeleteDialog = null
                 scope.launch {
-                    try {
-                        val result = viewModel.deleteConfig(config.id, deleteUsage)
-                        if (result.isSuccess) {
-                            viewModel.loadConfigs(houseId)
-                            showDeleteDialog = null
-                            val message = if (deleteUsage) {
-                                "Item and all usage deleted"
-                            } else {
-                                "Item deleted, usage preserved"
-                            }
-                            snackbarHostState.showSnackbar(message)
-                        } else {
-                            snackbarHostState.showSnackbar("Failed to delete: ${result.exceptionOrNull()?.message}")
-                        }
-                    } catch (e: Exception) {
-                        snackbarHostState.showSnackbar("Failed to delete: ${e.message}")
+                    val message = if (deleteUsage) {
+                        "Item and all usage deleted"
+                    } else {
+                        "Item deleted, usage preserved"
                     }
+                    snackbarHostState.showSnackbar(message)
                 }
             }
         )
@@ -165,9 +136,7 @@ fun PerDiemConfigScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    android.util.Log.d("PerDiemConfigScreen", "FAB clicked - setting showAddDialog = true")
                     showAddDialog = true
-                    android.util.Log.d("PerDiemConfigScreen", "showAddDialog is now: $showAddDialog")
                 },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("Add Item") },
@@ -371,7 +340,8 @@ private fun PerDiemConfigCard(
 private fun AddPerDiemConfigDialog(
     currencySymbol: String = "$",
     onDismiss: () -> Unit,
-    onAdd: (String, Double, String, String) -> Unit
+    // FIX: Changed parameter from Double to BigDecimal
+    onAdd: (String, BigDecimal, String, String) -> Unit
 ) {
     var itemName by remember { mutableStateOf("") }
     var rate by remember { mutableStateOf("") }
@@ -381,134 +351,135 @@ private fun AddPerDiemConfigDialog(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
 
-    // Wrap in Dialog to show as overlay
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,  // Allow full width
-            decorFitsSystemWindows = false     // Allow edge-to-edge
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
         )
     ) {
         Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Add Per-Diem Item",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Clear, "Cancel")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Text(
-                text = "Item Details",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            OutlinedTextField(
-                value = itemName,
-                onValueChange = { itemName = it },
-                label = { Text("Item Name *") },
-                placeholder = { Text("e.g., Milk, Coffee") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            OutlinedTextField(
-                value = rate,
-                onValueChange = { rate = it },
-                label = { Text("Rate per Unit *") },
-                prefix = { Text(currencySymbol) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            OutlinedTextField(
-                value = unit,
-                onValueChange = { unit = it },
-                label = { Text("Unit *") },
-                placeholder = { Text("e.g., liter, pack, cup") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            ExposedDropdownMenuBox(
-                expanded = expandedCategory,
-                onExpandedChange = { expandedCategory = !expandedCategory }
-            ) {
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Category *") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "Add Per-Diem Item",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Clear, "Cancel")
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text(
+                    text = "Item Details",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    label = { Text("Item Name *") },
+                    placeholder = { Text("e.g., Milk, Coffee") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     shape = MaterialTheme.shapes.medium
                 )
-                ExposedDropdownMenu(
+
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Rate per Unit *") },
+                    prefix = { Text(currencySymbol) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                OutlinedTextField(
+                    value = unit,
+                    onValueChange = { unit = it },
+                    label = { Text("Unit *") },
+                    placeholder = { Text("e.g., liter, pack, cup") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                ExposedDropdownMenuBox(
                     expanded = expandedCategory,
-                    onDismissRequest = { expandedCategory = false }
+                    onExpandedChange = { expandedCategory = !expandedCategory }
                 ) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat) },
-                            onClick = {
-                                category = cat
-                                expandedCategory = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category *") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false }
+                    ) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    category = cat
+                                    expandedCategory = false
+                                }
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = {
-                    val rateValue = rate.toDoubleOrNull()
-                    if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
-                        onAdd(itemName, rateValue, category, unit)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Icon(Icons.Default.Add, null, Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Add Item", fontWeight = FontWeight.SemiBold)
+                Button(
+                    onClick = {
+                        // FIX: Convert to BigDecimal instead of Double
+                        val rateValue = rate.toBigDecimalOrNull()
+                        if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
+                            onAdd(itemName, rateValue, category, unit)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    // FIX: Validation check using BigDecimal conversion
+                    enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(Icons.Default.Add, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add Item", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
-    } // Close Dialog
 }
 
 /**
@@ -520,7 +491,8 @@ private fun EditPerDiemConfigDialog(
     config: PerDiemConfig,
     currencySymbol: String = "$",
     onDismiss: () -> Unit,
-    onSave: (String, Double, String, String) -> Unit
+    // FIX: Changed parameter from Double to BigDecimal
+    onSave: (String, BigDecimal, String, String) -> Unit
 ) {
     var itemName by remember { mutableStateOf(config.itemName) }
     var rate by remember { mutableStateOf(config.rate.toString()) }
@@ -530,134 +502,135 @@ private fun EditPerDiemConfigDialog(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
 
-    // Wrap in Dialog to show as overlay
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,  // Allow full width
-            decorFitsSystemWindows = false     // Allow edge-to-edge
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
         )
     ) {
         Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Edit Per-Diem Item",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Clear, "Cancel")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Text(
-                text = "Item Details",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            OutlinedTextField(
-                value = itemName,
-                onValueChange = { itemName = it },
-                label = { Text("Item Name *") },
-                placeholder = { Text("e.g., Milk, Coffee") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            OutlinedTextField(
-                value = rate,
-                onValueChange = { rate = it },
-                label = { Text("Rate per Unit *") },
-                prefix = { Text(currencySymbol) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            OutlinedTextField(
-                value = unit,
-                onValueChange = { unit = it },
-                label = { Text("Unit *") },
-                placeholder = { Text("e.g., liter, pack, cup") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
-            )
-
-            ExposedDropdownMenuBox(
-                expanded = expandedCategory,
-                onExpandedChange = { expandedCategory = !expandedCategory }
-            ) {
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Category *") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "Edit Per-Diem Item",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Clear, "Cancel")
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text(
+                    text = "Item Details",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    label = { Text("Item Name *") },
+                    placeholder = { Text("e.g., Milk, Coffee") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     shape = MaterialTheme.shapes.medium
                 )
-                ExposedDropdownMenu(
+
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Rate per Unit *") },
+                    prefix = { Text(currencySymbol) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                OutlinedTextField(
+                    value = unit,
+                    onValueChange = { unit = it },
+                    label = { Text("Unit *") },
+                    placeholder = { Text("e.g., liter, pack, cup") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                ExposedDropdownMenuBox(
                     expanded = expandedCategory,
-                    onDismissRequest = { expandedCategory = false }
+                    onExpandedChange = { expandedCategory = !expandedCategory }
                 ) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat) },
-                            onClick = {
-                                category = cat
-                                expandedCategory = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category *") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false }
+                    ) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    category = cat
+                                    expandedCategory = false
+                                }
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = {
-                    val rateValue = rate.toDoubleOrNull()
-                    if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
-                        onSave(itemName, rateValue, category, unit)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = itemName.isNotBlank() && rate.toDoubleOrNull() != null && unit.isNotBlank(),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Icon(Icons.Default.Check, null, Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Save Changes", fontWeight = FontWeight.SemiBold)
+                Button(
+                    onClick = {
+                        // FIX: Convert to BigDecimal instead of Double
+                        val rateValue = rate.toBigDecimalOrNull()
+                        if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
+                            onSave(itemName, rateValue, category, unit)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    // FIX: Validation check using BigDecimal conversion
+                    enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(Icons.Default.Check, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Save Changes", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
-    } // Close Dialog
 }
 
 /**

@@ -50,7 +50,7 @@ fun JoinHouseScreen(
             is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Success -> {
                 isLoading = false
                 delay(300)
-                onHouseJoined(state.house.id)
+                onHouseJoined(state.house?.id ?: "")
             }
             is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Error -> {
                 isLoading = false

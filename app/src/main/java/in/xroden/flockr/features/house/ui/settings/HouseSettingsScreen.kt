@@ -85,8 +85,7 @@ fun HouseSettingsScreen(
                 timezone = state.config.timezone
                 // Load house separately for house name and address
                 scope.launch {
-                    val houseResult = viewModel.getHouse(houseId)
-                    val loadedHouse = houseResult.getOrNull()
+                    val loadedHouse = viewModel.getHouse(houseId)
                     house = loadedHouse
                     loadedHouse?.let {
                         houseName = it.name

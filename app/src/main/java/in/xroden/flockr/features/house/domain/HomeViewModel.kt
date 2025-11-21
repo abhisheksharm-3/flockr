@@ -46,7 +46,7 @@ class HomeViewModel @Inject constructor(
                         // Enrich house data with member count and monthly expenses
                         val enrichedHouses = houses.map { house ->
                             val memberCountDeferred = async {
-                                houseRepository.getHouseMembers(house.id).getOrElse { emptyList() }.size
+                                houseRepository.getHouseMembers(house.id).getOrNull()?.size ?: 0
                             }
 
                             val monthlyExpenseDeferred = async {
@@ -55,10 +55,18 @@ class HomeViewModel @Inject constructor(
                                 expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: java.math.BigDecimal.ZERO
                             }
 
+                            val configDeferred = async {
+                                houseRepository.getHouseConfig(house.id).getOrNull()
+                            }
+
+                            val config = configDeferred.await()
+                            val currencySymbol = config?.getCurrencySymbol() ?: "$"
+
                             HouseCardData(
                                 house = house,
                                 memberCount = memberCountDeferred.await(),
-                                monthlyExpense = monthlyExpenseDeferred.await()
+                                monthlyExpense = monthlyExpenseDeferred.await(),
+                                currencySymbol = currencySymbol
                             )
                         }
 

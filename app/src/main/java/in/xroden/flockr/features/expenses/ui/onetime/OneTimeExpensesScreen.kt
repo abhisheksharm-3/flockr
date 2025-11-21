@@ -3,9 +3,9 @@ package `in`.xroden.flockr.features.expenses.ui.onetime
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -19,17 +19,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
-import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
-import `in`.xroden.flockr.ui.theme.DateFormats
+import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
+import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.coroutines.launch
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
+import kotlinx.datetime.*
+import java.math.BigDecimal
+import java.util.Locale // Used only for string capitalization
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +41,14 @@ fun OneTimeExpensesScreen(
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
-    var selectedYearMonth by remember { mutableStateOf<Pair<Int, Int>?>(null) } // year, month
+    // State for filtering. We use LocalDate set to the 1st of the month to represent a "Month"
+    var selectedMonth by remember { mutableStateOf<LocalDate?>(null) }
+
+    // Calculate the current real-world month (Day 1) for validation
+    val currentMonthStart = remember {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        LocalDate(now.year, now.month, 1)
+    }
 
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
@@ -51,7 +56,7 @@ fun OneTimeExpensesScreen(
     }
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -86,8 +91,8 @@ fun OneTimeExpensesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-            when (val state = expenseState) {
-                is OneTimeExpenseUiState.Loading -> {
+        when (val state = expenseState) {
+            is OneTimeExpenseUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -104,11 +109,11 @@ fun OneTimeExpensesScreen(
                         .thenByDescending { it.createdAt }
                 )
 
-                // Filter by selected month if one is selected
-                val filteredExpenses = selectedYearMonth?.let { (year, month) ->
+                // Filter logic using kotlinx-datetime properties
+                val filteredExpenses = selectedMonth?.let { filterDate ->
                     sortedExpenses.filter { expense ->
-                        expense.date.year == year &&
-                        expense.date.monthNumber == month
+                        expense.date.year == filterDate.year &&
+                                expense.date.month == filterDate.month
                     }
                 } ?: sortedExpenses
 
@@ -142,10 +147,10 @@ fun OneTimeExpensesScreen(
                                 // Month Selector
                                 MonthSelectorCard(
                                     selectedMonth = selectedMonth,
+                                    currentDate = currentMonthStart,
                                     onMonthChange = { selectedMonth = it },
                                     onClearFilter = { selectedMonth = null },
-                                    expenseCount = filteredExpenses.size,
-                                    hasFilter = selectedYearMonth != null
+                                    expenseCount = filteredExpenses.size
                                 )
                             }
                         }
@@ -154,6 +159,7 @@ fun OneTimeExpensesScreen(
                         items(filteredExpenses) { expense ->
                             ModernExpenseCard(
                                 expense = expense,
+                                houseId = houseId,
                                 currencySymbol = currencySymbol
                             )
                         }
@@ -165,7 +171,7 @@ fun OneTimeExpensesScreen(
                     }
                 }
             }
-                is OneTimeExpenseUiState.Error -> {
+            is OneTimeExpenseUiState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -209,8 +215,119 @@ fun OneTimeExpensesScreen(
 }
 
 @Composable
+fun MonthSelectorCard(
+    selectedMonth: LocalDate?,
+    currentDate: LocalDate,
+    onMonthChange: (LocalDate) -> Unit,
+    onClearFilter: () -> Unit,
+    expenseCount: Int
+) {
+    // Default to current date if no filter is selected for display purposes
+    val displayDate = selectedMonth ?: currentDate
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        val prevMonth = displayDate.minus(1, DateTimeUnit.MONTH)
+                        onMonthChange(prevMonth)
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous month",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Format Month Name (e.g. "October 2025")
+                    val monthName = displayDate.month.name.lowercase()
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+                    Text(
+                        text = "$monthName ${displayDate.year}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (selectedMonth != null) {
+                        Text(
+                            text = "$expenseCount expenses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Logic to disable "Next" if it goes beyond current real-world date
+                val nextMonth = displayDate.plus(1, DateTimeUnit.MONTH)
+                // Simple check: is next month later than "currentDate"?
+                // Since both are day 1, strict comparison works.
+                val isFuture = nextMonth > currentDate
+
+                IconButton(
+                    onClick = {
+                        if (!isFuture) {
+                            onMonthChange(nextMonth)
+                        }
+                    },
+                    enabled = !isFuture
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        "Next month",
+                        tint = if (!isFuture)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                }
+            }
+
+            if (selectedMonth != null) {
+                OutlinedButton(
+                    onClick = onClearFilter,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ModernExpenseCard(
     expense: OneTimeExpense,
+    houseId: String,
     currencySymbol: String = "$",
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
@@ -408,8 +525,7 @@ fun ModernExpenseCard(
                     }
                 }
 
-                // Paid By Indicator (if available)
-                // This would need the user profile data
+                // Paid By Indicator
                 Text(
                     text = "•",
                     style = MaterialTheme.typography.bodySmall,
@@ -500,150 +616,12 @@ fun EmptyExpensesState(
     }
 }
 
-// Helper Functions
-private fun formatDate(dateString: String): String {
-    return try {
-        val date = kotlinx.datetime.LocalDate.parse(dateString, DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH_DAY))
-        date.format(DateTimeFormatter.ofPattern(DateFormats.DISPLAY_DATE))
-    } catch (e: Exception) {
-        dateString
-    }
-}
-
-private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
-    return when (category.lowercase()) {
-        "groceries", "food" -> CategoryGreen
-        "utilities", "services" -> CategoryBlue
-        "entertainment" -> CategoryPurple
-        "transport" -> CategoryYellow
-        "shopping" -> CategoryPink
-        "rent", "housing" -> CategoryOrange
-        "healthcare" -> CategoryTeal
-        "education" -> CategoryIndigo
-        else -> CategoryBlue
-    }
-}
-
-private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vector.ImageVector {
-    return when (category.lowercase()) {
-        "groceries", "food" -> Icons.Default.ShoppingCart
-        "utilities", "services" -> Icons.Default.Build
-        "entertainment" -> Icons.Default.Movie
-        "transport" -> Icons.Default.DirectionsCar
-        "shopping" -> Icons.Default.ShoppingBag
-        "rent", "housing" -> Icons.Default.Home
-        "healthcare" -> Icons.Default.LocalHospital
-        "education" -> Icons.Default.School
-        else -> Icons.Default.Receipt
-    }
-}
-
-@Composable
-fun MonthSelectorCard(
-    selectedMonth: YearMonth?,
-    onMonthChange: (YearMonth?) -> Unit,
-    onClearFilter: () -> Unit,
-    expenseCount: Int,
-    hasFilter: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        val newMonth = selectedMonth?.minusMonths(1) ?: YearMonth.now().minusMonths(1)
-                        onMonthChange(newMonth)
-                    }
-                ) {
-                    Icon(
-                        Icons.Default.ChevronLeft,
-                        "Previous month",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = (selectedMonth ?: YearMonth.now()).format(
-                            DateTimeFormatter.ofPattern("MMMM yyyy")
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (hasFilter) {
-                        Text(
-                            text = "$expenseCount expenses",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = {
-                        val newMonth = selectedMonth?.plusMonths(1) ?: YearMonth.now().plusMonths(1)
-                        if (!newMonth.isAfter(YearMonth.now())) {
-                            onMonthChange(newMonth)
-                        }
-                    },
-                    enabled = selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now())
-                ) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        "Next month",
-                        tint = if (selectedMonth == null || !selectedMonth.plusMonths(1).isAfter(YearMonth.now()))
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                }
-            }
-
-            if (hasFilter) {
-                OutlinedButton(
-                    onClick = onClearFilter,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun EditExpenseDialog(
     expense: OneTimeExpense,
     currencySymbol: String,
     onDismiss: () -> Unit,
-    onSave: (name: String, amount: Double, category: String, notes: String?) -> Unit
+    onSave: (name: String, amount: BigDecimal, category: String, notes: String?) -> Unit
 ) {
     var name by remember { mutableStateOf(expense.name) }
     var amount by remember { mutableStateOf(expense.amount.toString()) }
@@ -710,7 +688,7 @@ fun EditExpenseDialog(
                     }
                     Button(
                         onClick = {
-                            amount.toDoubleOrNull()?.let { amt ->
+                            amount.toBigDecimalOrNull()?.let { amt ->
                                 onSave(name, amt, category, notes.takeIf { it.isNotBlank() })
                             }
                         },
@@ -721,5 +699,39 @@ fun EditExpenseDialog(
                 }
             }
         }
+    }
+}
+
+// --- Helper Functions ---
+
+private fun formatDate(date: LocalDate): String {
+    return "${date.dayOfMonth.toString().padStart(2, '0')}/${date.monthNumber.toString().padStart(2, '0')}/${date.year}"
+}
+
+private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
+    return when (category.lowercase()) {
+        "groceries", "food" -> CategoryGreen
+        "utilities", "services" -> CategoryBlue
+        "entertainment" -> CategoryPurple
+        "transport" -> CategoryYellow
+        "shopping" -> CategoryPink
+        "rent", "housing" -> CategoryOrange
+        "healthcare" -> CategoryTeal
+        "education" -> CategoryIndigo
+        else -> CategoryBlue
+    }
+}
+
+private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (category.lowercase()) {
+        "groceries", "food" -> Icons.Default.ShoppingCart
+        "utilities", "services" -> Icons.Default.Build
+        "entertainment" -> Icons.Default.Movie
+        "transport" -> Icons.Default.DirectionsCar
+        "shopping" -> Icons.Default.ShoppingBag
+        "rent", "housing" -> Icons.Default.Home
+        "healthcare" -> Icons.Default.LocalHospital
+        "education" -> Icons.Default.School
+        else -> Icons.Default.Receipt
     }
 }

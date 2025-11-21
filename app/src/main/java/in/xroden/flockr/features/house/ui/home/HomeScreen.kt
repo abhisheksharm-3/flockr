@@ -26,6 +26,7 @@ import `in`.xroden.flockr.ui.components.ExpandableContent
 import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
+import `in`.xroden.flockr.features.house.domain.HouseListUiState
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
 import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
@@ -199,7 +200,7 @@ fun HomeScreen(
         }
     ) { padding ->
         when (val state = uiState) {
-            is HomeUiState.Loading -> {
+            is HouseListUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -209,7 +210,7 @@ fun HomeScreen(
                     CircularProgressIndicator()
                 }
             }
-            is HomeUiState.Success -> {
+            is HouseListUiState.Success -> {
                 if (state.houses.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -396,7 +397,7 @@ fun HomeScreen(
                     }
                 }
             }
-            is HomeUiState.Error -> {
+            is HouseListUiState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

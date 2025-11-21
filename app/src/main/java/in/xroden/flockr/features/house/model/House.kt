@@ -54,11 +54,17 @@ data class HouseWithMembers(
 
 @Serializable
 data class MemberWithProfile(
+    @SerialName("user_id")
     val userId: String,
+    @SerialName("full_name")
     val fullName: String?,
     val email: String,
     val role: HouseMemberRole = HouseMemberRole.MEMBER,
-    val joinedAt: Instant
+    @SerialName("joined_at")
+    @Serializable(with = InstantSerializer::class)
+    val joinedAt: Instant,
+    @SerialName("avatar_url")
+    val avatarUrl: String? = null
 )
 
 @Serializable

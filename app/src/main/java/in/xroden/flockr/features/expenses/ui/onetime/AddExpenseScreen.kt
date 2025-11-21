@@ -69,10 +69,11 @@ fun AddExpenseScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val createState by viewModel.createState.collectAsState()
     
-    // For now, use default currency - Phase 3 will add proper currency management
-    val currencySymbol = "$"
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
     LaunchedEffect(houseId) {
+        viewModel.loadHouseConfig(houseId)
         houseMembers = houseManagementViewModel.getHouseMembers(houseId)
     }
 
@@ -455,7 +456,7 @@ fun AddExpenseScreen(
                     } else null
 
                     // Parse date to kotlinx.datetime.LocalDate
-                    val parsedDate = try {
+                    val parsedDate: LocalDate = try {
                         val parts = date.split("-")
                         LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
                     } catch (e: Exception) {

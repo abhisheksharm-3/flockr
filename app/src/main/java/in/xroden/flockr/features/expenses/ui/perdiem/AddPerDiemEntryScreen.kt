@@ -25,6 +25,9 @@ import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 
 /**
@@ -41,13 +44,19 @@ fun AddPerDiemEntryScreen(
 ) {
     var quantity by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
+    var date by remember { 
+        mutableStateOf(kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).toString())
+    }
     var showDatePicker by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val configs by viewModel.configState.collectAsState()
+    val configsState by viewModel.configState.collectAsState()
+    val configs = when (val state = configsState) {
+        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        else -> emptyList()
+    }
     val config = configs.firstOrNull { it.id == configId }
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
@@ -193,7 +202,7 @@ fun AddPerDiemEntryScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "$currencySymbol${"%.2f".format(quantityDouble * config.rate)}",
+                                    text = "$currencySymbol${"%.2f".format(quantityDouble * config.rate.toDouble())}",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -337,12 +346,11 @@ fun AddPerDiemEntryScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = run {
                 try {
-                    LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
-                        .atStartOfDay(java.time.ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
+                    val localDate = LocalDate.parse(date)
+                    val instant = localDate.atStartOfDayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    instant.toEpochMilliseconds()
                 } catch (e: Exception) {
-                    System.currentTimeMillis()
+                    kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                 }
             }
         )
@@ -351,10 +359,9 @@ fun AddPerDiemEntryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .toLocalDate()
-                        date = selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(millis)
+                        val selectedDate = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
+                        date = selectedDate.toString() // ISO format YYYY-MM-DD
                     }
                     showDatePicker = false
                 }) {
