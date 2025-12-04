@@ -107,7 +107,7 @@ private fun CreateHouseScreenContent(
                     Text(
                         "Create Household",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -336,7 +336,7 @@ fun HouseCreatedSuccessDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -438,7 +438,8 @@ fun HouseCreatedSuccessDialog(
                 ) {
                     Text(
                         text = "Continue to Household",
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

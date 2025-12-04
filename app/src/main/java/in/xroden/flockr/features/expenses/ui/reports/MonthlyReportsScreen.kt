@@ -38,6 +38,8 @@ import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
 fun MonthlyReportsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToCategory: (String) -> Unit,
+    onNavigateToUser: (String) -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
@@ -92,7 +94,7 @@ fun MonthlyReportsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -113,14 +115,14 @@ fun MonthlyReportsScreen(
                 ) {
                     Text(
                         text = "Financial Summary",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
@@ -159,7 +161,7 @@ fun MonthlyReportsScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
@@ -309,7 +311,11 @@ fun MonthlyReportsScreen(
                                 data = memberData,
                                 modifier = Modifier.fillMaxWidth(),
                                 color = MaterialTheme.colorScheme.primary,
-                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
+                                onItemClick = { name ->
+                                    val user = spendByMember.find { it.fullName == name }
+                                    user?.userId?.let { onNavigateToUser(it) }
+                                }
                             )
                         }
                     }
@@ -345,7 +351,10 @@ fun MonthlyReportsScreen(
                                 data = categoryData,
                                 colors = chartColors,
                                 modifier = Modifier.fillMaxWidth(),
-                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+                                currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
+                                onItemClick = { category ->
+                                    onNavigateToCategory(category)
+                                }
                             )
                         }
                     }
@@ -374,7 +383,7 @@ fun MonthlyReportsScreen(
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     ),
-                                    shape = MaterialTheme.shapes.medium,
+                                    shape = MaterialTheme.shapes.large,
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 ) {
                                     Column(

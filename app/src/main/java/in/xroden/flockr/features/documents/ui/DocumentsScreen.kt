@@ -9,13 +9,10 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -25,11 +22,10 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
@@ -48,12 +44,10 @@ fun DocumentsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val personalDocsState by viewModel.personalDocuments.collectAsState()
-    val houseDocsState by viewModel.houseDocuments.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(houseId) {
-        viewModel.loadPersonalDocuments()
-        viewModel.loadHouseDocuments(houseId)
+        viewModel.loadDocuments(houseId)
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -78,7 +72,7 @@ fun DocumentsScreen(
                     Text(
                         "Documents",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -90,7 +84,7 @@ fun DocumentsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -106,7 +100,7 @@ fun DocumentsScreen(
                     filePickerLauncher.launch(intent)
                 },
                 icon = { Icon(Icons.Default.Upload, "Upload") },
-                text = { Text("Upload") },
+                text = { Text("Upload", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium
@@ -119,14 +113,15 @@ fun DocumentsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            val uiState by viewModel.uiState.collectAsState()
             val uploadState by viewModel.uploadState.collectAsState()
 
             // Show upload progress/error
             when (val state = uploadState) {
                 is UploadDocumentUiState.Uploading -> {
                     LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
                 is UploadDocumentUiState.Error -> {
@@ -146,17 +141,18 @@ fun DocumentsScreen(
 
             Column(modifier = Modifier.fillMaxSize()) {
                 // Custom Tab Row
-                TabRow(
+                PrimaryTabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.primary,
-                    indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                    indicator = {
+                        TabRowDefaults.PrimaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(selectedTab),
+                            width = Dp.Unspecified,
                             color = MaterialTheme.colorScheme.primary
                         )
                     },
-                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
+                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)) }
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -165,7 +161,8 @@ fun DocumentsScreen(
                             text = {
                                 Text(
                                     title,
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleSmall
                                 )
                             },
                             selectedContentColor = MaterialTheme.colorScheme.primary,
@@ -174,7 +171,7 @@ fun DocumentsScreen(
                     }
                 }
 
-                when (val currentState = if (selectedTab == 0) personalDocsState else houseDocsState) {
+                when (val currentState = uiState) {
                     is DocumentUiState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -197,17 +194,20 @@ fun DocumentsScreen(
                         ) {
                             // Usage Banner
                             item {
-                                Surface(
-                                    shape = MaterialTheme.shapes.medium,
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                                    modifier = Modifier.fillMaxWidth()
+                                Card(
+                                    shape = MaterialTheme.shapes.large,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(16.dp),
+                                        modifier = Modifier.padding(20.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Column {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(
                                                 text = "Storage Usage",
                                                 style = MaterialTheme.typography.labelMedium,
@@ -215,17 +215,26 @@ fun DocumentsScreen(
                                             )
                                             Text(
                                                 text = "$count / $limit documents",
-                                                style = MaterialTheme.typography.titleMedium,
+                                                style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
                                         }
-                                        CircularProgressIndicator(
-                                            progress = { count.toFloat() / limit.toFloat() },
-                                            modifier = Modifier.size(40.dp),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        )
+                                        Box(contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(
+                                                progress = { count.toFloat() / limit.toFloat() },
+                                                modifier = Modifier.size(48.dp),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                strokeWidth = 4.dp
+                                            )
+                                            Text(
+                                                text = "${(count.toFloat() / limit.toFloat() * 100).toInt()}%",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -242,7 +251,7 @@ fun DocumentsScreen(
                                         ) {
                                             Surface(
                                                 shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                                 modifier = Modifier.size(80.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
@@ -272,7 +281,7 @@ fun DocumentsScreen(
                                     DocumentCard(
                                         document = document,
                                         onDownload = { viewModel.downloadDocument(document) },
-                                        onDelete = { viewModel.deleteDocument(document.id, document.storagePath) }
+                                        onDelete = { viewModel.deleteDocument(document.id, document.storagePath, document.houseId) }
                                     )
                                 }
                                 item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -301,12 +310,12 @@ fun DocumentCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -317,16 +326,16 @@ fun DocumentCard(
         ) {
             // Icon
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Default.Description,
                         null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
@@ -342,7 +351,7 @@ fun DocumentCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Size: ${formatFileSize(document.fileSize ?: 0L)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

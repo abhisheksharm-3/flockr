@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.ui.components.charts
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -24,7 +25,8 @@ fun SimplePieChart(
     data: Map<String, Double>,
     colors: List<Color>,
     modifier: Modifier = Modifier,
-    currencySymbol: String = "$"
+    currencySymbol: String = "$",
+    onItemClick: ((String) -> Unit)? = null
 ) {
     val total = data.values.sum()
     if (total == 0.0) return
@@ -66,7 +68,10 @@ fun SimplePieChart(
         ) {
             data.entries.forEachIndexed { index, entry ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = onItemClick != null) { onItemClick?.invoke(entry.key) }
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -114,7 +119,8 @@ fun SimpleBarChart(
     data: Map<String, Double>,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
-    currencySymbol: String = "$"
+    currencySymbol: String = "$",
+    onItemClick: ((String) -> Unit)? = null
 ) {
     val maxValue = data.values.maxOrNull() ?: 1.0
 
@@ -124,7 +130,10 @@ fun SimpleBarChart(
     ) {
         data.entries.forEach { entry ->
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = onItemClick != null) { onItemClick?.invoke(entry.key) }
+                    .padding(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
@@ -284,4 +293,3 @@ fun SimpleDonutChart(
         }
     }
 }
-

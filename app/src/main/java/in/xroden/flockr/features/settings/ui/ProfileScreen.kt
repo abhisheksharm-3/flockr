@@ -62,7 +62,7 @@ fun ProfileScreen(
                     Text(
                         "Profile",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -185,7 +185,7 @@ fun ProfileScreen(
 
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
+                                shape = MaterialTheme.shapes.large,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surface
                                 ),
@@ -331,4 +331,3 @@ fun ProfileInfoItem(
         )
     }
 }
-

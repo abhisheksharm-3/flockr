@@ -10,9 +10,9 @@ import androidx.compose.ui.unit.dp
 // =============================================================================
 
 val Shapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),   // Soft for small elements like chips
-    small = RoundedCornerShape(4.dp),       // Rounded for tags and small cards
-    medium = RoundedCornerShape(8.dp),      // Sharper cards
-    large = RoundedCornerShape(12.dp),       // Sharper dialogs/sheets
-    extraLarge = RoundedCornerShape(28.dp)   // Dialogs, sheets, and modals
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )

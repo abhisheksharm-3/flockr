@@ -94,7 +94,7 @@ fun BillsScreen(
                 .padding(padding)
         ) {
             // Tabs: Recurring / Pay Bills
-            TabRow(
+            PrimaryTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.primary
@@ -519,7 +519,7 @@ fun SummaryCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        shape = MaterialTheme.shapes.medium
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier.padding(12.dp),

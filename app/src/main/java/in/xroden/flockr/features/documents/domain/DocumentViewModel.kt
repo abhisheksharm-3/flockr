@@ -131,9 +131,9 @@ class DocumentViewModel @Inject constructor(
         uploadDocument(uri, fileName, context, houseId = houseId)
     }
 
-    fun deleteDocument(documentId: String, storagePath: String) {
+    fun deleteDocument(documentId: String, storagePath: String, houseId: String?) {
         viewModelScope.launch {
-            documentRepository.deleteDocument(documentId, storagePath).fold(
+            documentRepository.deleteDocument(documentId, storagePath, houseId).fold(
                 onSuccess = {
                     loadDocuments(currentHouseId)
                 },
@@ -191,7 +191,7 @@ class DocumentViewModel @Inject constructor(
     fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
         viewModelScope.launch {
             // This is a placeholder - actual download implementation would depend on platform requirements
-            documentRepository.downloadDocument(document.storagePath)
+            documentRepository.downloadDocument(document.storagePath, document.houseId)
         }
     }
 }

@@ -52,14 +52,27 @@ sealed class Screen(val route: String) {
     object EditProfile : Screen("edit_profile")
     
     // Finance Screens
-    object OneTimeExpenses : Screen("one_time_expenses/{houseId}") {
-        fun createRoute(houseId: String) = "one_time_expenses/$houseId"
+    object OneTimeExpenses : Screen("one_time_expenses/{houseId}?category={category}&userId={userId}") {
+        fun createRoute(houseId: String, category: String? = null, userId: String? = null): String {
+            var route = "one_time_expenses/$houseId"
+            val params = mutableListOf<String>()
+            if (category != null) params.add("category=$category")
+            if (userId != null) params.add("userId=$userId")
+            
+            if (params.isNotEmpty()) {
+                route += "?${params.joinToString("&")}"
+            }
+            return route
+        }
     }
     object RecurringExpenses : Screen("recurring_expenses/{houseId}") {
         fun createRoute(houseId: String) = "recurring_expenses/$houseId"
     }
     object AddRecurringExpense : Screen("add_recurring_expense/{houseId}") {
         fun createRoute(houseId: String) = "add_recurring_expense/$houseId"
+    }
+    object BillHistory : Screen("bill_history/{houseId}/{expenseId}/{expenseName}") {
+        fun createRoute(houseId: String, expenseId: String, expenseName: String) = "bill_history/$houseId/$expenseId/$expenseName"
     }
     object MonthlyReports : Screen("monthly_reports/{houseId}") {
         fun createRoute(houseId: String) = "monthly_reports/$houseId"

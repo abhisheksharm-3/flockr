@@ -156,18 +156,15 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteDocument(documentId: String, storagePath: String): Result<Unit> {
+    suspend fun deleteDocument(documentId: String, storagePath: String, houseId: String?): Result<Unit> {
         return try {
-            val bucket = if (storagePath.contains("/") && !storagePath.startsWith("personal")) {
-                "house-documents"
-            } else {
-                "personal-documents"
-            }
+            val bucket = if (houseId != null) "house-documents" else "personal-documents"
 
             try {
                 supabase.storage.from(bucket).delete(storagePath)
             } catch (e: Exception) {
                 // Continue even if storage deletion fails
+                android.util.Log.e("DocumentRepository", "Failed to delete from storage: ${e.message}")
             }
 
             supabase.from("documents")
@@ -194,17 +191,11 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun downloadDocument(storagePath: String): Result<ByteArray> {
+    suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> {
         return try {
-            // Extract bucket from storagePath (format: bucket/path/to/file)
-            val pathParts = storagePath.split("/", limit = 2)
-            if (pathParts.size < 2) {
-                return Result.failure(Exception("Invalid storage path format"))
-            }
-            val bucket = pathParts[0]
-            val filePath = pathParts[1]
+            val bucket = if (houseId != null) "house-documents" else "personal-documents"
             
-            val data = supabase.storage.from(bucket).downloadAuthenticated(filePath)
+            val data = supabase.storage.from(bucket).downloadAuthenticated(storagePath)
             Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)

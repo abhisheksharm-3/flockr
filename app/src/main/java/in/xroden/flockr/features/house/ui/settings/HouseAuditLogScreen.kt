@@ -111,7 +111,10 @@ fun HouseAuditLogScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.large,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
@@ -168,7 +171,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
@@ -203,13 +206,13 @@ private fun AuditLogCard(log: HouseAuditLog) {
             ) {
                 Text(
                     text = getActionDescription(log.action, log.targetUserId),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Text(
                     formattedDate,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
@@ -217,7 +220,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
                 if (log.details.isNotEmpty()) {
                     Text(
                         log.details.toString(),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -265,4 +268,3 @@ private fun getActionDescription(action: String, targetUserId: String?): String 
         }
     }
 }
-

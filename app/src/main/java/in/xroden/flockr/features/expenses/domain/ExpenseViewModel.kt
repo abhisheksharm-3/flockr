@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
+import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(
@@ -65,6 +66,22 @@ class ExpenseViewModel @Inject constructor(
                     }
                 )
             }
+        }
+    }
+
+    private val _selectedExpenseState = MutableStateFlow<OneTimeExpense?>(null)
+    val selectedExpense: StateFlow<OneTimeExpense?> = _selectedExpenseState.asStateFlow()
+
+    fun loadOneTimeExpense(expenseId: String) {
+        viewModelScope.launch {
+            expenseRepository.getOneTimeExpense(expenseId).fold(
+                onSuccess = { expense ->
+                    _selectedExpenseState.value = expense
+                },
+                onFailure = {
+                    _selectedExpenseState.value = null
+                }
+            )
         }
     }
 

@@ -104,7 +104,7 @@ fun AddExpenseScreen(
                     Text(
                         "Add Expense",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -130,12 +130,12 @@ fun AddExpenseScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Header
             Text(
                 text = "New Expense",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -165,7 +165,6 @@ fun AddExpenseScreen(
                     onValueChange = { amount = it },
                     label = { Text("Amount *") },
                     prefix = { Text(currencySymbol) },
-                    leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
@@ -216,7 +215,8 @@ fun AddExpenseScreen(
                                 Text(
                                     date,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -244,7 +244,7 @@ fun AddExpenseScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                         enabled = !isLoading,
                         shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -312,7 +312,8 @@ fun AddExpenseScreen(
                             leadingIcon = if (splitEqually) {
                                 { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
                             } else null,
-                            enabled = !isLoading
+                            enabled = !isLoading,
+                            shape = MaterialTheme.shapes.medium
                         )
                         FilterChip(
                             selected = !splitEqually,
@@ -321,7 +322,8 @@ fun AddExpenseScreen(
                             leadingIcon = if (!splitEqually) {
                                 { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
                             } else null,
-                            enabled = !isLoading
+                            enabled = !isLoading,
+                            shape = MaterialTheme.shapes.medium
                         )
                     }
 
@@ -330,7 +332,7 @@ fun AddExpenseScreen(
                     Text(
                         text = "Select members:",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
 
@@ -385,7 +387,7 @@ fun AddExpenseScreen(
                                     modifier = Modifier.width(100.dp),
                                     enabled = !isLoading,
                                     singleLine = true,
-                                    shape = MaterialTheme.shapes.extraSmall
+                                    shape = MaterialTheme.shapes.small
                                 )
                             }
                         }
@@ -394,7 +396,7 @@ fun AddExpenseScreen(
                     // Split Summary
                     if (selectedMembers.isNotEmpty() && amount.toDoubleOrNull() != null) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         Spacer(modifier = Modifier.height(8.dp))
 
                         val totalAmount = amount.toDoubleOrNull() ?: 0.0
@@ -420,7 +422,7 @@ fun AddExpenseScreen(
                                     "$currencySymbol${"%.2f".format(splitAmount)} total"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -495,10 +497,12 @@ fun AddExpenseScreen(
                     Text(
                         "Add Expense",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -527,17 +531,17 @@ fun AddExpenseScreen(
                     }
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text("OK", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text("Cancel", fontWeight = FontWeight.Medium)
                 }
-            }
+            },
+            shape = MaterialTheme.shapes.large
         ) {
             DatePicker(state = datePickerState)
         }
     }
 }
-

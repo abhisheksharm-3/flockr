@@ -88,7 +88,7 @@ fun JoinHouseScreen(
                     Text(
                         "Join Household",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {

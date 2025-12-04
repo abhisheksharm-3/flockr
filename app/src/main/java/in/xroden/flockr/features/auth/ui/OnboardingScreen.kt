@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -104,7 +105,9 @@ fun OnboardingCarousel(
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
 
-    Scaffold { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -157,7 +160,7 @@ fun OnboardingCarousel(
                             }
                         }
                     ) {
-                        Text("Back")
+                        Text("Back", fontWeight = FontWeight.SemiBold)
                     }
                 } else {
                     Spacer(modifier = Modifier.width(1.dp))
@@ -173,11 +176,13 @@ fun OnboardingCarousel(
                             onComplete()
                         }
                     },
-                    modifier = Modifier.widthIn(min = 120.dp)
+                    modifier = Modifier.widthIn(min = 120.dp),
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text(
                         if (pagerState.currentPage < pages.size - 1) "Next"
-                        else "Get Started"
+                        else "Get Started",
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -194,18 +199,27 @@ fun OnboardingPageContent(page: OnboardingPage) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = page.icon,
-            contentDescription = null,
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier
-                .size(120.dp)
-                .padding(bottom = 32.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+                .size(160.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = page.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
 
         Text(
             text = page.title,
             style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -229,10 +243,20 @@ fun OnboardingSetup(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Complete Your Profile") }
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Complete Your Profile",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -250,6 +274,7 @@ fun OnboardingSetup(
                 Text(
                     text = "What's your name?",
                     style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
@@ -259,7 +284,12 @@ fun OnboardingSetup(
                     onValueChange = onFullNameChange,
                     label = { Text("Your Full Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
                 )
 
                 Text(
@@ -274,18 +304,22 @@ fun OnboardingSetup(
             Button(
                 onClick = onComplete,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = fullName.isNotBlank() && !isLoading
+                enabled = fullName.isNotBlank() && !isLoading,
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Complete Setup")
+                    Text("Complete Setup", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
-
