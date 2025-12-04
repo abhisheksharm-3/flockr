@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
@@ -35,6 +36,8 @@ import java.util.Locale // Used only for string capitalization
 @Composable
 fun OneTimeExpensesScreen(
     houseId: String,
+    initialCategory: String? = null,
+    initialUserId: String? = null,
     onNavigateBack: () -> Unit,
     onAddExpense: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
@@ -45,6 +48,8 @@ fun OneTimeExpensesScreen(
 
     // State for filtering. We use LocalDate set to the 1st of the month to represent a "Month"
     var selectedMonth by remember { mutableStateOf<LocalDate?>(null) }
+    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    var selectedUserId by remember { mutableStateOf(initialUserId) }
 
     // Calculate the current real-world month (Day 1) for validation
     val currentMonthStart = remember {
@@ -64,9 +69,7 @@ fun OneTimeExpensesScreen(
                 title = {
                     Text(
                         "Expenses",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 },
                 navigationIcon = {
@@ -78,7 +81,7 @@ fun OneTimeExpensesScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -87,10 +90,10 @@ fun OneTimeExpensesScreen(
             ExtendedFloatingActionButton(
                 onClick = onAddExpense,
                 icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Expense", fontWeight = FontWeight.SemiBold) },
+                text = { Text("Add Expense", fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -116,12 +119,22 @@ fun OneTimeExpensesScreen(
                 )
 
                 // Filter logic using kotlinx-datetime properties
-                val filteredExpenses = selectedMonth?.let { filterDate ->
-                    sortedExpenses.filter { expense ->
+                val filteredExpenses = sortedExpenses.filter { expense ->
+                    val matchMonth = selectedMonth?.let { filterDate ->
                         expense.date.year == filterDate.year &&
                                 expense.date.month == filterDate.month
-                    }
-                } ?: sortedExpenses
+                    } ?: true
+                    
+                    val matchCategory = selectedCategory?.let { category ->
+                        expense.category.equals(category, ignoreCase = true)
+                    } ?: true
+
+                    val matchUser = selectedUserId?.let { userId ->
+                        expense.paidBy == userId
+                    } ?: true
+
+                    matchMonth && matchCategory && matchUser
+                }
 
                 if (sortedExpenses.isEmpty()) {
                     EmptyExpensesState(
@@ -135,8 +148,8 @@ fun OneTimeExpensesScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Header with month filter
                         item {
@@ -158,6 +171,31 @@ fun OneTimeExpensesScreen(
                                     onClearFilter = { selectedMonth = null },
                                     expenseCount = filteredExpenses.size
                                 )
+
+                                // Active Category/User Filter Display
+                                if (selectedCategory != null || selectedUserId != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        selectedCategory?.let { category ->
+                                            FilterChip(
+                                                selected = true,
+                                                onClick = { selectedCategory = null },
+                                                label = { Text("Category: $category") },
+                                                trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
+                                            )
+                                        }
+                                        selectedUserId?.let { userId ->
+                                            FilterChip(
+                                                selected = true,
+                                                onClick = { selectedUserId = null },
+                                                label = { Text("User Filter Active") },
+                                                trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -239,7 +277,7 @@ fun MonthSelectorCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
@@ -417,7 +455,7 @@ fun ModernExpenseCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -439,7 +477,7 @@ fun ModernExpenseCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = expense.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -594,7 +632,7 @@ fun EmptyExpensesState(
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(MaterialTheme.shapes.medium)
+                .clip(MaterialTheme.shapes.large)
                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
@@ -658,7 +696,7 @@ fun EditExpenseDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {

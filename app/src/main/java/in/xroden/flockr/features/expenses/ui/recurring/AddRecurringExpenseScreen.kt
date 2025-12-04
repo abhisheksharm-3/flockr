@@ -97,7 +97,7 @@ fun AddRecurringExpenseScreen(
                     Text(
                         "Add Recurring Bill",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -123,12 +123,12 @@ fun AddRecurringExpenseScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Header
             Text(
                 text = "New Recurring Bill",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -145,7 +145,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -163,7 +163,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -181,7 +181,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -207,7 +207,7 @@ fun AddRecurringExpenseScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         enabled = !isLoading,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -247,7 +247,7 @@ fun AddRecurringExpenseScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         enabled = !isLoading,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -281,7 +281,7 @@ fun AddRecurringExpenseScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -302,7 +302,7 @@ fun AddRecurringExpenseScreen(
                         Text(
                             text = "Enable Reminders",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
@@ -329,7 +329,7 @@ fun AddRecurringExpenseScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = MaterialTheme.shapes.large,
+                        shape = MaterialTheme.shapes.medium,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -351,7 +351,7 @@ fun AddRecurringExpenseScreen(
                     enabled = !isLoading,
                     minLines = 3,
                     maxLines = 5,
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -370,7 +370,7 @@ fun AddRecurringExpenseScreen(
                         Text(
                             text = "Allow Prepayment",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
@@ -391,7 +391,7 @@ fun AddRecurringExpenseScreen(
                 // Custom First Payment Date
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.outlinedCardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
@@ -449,7 +449,8 @@ fun AddRecurringExpenseScreen(
                                     }
                                 },
                                 label = { Text(member.fullName ?: member.userId) },
-                                enabled = !isLoading
+                                enabled = !isLoading,
+                                shape = MaterialTheme.shapes.medium
                             )
                         }
                     }
@@ -461,7 +462,7 @@ fun AddRecurringExpenseScreen(
                         Text(
                             "Split Method",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Bold
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -475,14 +476,16 @@ fun AddRecurringExpenseScreen(
                                 onClick = { splitType = "equal" },
                                 label = { Text("Equal Split") },
                                 enabled = !isLoading,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium
                             )
                             FilterChip(
                                 selected = splitType == "custom",
                                 onClick = { splitType = "custom" },
                                 label = { Text("Custom Amounts") },
                                 enabled = !isLoading,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium
                             )
                         }
 
@@ -640,10 +643,12 @@ fun AddRecurringExpenseScreen(
                     Text(
                         "Add Recurring Bill",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -662,14 +667,15 @@ fun AddRecurringExpenseScreen(
                     }
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text("OK", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text("Cancel", fontWeight = FontWeight.Medium)
                 }
-            }
+            },
+            shape = MaterialTheme.shapes.large
         ) {
             DatePicker(state = datePickerState)
         }

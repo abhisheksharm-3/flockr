@@ -163,10 +163,11 @@ fun WelcomeScreen(
             // Middle section with features in a card
             Card(
                 modifier = Modifier.padding(vertical = 32.dp),
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White.copy(alpha = 0.15f)
-                )
+                ),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -296,4 +297,3 @@ private fun FeatureItem(
         }
     }
 }
-

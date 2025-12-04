@@ -170,7 +170,7 @@ fun PerDiemConfigScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "Configured Items",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
@@ -213,7 +213,7 @@ private fun PerDiemConfigCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -391,7 +391,7 @@ private fun AddPerDiemConfigDialog(
             ) {
                 Text(
                     text = "Item Details",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -542,7 +542,7 @@ private fun EditPerDiemConfigDialog(
             ) {
                 Text(
                     text = "Item Details",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -802,23 +802,19 @@ private fun DeletePerDiemConfigDialog(
                             )
                         }
                         Text(
-                            text = "The item and ALL historical usage records will be permanently deleted. This cannot be undone.",
+                            text = "The item configuration AND all historical usage logs will be permanently deleted. This cannot be undone.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onConfirm(false) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                shape = MaterialTheme.shapes.medium
+            TextButton(
+                onClick = { onConfirm(false) }
             ) {
-                Text("Keep Usage", fontWeight = FontWeight.SemiBold)
+                Text("Keep Usage", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -826,13 +822,12 @@ private fun DeletePerDiemConfigDialog(
                 onClick = { onConfirm(true) },
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
-                ),
-                shape = MaterialTheme.shapes.medium
+                )
             ) {
-                Text("Delete All", fontWeight = FontWeight.SemiBold)
+                Text("Delete Everything", fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium
+        shape = MaterialTheme.shapes.large,
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }

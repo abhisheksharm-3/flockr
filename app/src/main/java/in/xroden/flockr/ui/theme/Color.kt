@@ -11,20 +11,20 @@ import androidx.compose.ui.graphics.Color
 
 // Light Theme Color Scheme
 val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF2563EB),              // Blue 600
+    primary = Color(0xFF4F46E5),              // Indigo 600 (More vibrant than Blue 600)
     onPrimary = Color(0xFFFFFFFF),            // White
-    primaryContainer = Color(0xFFDBEAFE),     // Blue 100
-    onPrimaryContainer = Color(0xFF1E3A8A),   // Blue 900
+    primaryContainer = Color(0xFFE0E7FF),     // Indigo 100
+    onPrimaryContainer = Color(0xFF312E81),   // Indigo 900
 
-    secondary = Color(0xFF4F46E5),            // Indigo 600
+    secondary = Color(0xFFEC4899),            // Pink 500 (Vibrant accent)
     onSecondary = Color(0xFFFFFFFF),          // White
-    secondaryContainer = Color(0xFFE0E7FF),   // Indigo 100
-    onSecondaryContainer = Color(0xFF312E81), // Indigo 900
+    secondaryContainer = Color(0xFFFCE7F3),   // Pink 100
+    onSecondaryContainer = Color(0xFF831843), // Pink 900
 
-    tertiary = Color(0xFFDB2777),             // Pink 600
+    tertiary = Color(0xFF0EA5E9),             // Sky 500 (Playful tertiary)
     onTertiary = Color(0xFFFFFFFF),           // White
-    tertiaryContainer = Color(0xFFFCE7F3),    // Pink 100
-    onTertiaryContainer = Color(0xFF831843),  // Pink 900
+    tertiaryContainer = Color(0xFFE0F2FE),    // Sky 100
+    onTertiaryContainer = Color(0xFF0C4A6E),  // Sky 900
 
     error = Color(0xFFEF4444),                // Red 500
     onError = Color(0xFFFFFFFF),              // White
@@ -45,34 +45,34 @@ val LightColorScheme = lightColorScheme(
 
 // Dark Theme Color Scheme
 val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF3B82F6),              // Blue 500
+    primary = Color(0xFF818CF8),              // Indigo 400
     onPrimary = Color(0xFFFFFFFF),            // White
-    primaryContainer = Color(0xFF1E40AF),     // Blue 800
-    onPrimaryContainer = Color(0xFFDBEAFE),   // Blue 100
+    primaryContainer = Color(0xFF3730A3),     // Indigo 800
+    onPrimaryContainer = Color(0xFFE0E7FF),   // Indigo 100
 
-    secondary = Color(0xFF6366F1),            // Indigo 500
+    secondary = Color(0xFFF472B6),            // Pink 400
     onSecondary = Color(0xFFFFFFFF),          // White
-    secondaryContainer = Color(0xFF4338CA),   // Indigo 700
-    onSecondaryContainer = Color(0xFFE0E7FF), // Indigo 100
+    secondaryContainer = Color(0xFF9D174D),   // Pink 800
+    onSecondaryContainer = Color(0xFFFCE7F3), // Pink 100
 
-    tertiary = Color(0xFFEC4899),             // Pink 500
+    tertiary = Color(0xFF38BDF8),             // Sky 400
     onTertiary = Color(0xFFFFFFFF),           // White
-    tertiaryContainer = Color(0xFFBE185D),    // Pink 700
-    onTertiaryContainer = Color(0xFFFCE7F3),  // Pink 100
+    tertiaryContainer = Color(0xFF075985),    // Sky 800
+    onTertiaryContainer = Color(0xFFE0F2FE),  // Sky 100
 
-    error = Color(0xFFEF4444),                // Red 500
+    error = Color(0xFFF87171),                // Red 400
     onError = Color(0xFFFFFFFF),              // White
-    errorContainer = Color(0xFF991B1B),       // Red 800
+    errorContainer = Color(0xFF7F1D1D),       // Red 900
     onErrorContainer = Color(0xFFFEE2E2),     // Red 100
 
-    background = Color(0xFF0B1121),           // Deep Slate (Darker)
+    background = Color(0xFF0F172A),           // Slate 900
     onBackground = Color(0xFFF8FAFC),         // Slate 50
-    surface = Color(0xFF151E32),              // Lighter Slate
+    surface = Color(0xFF1E293B),              // Slate 800
     onSurface = Color(0xFFF8FAFC),            // Slate 50
-    surfaceVariant = Color(0xFF1E293B),       // Slate 800
+    surfaceVariant = Color(0xFF334155),       // Slate 700
     onSurfaceVariant = Color(0xFF94A3B8),     // Slate 400
-    outline = Color(0xFF334155),              // Slate 700
-    outlineVariant = Color(0xFF1E293B),       // Slate 800
+    outline = Color(0xFF475569),              // Slate 600
+    outlineVariant = Color(0xFF334155),       // Slate 700
 
     scrim = Color(0x80000000)
 )

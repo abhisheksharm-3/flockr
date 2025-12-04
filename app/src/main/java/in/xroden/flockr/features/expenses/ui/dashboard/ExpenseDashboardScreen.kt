@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,6 +46,7 @@ fun ExpenseDashboardScreen(
     onNavigateToPerDiem: () -> Unit,
     onNavigateToQuickPerDiem: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToExpenseDetail: (String) -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val expenseState by viewModel.expenseState.collectAsState()
@@ -72,9 +73,7 @@ fun ExpenseDashboardScreen(
                 title = {
                     Text(
                         "Finance",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 },
                 navigationIcon = {
@@ -86,7 +85,7 @@ fun ExpenseDashboardScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -107,13 +106,13 @@ fun ExpenseDashboardScreen(
                 ) {
                     Text(
                         text = "Finance Hub",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "Manage expenses, split bills, and track spending",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -122,18 +121,14 @@ fun ExpenseDashboardScreen(
             // Quick Stats Row
             item {
                 // Use monthly summary which includes all expense types (one-time, recurring, per diem)
-                val monthlySummary = when (val state = summaryState) {
-                    is MonthlySummaryUiState.Success -> state.summary
-                    else -> null
+                val (monthlySummary, spendByMember) = when (val state = summaryState) {
+                    is MonthlySummaryUiState.Success -> state.summary to state.spendByMember
+                    else -> null to emptyList()
                 }
                 val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
 
                 val currentUserId = viewModel.getCurrentUserId()
-                val balances = when (val state = balanceState) {
-                    is BalanceUiState.Success -> state.balances
-                    else -> emptyList()
-                }
-                val userBalance = balances.find { it.userId == currentUserId }?.balance ?: java.math.BigDecimal.ZERO
+                val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: java.math.BigDecimal.ZERO
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -146,11 +141,11 @@ fun ExpenseDashboardScreen(
                         accentColor = MaterialTheme.colorScheme.primary
                     )
                     FinanceStatCard(
-                        label = "YOUR BALANCE",
-                        value = "$currencySymbol${"%.2f".format(kotlin.math.abs(userBalance.toDouble()))}",
+                        label = "YOUR EXPENSE",
+                        value = "$currencySymbol${"%.2f".format(userSpending.toDouble())}",
                         modifier = Modifier.weight(1f),
-                        accentColor = if (userBalance >= java.math.BigDecimal.ZERO) CategoryGreen else CategoryRed,
-                        isPositive = userBalance >= java.math.BigDecimal.ZERO
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        isPositive = true
                     )
                 }
             }
@@ -342,7 +337,7 @@ fun ExpenseDashboardScreen(
                             RecentExpenseCard(
                                 expense = expense,
                                 currencySymbol = currencySymbol,
-                                onClick = { onNavigateToOneTimeExpenses() }
+                                onClick = { onNavigateToExpenseDetail(expense.id) }
                             )
                         }
 
@@ -388,7 +383,7 @@ private fun FinanceStatCard(
 ) {
     Card(
         modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -403,14 +398,14 @@ private fun FinanceStatCard(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
+                letterSpacing = 1.sp
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = accentColor
             )
@@ -439,14 +434,14 @@ private fun FinanceFeatureCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Icon with accent color background
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(56.dp)
                     .clip(MaterialTheme.shapes.medium)
                     .background(accentColor.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
@@ -455,19 +450,19 @@ private fun FinanceFeatureCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
             // Text content
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -479,10 +474,10 @@ private fun FinanceFeatureCard(
 
             // Arrow indicator
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }

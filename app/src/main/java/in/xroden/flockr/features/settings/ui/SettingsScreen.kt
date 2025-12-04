@@ -1,12 +1,10 @@
 package `in`.xroden.flockr.features.settings.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,11 +22,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
@@ -62,7 +58,6 @@ fun SettingsScreen(
         else -> null
     }
 
-    val isProfileLoading = profileUiState is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Loading
     val profileError = when (val state = profileUiState) {
         is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Error -> state.message
         else -> null
@@ -116,17 +111,14 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
-
             // Profile Card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
@@ -270,9 +262,7 @@ fun SettingsScreen(
 
             // Settings Sections
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Appearance Section
@@ -368,8 +358,6 @@ fun SettingsScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 
@@ -503,7 +491,9 @@ fun SettingsScreen(
                 }
             }
         }
-    }    // Logout Dialog
+    }
+
+    // Logout Dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -549,7 +539,7 @@ fun SettingsScreen(
                     Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
@@ -575,7 +565,7 @@ private fun SettingsSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),

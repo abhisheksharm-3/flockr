@@ -190,7 +190,7 @@ fun RecurringExpensesScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                                 ),
-                                shape = MaterialTheme.shapes.medium,
+                                shape = MaterialTheme.shapes.large,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                             ) {
                                 Row(
@@ -368,7 +368,7 @@ fun EditRecurringExpenseDialog(
         modifier = Modifier.fillMaxWidth()
     ) {
         Surface(
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
@@ -695,7 +695,7 @@ fun RecurringExpenseCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

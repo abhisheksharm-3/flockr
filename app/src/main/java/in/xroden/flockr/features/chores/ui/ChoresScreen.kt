@@ -3,12 +3,15 @@ package `in`.xroden.flockr.features.chores.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
@@ -31,6 +35,10 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.atStartOfDayIn
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,9 +79,9 @@ fun ChoresScreen(
         }
     }
 
-    // Add Chore Dialog
+    // Add Chore Dialog (Full Screen)
     if (showAddDialog) {
-        AddChoreDialog(
+        FullScreenAddChoreDialog(
             houseId = houseId,
             onDismiss = {
                 showAddDialog = false
@@ -133,9 +141,7 @@ fun ChoresScreen(
                 title = {
                     Text(
                         "Chores",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 },
                 navigationIcon = {
@@ -147,7 +153,7 @@ fun ChoresScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 ),
                 actions = {
@@ -165,10 +171,10 @@ fun ChoresScreen(
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Chore", fontWeight = FontWeight.SemiBold) },
+                text = { Text("Add Chore") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -200,20 +206,14 @@ fun ChoresScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Header & Filters
                         item {
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Text(
-                                    text = "Household Tasks",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-
                                 // Filter Chips
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -229,30 +229,34 @@ fun ChoresScreen(
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
+                                            ),
+                                            shape = MaterialTheme.shapes.small
                                         )
                                     }
                                 }
 
-                                Text(
-                                    text = "${filteredChores.size} ${filterOption.label.lowercase()}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${filteredChores.size} ${filterOption.label.lowercase()}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
 
-                                if (filterOption == ChoreFilter.COMPLETED && filteredChores.isNotEmpty()) {
-                                    OutlinedButton(
-                                        onClick = { viewModel.clearCompletedChores(houseId) },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.error
-                                        ),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = MaterialTheme.shapes.medium
-                                    ) {
-                                        Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Clear Completed", fontWeight = FontWeight.SemiBold)
+                                    if (filterOption == ChoreFilter.COMPLETED && filteredChores.isNotEmpty()) {
+                                        TextButton(
+                                            onClick = { viewModel.clearCompletedChores(houseId) },
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.error
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Clear Completed")
+                                        }
                                     }
                                 }
                             }
@@ -305,7 +309,6 @@ fun ChoresScreen(
                         Text(
                             text = "Error loading chores",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(
@@ -317,7 +320,7 @@ fun ChoresScreen(
                         ) {
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry", fontWeight = FontWeight.SemiBold)
+                            Text("Retry")
                         }
                     }
                 }
@@ -337,9 +340,12 @@ fun ChoreCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large, // M3 Expressive: Larger corner radius
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (chore.isCompleted) 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
+            else 
+                MaterialTheme.colorScheme.surfaceContainerLow // M3 Expressive: Surface Container
         ),
         border = BorderStroke(
             width = 1.dp,
@@ -354,8 +360,8 @@ fun ChoreCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Header Row: Checkbox + Title + Menu
             Row(
@@ -601,46 +607,97 @@ fun ChoreCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Suppress("UNUSED_PARAMETER")
-fun AddChoreDialog(
+fun FullScreenAddChoreDialog(
     houseId: String,
     onDismiss: () -> Unit,
     onAdd: (String, String?, String?, String?) -> Unit
 ) {
     var taskName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var dueDate by remember { mutableStateOf("") }
+    var dueDate by remember { mutableStateOf<Long?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dueDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
         ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("Add Chore") },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = {
+                                val dateStr = dueDate?.let { millis ->
+                                    Instant.ofEpochMilli(millis)
+                                        .atZone(ZoneId.systemDefault())
+                                        .toLocalDate()
+                                        .toString()
+                                }
+                                onAdd(
+                                    taskName,
+                                    description.takeIf { it.isNotBlank() },
+                                    dateStr,
+                                    null // assignedTo
+                                )
+                            },
+                            enabled = taskName.isNotBlank()
+                        ) {
+                            Text("Save", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) { padding ->
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .padding(padding)
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Text(
-                    text = "Add Chore",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
                 OutlinedTextField(
                     value = taskName,
                     onValueChange = { taskName = it },
                     label = { Text("Task Name *") },
-                    placeholder = { Text("e.g., Take out trash") },
+                    placeholder = { Text("e.g., Clean kitchen") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    textStyle = MaterialTheme.typography.bodyLarge
                 )
 
                 OutlinedTextField(
@@ -649,50 +706,40 @@ fun AddChoreDialog(
                     label = { Text("Description (Optional)") },
                     placeholder = { Text("Add any details...") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    shape = MaterialTheme.shapes.medium
+                    minLines = 3,
+                    shape = MaterialTheme.shapes.medium,
+                    textStyle = MaterialTheme.typography.bodyLarge
                 )
 
-                OutlinedTextField(
-                    value = dueDate,
-                    onValueChange = { dueDate = it },
-                    label = { Text("Due Date (Optional)") },
-                    placeholder = { Text("YYYY-MM-DD") },
-                    leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
-                    }
-                    Button(
-                        onClick = {
-                            onAdd(
-                                taskName,
-                                description.takeIf { it.isNotBlank() },
-                                dueDate.takeIf { it.isNotBlank() },
-                                null // assignedTo
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = taskName.isNotBlank(),
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = dueDate?.let { millis ->
+                            Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+                        } ?: "",
+                        onValueChange = { },
+                        label = { Text("Due Date (Optional)") },
+                        placeholder = { Text("Select date") },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false, // Disable typing, force click
+                        singleLine = true,
                         shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    ) {
-                        Text("Add", fontWeight = FontWeight.SemiBold)
-                    }
+                    )
+                    // Overlay to catch clicks on the disabled text field
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker = true }
+                    )
                 }
             }
         }
@@ -768,18 +815,45 @@ fun EditChoreDialog(
 ) {
     var taskName by remember { mutableStateOf(chore.taskName) }
     var description by remember { mutableStateOf(chore.description ?: "") }
-    var dueDate by remember { mutableStateOf(chore.dueDate?.toString() ?: "") }
+    var dueDate by remember { mutableStateOf<Long?>(
+        chore.dueDate?.atStartOfDayIn(TimeZone.currentSystemDefault())?.toEpochMilliseconds()
+    ) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dueDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = MaterialTheme.shapes.medium,
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
             Column(
                 modifier = Modifier
@@ -807,50 +881,68 @@ fun EditChoreDialog(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Description (Optional)") },
-                    placeholder = { Text("Add details...") },
+                    placeholder = { Text("Add any details...") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
+                    minLines = 2,
                     shape = MaterialTheme.shapes.medium
                 )
 
-                OutlinedTextField(
-                    value = dueDate,
-                    onValueChange = { dueDate = it },
-                    label = { Text("Due Date (Optional)") },
-                    placeholder = { Text("YYYY-MM-DD") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = dueDate?.let { millis ->
+                            Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+                        } ?: "",
+                        onValueChange = { },
+                        label = { Text("Due Date (Optional)") },
+                        placeholder = { Text("Select date") },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false,
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    // Overlay to catch clicks
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker = true }
+                    )
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
+                            val dateStr = dueDate?.let { millis ->
+                                Instant.ofEpochMilli(millis)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+                                    .toString()
+                            }
                             onSave(
                                 taskName,
                                 description.takeIf { it.isNotBlank() },
-                                dueDate.takeIf { it.isNotBlank() },
-                                null // assignedTo
+                                dateStr,
+                                chore.assignedTo // Preserve assignment
                             )
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = taskName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        enabled = taskName.isNotBlank()
                     ) {
-                        Text("Save", fontWeight = FontWeight.SemiBold)
+                        Text("Save")
                     }
                 }
             }
@@ -860,10 +952,10 @@ fun EditChoreDialog(
 
 
 
-// Helper functions
-private fun isOverdue(dateStr: String): Boolean {
+// Helper functions (same as before or shared)
+private fun isOverdue(dateString: String): Boolean {
     return try {
-        val date = LocalDate.parse(dateStr)
+        val date = LocalDate.parse(dateString)
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         date < today
     } catch (e: Exception) {
@@ -871,17 +963,12 @@ private fun isOverdue(dateStr: String): Boolean {
     }
 }
 
-private fun formatDate(dateStr: String): String {
+private fun formatDate(dateString: String): String {
     return try {
-        val date = LocalDate.parse(dateStr)
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val tomorrow = today.plus(1, kotlinx.datetime.DateTimeUnit.DAY)
-        when (date) {
-            today -> "Today"
-            tomorrow -> "Tomorrow"
-            else -> "${date.month.name.lowercase().replaceFirstChar { it.uppercase() }} ${date.dayOfMonth}"
-        }
+        val date = LocalDate.parse(dateString)
+        val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+        "$month ${date.dayOfMonth}"
     } catch (e: Exception) {
-        dateStr
+        dateString
     }
 }

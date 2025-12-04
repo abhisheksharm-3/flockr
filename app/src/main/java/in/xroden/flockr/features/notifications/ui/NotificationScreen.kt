@@ -2,13 +2,10 @@ package `in`.xroden.flockr.features.notifications.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -17,10 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
@@ -37,15 +32,14 @@ fun NotificationScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         "Notifications",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -110,8 +104,7 @@ fun NotificationScreen(
                             Surface(
                                 modifier = Modifier.size(80.dp),
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -140,7 +133,7 @@ fun NotificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
@@ -199,10 +192,10 @@ private fun NotificationItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (!notification.isRead) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
@@ -221,12 +214,12 @@ private fun NotificationItem(
             Box(
                 modifier = Modifier
                     .padding(top = 6.dp)
-                    .size(10.dp)
+                    .size(12.dp)
                     .background(
                         color = if (!notification.isRead) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         },
                         shape = CircleShape
                     )
@@ -234,7 +227,7 @@ private fun NotificationItem(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Title
                 Text(

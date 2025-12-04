@@ -97,6 +97,22 @@ class ExpenseRepository @Inject constructor(
         }
     }
 
+    suspend fun getOneTimeExpense(expenseId: String): Result<OneTimeExpense> {
+        return try {
+            val expense = supabase.from("one_time_expenses")
+                .select(Columns.ALL) {
+                    filter {
+                        eq("id", expenseId)
+                    }
+                }
+                .decodeSingle<OneTimeExpense>()
+
+            Result.success(expense)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun createOneTimeExpense(
         houseId: String,
         name: String,
