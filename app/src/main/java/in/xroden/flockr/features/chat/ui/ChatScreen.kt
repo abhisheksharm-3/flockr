@@ -17,6 +17,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,66 +38,68 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(houseId) {
         viewModel.loadMessages(houseId)
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Chat",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Chat", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
-            // Minimal Input Area
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
+            // Floating Input Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .imePadding()
+                    .padding(bottom = 8.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Input Field
+                    // Input Field Pill
                     TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Type a message...") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        placeholder = { Text("Message...", style = MaterialTheme.typography.bodyLarge) },
                         maxLines = 4,
-                        shape = MaterialTheme.shapes.large,
                         colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                             unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                             disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ),
+                        shape = CircleShape
                     )
-                    
+
                     // Send Button
                     val isEnabled = messageText.isNotBlank()
-                    IconButton(
+                    
+                    FilledIconButton(
                         onClick = {
                             if (isEnabled) {
                                 viewModel.sendMessage(houseId, messageText)
@@ -102,24 +107,25 @@ fun ChatScreen(
                             }
                         },
                         enabled = isEnabled,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape
-                            )
+                        modifier = Modifier.size(56.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
                             "Send",
-                            tint = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
         }
     ) { padding ->
+        // No changes to content logic
         when (val state = uiState) {
             is ChatUiState.Loading -> {
                 Box(
@@ -226,45 +232,54 @@ fun MessageBubble(
     currentUserId: String? = null
 ) {
     val isCurrentUser = currentUserId != null && message.userId == currentUserId
+    
+    // Expressive shapes: simpler curves for bubble effect
     val bubbleShape = if (isCurrentUser) {
-        RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp)
+        RoundedCornerShape(24.dp, 24.dp, 4.dp, 24.dp)
     } else {
-        RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
+        RoundedCornerShape(24.dp, 24.dp, 24.dp, 4.dp)
     }
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 4.dp), // Increased vertical breathing room
         horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
     ) {
         if (!isCurrentUser && message.senderName != null) {
             Text(
                 text = message.senderName,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
             )
         }
 
-        Surface(
-            shape = bubbleShape,
-            color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 300.dp) // Slightly wider
+                .clip(bubbleShape)
+                .background(
+                    if (isCurrentUser) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    }
+                )
                 .then(if (message.isPending) Modifier.alpha(0.7f) else Modifier)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
+            Column {
                 Text(
                     text = message.content,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isCurrentUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 22.sp
                 )
                 
                 Row(
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = 6.dp).align(Alignment.End),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
@@ -272,7 +287,7 @@ fun MessageBubble(
                         text = formatTimestamp(message.createdAt.toString()),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isCurrentUser) 
-                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) 
+                            Color.White.copy(alpha = 0.7f) 
                         else 
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontSize = 10.sp
@@ -284,7 +299,7 @@ fun MessageBubble(
                             Icons.Default.Schedule,
                             null,
                             modifier = Modifier.size(10.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            tint = Color.White.copy(alpha = 0.7f)
                         )
                     }
                 }
