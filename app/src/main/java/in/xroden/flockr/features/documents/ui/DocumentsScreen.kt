@@ -1,30 +1,30 @@
 package `in`.xroden.flockr.features.documents.ui
 
-import android.app.Activity
 import android.content.ContentResolver
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
@@ -39,93 +39,66 @@ fun DocumentsScreen(
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Personal", "House")
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Personal, 1 = House
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-
     val uiState by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
 
-    LaunchedEffect(houseId) {
-        viewModel.loadDocuments(houseId)
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
+     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        android.util.Log.d("DocumentsScreen", "File picker result: uri=$uri")
         if (uri != null) {
             val fileName = getFileNameFromUri(context, uri)
-            android.util.Log.d("DocumentsScreen", "Picked file: $fileName")
             if (selectedTab == 0) {
-                android.util.Log.d("DocumentsScreen", "Uploading personal document")
                 viewModel.uploadPersonalDocument(uri, fileName, context)
             } else {
-                android.util.Log.d("DocumentsScreen", "Uploading house document: houseId=$houseId")
                 viewModel.uploadHouseDocument(houseId, uri, fileName, context)
             }
-        } else {
-            android.util.Log.w("DocumentsScreen", "File picker returned null URI")
         }
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Documents",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Documents", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = {
-                    android.util.Log.d("DocumentsScreen", "Upload button clicked, selectedTab=$selectedTab")
-                    // Launch file picker with any file type
-                    filePickerLauncher.launch("*/*")
-                },
-                icon = { Icon(Icons.Default.Upload, "Upload") },
-                text = { Text("Upload", fontWeight = FontWeight.SemiBold) },
+                onClick = { filePickerLauncher.launch("*/*") },
+                text = { Text("Upload File", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.CloudUpload, null) },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Upload Progress
             val uploadState by viewModel.uploadState.collectAsState()
-
-            // Show upload progress/error
-            when (val state = uploadState) {
-                is UploadDocumentUiState.Uploading -> {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                }
+            
+            // Show snackbar on success/error
+             when (val state = uploadState) {
                 is UploadDocumentUiState.Error -> {
                     LaunchedEffect(state) {
                         snackbarHostState.showSnackbar(state.message)
@@ -134,249 +107,171 @@ fun DocumentsScreen(
                 }
                 is UploadDocumentUiState.Success -> {
                     LaunchedEffect(state) {
-                        snackbarHostState.showSnackbar("Document uploaded successfully")
+                        snackbarHostState.showSnackbar("Uploaded successfully")
                         viewModel.resetUploadState()
                     }
                 }
                 else -> {}
             }
+            
+            if (uploadState is UploadDocumentUiState.Uploading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            
+            // Custom Segmented Control
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                TabButton("Personal", selectedTab == 0) { selectedTab = 0 }
+                TabButton("House", selectedTab == 1) { selectedTab = 1 }
+            }
+            
+            // Content
+            val docs = if (uiState is DocumentUiState.Success) {
+                 if (selectedTab == 0) (uiState as DocumentUiState.Success).personalDocuments
+                 else (uiState as DocumentUiState.Success).houseDocuments
+            } else emptyList()
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Custom Tab Row
-                PrimaryTabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    indicator = {
-                        TabRowDefaults.PrimaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(selectedTab),
-                            width = Dp.Unspecified,
-                            color = MaterialTheme.colorScheme.primary
+            val total = docs.size
+            val limit = if (selectedTab == 0) 2 else 3
+            
+            // Storage Bar (Pill style)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+            ) {
+                 Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                 ) {
+                     Column {
+                        Text(
+                            "Storage Usage",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)) }
-                ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = {
-                                Text(
-                                    title,
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                            },
-                            selectedContentColor = MaterialTheme.colorScheme.primary,
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            "$total / $limit files used",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
                         )
-                    }
-                }
+                     }
+                     
+                    CircularProgressIndicator(
+                        progress = { total.toFloat() / limit.toFloat() },
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 3.dp,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                 }
+            }
 
-                when (val currentState = uiState) {
-                    is DocumentUiState.Loading -> {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp) // Tighter list
+            ) {
+                if (docs.isEmpty()) {
+                    item {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    is DocumentUiState.Success -> {
-                        val docs = if (selectedTab == 0) currentState.personalDocuments else currentState.houseDocuments
-
-                        // Usage Stats
-                        val limit = if (selectedTab == 0) 2 else 3
-                        val count = docs.size
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Usage Banner
-                            item {
-                                Card(
-                                    shape = MaterialTheme.shapes.large,
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(20.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Text(
-                                                text = "Storage Usage",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                            Text(
-                                                text = "$count / $limit documents",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                        Box(contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(
-                                                progress = { count.toFloat() / limit.toFloat() },
-                                                modifier = Modifier.size(48.dp),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                strokeWidth = 4.dp
-                                            )
-                                            Text(
-                                                text = "${(count.toFloat() / limit.toFloat() * 100).toInt()}%",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (docs.isEmpty()) {
-                                item {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                modifier = Modifier.size(80.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Icon(
-                                                        Icons.Default.Description,
-                                                        null,
-                                                        modifier = Modifier.size(32.dp),
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
-                                            Text(
-                                                "No documents yet",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                "Upload important files to keep them handy",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            } else {
-                                items(docs) { document ->
-                                    DocumentCard(
-                                        document = document,
-                                        onDownload = { viewModel.downloadDocument(document) },
-                                        onDelete = { viewModel.deleteDocument(document.id, document.storagePath, document.houseId) }
-                                    )
-                                }
-                                item { Spacer(modifier = Modifier.height(80.dp)) }
-                            }
-                        }
-                    }
-                    is DocumentUiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Error: ${currentState.message}", color = MaterialTheme.colorScheme.error)
+                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                 Icon(Icons.Default.FolderOpen, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
+                                 Spacer(modifier = Modifier.height(8.dp))
+                                 Text("No files found", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+                             }
                         }
                     }
                 }
+                
+                items(docs) { doc ->
+                    FileListItem(doc, 
+                        onDownload = { viewModel.downloadDocument(doc) }, 
+                        onDelete = { viewModel.deleteDocument(doc.id, doc.storagePath, doc.houseId) }
+                    )
+                }
+                
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
 }
 
 @Composable
-fun DocumentCard(
-    document: Document,
-    onDownload: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+fun RowScope.TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .padding(4.dp)
+            .clip(CircleShape)
+            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Icon
+        Text(
+            text,
+            fontWeight = FontWeight.Bold,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    
+    ListItem(
+        headlineContent = { 
+            Text(doc.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1) 
+        },
+        supportingContent = { 
+            Text(formatFileSize(doc.fileSize ?: 0)) 
+        },
+        leadingContent = {
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(56.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.Description,
-                        null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(28.dp)
+                    val icon = if (doc.mimeType?.contains("image") == true) Icons.Default.Image else Icons.Default.Description
+                    Icon(icon, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                }
+            }
+        },
+        trailingContent = {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, "More")
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Download") },
+                        onClick = { showMenu = false; onDownload() },
+                        leadingIcon = { Icon(Icons.Default.Download, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = { showMenu = false; onDelete() },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) }
                     )
                 }
             }
-
-            // Info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = document.fileName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Size: ${formatFileSize(document.fileSize ?: 0L)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Actions
-            Row {
-                IconButton(onClick = onDownload) {
-                    Icon(
-                        Icons.Default.Download,
-                        "Download",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Outlined.Delete,
-                        "Delete",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.clip(RoundedCornerShape(16.dp))
+    )
 }
 
 fun formatFileSize(size: Long): String {

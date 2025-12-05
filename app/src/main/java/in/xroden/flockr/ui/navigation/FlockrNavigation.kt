@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -93,68 +96,24 @@ fun FlockrNavigation(
     // 2. FIXED: The 'when' block was syntactically incorrect.
     //    It is now properly structured with 'is' cases.
     //
-    when (authUiState) {
-        is AuthNavigationState.Loading -> {
-            android.util.Log.d("FlockrNavigation", "📱 Rendering loading screen")
-            // Show a loading indicator
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-        is AuthNavigationState.Unauthenticated -> {
-            androidx.compose.runtime.key("unauthenticated") {
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Welcome.route
-                ) {
-                    composable(Screen.Welcome.route) {
-                        `in`.xroden.flockr.features.auth.ui.WelcomeScreen(
-                            onGetStarted = {
-                                navController.navigate(Screen.Signup.route)
-                            },
-                            onSignIn = {
-                                navController.navigate(Screen.Login.route)
-                            }
-                            // Now uses local images: welcome_bg_light.jpg / welcome_bg_dark.jpg
-                            // Place your images in: app/src/main/res/drawable/
-                        )
-                    }
+    // State to track if we have successfully loaded the authenticated graph at least once
+    // This allows us to keep the NavHost in composition during transient "Loading" states
+    // (e.g. returning from file picker) preventing the destruction of the DocumentsScreen
+    val hasAuthenticatedSession = remember { mutableStateOf(false) }
 
-                    composable(Screen.Login.route) {
-                        LoginScreen(
-                            onNavigateToSignup = { navController.navigate(Screen.Signup.route) },
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
+    // Update our tracking state
+    LaunchedEffect(authUiState) {
+        if (authUiState is AuthNavigationState.Authenticated) {
+            hasAuthenticatedSession.value = true
+        } else if (authUiState is AuthNavigationState.Unauthenticated || authUiState is AuthNavigationState.NeedsOnboarding) {
+            hasAuthenticatedSession.value = false
+        }
+    }
 
-                    composable(Screen.Signup.route) {
-                        SignupScreen(
-                            onNavigateToLogin = { navController.popBackStack() }
-                        )
-                    }
-                }
-            }
-        }
-        is AuthNavigationState.NeedsOnboarding -> {
-            androidx.compose.runtime.key("onboarding") {
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Onboarding.route
-                ) {
-                    composable(Screen.Onboarding.route) {
-                        OnboardingScreen(
-                            onComplete = {
-                                // Navigation will be handled by recomposition
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        is AuthNavigationState.Authenticated -> {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Authenticated Content (Main App)
+        // We show this if we are currently authenticated OR if we were authenticated and are just in a transient loading state
+        if (authUiState is AuthNavigationState.Authenticated || (hasAuthenticatedSession.value && authUiState is AuthNavigationState.Loading)) {
             androidx.compose.runtime.key("authenticated") {
                 NavHost(
                     navController = navController,
@@ -785,7 +744,77 @@ fun FlockrNavigation(
                     )
                 }
                 }
+                }
             }
         }
+
+        // Unauthenticated Content
+        if (authUiState is AuthNavigationState.Unauthenticated) {
+            androidx.compose.runtime.key("unauthenticated") {
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Welcome.route
+                ) {
+                    composable(Screen.Welcome.route) {
+                        `in`.xroden.flockr.features.auth.ui.WelcomeScreen(
+                            onGetStarted = {
+                                navController.navigate(Screen.Signup.route)
+                            },
+                            onSignIn = {
+                                navController.navigate(Screen.Login.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onNavigateToSignup = { navController.navigate(Screen.Signup.route) },
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(Screen.Signup.route) {
+                        SignupScreen(
+                            onNavigateToLogin = { navController.popBackStack() }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Onboarding Content
+        if (authUiState is AuthNavigationState.NeedsOnboarding) {
+            androidx.compose.runtime.key("onboarding") {
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Onboarding.route
+                ) {
+                    composable(Screen.Onboarding.route) {
+                        OnboardingScreen(
+                            onComplete = {
+                                // Navigation will be handled by recomposition
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Loading Overlay
+        // Show this if explicitly loading AND we don't have a persisted session (or we want to show a spinner on top)
+        // OR better: show it only if we are truly in a loading state that shouldn't show content.
+        // For transient loading (hasAuthenticatedSession = true), we might want to show a small indicator or nothing.
+        // For now, let's show the full screen loader only if we have NO content to show.
+        if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {
+            android.util.Log.d("FlockrNavigation", "📱 Rendering full screen loading")
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (authUiState is AuthNavigationState.Loading && hasAuthenticatedSession.value) {
+             // Optional: Show a non-blocking loading indicator for transient states?
+             // For document upload, we prefer nothing to disturb the UI.
+        }
     }
-}
