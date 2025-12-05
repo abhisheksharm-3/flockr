@@ -40,6 +40,8 @@ fun OneTimeExpensesScreen(
     initialUserId: String? = null,
     onNavigateBack: () -> Unit,
     onAddExpense: () -> Unit,
+    onNavigateToExpenseDetail: (String) -> Unit,
+    onNavigateToEditExpense: (String) -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val expenseState by viewModel.expenseState.collectAsState()
@@ -204,7 +206,9 @@ fun OneTimeExpensesScreen(
                             ModernExpenseCard(
                                 expense = expense,
                                 houseId = houseId,
-                                currencySymbol = currencySymbol
+                                currencySymbol = currencySymbol,
+                                onClick = { onNavigateToExpenseDetail(expense.id) },
+                                onEdit = { onNavigateToEditExpense(expense.id) }
                             )
                         }
 
@@ -378,11 +382,12 @@ fun ModernExpenseCard(
     expense: OneTimeExpense,
     houseId: String,
     currencySymbol: String = "$",
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -430,31 +435,10 @@ fun ModernExpenseCard(
         )
     }
 
-    if (showEditDialog) {
-        EditExpenseDialog(
-            expense = expense,
-            currencySymbol = currencySymbol,
-            onDismiss = { showEditDialog = false },
-            onSave = { name, amount, category, notes ->
-                viewModel.updateOneTimeExpense(
-                    houseId = houseId,
-                    expenseId = expense.id,
-                    name = name,
-                    amount = amount,
-                    date = expense.date,
-                    category = category,
-                    notes = notes
-                )
-                showEditDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar("Expense updated")
-                }
-            }
-        )
-    }
-
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -530,7 +514,7 @@ fun ModernExpenseCard(
                                 text = { Text("Edit") },
                                 onClick = {
                                     showMenu = false
-                                    showEditDialog = true
+                                    onEdit()
                                 },
                                 leadingIcon = {
                                     Icon(Icons.Default.Edit, null)
@@ -678,102 +662,6 @@ fun EmptyExpensesState(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Add First Expense", fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-fun EditExpenseDialog(
-    expense: OneTimeExpense,
-    currencySymbol: String,
-    onDismiss: () -> Unit,
-    onSave: (name: String, amount: BigDecimal, category: String, notes: String?) -> Unit
-) {
-    var name by remember { mutableStateOf(expense.name) }
-    var amount by remember { mutableStateOf(expense.amount.toString()) }
-    var category by remember { mutableStateOf(expense.category) }
-    var notes by remember { mutableStateOf(expense.notes ?: "") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    "Edit Expense",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount") },
-                    prefix = { Text(currencySymbol) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
-                    }
-                    Button(
-                        onClick = {
-                            amount.toBigDecimalOrNull()?.let { amt ->
-                                onSave(name, amt, category, notes.takeIf { it.isNotBlank() })
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Save", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
         }
     }
 }

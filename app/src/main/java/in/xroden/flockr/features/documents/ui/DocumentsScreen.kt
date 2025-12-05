@@ -51,17 +51,21 @@ fun DocumentsScreen(
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                val fileName = getFileNameFromUri(context, uri)
-                if (selectedTab == 0) {
-                    viewModel.uploadPersonalDocument(uri, fileName, context)
-                } else {
-                    viewModel.uploadHouseDocument(houseId, uri, fileName, context)
-                }
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        android.util.Log.d("DocumentsScreen", "File picker result: uri=$uri")
+        if (uri != null) {
+            val fileName = getFileNameFromUri(context, uri)
+            android.util.Log.d("DocumentsScreen", "Picked file: $fileName")
+            if (selectedTab == 0) {
+                android.util.Log.d("DocumentsScreen", "Uploading personal document")
+                viewModel.uploadPersonalDocument(uri, fileName, context)
+            } else {
+                android.util.Log.d("DocumentsScreen", "Uploading house document: houseId=$houseId")
+                viewModel.uploadHouseDocument(houseId, uri, fileName, context)
             }
+        } else {
+            android.util.Log.w("DocumentsScreen", "File picker returned null URI")
         }
     }
 
@@ -93,11 +97,9 @@ fun DocumentsScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                        type = "*/*"
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                    }
-                    filePickerLauncher.launch(intent)
+                    android.util.Log.d("DocumentsScreen", "Upload button clicked, selectedTab=$selectedTab")
+                    // Launch file picker with any file type
+                    filePickerLauncher.launch("*/*")
                 },
                 icon = { Icon(Icons.Default.Upload, "Upload") },
                 text = { Text("Upload", fontWeight = FontWeight.SemiBold) },

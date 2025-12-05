@@ -34,6 +34,11 @@ fun BillHistoryScreen(
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
+    // Fetch house members to resolve names
+    val houseMembers = produceState<List<`in`.xroden.flockr.features.house.model.MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
+        value = expenseViewModel.getHouseMembers(houseId)
+    }
+
     LaunchedEffect(recurringExpenseId) {
         viewModel.loadPaymentHistory(recurringExpenseId)
         expenseViewModel.loadHouseConfig(houseId)
@@ -88,6 +93,8 @@ fun BillHistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(historyState) { payment ->
+                    val payerName = houseMembers.value.find { it.userId == payment.paidBy }?.fullName ?: "Unknown User"
+                    
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -108,7 +115,7 @@ fun BillHistoryScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = "Paid by ${payment.paidBy}", // Ideally resolve name
+                                    text = "Paid by $payerName", 
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )

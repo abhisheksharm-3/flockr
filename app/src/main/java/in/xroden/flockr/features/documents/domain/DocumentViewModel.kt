@@ -9,6 +9,7 @@ import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -188,10 +189,27 @@ class DocumentViewModel @Inject constructor(
     }
     
 
-    fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
+    private val _viewDocumentEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+    val viewDocumentEvent = _viewDocumentEvent.asSharedFlow()
+
+    fun viewDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
         viewModelScope.launch {
-            // This is a placeholder - actual download implementation would depend on platform requirements
-            documentRepository.downloadDocument(document.storagePath, document.houseId)
+            documentRepository.getDocumentUrl(document.storagePath, document.houseId).fold(
+                onSuccess = { url ->
+                    _viewDocumentEvent.emit(url)
+                },
+                onFailure = { error ->
+                    _uiState.value = DocumentUiState.Error(
+                        message = error.message ?: "Failed to get document URL",
+                        cause = error
+                    )
+                }
+            )
         }
+    }
+
+    fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
+        // For now, we'll just treat download as view, as Android handles downloads via browser/intent best
+        viewDocument(document)
     }
 }
