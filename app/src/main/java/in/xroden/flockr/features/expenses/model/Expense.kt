@@ -28,7 +28,9 @@ data class OneTimeExpense(
     val notes: String? = null,
     @SerialName("created_at")
     @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant
+    val createdAt: Instant,
+    @SerialName("expense_splits")
+    val splits: List<ExpenseSplit>? = null
 )
 
 @Serializable

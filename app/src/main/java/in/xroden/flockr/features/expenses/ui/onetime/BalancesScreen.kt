@@ -23,6 +23,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
+import `in`.xroden.flockr.ui.theme.CategoryGreen
+import `in`.xroden.flockr.ui.theme.CategoryRed
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -57,6 +59,9 @@ fun BalancesScreen(
         is BalanceUiState.Success -> state.balances
         else -> emptyList()
     }
+
+    val debtBreakdowns by viewModel.debtBreakdownState.collectAsState()
+    val loadingBreakdowns by viewModel.loadingBreakdowns.collectAsState()
 
     // Settle Dialog
     if (showSettleDialog && selectedBalance != null) {
@@ -148,6 +153,83 @@ fun BalancesScreen(
                     }
                 }
 
+                // Summary Cards
+                if (balances.isNotEmpty()) {
+                    val othersBalances = balances.filter { it.userId != currentUserId }
+                    // Logic update: In our Gross view (get_user_balances fixed), 
+                    // positive balance means "I am owed", negative means "I owe".
+                    // The calculation logic remains the same:
+                    // totalYouOwe = Sum of negative balances (absolute value)
+                    // totalYouAreOwed = Sum of positive balances
+                    
+                    val totalYouOwe = othersBalances.filter { it.balance < java.math.BigDecimal.ZERO }
+                        .fold(java.math.BigDecimal.ZERO) { acc, balance -> acc + balance.balance.abs() }
+                    
+                    val totalYouAreOwed = othersBalances.filter { it.balance > java.math.BigDecimal.ZERO }
+                        .fold(java.math.BigDecimal.ZERO) { acc, balance -> acc + balance.balance }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // You Owe (My Expense) Card
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Your Expense", // Renamed from "You Owe" per user request
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "$currencySymbol${totalYouOwe.toPlainString()}",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+
+                            // You are Owed Card
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.1f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "You are Owed",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "$currencySymbol${totalYouAreOwed.toPlainString()}",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (balances.isEmpty()) {
                     item {
                         Card(
@@ -195,10 +277,35 @@ fun BalancesScreen(
                     }
                 } else {
                     items(balances) { balance ->
+                        // Generate key for breakdown lookup: payerId-payeeId
+                        // If WE owe THEM (negative balance): Payer = ME, Payee = THEM
+                        // If THEY owe US (positive balance): Payer = THEM, Payee = ME
+                        
+                        val theyOweUs = balance.balance > java.math.BigDecimal.ZERO
+                        val breakdownKey = if (theyOweUs) {
+                            "${balance.userId}-$currentUserId" // They pay us
+                        } else {
+                            "$currentUserId-${balance.userId}" // We pay them
+                        }
+                        
+                        val breakdownItems = debtBreakdowns[breakdownKey]
+                        val isBreakdownLoading = loadingBreakdowns.contains(breakdownKey)
+
                         BalanceCard(
                             balance = balance,
                             currentUserId = currentUserId,
                             currencySymbol = currencySymbol,
+                            breakdownItems = breakdownItems,
+                            isBreakdownLoading = isBreakdownLoading,
+                            onExpandRequest = {
+                                if (breakdownItems == null && !isBreakdownLoading) {
+                                    if (theyOweUs) {
+                                        viewModel.loadDebtBreakdown(houseId, balance.userId, currentUserId ?: "")
+                                    } else {
+                                        viewModel.loadDebtBreakdown(houseId, currentUserId ?: "", balance.userId)
+                                    }
+                                }
+                            },
                             onSettleClick = {
                                 selectedBalance = balance
                                 showSettleDialog = true
@@ -246,27 +353,23 @@ fun BalanceCard(
     balance: UserBalance,
     currentUserId: String?,
     currencySymbol: String = "$",
+    breakdownItems: List<`in`.xroden.flockr.features.expenses.data.ExpenseRepository.DebtBreakdownItem>?,
+    isBreakdownLoading: Boolean,
+    onExpandRequest: () -> Unit,
     onSettleClick: () -> Unit
 ) {
-    // BALANCE INTERPRETATION:
-    // The get_user_balances RPC returns each user's net balance in the house.
-    // balance > 0 = user has paid more than they owe = they are OWED money (they should receive)
-    // balance < 0 = user owes more than they paid = they OWE money (they should pay)
-    //
-    // From the CURRENT user's perspective viewing OTHER users' cards:
-    // If OTHER user's balance is POSITIVE = they are owed = WE owe THEM
-    // If OTHER user's balance is NEGATIVE = they owe = THEY owe US
-    //
-    // IMPORTANT: Don't show the current user's own card (this shouldn't happen with the RPC fix)
+    var expanded by remember { mutableStateOf(false) }
 
-    if (balance.userId == currentUserId) {
-        // Skip rendering self-balance card (should be filtered by RPC)
-        return
-    }
+    // Logic:
+    // If balance > 0 => They Owe Us (Positive)
+    // If balance < 0 => We Owe Them (Negative)
+    
+    val amount = balance.balance
+    val theyOweUs = amount > java.math.BigDecimal.ZERO
+    val weOweThem = amount < java.math.BigDecimal.ZERO
+    val absAmount = amount.abs()
 
-    val theyOweUs = balance.balance < java.math.BigDecimal.ZERO  // Their balance is negative = they owe us
-    val weOweThem = balance.balance > java.math.BigDecimal.ZERO  // Their balance is positive = we owe them
-    val amount = balance.balance.abs()
+    if (balance.userId == currentUserId) return
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -278,80 +381,165 @@ fun BalanceCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // User Info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // User Info
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(
-                                if (theyOweUs) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                                else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                            ),
-                        contentAlignment = Alignment.Center
+                    // Start: Avatar & Name
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(
+                                    if (theyOweUs) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = balance.fullName ?: "Unknown",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (theyOweUs) "owes you" else "you owe",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+
+                    // End: Amount & Expand Button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
-                            text = balance.fullName ?: "Unknown",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "$currencySymbol${"%.2f".format(absAmount)}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                         )
-                        Text(
-                            text = if (theyOweUs) "owes you" else "you owe",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        IconButton(onClick = { 
+                            expanded = !expanded
+                            if (expanded) onExpandRequest()
+                        }) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Expand details",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                // Balance Amount
-                Text(
-                    text = "$currencySymbol${"%.2f".format(amount)}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                )
+                // Settle Button (only show if WE owe THEM)
+                if (weOweThem) {
+                    Button(
+                        onClick = onSettleClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Settle Up", fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
 
-            // Settle Button (only show if WE owe THEM)
-            if (weOweThem) {
-                Button(
-                    onClick = onSettleClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+            // Expanded Content
+            if (expanded) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Settle Up", fontWeight = FontWeight.SemiBold)
+                    if (isBreakdownLoading) {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    } else if (breakdownItems.isNullOrEmpty()) {
+                        Text(
+                            text = "No detailed breakdown available.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    } else {
+                        Text(
+                            text = "Contributing Expenses",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        breakdownItems.forEach { item ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.expenseName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = item.date.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "$currencySymbol${"%.2f".format(item.amountOwed)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "of $currencySymbol${"%.2f".format(item.totalAmount)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

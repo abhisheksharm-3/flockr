@@ -35,9 +35,14 @@ import `in`.xroden.flockr.features.expenses.ui.perdiem.AddPerDiemEntryScreen
 import `in`.xroden.flockr.features.expenses.ui.perdiem.PerDiemConfigScreen
 import `in`.xroden.flockr.features.expenses.ui.perdiem.PerDiemTransactionsScreen
 import `in`.xroden.flockr.features.expenses.ui.perdiem.QuickPerDiemEntryScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.AddPerDiemConfigScreen
+import `in`.xroden.flockr.features.expenses.ui.perdiem.EditPerDiemConfigScreen
 import `in`.xroden.flockr.features.expenses.ui.recurring.AddRecurringExpenseScreen
 import `in`.xroden.flockr.features.expenses.ui.recurring.RecurringExpensesScreen
 import `in`.xroden.flockr.features.expenses.ui.onetime.ExpenseDetailScreen
+import `in`.xroden.flockr.features.chores.ui.AddChoreScreen
+import `in`.xroden.flockr.features.chores.ui.ProductivityScreen
+import `in`.xroden.flockr.features.shopping.ui.AddShoppingItemScreen
 
 import `in`.xroden.flockr.features.expenses.ui.reports.MonthlyReportsScreen
 import io.github.jan.supabase.gotrue.SessionStatus
@@ -347,6 +352,53 @@ fun FlockrNavigation(
                     )
                 }
 
+                // One-time expenses list (supports optional query params)
+                composable(
+                    route = Screen.OneTimeExpenses.route,
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("category") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                        navArgument("userId") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val category = backStackEntry.arguments?.getString("category")
+                    val userId = backStackEntry.arguments?.getString("userId")
+
+                    OneTimeExpensesScreen(
+                        houseId = houseId,
+                        initialCategory = category,
+                        initialUserId = userId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) },
+                        onNavigateToExpenseDetail = { expenseId -> navController.navigate("expense_detail/$houseId/$expenseId") },
+                        onNavigateToEditExpense = { expenseId -> navController.navigate("edit_expense/$houseId/$expenseId") }
+                    )
+                }
+
+                // Add expense (simple route)
+                composable(
+                    route = Screen.AddExpense.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    AddExpenseScreen(
+                        houseId = houseId,
+                        initialName = null,
+                        initialQuantity = null,
+                        onNavigateBack = { navController.popBackStack() },
+                        onExpenseAdded = { navController.popBackStack() }
+                    )
+                }
+
                 composable(
                     route = Screen.PerDiemConfig.route,
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
@@ -357,6 +409,12 @@ fun FlockrNavigation(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddEntry = { configId ->
                             navController.navigate("add_per_diem_entry/$houseId/$configId")
+                        },
+                        onNavigateToAddConfig = {
+                            navController.navigate(Screen.AddPerDiemConfig.createRoute(houseId))
+                        },
+                        onNavigateToEditConfig = { config ->
+                            navController.navigate(Screen.EditPerDiemConfig.createRoute(houseId, config))
                         }
                     )
                 }
@@ -379,19 +437,7 @@ fun FlockrNavigation(
 
                 // Modern Finance Screens
                 composable(
-                    route = Screen.OneTimeExpenses.route,
-                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    OneTimeExpensesScreen(
-                        houseId = houseId,
-                        onNavigateBack = { navController.popBackStack() },
-                        onAddExpense = { navController.navigate(Screen.AddExpense.createRoute(houseId)) }
-                    )
-                }
-
-                composable(
-                    route = Screen.AddExpense.route,
+                    route = Screen.AddExpenseAdvanced.route,
                     arguments = listOf(
                         navArgument("houseId") { type = NavType.StringType },
                         navArgument("itemName") {
@@ -440,6 +486,12 @@ fun FlockrNavigation(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddBill = {
                             navController.navigate(Screen.AddRecurringExpense.createRoute(houseId))
+                        },
+                        onNavigateToEditBill = { expenseId ->
+                            navController.navigate("edit_recurring_expense/$houseId/$expenseId")
+                        },
+                        onNavigateToHistory = { expenseId, expenseName ->
+                            navController.navigate(Screen.BillHistory.createRoute(houseId, expenseId, expenseName))
                         }
                     )
                 }
@@ -464,6 +516,23 @@ fun FlockrNavigation(
                 }
 
                 composable(
+                    route = "edit_expense/{houseId}/{expenseId}",
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("expenseId") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+                    
+                    `in`.xroden.flockr.features.expenses.ui.onetime.EditExpenseScreen(
+                        houseId = houseId,
+                        expenseId = expenseId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
                     route = "expense_detail/{houseId}/{expenseId}",
                     arguments = listOf(
                         navArgument("houseId") { type = NavType.StringType },
@@ -476,8 +545,8 @@ fun FlockrNavigation(
                         houseId = houseId,
                         expenseId = expenseId,
                         onNavigateBack = { navController.popBackStack() },
-                        onEditExpense = { 
-                            // TODO: Implement edit expense navigation
+                        onEditExpense = { id -> 
+                            navController.navigate("edit_expense/$houseId/$id")
                         }
                     )
                 }
@@ -495,6 +564,23 @@ fun FlockrNavigation(
                 }
 
                 composable(
+                    route = "edit_recurring_expense/{houseId}/{expenseId}",
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("expenseId") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+                    
+                    `in`.xroden.flockr.features.expenses.ui.recurring.EditRecurringExpenseScreen(
+                        houseId = houseId,
+                        expenseId = expenseId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
                     route = Screen.MonthlyReports.route,
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
@@ -507,6 +593,15 @@ fun FlockrNavigation(
                         },
                         onNavigateToUser = { userId ->
                             navController.navigate(Screen.OneTimeExpenses.createRoute(houseId, userId = userId))
+                        },
+                        onNavigateToOneTimeExpenses = {
+                            navController.navigate(Screen.OneTimeExpenses.createRoute(houseId))
+                        },
+                        onNavigateToRecurringExpenses = {
+                            navController.navigate(Screen.RecurringExpenses.createRoute(houseId))
+                        },
+                        onNavigateToPerDiemExpenses = {
+                            navController.navigate(Screen.PerDiemTransactions.createRoute(houseId))
                         }
                     )
                 }
@@ -528,6 +623,67 @@ fun FlockrNavigation(
                         onNavigateToTransactions = {
                             navController.navigate(Screen.PerDiemTransactions.createRoute(houseId))
                         }
+                    )
+
+                }
+
+                composable(
+                    route = Screen.PerDiemConfig.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    PerDiemConfigScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAddEntry = { configId ->
+                            navController.navigate("add_per_diem_entry/$houseId/$configId")
+                        },
+                        onNavigateToAddConfig = {
+                            navController.navigate(Screen.AddPerDiemConfig.createRoute(houseId))
+                        },
+                        onNavigateToEditConfig = { config ->
+                            navController.navigate(Screen.EditPerDiemConfig.createRoute(houseId, config))
+                        }
+                    )
+                }
+
+                composable(
+                    route = Screen.AddPerDiemConfig.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    AddPerDiemConfigScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Screen.EditPerDiemConfig.route,
+                    arguments = listOf(
+                        navArgument("houseId") { type = NavType.StringType },
+                        navArgument("configId") { type = NavType.StringType },
+                        navArgument("itemName") { type = NavType.StringType },
+                        navArgument("rate") { type = NavType.StringType },
+                        navArgument("category") { type = NavType.StringType },
+                        navArgument("unit") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    val configId = backStackEntry.arguments?.getString("configId") ?: return@composable
+                    val itemName = backStackEntry.arguments?.getString("itemName") ?: ""
+                    val rate = backStackEntry.arguments?.getString("rate") ?: ""
+                    val category = backStackEntry.arguments?.getString("category") ?: ""
+                    val unit = backStackEntry.arguments?.getString("unit") ?: ""
+
+                    EditPerDiemConfigScreen(
+                        houseId = houseId,
+                        configId = configId,
+                        initialItemName = itemName,
+                        initialRate = rate,
+                        initialCategory = category,
+                        initialUnit = unit,
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
@@ -551,8 +707,9 @@ fun FlockrNavigation(
                     `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAddExpenseWithData = { _: String, _: Int ->
-                            navController.navigate(Screen.AddExpense.createRoute(houseId))
+                        onNavigateToAddItem = { navController.navigate(Screen.AddShoppingItem.createRoute(houseId)) },
+                        onNavigateToAddExpenseWithData = { itemName, quantity ->
+                            navController.navigate(Screen.AddExpenseAdvanced.createRoute(houseId, itemName, quantity))
                         }
                     )
                 }
@@ -563,6 +720,41 @@ fun FlockrNavigation(
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     `in`.xroden.flockr.features.chores.ui.ChoresScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAddChore = { navController.navigate(Screen.AddChore.createRoute(houseId)) },
+                        onNavigateToProductivity = { navController.navigate(Screen.Productivity.createRoute(houseId)) }
+                    )
+                }
+
+                composable(
+                    route = Screen.AddChore.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    AddChoreScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Screen.Productivity.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    ProductivityScreen(
+                        houseId = houseId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Screen.AddShoppingItem.route,
+                    arguments = listOf(navArgument("houseId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
+                    AddShoppingItemScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )

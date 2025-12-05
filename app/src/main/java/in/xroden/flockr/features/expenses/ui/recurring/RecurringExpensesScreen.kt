@@ -38,6 +38,8 @@ fun RecurringExpensesScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onNavigateToAddBill: () -> Unit = {},
+    onNavigateToEditBill: (String) -> Unit = {},
+    onNavigateToHistory: (String, String) -> Unit = { _, _ -> },
     viewModel: RecurringExpenseViewModel = hiltViewModel(),
     expenseViewModel: ExpenseViewModel = hiltViewModel()
 ) {
@@ -45,7 +47,6 @@ fun RecurringExpensesScreen(
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
-    var showEditDialog by remember { mutableStateOf(false) }
     var selectedExpense by remember { mutableStateOf<RecurringExpense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -254,12 +255,14 @@ fun RecurringExpensesScreen(
                                         )
                                     },
                                     onEdit = {
-                                        selectedExpense = expense
-                                        showEditDialog = true
+                                        onNavigateToEditBill(expense.id)
                                     },
                                     onDelete = {
                                         selectedExpense = expense
                                         showDeleteDialog = true
+                                    },
+                                    onHistory = {
+                                        onNavigateToHistory(expense.id, expense.name)
                                     }
                                 )
                             }
@@ -311,279 +314,9 @@ fun RecurringExpensesScreen(
             }
         }
     }
-
-    // Edit Dialog
-    if (showEditDialog && selectedExpense != null) {
-        EditRecurringExpenseDialog(
-            expense = selectedExpense!!,
-            onDismiss = {
-                showEditDialog = false
-                selectedExpense = null
-            },
-            onSave = { updatedExpense ->
-                viewModel.updateRecurringExpense(
-                    houseId = houseId,
-                    expenseId = updatedExpense.id,
-                    name = updatedExpense.name,
-                    amount = updatedExpense.amount,
-                    dueDay = updatedExpense.dueDay,
-                    category = updatedExpense.category,
-                    isActive = updatedExpense.isActive
-                )
-                showEditDialog = false
-                selectedExpense = null
-            }
-        )
-    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditRecurringExpenseDialog(
-    expense: RecurringExpense,
-    onDismiss: () -> Unit,
-    onSave: (RecurringExpense) -> Unit
-) {
-    var name by remember { mutableStateOf(expense.name) }
-    var amount by remember { mutableStateOf(expense.amount.toString()) }
-    var dueDay by remember { mutableStateOf(expense.dueDay.toString()) }
-    var category by remember { mutableStateOf(expense.category) }
-    var frequency by remember { mutableStateOf(expense.frequency) }
-    var customDays by remember { mutableStateOf(expense.customFrequencyDays?.toString() ?: "") }
-    var reminderDays by remember { mutableStateOf(expense.reminderDaysBefore.toString()) }
-    var reminderEnabled by remember { mutableStateOf(expense.reminderEnabled) }
-    var notes by remember { mutableStateOf(expense.notes ?: "") }
 
-    var expandedCategory by remember { mutableStateOf(false) }
-    var expandedFrequency by remember { mutableStateOf(false) }
-
-    val categories = listOf(
-        "Utilities", "Rent", "Internet", "Insurance", "Subscription",
-        "Groceries", "Food", "Entertainment", "Transport", "Shopping",
-        "Healthcare", "Education", "Other"
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Header
-                Text(
-                    text = "Edit Recurring Bill",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // Name
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Bill Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                // Amount
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                // Due Day
-                OutlinedTextField(
-                    value = dueDay,
-                    onValueChange = { dueDay = it },
-                    label = { Text("Due Day (1-31)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                // Category
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategory,
-                    onExpandedChange = { expandedCategory = !expandedCategory }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    category = cat
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Frequency
-                ExposedDropdownMenuBox(
-                    expanded = expandedFrequency,
-                    onExpandedChange = { expandedFrequency = !expandedFrequency }
-                ) {
-                    OutlinedTextField(
-                        value = frequency.toDisplayName(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Frequency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedFrequency,
-                        onDismissRequest = { expandedFrequency = false }
-                    ) {
-                        ExpenseFrequency.entries.forEach { freq ->
-                            DropdownMenuItem(
-                                text = { Text(freq.toDisplayName()) },
-                                onClick = {
-                                    frequency = freq
-                                    expandedFrequency = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Custom Days (if frequency is custom)
-                if (frequency == ExpenseFrequency.CUSTOM) {
-                    OutlinedTextField(
-                        value = customDays,
-                        onValueChange = { customDays = it },
-                        label = { Text("Custom Days") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium
-                    )
-                }
-
-                // Reminder Toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Enable Reminders",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Switch(
-                        checked = reminderEnabled,
-                        onCheckedChange = { reminderEnabled = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    )
-                }
-
-                // Reminder Days (if enabled)
-                if (reminderEnabled) {
-                    OutlinedTextField(
-                        value = reminderDays,
-                        onValueChange = { reminderDays = it },
-                        label = { Text("Remind Days Before") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium
-                    )
-                }
-
-                // Notes
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    maxLines = 4,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
-                    }
-                    Button(
-                        onClick = {
-                            val newAmount = amount.toBigDecimalOrNull() ?: expense.amount
-
-                            val updatedExpense = expense.copy(
-                                name = name,
-                                amount = newAmount,
-                                dueDay = dueDay.toIntOrNull() ?: expense.dueDay,
-                                category = category,
-                                frequency = frequency,
-                                customFrequencyDays = if (frequency == ExpenseFrequency.CUSTOM)
-                                    customDays.toIntOrNull() else null,
-                                reminderDaysBefore = reminderDays.toIntOrNull() ?: 3,
-                                reminderEnabled = reminderEnabled,
-                                notes = notes.ifBlank { null }
-                            )
-                            onSave(updatedExpense)
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium,
-                        enabled = name.isNotBlank() &&
-                                amount.toBigDecimalOrNull() != null &&
-                                dueDay.toIntOrNull() in 1..31,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Save", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Helper function reused
 private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
@@ -691,8 +424,15 @@ fun RecurringExpenseCard(
     onMarkAsPaid: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    // Simple logic: if due day is past today, it's overdue (unless paid - which we don't track perfectly yet without history check)
+    // For now, let's just show the next due date
+    val nextDueDate = getNextDueDate(expense.dueDay, today)
+    val daysUntilDue = nextDueDate.dayOfYear - today.dayOfYear
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -707,6 +447,7 @@ fun RecurringExpenseCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            // Top row: name/category on the left, amount on the right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -755,11 +496,51 @@ fun RecurringExpenseCard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Due Date & Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Event,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Due: ${nextDueDate.dayOfMonth} ${nextDueDate.month.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (daysUntilDue < 0) {
+                    Text(
+                        text = "Overdue",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else if (daysUntilDue <= 3) {
+                    Text(
+                        text = "Due Soon",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = onMarkAsPaid,
@@ -767,34 +548,97 @@ fun RecurringExpenseCard(
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Paid", fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Paid", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
 
                 OutlinedButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(0.5f),
+                    onClick = onHistory,
+                    modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.medium,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.History, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("History", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Edit", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
 
                 OutlinedButton(
                     onClick = onDelete,
-                    modifier = Modifier.weight(0.5f),
+                    modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Delete", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
+    }
+}
+
+private fun getNextDueDate(dueDay: Int, today: kotlinx.datetime.LocalDate): kotlinx.datetime.LocalDate {
+    val currentMonthDue = kotlinx.datetime.LocalDate(
+        today.year,
+        today.month,
+        dueDay.coerceAtMost(
+            today.month.length(
+                today.year % 4 == 0 && (today.year % 100 != 0 || today.year % 400 == 0)
+            )
+        )
+    )
+
+    return if (currentMonthDue < today) {
+        // If due date passed this month, it's next month
+        val nextMonth = today.month.plus(1)
+        val nextYear = if (today.month == kotlinx.datetime.Month.DECEMBER) today.year + 1 else today.year
+        kotlinx.datetime.LocalDate(
+            nextYear,
+            nextMonth,
+            dueDay.coerceAtMost(
+                nextMonth.length(
+                    nextYear % 4 == 0 && (nextYear % 100 != 0 || nextYear % 400 == 0)
+                )
+            )
+        )
+    } else {
+        currentMonthDue
+    }
+}
+
+// Extension to get length of month
+private fun kotlinx.datetime.Month.length(isLeapYear: Boolean): Int {
+    return when (this) {
+        kotlinx.datetime.Month.FEBRUARY -> if (isLeapYear) 29 else 28
+        kotlinx.datetime.Month.APRIL, kotlinx.datetime.Month.JUNE, kotlinx.datetime.Month.SEPTEMBER, kotlinx.datetime.Month.NOVEMBER -> 30
+        else -> 31
     }
 }

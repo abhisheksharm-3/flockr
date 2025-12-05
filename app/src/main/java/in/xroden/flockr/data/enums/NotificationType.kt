@@ -39,7 +39,10 @@ enum class NotificationType {
     MEMBER_JOINED,
     
     @SerialName("message")
-    MESSAGE
+    MESSAGE,
+
+    @SerialName("message_sent")
+    MESSAGE_SENT
 }
 
 

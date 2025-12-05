@@ -2,6 +2,7 @@ package `in`.xroden.flockr.features.expenses.ui.reports
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,9 @@ fun MonthlyReportsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCategory: (String) -> Unit,
     onNavigateToUser: (String) -> Unit,
+    onNavigateToOneTimeExpenses: () -> Unit = {},
+    onNavigateToRecurringExpenses: () -> Unit = {},
+    onNavigateToPerDiemExpenses: () -> Unit = {},
     viewModel: ExpenseViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
@@ -216,7 +220,11 @@ fun MonthlyReportsScreen(
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .clickable { onNavigateToOneTimeExpenses() }
+                                    .padding(8.dp)
                             ) {
                                 Text(
                                     text = "One-Time",
@@ -234,7 +242,11 @@ fun MonthlyReportsScreen(
                             }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .clickable { onNavigateToRecurringExpenses() }
+                                    .padding(8.dp)
                             ) {
                                 Text(
                                     text = "Recurring",
@@ -252,7 +264,11 @@ fun MonthlyReportsScreen(
                             }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .clickable { onNavigateToPerDiemExpenses() }
+                                    .padding(8.dp)
                             ) {
                                 Text(
                                     text = "Per Diem",

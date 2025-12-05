@@ -38,11 +38,11 @@ import kotlinx.datetime.toLocalDateTime
 fun ShoppingListScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToAddItem: () -> Unit,
     onNavigateToAddExpenseWithData: (String, Int) -> Unit = { _, _ -> },
     viewModel: ShoppingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var showConvertDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
@@ -53,21 +53,6 @@ fun ShoppingListScreen(
 
     LaunchedEffect(houseId) {
         viewModel.loadShoppingItems(houseId)
-    }
-
-    // Add Item Dialog (Full Screen)
-    if (showAddDialog) {
-        FullScreenAddShoppingItemDialog(
-            houseId = houseId,
-            onDismiss = { showAddDialog = false },
-            onAdd = { itemName, quantity ->
-                scope.launch {
-                    viewModel.addItem(houseId, itemName, quantity)
-                    showAddDialog = false
-                    snackbarHostState.showSnackbar("Item added to list")
-                }
-            }
-        )
     }
 
     // Edit Item Dialog
@@ -131,7 +116,7 @@ fun ShoppingListScreen(
         floatingActionButton = {
             if (selectedTab == 0) {
                 ExtendedFloatingActionButton(
-                    onClick = { showAddDialog = true },
+                    onClick = onNavigateToAddItem,
                     icon = { Icon(Icons.Default.Add, "Add") },
                     text = { Text("Add Item") },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -196,7 +181,7 @@ fun ShoppingListScreen(
                     if (currentItems.isEmpty()) {
                         EmptyShoppingState(
                             modifier = Modifier.fillMaxSize(),
-                            onAddItem = { showAddDialog = true },
+                            onAddItem = onNavigateToAddItem,
                             isPurchasedTab = selectedTab == 1
                         )
                     } else {
@@ -413,95 +398,7 @@ fun ShoppingItemCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FullScreenAddShoppingItemDialog(
-    houseId: String,
-    onDismiss: () -> Unit,
-    onAdd: (String, String?) -> Unit
-) {
-    var itemName by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text("Add Item") },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
-                    },
-                    actions = {
-                        TextButton(
-                            onClick = { onAdd(itemName, quantity.takeIf { it.isNotBlank() }) },
-                            enabled = itemName.isNotBlank()
-                        ) {
-                            Text("Save", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.surface
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    label = { Text("Item Name") },
-                    placeholder = { Text("e.g., Milk, Bread") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    textStyle = MaterialTheme.typography.bodyLarge
-                )
-                
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { quantity = it },
-                    label = { Text("Quantity (Optional)") },
-                    placeholder = { Text("e.g., 2, 1kg") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    textStyle = MaterialTheme.typography.bodyLarge
-                )
-                
-                // Helper text or suggestions could go here
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Default.Lightbulb, null, tint = MaterialTheme.colorScheme.primary)
-                        Text(
-                            "Tip: You can convert purchased items to expenses later!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun EditShoppingItemDialog(

@@ -112,4 +112,22 @@ sealed class Screen(val route: String) {
     object HouseAuditLog : Screen("house_audit_log/{houseId}") {
         fun createRoute(houseId: String) = "house_audit_log/$houseId"
     }
+    object AddChore : Screen("add_chore/{houseId}") {
+        fun createRoute(houseId: String) = "add_chore/$houseId"
+    }
+    object Productivity : Screen("productivity/{houseId}") {
+        fun createRoute(houseId: String) = "productivity/$houseId"
+    }
+    object AddShoppingItem : Screen("add_shopping_item/{houseId}") {
+        fun createRoute(houseId: String) = "add_shopping_item/$houseId"
+    }
+
+    object AddPerDiemConfig : Screen("add_per_diem_config/{houseId}") {
+        fun createRoute(houseId: String) = "add_per_diem_config/$houseId"
+    }
+
+    object EditPerDiemConfig : Screen("edit_per_diem_config/{houseId}/{configId}?itemName={itemName}&rate={rate}&category={category}&unit={unit}") {
+        fun createRoute(houseId: String, config: `in`.xroden.flockr.features.expenses.model.PerDiemConfig) = 
+            "edit_per_diem_config/$houseId/${config.id}?itemName=${android.net.Uri.encode(config.itemName)}&rate=${config.rate}&category=${android.net.Uri.encode(config.category)}&unit=${android.net.Uri.encode(config.unit)}"
+    }
 }

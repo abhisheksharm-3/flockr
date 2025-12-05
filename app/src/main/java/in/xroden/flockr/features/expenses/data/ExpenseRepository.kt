@@ -15,6 +15,10 @@ import `in`.xroden.flockr.features.expenses.model.SpendByCategory
 import `in`.xroden.flockr.features.expenses.model.SpendByMember
 import `in`.xroden.flockr.features.expenses.model.Transaction
 import `in`.xroden.flockr.features.expenses.model.UserBalance
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -32,6 +36,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
+import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.launch
@@ -44,6 +49,19 @@ class ExpenseRepository @Inject constructor(
         get() = supabase.auth.currentUserOrNull()?.id
 
     fun getCurrentUserId(): String? = userId
+
+    @Serializable
+    data class DebtBreakdownItem(
+        @SerialName("expense_id") val expenseId: String,
+        @SerialName("expense_name") val expenseName: String,
+        @SerialName("date") val date: LocalDate,
+        @SerialName("amount_owed") 
+        @Serializable(with = BigDecimalSerializer::class)
+        val amountOwed: BigDecimal,
+        @SerialName("total_amount")
+        @Serializable(with = BigDecimalSerializer::class)
+        val totalAmount: BigDecimal
+    )
 
     // ONE-TIME EXPENSES
 
@@ -100,7 +118,7 @@ class ExpenseRepository @Inject constructor(
     suspend fun getOneTimeExpense(expenseId: String): Result<OneTimeExpense> {
         return try {
             val expense = supabase.from("one_time_expenses")
-                .select(Columns.ALL) {
+                .select(columns = Columns.list("*, expense_splits(*)")) {
                     filter {
                         eq("id", expenseId)
                     }
@@ -127,73 +145,67 @@ class ExpenseRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            val expense = supabase.from("one_time_expenses")
-                .insert(
-                    OneTimeExpenseInsert(
-                        houseId = houseId,
-                        name = name,
-                        amount = amount,
-                        date = date,
-                        paidBy = currentUserId,
-                        category = category,
-                        notes = notes
-                    )
-                ) {
-                    select()
-                }
-                .decodeSingle<OneTimeExpense>()
-
-            if (splitAmounts != null && splitAmounts.isNotEmpty()) {
-                val validSplits = splitAmounts.filter { (splitUserId, _) ->
-                    splitUserId != currentUserId
-                }
-
-                validSplits.forEach { (splitUserId, amountOwed) ->
-                    supabase.from("expense_splits")
-                        .insert(
-                            ExpenseSplitInsert(
-                                expenseId = expense.id,
-                                userId = splitUserId,
-                                amountOwed = amountOwed
-                            )
-                        )
-                }
-
-                try {
-                    @Serializable
-                    data class HouseNotificationParams(
-                        @SerialName("p_house_id")
-                        val houseId: String,
-                        @SerialName("p_title")
-                        val title: String,
-                        @SerialName("p_message")
-                        val message: String,
-                        @SerialName("p_type")
-                        val type: String,
-                        @SerialName("p_data")
-                        val data: String,
-                        @SerialName("p_exclude_user_id")
-                        val excludeUserId: String?
-                    )
-
-                    supabase.postgrest.rpc(
-                        function = "create_notification_for_house",
-                        parameters = HouseNotificationParams(
-                            houseId = houseId,
-                            title = "New Expense Split",
-                            message = "Added a $amount expense for $name and split it.",
-                            type = "expense",
-                            data = """{"id":"${expense.id}","type":"expense"}""",
-                            excludeUserId = currentUserId
-                        )
-                    )
-                } catch (e: Exception) {
-                    // Ignore notification errors
+            // Construct Splits JSON Array
+            val splitsJson = buildJsonArray {
+                if (!splitWith.isNullOrEmpty()) {
+                    if (splitType == `in`.xroden.flockr.data.enums.ExpenseSplitType.EQUAL) {
+                        val totalPeople = splitWith.size + 1
+                        val splitAmount = amount.divide(BigDecimal(totalPeople), 2, java.math.RoundingMode.HALF_UP)
+                         // Only add splits for OTHERS. The payee (current user) is implicit in the expense, 
+                         // and we filter out self-owing in the RPC anyway, but good to be clean.
+                        splitWith.forEach { splitUserId ->
+                             add(buildJsonObject {
+                                 put("user_id", splitUserId)
+                                 put("amount", splitAmount.toDouble())
+                             })
+                        }
+                    } else if (splitType == `in`.xroden.flockr.data.enums.ExpenseSplitType.AMOUNT && splitAmounts != null) {
+                        splitAmounts.forEach { (splitUserId, splitAmount) ->
+                             if (splitUserId != currentUserId) {
+                                 add(buildJsonObject {
+                                     put("user_id", splitUserId)
+                                     put("amount", splitAmount.toDouble())
+                                 })
+                             }
+                        }
+                    }
                 }
             }
 
-            Result.success(expense)
+            @Serializable
+            data class CreateExpenseParams(
+                @SerialName("p_house_id") val houseId: String,
+                @SerialName("p_paid_by") val paidBy: String,
+                @SerialName("p_name") val name: String,
+                @SerialName("p_amount") 
+                @Serializable(with = BigDecimalSerializer::class)
+                val amount: BigDecimal,
+                @SerialName("p_category") val category: String,
+                @SerialName("p_date") val date: LocalDate,
+                @SerialName("p_notes") val notes: String?,
+                @SerialName("p_splits") val splits: JsonElement
+            )
+
+            // Call RPC
+            val expenseId = supabase.postgrest.rpc(
+                function = "create_one_time_expense",
+                parameters = CreateExpenseParams(
+                    houseId = houseId,
+                    paidBy = currentUserId,
+                    name = name,
+                    amount = amount,
+                    category = category,
+                    date = date,
+                    notes = notes,
+                    splits = splitsJson
+                )
+            ).decodeSingle<String>()
+            
+            // Re-fetch the created expense to return full object (backward compatibility with UI)
+            getOneTimeExpense(expenseId)
+
         } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "createOneTimeExpense failed", e)
             Result.failure(e)
         }
     }
@@ -204,7 +216,8 @@ class ExpenseRepository @Inject constructor(
         amount: BigDecimal?,
         date: LocalDate?,
         category: String?,
-        notes: String?
+        notes: String?,
+        splitAmounts: Map<String, BigDecimal>? = null
     ): Result<Unit> {
         return try {
             supabase.from("one_time_expenses")
@@ -219,6 +232,28 @@ class ExpenseRepository @Inject constructor(
                 ) {
                     filter { eq("id", expenseId) }
                 }
+
+            if (splitAmounts != null) {
+                // Delete existing splits
+                supabase.from("expense_splits").delete {
+                    filter { eq("expense_id", expenseId) }
+                }
+
+                val currentUserId = userId
+                val validSplits = splitAmounts.filter { (splitUserId, _) ->
+                    splitUserId != currentUserId
+                }.map { (splitUserId, amountOwed) ->
+                    ExpenseSplitInsert(
+                        expenseId = expenseId,
+                        userId = splitUserId,
+                        amountOwed = amountOwed
+                    )
+                }
+
+                if (validSplits.isNotEmpty()) {
+                    supabase.from("expense_splits").insert(validSplits)
+                }
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -426,10 +461,14 @@ class ExpenseRepository @Inject constructor(
                 return Result.failure(Exception("No user logged in"))
             }
             
-            android.util.Log.d("ExpenseRepository", "Current user ID: $currentUserId")
+            // 1. Fetch the recurring expense to get details (splits, category, etc.)
+            val recurringExpense = supabase.from("recurring_expenses")
+                .select(Columns.list("*, split_with, split_type, split_amounts")) {
+                    filter { eq("id", expenseId) }
+                }
+                .decodeSingleOrNull<RecurringExpense>() ?: return Result.failure(Exception("Recurring expense not found"))
 
-            // Insert payment history
-            android.util.Log.d("ExpenseRepository", "Inserting payment history...")
+            // 2. Insert payment history (keep this for record)
             supabase.from("payment_history")
                 .insert(
                     PaymentHistoryInsert(
@@ -439,10 +478,22 @@ class ExpenseRepository @Inject constructor(
                         paymentDate = paymentDate
                     )
                 )
-            android.util.Log.d("ExpenseRepository", "Payment history inserted successfully")
 
-            // Update recurring expense with last paid date
-            android.util.Log.d("ExpenseRepository", "Updating recurring expense last_paid_date...")
+            // 3. Create a OneTimeExpense to represent this payment (so it affects balances and shows in history)
+            // We use the createOneTimeExpense function to handle splits and notifications automatically
+            createOneTimeExpense(
+                houseId = recurringExpense.houseId,
+                name = recurringExpense.name,
+                amount = amount,
+                category = recurringExpense.category,
+                date = paymentDate,
+                notes = "Recurring Payment",
+                splitWith = recurringExpense.splitWith,
+                splitType = recurringExpense.splitType,
+                splitAmounts = recurringExpense.splitAmounts
+            )
+
+            // 4. Update recurring expense with last paid date
             supabase.from("recurring_expenses")
                 .update(
                     RecurringExpenseUpdate(
@@ -451,14 +502,10 @@ class ExpenseRepository @Inject constructor(
                 ) {
                     filter { eq("id", expenseId) }
                 }
-            android.util.Log.d("ExpenseRepository", "Recurring expense updated successfully")
 
-            android.util.Log.d("ExpenseRepository", "markRecurringExpenseAsPaid completed successfully")
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("ExpenseRepository", "markRecurringExpenseAsPaid failed with exception", e)
-            android.util.Log.e("ExpenseRepository", "Exception message: ${e.message}")
-            android.util.Log.e("ExpenseRepository", "Exception stack trace: ${e.stackTraceToString()}")
             Result.failure(e)
         }
     }
@@ -583,14 +630,33 @@ class ExpenseRepository @Inject constructor(
         description: String?
     ): Result<Unit> {
         return try {
-            createTransaction(
-                houseId = houseId,
-                payerId = payerId,
-                payeeId = payeeId,
-                amount = amount,
-                isSettlement = true,
-                description = description ?: "Balance settlement"
-            ).map { Unit }
+            @Serializable
+            data class SettleBalanceParams(
+                @SerialName("p_house_id")
+                val houseId: String,
+                @SerialName("p_payer_id")
+                val payerId: String,
+                @SerialName("p_payee_id")
+                val payeeId: String,
+                @SerialName("p_amount")
+                @Serializable(with = BigDecimalSerializer::class)
+                val amount: BigDecimal,
+                @SerialName("p_description")
+                val description: String
+            )
+
+            supabase.postgrest.rpc(
+                function = "settle_balance",
+                parameters = SettleBalanceParams(
+                    houseId = houseId,
+                    payerId = payerId,
+                    payeeId = payeeId,
+                    amount = amount,
+                    description = description ?: "Balance settlement"
+                )
+            )
+
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -612,6 +678,30 @@ class ExpenseRepository @Inject constructor(
             ).decodeList<UserBalance>()
 
             Result.success(balances)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDebtBreakdown(houseId: String, payerId: String, payeeId: String): Result<List<DebtBreakdownItem>> {
+        return try {
+            @Serializable
+            data class GetDebtBreakdownParams(
+                @SerialName("p_house_id") val houseId: String,
+                @SerialName("p_payer_id") val payerId: String,
+                @SerialName("p_payee_id") val payeeId: String
+            )
+
+            val breakdown = supabase.postgrest.rpc(
+                function = "get_debt_breakdown",
+                parameters = GetDebtBreakdownParams(
+                    houseId = houseId,
+                    payerId = payerId,
+                    payeeId = payeeId
+                )
+            ).decodeList<DebtBreakdownItem>()
+
+            Result.success(breakdown)
         } catch (e: Exception) {
             Result.failure(e)
         }

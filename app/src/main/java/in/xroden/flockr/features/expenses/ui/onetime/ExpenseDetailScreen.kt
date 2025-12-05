@@ -39,10 +39,13 @@ fun ExpenseDetailScreen(
     val expense by viewModel.selectedExpense.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
+    
+    var houseMembers by remember { mutableStateOf<List<`in`.xroden.flockr.features.house.model.MemberWithProfile>>(emptyList()) }
 
-    LaunchedEffect(expenseId) {
+    LaunchedEffect(houseId, expenseId) {
         viewModel.loadOneTimeExpense(expenseId)
         viewModel.loadHouseConfig(houseId)
+        houseMembers = viewModel.getHouseMembers(houseId)
     }
 
     Scaffold(
@@ -83,6 +86,8 @@ fun ExpenseDetailScreen(
             }
         } else {
             val currentExpense = expense!!
+            val payerName = houseMembers.find { it.userId == currentExpense.paidBy }?.fullName ?: "Unknown"
+            
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -157,11 +162,16 @@ fun ExpenseDetailScreen(
                     DetailRow(
                         icon = Icons.Default.CalendarToday,
                         label = "Date",
-                        value = currentExpense.date.toString()
+                        value = formatDate(currentExpense.date, houseConfig?.dateFormat ?: "yyyy-MM-dd")
                     )
                     
-                    // Add Paid By if we can resolve user name (might need more data)
-                    // For now, skipping or showing ID if needed, but better to fetch name
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    
+                    DetailRow(
+                        icon = Icons.Default.Person,
+                        label = "Paid By",
+                        value = payerName
+                    )
                     
                     if (!currentExpense.notes.isNullOrBlank()) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -173,11 +183,125 @@ fun ExpenseDetailScreen(
                     }
                 }
 
-                // Splits Section (Placeholder - needs split data in OneTimeExpense model)
-                // If OneTimeExpense doesn't have splits loaded, we might need to fetch them separately
-                // or update the model. For now, we'll skip unless we update the model.
+                // Splits Section
+                if (!currentExpense.splits.isNullOrEmpty()) {
+                    val totalSplitAmount = currentExpense.splits!!.sumOf { it.amountOwed }
+                    val payerShare = currentExpense.amount - totalSplitAmount
+
+                    SectionCard(title = "Splits") {
+                        // Payer's Share
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = payerName.take(1).uppercase(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "$payerName (Payer)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Paid",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            
+                            Text(
+                                text = "$currencySymbol${"%.2f".format(payerShare)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (currentExpense.splits!!.isNotEmpty()) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        }
+
+                        currentExpense.splits!!.forEachIndexed { index, split ->
+                            val memberName = houseMembers.find { it.userId == split.userId }?.fullName ?: "Unknown"
+                            val isSettled = split.isSettled
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = memberName.take(1).uppercase(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = memberName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = if (isSettled) "Settled" else "Owes",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isSettled) CategoryGreen else CategoryRed
+                                        )
+                                    }
+                                }
+                                
+                                Text(
+                                    text = "$currencySymbol${"%.2f".format(split.amountOwed)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            if (index < currentExpense.splits!!.size - 1) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+private fun formatDate(date: kotlinx.datetime.LocalDate, pattern: String): String {
+    return try {
+        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
+        val javaPattern = pattern.replace("YYYY", "yyyy").replace("DD", "dd")
+        javaDate.format(java.time.format.DateTimeFormatter.ofPattern(javaPattern))
+    } catch (e: Exception) {
+        date.toString()
     }
 }
 

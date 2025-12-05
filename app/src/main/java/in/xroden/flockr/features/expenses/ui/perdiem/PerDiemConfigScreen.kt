@@ -40,6 +40,8 @@ fun PerDiemConfigScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onNavigateToAddEntry: (String) -> Unit,
+    onNavigateToAddConfig: () -> Unit,
+    onNavigateToEditConfig: (PerDiemConfig) -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
     val configsState by viewModel.configState.collectAsState()
@@ -49,8 +51,8 @@ fun PerDiemConfigScreen(
     }
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
+
+
     var showDeleteDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,54 +62,25 @@ fun PerDiemConfigScreen(
         viewModel.loadHouseConfig(houseId)
     }
 
-    if (showAddDialog) {
-        AddPerDiemConfigDialog(
-            currencySymbol = currencySymbol,
-            onDismiss = {
-                showAddDialog = false
-            },
-            onAdd = { itemName, rate, category, unit ->
-                viewModel.createConfig(houseId, itemName, rate, category, unit)
-                showAddDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar("Per-diem item added")
-                }
-            }
-        )
-    }
-
-    showEditDialog?.let { config ->
-        EditPerDiemConfigDialog(
-            config = config,
-            currencySymbol = currencySymbol,
-            onDismiss = { showEditDialog = null },
-            onSave = { itemName, rate, category, unit ->
-                viewModel.updateConfig(houseId, config.id, itemName, rate, category, unit)
-                showEditDialog = null
-                scope.launch {
-                    snackbarHostState.showSnackbar("Per-diem item updated")
-                }
-            }
-        )
-    }
-
-    showDeleteDialog?.let { config ->
-        DeletePerDiemConfigDialog(
-            config = config,
-            onDismiss = { showDeleteDialog = null },
-            onConfirm = { deleteUsage ->
-                viewModel.deleteConfig(houseId, config.id, deleteUsage)
-                showDeleteDialog = null
-                scope.launch {
-                    val message = if (deleteUsage) {
-                        "Item and all usage deleted"
-                    } else {
-                        "Item deleted, usage preserved"
+    if (showDeleteDialog != null) {
+        showDeleteDialog?.let { config ->
+            DeletePerDiemConfigDialog(
+                config = config,
+                onDismiss = { showDeleteDialog = null },
+                onConfirm = { deleteUsage ->
+                    viewModel.deleteConfig(houseId, config.id, deleteUsage)
+                    showDeleteDialog = null
+                    scope.launch {
+                        val message = if (deleteUsage) {
+                            "Item and all usage deleted"
+                        } else {
+                            "Item deleted, usage preserved"
+                        }
+                        snackbarHostState.showSnackbar(message)
                     }
-                    snackbarHostState.showSnackbar(message)
                 }
-            }
-        )
+            )
+        }
     }
 
     Scaffold(
@@ -138,9 +111,7 @@ fun PerDiemConfigScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = {
-                    showAddDialog = true
-                },
+                onClick = onNavigateToAddConfig,
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
                 text = { Text("Add Item", fontWeight = FontWeight.SemiBold) },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -156,7 +127,7 @@ fun PerDiemConfigScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                onAddItem = { showAddDialog = true }
+                onAddItem = onNavigateToAddConfig
             )
         } else {
             LazyColumn(
@@ -187,7 +158,7 @@ fun PerDiemConfigScreen(
                         config = config,
                         currencySymbol = currencySymbol,
                         onAddEntry = { onNavigateToAddEntry(config.id) },
-                        onEdit = { showEditDialog = config },
+                        onEdit = { onNavigateToEditConfig(config) },
                         onDelete = { showDeleteDialog = config }
                     )
                 }
@@ -298,7 +269,7 @@ private fun PerDiemConfigCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Log Usage", fontWeight = FontWeight.SemiBold)
+                    Text("Add Entry", fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
@@ -334,306 +305,12 @@ private fun PerDiemConfigCard(
     }
 }
 
-/**
- * Full-screen dialog for adding a new per-diem configuration.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddPerDiemConfigDialog(
-    currencySymbol: String = "$",
-    onDismiss: () -> Unit,
-    onAdd: (String, BigDecimal, String, String) -> Unit
-) {
-    var itemName by remember { mutableStateOf("") }
-    var rate by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Food & Beverages") }
-    var unit by remember { mutableStateOf("unit") }
-    var expandedCategory by remember { mutableStateOf(false) }
 
-    val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
-
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "Add Per-Diem Item",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Clear, "Cancel")
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                Text(
-                    text = "Item Details",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    label = { Text("Item Name *") },
-                    placeholder = { Text("e.g., Milk, Coffee") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = rate,
-                    onValueChange = { rate = it },
-                    label = { Text("Rate per Unit *") },
-                    prefix = { Text(currencySymbol) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = unit,
-                    onValueChange = { unit = it },
-                    label = { Text("Unit *") },
-                    placeholder = { Text("e.g., liter, pack, cup") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategory,
-                    onExpandedChange = { expandedCategory = !expandedCategory }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category *") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    category = cat
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Button(
-                    onClick = {
-                        val rateValue = rate.toBigDecimalOrNull()
-                        if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
-                            onAdd(itemName, rateValue, category, unit)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(Icons.Default.Add, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add Item", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
 
 /**
  * Full-screen dialog for editing an existing per-diem configuration.
  */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditPerDiemConfigDialog(
-    config: PerDiemConfig,
-    currencySymbol: String = "$",
-    onDismiss: () -> Unit,
-    onSave: (String, BigDecimal, String, String) -> Unit
-) {
-    var itemName by remember { mutableStateOf(config.itemName) }
-    var rate by remember { mutableStateOf(config.rate.toString()) }
-    var category by remember { mutableStateOf(config.category) }
-    var unit by remember { mutableStateOf(config.unit) }
-    var expandedCategory by remember { mutableStateOf(false) }
 
-    val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
-
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "Edit Per-Diem Item",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Clear, "Cancel")
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                Text(
-                    text = "Item Details",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                OutlinedTextField(
-                    value = itemName,
-                    onValueChange = { itemName = it },
-                    label = { Text("Item Name *") },
-                    placeholder = { Text("e.g., Milk, Coffee") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = rate,
-                    onValueChange = { rate = it },
-                    label = { Text("Rate per Unit *") },
-                    prefix = { Text(currencySymbol) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                OutlinedTextField(
-                    value = unit,
-                    onValueChange = { unit = it },
-                    label = { Text("Unit *") },
-                    placeholder = { Text("e.g., liter, pack, cup") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategory,
-                    onExpandedChange = { expandedCategory = !expandedCategory }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category *") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    category = cat
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Button(
-                    onClick = {
-                        val rateValue = rate.toBigDecimalOrNull()
-                        if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
-                            onSave(itemName, rateValue, category, unit)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = itemName.isNotBlank() && rate.toBigDecimalOrNull() != null && unit.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(Icons.Default.Check, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Save Changes", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
 
 /**
  * Empty state shown when no per-diem items are configured.
