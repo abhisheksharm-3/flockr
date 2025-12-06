@@ -66,8 +66,11 @@ class ExpenseViewModel @Inject constructor(
 
     fun getCurrentUserId(): String? = expenseRepository.getCurrentUserId()
 
+    private var expenseJob: kotlinx.coroutines.Job? = null
+
     fun loadExpenses(houseId: String) {
-        viewModelScope.launch {
+        expenseJob?.cancel()
+        expenseJob = viewModelScope.launch {
             _expenseState.value = OneTimeExpenseUiState.Loading
 
             expenseRepository.getOneTimeExpensesFlow(houseId).collect { result ->
@@ -168,6 +171,7 @@ class ExpenseViewModel @Inject constructor(
                 ).fold(
                     onSuccess = {
                         _createState.value = CreateExpenseUiState.Success
+                        loadExpenses(houseId) // Refresh
                         kotlinx.coroutines.delay(1000)
                         _createState.value = CreateExpenseUiState.Idle
                     },
@@ -201,7 +205,7 @@ class ExpenseViewModel @Inject constructor(
                     splitAmounts = splitAmounts
                 ).fold(
                     onSuccess = {
-                        // Success - state updated via flow
+                        loadExpenses(houseId) // Refresh
                     },
                     onFailure = { error ->
                         _expenseState.value = OneTimeExpenseUiState.Error(
@@ -217,7 +221,7 @@ class ExpenseViewModel @Inject constructor(
             viewModelScope.launch {
                 expenseRepository.deleteOneTimeExpense(expenseId).fold(
                     onSuccess = {
-                        // Success - state updated via flow
+                        loadExpenses(houseId) // Refresh
                     },
                     onFailure = { error ->
                         _expenseState.value = OneTimeExpenseUiState.Error(

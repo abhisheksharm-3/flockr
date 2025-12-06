@@ -10,6 +10,7 @@ import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -533,7 +534,7 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun getPendingInvitations(): Result<List<HouseInvitation>> {
+    suspend fun getPendingInvitations(): Result<List<InvitationWithHouse>> {
         return try {
             val currentUserId = userId ?: return Result.success(emptyList())
 
@@ -548,14 +549,10 @@ class HouseRepository @Inject constructor(
             val userEmail = userProfile?.get("email")?.jsonPrimitive?.content
                 ?: return Result.success(emptyList())
 
-            val invitations = supabase.from("house_invitations")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("invitee_email", userEmail)
-                        eq("status", "pending")
-                    }
-                }
-                .decodeList<HouseInvitation>()
+            // Using the RPC we successfully added
+            val invitations = supabase.postgrest.rpc(
+                "get_my_pending_invitations_with_details"
+            ).decodeList<InvitationWithHouse>()
 
             Result.success(invitations)
         } catch (e: Exception) {
@@ -565,38 +562,10 @@ class HouseRepository @Inject constructor(
 
     suspend fun acceptInvitation(invitationId: String): Result<Unit> {
         return try {
-            val currentUserId =
-                userId ?: return Result.failure(Exception("No user logged in"))
-
-            val invitation = supabase.from("house_invitations")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("id", invitationId)
-                    }
-                }
-                .decodeSingleOrNull<HouseInvitation>()
-                ?: return Result.failure(Exception("Invitation not found"))
-
-            supabase.from("house_members")
-                .insert(
-                    HouseMemberInsert(
-                        houseId = invitation.houseId,
-                        userId = currentUserId
-                    )
-                )
-
-            @Serializable
-            data class InvitationUpdate(
-                val status: String
+            supabase.postgrest.rpc(
+                "accept_house_invitation",
+                mapOf("p_invitation_id" to invitationId)
             )
-
-            supabase.from("house_invitations")
-                .update(InvitationUpdate(status = "accepted")) {
-                    filter {
-                        eq("id", invitationId)
-                    }
-                }
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

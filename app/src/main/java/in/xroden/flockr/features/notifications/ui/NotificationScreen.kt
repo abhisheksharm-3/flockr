@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,8 +63,21 @@ fun NotificationScreen(
                         )
                     }
                     
-                    TextButton(onClick = { viewModel.markAllAsRead() }) {
-                        Text("Mark all read")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { viewModel.markAllAsRead() }) {
+                            Icon(
+                                Icons.Default.DoneAll,
+                                "Mark all read",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = { viewModel.clearAllNotifications() }) {
+                            Icon(
+                                Icons.Default.DeleteSweep,
+                                "Clear all",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
                 

@@ -7,7 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +20,9 @@ import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.ui.theme.*
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +61,7 @@ fun EditRecurringExpenseScreen(
 
     var expandedCategory by remember { mutableStateOf(false) }
     var expandedFrequency by remember { mutableStateOf(false) }
+    var showDueDayPicker by remember { mutableStateOf(false) }
 
     val categories = listOf(
         "Utilities", "Rent", "Internet", "Insurance", "Subscription",
@@ -133,12 +137,21 @@ fun EditRecurringExpenseScreen(
             // Due Day
             OutlinedTextField(
                 value = dueDay,
-                onValueChange = { dueDay = it },
+                onValueChange = { 
+                    if (it.isEmpty() || (it.toIntOrNull() != null && it.length <= 2)) {
+                        dueDay = it 
+                    }
+                },
                 label = { Text("Due Day (1-31)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium
+                shape = MaterialTheme.shapes.medium,
+                trailingIcon = {
+                    IconButton(onClick = { showDueDayPicker = true }) {
+                        Icon(Icons.Default.DateRange, "Select Date", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             )
 
             // Category
@@ -260,6 +273,42 @@ fun EditRecurringExpenseScreen(
             )
             
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    // Due Day Date Picker
+    if (showDueDayPicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDueDayPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val instant = Instant.fromEpochMilliseconds(millis)
+                        val date = instant.toLocalDateTime(TimeZone.UTC).date
+                        dueDay = date.dayOfMonth.toString()
+                    }
+                    showDueDayPicker = false
+                }) {
+                    Text("OK", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDueDayPicker = false }) {
+                    Text("Cancel", fontWeight = FontWeight.Medium)
+                }
+            },
+            shape = MaterialTheme.shapes.large
+        ) {
+            DatePicker(state = datePickerState, title = {
+                Text(
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
+                    text = "Select due day",
+                    style = MaterialTheme.typography.titleMedium
+                ) 
+            })
         }
     }
 }

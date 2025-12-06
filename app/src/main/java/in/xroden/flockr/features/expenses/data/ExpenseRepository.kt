@@ -149,15 +149,20 @@ class ExpenseRepository @Inject constructor(
             val splitsJson = buildJsonArray {
                 if (!splitWith.isNullOrEmpty()) {
                     if (splitType == `in`.xroden.flockr.data.enums.ExpenseSplitType.EQUAL) {
-                        val totalPeople = splitWith.size + 1
+                        // Fix: Calculate unique participants including payer to avoid double counting if payer is also in splitWith
+                        val uniqueParticipants = (splitWith + currentUserId).distinct()
+                        val totalPeople = uniqueParticipants.size
+                        
                         val splitAmount = amount.divide(BigDecimal(totalPeople), 2, java.math.RoundingMode.HALF_UP)
-                         // Only add splits for OTHERS. The payee (current user) is implicit in the expense, 
-                         // and we filter out self-owing in the RPC anyway, but good to be clean.
-                        splitWith.forEach { splitUserId ->
-                             add(buildJsonObject {
-                                 put("user_id", splitUserId)
-                                 put("amount", splitAmount.toDouble())
-                             })
+                        
+                        // Add splits for everyone EXCEPT payer (payer's share is implicit/residual)
+                        uniqueParticipants.forEach { participantId ->
+                            if (participantId != currentUserId) {
+                                add(buildJsonObject {
+                                    put("user_id", participantId)
+                                    put("amount", splitAmount.toDouble())
+                                })
+                            }
                         }
                     } else if (splitType == `in`.xroden.flockr.data.enums.ExpenseSplitType.AMOUNT && splitAmounts != null) {
                         splitAmounts.forEach { (splitUserId, splitAmount) ->
@@ -199,7 +204,7 @@ class ExpenseRepository @Inject constructor(
                     notes = notes,
                     splits = splitsJson
                 )
-            ).decodeSingle<String>()
+            ).decodeAs<String>()
             
             // Re-fetch the created expense to return full object (backward compatibility with UI)
             getOneTimeExpense(expenseId)

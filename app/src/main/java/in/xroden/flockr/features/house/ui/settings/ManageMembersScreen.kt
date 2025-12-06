@@ -28,7 +28,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
-import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
@@ -41,7 +41,7 @@ fun ManageMembersScreen(
     viewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
-    var pendingInvitations by remember { mutableStateOf<List<HouseInvitation>>(emptyList()) }
+    var pendingInvitations by remember { mutableStateOf<List<InvitationWithHouse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showInviteDialog by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf<MemberWithProfile?>(null) }
@@ -669,7 +669,7 @@ fun RemoveMemberDialog(
 
 @Composable
 fun PendingInvitationItem(
-    invitation: HouseInvitation,
+    invitation: InvitationWithHouse,
     onCancel: () -> Unit,
     onResend: () -> Unit
 ) {

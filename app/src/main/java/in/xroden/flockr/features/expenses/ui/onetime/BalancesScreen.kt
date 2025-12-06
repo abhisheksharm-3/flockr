@@ -365,8 +365,29 @@ fun BalanceCard(
     // If balance < 0 => We Owe Them (Negative)
     
     val amount = balance.balance
-    val theyOweUs = amount > java.math.BigDecimal.ZERO
-    val weOweThem = amount < java.math.BigDecimal.ZERO
+    
+    // Logic Fix:
+    // For Current User: 
+    //   Positive = I am Creditor (They Owe Us)
+    //   Negative = I am Debtor (We Owe Them)
+    // For Other Users (viewing their card):
+    //   Positive = They are Creditor (We Owe Them)
+    //   Negative = They are Debtor (They Owe Us)
+    
+    val isCurrentUser = balance.userId == currentUserId
+    
+    val theyOweUs = if (isCurrentUser) {
+        amount > java.math.BigDecimal.ZERO
+    } else {
+        amount < java.math.BigDecimal.ZERO // They are Debtor -> They Owe Us
+    }
+    
+    val weOweThem = if (isCurrentUser) {
+        amount < java.math.BigDecimal.ZERO
+    } else {
+        amount > java.math.BigDecimal.ZERO // They are Creditor -> We Owe Them
+    }
+
     val absAmount = amount.abs()
 
     if (balance.userId == currentUserId) return

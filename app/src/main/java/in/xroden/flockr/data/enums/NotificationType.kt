@@ -32,7 +32,7 @@ enum class NotificationType {
     @SerialName("per_diem")
     PER_DIEM,
     
-    @SerialName("house_invite")
+    @SerialName("house_invitation")
     HOUSE_INVITE,
     
     @SerialName("member_joined")
@@ -42,7 +42,10 @@ enum class NotificationType {
     MESSAGE,
 
     @SerialName("message_sent")
-    MESSAGE_SENT
+    MESSAGE_SENT,
+
+    @SerialName("document")
+    DOCUMENT
 }
 
 

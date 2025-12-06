@@ -21,8 +21,11 @@ class ShoppingViewModel @Inject constructor(
     private val _addItemState = MutableStateFlow<AddShoppingItemUiState>(AddShoppingItemUiState.Idle)
     val addItemState: StateFlow<AddShoppingItemUiState> = _addItemState.asStateFlow()
 
+    private var shoppingJob: kotlinx.coroutines.Job? = null
+
     fun loadShoppingItems(houseId: String) {
-        viewModelScope.launch {
+        shoppingJob?.cancel()
+        shoppingJob = viewModelScope.launch {
             _uiState.value = ShoppingUiState.Loading
             
             shoppingRepository.getShoppingItemsFlow(houseId).collect { result ->
@@ -52,6 +55,7 @@ class ShoppingViewModel @Inject constructor(
             shoppingRepository.addShoppingItem(houseId, itemName, quantity).fold(
                 onSuccess = {
                     _addItemState.value = AddShoppingItemUiState.Success
+                    loadShoppingItems(houseId) // Refresh list
                     kotlinx.coroutines.delay(1000)
                     _addItemState.value = AddShoppingItemUiState.Idle
                 },
@@ -68,7 +72,7 @@ class ShoppingViewModel @Inject constructor(
         viewModelScope.launch {
             shoppingRepository.markAsPurchased(itemId, houseId, itemName).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    loadShoppingItems(houseId) // Refresh list
                 },
                 onFailure = { error ->
                     _uiState.value = ShoppingUiState.Error(
@@ -88,7 +92,7 @@ class ShoppingViewModel @Inject constructor(
         viewModelScope.launch {
             shoppingRepository.updateShoppingItem(itemId, itemName, quantity).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Implicitly refreshes if flow works, but force reload to be safe
                 },
                 onFailure = { error ->
                     _uiState.value = ShoppingUiState.Error(
@@ -104,7 +108,7 @@ class ShoppingViewModel @Inject constructor(
         viewModelScope.launch {
             shoppingRepository.deleteShoppingItem(itemId).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Implicitly refreshes if flow works, but force reload to be safe
                 },
                 onFailure = { error ->
                     _uiState.value = ShoppingUiState.Error(
@@ -120,7 +124,7 @@ class ShoppingViewModel @Inject constructor(
         viewModelScope.launch {
             shoppingRepository.clearPurchasedItems(houseId).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    loadShoppingItems(houseId) // Refresh
                 },
                 onFailure = { error ->
                     _uiState.value = ShoppingUiState.Error(

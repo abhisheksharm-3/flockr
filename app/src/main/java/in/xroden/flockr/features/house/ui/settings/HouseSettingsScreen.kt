@@ -153,7 +153,86 @@ fun HouseSettingsScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                tonalElevation = 2.dp,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            if (houseName.length < 2) {
+                                nameError = "Name must be at least 2 characters"
+                                return@Button
+                            }
+
+                            isSaving = true
+                            scope.launch {
+                                val nameChanged = houseName != house?.name
+                                val addressChanged = address != (house?.address ?: "")
+
+                                // Update house details if changed
+                                if (nameChanged || addressChanged) {
+                                    android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
+                                    viewModel.updateHouse(
+                                        houseId = houseId,
+                                        name = if (nameChanged) houseName else null,
+                                        address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
+                                    )
+                                }
+
+                                // Update all config fields
+                                android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
+                                viewModel.updateHouseConfig(
+                                    houseId = houseId,
+                                    currencyCode = currency,
+                                    dateFormat = dateFormat,
+                                    firstDayOfWeek = firstDayOfWeek,
+                                    timezone = timezone
+                                )
+
+                                isSaving = false
+                                snackbarHostState.showSnackbar("Settings saved successfully")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        enabled = !isSaving && nameError == null && houseName.isNotBlank(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Save Changes",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
     ) { padding ->
         if (isLoading) {
             Box(
@@ -670,73 +749,6 @@ fun HouseSettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
-                }
-
-                // Save Button
-                Button(
-                    onClick = {
-                        if (houseName.length < 2) {
-                            nameError = "Name must be at least 2 characters"
-                            return@Button
-                        }
-
-                        isSaving = true
-                        scope.launch {
-                            val nameChanged = houseName != house?.name
-                            val addressChanged = address != (house?.address ?: "")
-
-                            // Update house details if changed
-                            if (nameChanged || addressChanged) {
-                                android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
-                                viewModel.updateHouse(
-                                    houseId = houseId,
-                                    name = if (nameChanged) houseName else null,
-                                    address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
-                                )
-                            }
-
-                            // Update all config fields
-                            android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
-                            viewModel.updateHouseConfig(
-                                houseId = houseId,
-                                currencyCode = currency,
-                                dateFormat = dateFormat,
-                                firstDayOfWeek = firstDayOfWeek,
-                                timezone = timezone
-                            )
-
-                            isSaving = false
-                            snackbarHostState.showSnackbar("Settings saved successfully")
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = !isSaving && nameError == null && houseName.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Save Changes",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }

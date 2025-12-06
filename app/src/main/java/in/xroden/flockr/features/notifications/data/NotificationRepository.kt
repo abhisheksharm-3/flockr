@@ -68,14 +68,32 @@ class NotificationRepository @Inject constructor(
                             val houseId = record["house_id"]?.jsonPrimitive?.content
                             val typeStr = record["type"]?.jsonPrimitive?.content ?: "general"
 
-                            notificationService.showNotification(
-                                id = notificationId,
-                                title = title,
-                                message = message,
-                                houseId = houseId,
-                                type = typeStr,
-                                data = null
-                            )
+                            // Check preferences before showing notification
+                            var shouldShow = true
+                            if (houseId != null) {
+                                val prefs = getNotificationPreferences(houseId).getOrNull()
+                                if (prefs != null) {
+                                    shouldShow = when (typeStr) {
+                                        "member_joined" -> prefs.enableMemberJoined
+                                        "expense", "expense_added", "per_diem" -> prefs.enableExpenseAdded
+                                        "chore", "chore_assigned" -> prefs.enableChoreAssigned
+                                        "message", "message_sent" -> prefs.enableMessageSent
+                                        "shopping", "shopping_item", "shopping_item_added" -> prefs.enableShoppingItemAdded
+                                        else -> true
+                                    }
+                                }
+                            }
+
+                            if (shouldShow) {
+                                notificationService.showNotification(
+                                    id = notificationId,
+                                    title = title,
+                                    message = message,
+                                    houseId = houseId,
+                                    type = typeStr,
+                                    data = null
+                                )
+                            }
                         } catch (e: Exception) {
                             // Ignore device notification errors
                         }
@@ -98,14 +116,14 @@ class NotificationRepository @Inject constructor(
             }
 
             awaitClose {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                try {
-                    supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
-                    // Ignore cleanup errors
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        supabase.realtime.removeChannel(channel)
+                    } catch (e: Exception) {
+                        // Ignore cleanup errors
+                    }
                 }
             }
-        }
         }
     }
 
@@ -177,6 +195,38 @@ class NotificationRepository @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAllNotifications(): Result<Unit> {
+        return try {
+            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+            
+            @kotlinx.serialization.Serializable
+            data class DeleteAllParams(
+                @kotlinx.serialization.SerialName("p_user_id")
+                val userId: String
+            )
+
+            supabase.postgrest.rpc(
+                function = "delete_all_notifications",
+                parameters = DeleteAllParams(userId = currentUserId)
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            // Fallback: delete using delete with filter if RPC doesn't exist yet
+            try {
+                val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+                supabase.from("notifications").delete {
+                     filter {
+                         eq("user_id", currentUserId)
+                     }
+                }
+                Result.success(Unit)
+            } catch (e2: Exception) {
+                Result.failure(e2)
+            }
         }
     }
 

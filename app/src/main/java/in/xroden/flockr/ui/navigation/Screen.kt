@@ -109,6 +109,7 @@ sealed class Screen(val route: String) {
 
     // New Feature Screens
     object NotificationPreferences : Screen("notification_preferences")
+    object SecuritySettings : Screen("security_settings")
     object HouseAuditLog : Screen("house_audit_log/{houseId}") {
         fun createRoute(houseId: String) = "house_audit_log/$houseId"
     }
