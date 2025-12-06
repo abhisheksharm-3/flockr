@@ -728,7 +728,16 @@ fun FlockrNavigation(
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
+                        },
+                        onNavigateToSecurity = {
+                            navController.navigate(Screen.SecuritySettings.route)
                         }
+                    )
+                }
+
+                composable(Screen.SecuritySettings.route) {
+                    `in`.xroden.flockr.features.settings.ui.SecuritySettingsScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 

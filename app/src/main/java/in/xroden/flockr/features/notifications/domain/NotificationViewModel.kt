@@ -93,4 +93,20 @@ class NotificationViewModel @Inject constructor(
             )
         }
     }
+
+    fun clearAllNotifications() {
+        viewModelScope.launch {
+            notificationRepository.deleteAllNotifications().fold(
+                onSuccess = {
+                    // Success
+                },
+                onFailure = { error ->
+                    _uiState.value = NotificationUiState.Error(
+                        message = error.message ?: "Failed to clear notifications",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
 }

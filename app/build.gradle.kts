@@ -137,7 +137,11 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Biometrics
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
 }
 
 // Task to print version name for CI/CD

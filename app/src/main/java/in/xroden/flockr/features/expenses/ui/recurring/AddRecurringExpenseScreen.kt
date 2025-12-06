@@ -61,6 +61,7 @@ fun AddRecurringExpenseScreen(
     var prepayEnabled by remember { mutableStateOf(false) }
     var firstPaymentDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showDueDayPicker by remember { mutableStateOf(false) }
 
     // New fields for bill splitting
     var selectedMembers by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -173,10 +174,19 @@ fun AddRecurringExpenseScreen(
                 // Due Day
                 OutlinedTextField(
                     value = dueDay,
-                    onValueChange = { dueDay = it },
+                    onValueChange = { 
+                        if (it.isEmpty() || (it.toIntOrNull() != null && it.length <= 2)) {
+                            dueDay = it 
+                        }
+                    },
                     label = { Text("Due Day of Month *") },
                     placeholder = { Text("1-31") },
                     leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                    trailingIcon = {
+                        IconButton(onClick = { showDueDayPicker = true }) {
+                            Icon(Icons.Default.DateRange, "Select Date", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
@@ -678,6 +688,42 @@ fun AddRecurringExpenseScreen(
             shape = MaterialTheme.shapes.large
         ) {
             DatePicker(state = datePickerState)
+        }
+    }
+    
+    // Due Day Date Picker
+    if (showDueDayPicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDueDayPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val instant = Instant.fromEpochMilliseconds(millis)
+                        val date = instant.toLocalDateTime(TimeZone.UTC).date
+                        dueDay = date.dayOfMonth.toString()
+                    }
+                    showDueDayPicker = false
+                }) {
+                    Text("OK", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDueDayPicker = false }) {
+                    Text("Cancel", fontWeight = FontWeight.Medium)
+                }
+            },
+            shape = MaterialTheme.shapes.large
+        ) {
+            DatePicker(state = datePickerState, title = {
+                Text(
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
+                    text = "Select due day",
+                    style = MaterialTheme.typography.titleMedium
+                ) 
+            })
         }
     }
 }

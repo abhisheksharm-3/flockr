@@ -83,6 +83,23 @@ data class HouseInvitation(
 )
 
 @Serializable
+data class InvitationWithHouse(
+    val id: String,
+    @SerialName("house_id")
+    val houseId: String,
+    @SerialName("inviter_id")
+    val inviterId: String,
+    @SerialName("invitee_email")
+    val inviteeEmail: String,
+    val status: InvitationStatus = InvitationStatus.PENDING,
+    @SerialName("created_at")
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    @SerialName("house_name")
+    val houseName: String
+)
+
+@Serializable
 data class HouseAuditLog(
     val id: String,
     @SerialName("house_id")

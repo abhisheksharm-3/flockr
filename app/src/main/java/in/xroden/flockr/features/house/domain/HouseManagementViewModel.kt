@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.features.house.model.HouseInvitation
+import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +71,7 @@ class HouseManagementViewModel @Inject constructor(
             houseRepository.getPendingInvitations().fold(
                 onSuccess = { invitations ->
                     // Filter by houseId since API returns all invitations
-                    val filtered = invitations.filter { it.houseId == houseId }
+                    val filtered = invitations.filter { invitation -> invitation.houseId == houseId }
                     _invitationsState.value = InvitationsUiState.Success(filtered)
                 },
                 onFailure = { error ->
@@ -87,7 +87,7 @@ class HouseManagementViewModel @Inject constructor(
         loadHouseDetails(houseId)
     }
 
-    suspend fun getPendingInvitations(houseId: String): List<HouseInvitation> {
+    suspend fun getPendingInvitations(houseId: String): List<InvitationWithHouse> {
         return houseRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
     }
 

@@ -288,51 +288,44 @@ fun ShoppingItemCard(
     isPurchasedTab: Boolean
 ) {
     var isChecked by remember { mutableStateOf(item.isPurchased) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large, // M3 Expressive: Larger corner radius
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (isPurchasedTab) 
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
             else 
-                MaterialTheme.colorScheme.surfaceContainerLow // M3 Expressive: Surface Container
+                MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(
+            1.dp, 
+            if (isPurchasedTab) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (!isPurchasedTab) {
                 // Custom Checkbox
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .border(
-                            2.dp, 
-                            if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, 
-                            CircleShape
-                        )
-                        .clickable { 
-                            isChecked = true
-                            onChecked() 
-                        },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = { 
+                        isChecked = true
+                        onChecked() 
+                    },
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 ) {
-                    if (isChecked) {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    // Empty when unchecked
                 }
             } else {
                 Icon(
@@ -351,6 +344,7 @@ fun ShoppingItemCard(
                 Text(
                     text = item.itemName,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (!isPurchasedTab) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isPurchasedTab) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (isPurchasedTab) TextDecoration.LineThrough else null
                 )
@@ -362,7 +356,7 @@ fun ShoppingItemCard(
                     item.quantity?.let { qty ->
                         Surface(
                             shape = MaterialTheme.shapes.extraSmall,
-                            color = MaterialTheme.colorScheme.secondaryContainer
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
                         ) {
                             Text(
                                 text = qty,
@@ -378,20 +372,56 @@ fun ShoppingItemCard(
                             "Purchased by ${item.purchasedByName ?: "Unknown"}" 
                         else 
                             "Added by ${item.addedByName ?: "Unknown"}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Actions
-            if (!isPurchasedTab) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            // Actions Menu
+            Box {
+                IconButton(
+                    onClick = { showMenu = !showMenu },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-            }
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Outlined.Delete, "Delete", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error)
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    if (!isPurchasedTab) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, null)
+                            }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
             }
         }
     }

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +37,9 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit,
+
     onNavigateToNotificationPreferences: () -> Unit,
+    onNavigateToSecurity: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
@@ -286,6 +289,16 @@ fun SettingsScreen(
                         title = "Notification Preferences",
                         subtitle = "Manage notification settings for each household",
                         onClick = onNavigateToNotificationPreferences
+                    )
+                }
+                
+                // Security Section
+                SettingsSection(title = "Security") {
+                    SettingsItem(
+                        icon = Icons.Default.Settings,
+                        title = "App Lock",
+                        subtitle = "Secure your app with biometrics",
+                        onClick = onNavigateToSecurity
                     )
                 }
 

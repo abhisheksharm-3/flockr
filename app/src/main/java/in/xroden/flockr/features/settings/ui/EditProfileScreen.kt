@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,6 +66,8 @@ fun EditProfileScreen(
             fullName = it.fullName ?: ""
         }
     }
+    
+    val isLoading = updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading
 
     Scaffold(
         topBar = {
@@ -146,6 +149,7 @@ fun EditProfileScreen(
 
             Spacer(modifier = Modifier.height(40.dp))
 
+            // Full Name Field
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
@@ -153,9 +157,30 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = MaterialTheme.shapes.medium,
+                leadingIcon = { Icon(Icons.Default.Person, null) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Email Field (Read Only)
+            OutlinedTextField(
+                value = profile?.email ?: "",
+                onValueChange = { },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                readOnly = true,
+                enabled = false, // Visibly disabled
+                shape = MaterialTheme.shapes.medium,
+                leadingIcon = { Icon(Icons.Default.Email, null) }, // Requires Email Icon import
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             )
 
@@ -169,17 +194,25 @@ fun EditProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = fullName.isNotBlank(),
+                enabled = fullName.isNotBlank() && !isLoading,
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text(
-                    "Save Changes",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Save Changes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

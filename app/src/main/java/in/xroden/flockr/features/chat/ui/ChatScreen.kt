@@ -45,7 +45,10 @@ fun ChatScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .imePadding(), // Move IME padding here to resize entire scaffold
+        contentWindowInsets = WindowInsets.statusBars, // Only consume status bars, let IME be handled by modifier
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Chat", fontWeight = FontWeight.Bold) },
@@ -61,14 +64,85 @@ fun ChatScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface,
-        bottomBar = {
-            // Floating Input Area
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                // Removed imePadding from here
+        ) {
+            // Main Content (Messages)
+            Box(modifier = Modifier.weight(1f)) {
+                when (val state = uiState) {
+                    is ChatUiState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is ChatUiState.Success -> {
+                        if (state.messages.isEmpty()) {
+                            EmptyChatState(modifier = Modifier.fillMaxSize())
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                state = listState,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                reverseLayout = true
+                            ) {
+                                items(state.messages.reversed(), key = { it.id }) { message ->
+                                    MessageBubble(
+                                        message = message,
+                                        currentUserId = viewModel.getCurrentUserId()
+                                    )
+                                }
+
+                                // Security Warning (Minimal)
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "Messages are not end-to-end encrypted",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    is ChatUiState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+
+            // Floating Input Area - Moved inside Column
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .imePadding()
                     .padding(bottom = 8.dp)
             ) {
                 Row(
@@ -121,70 +195,6 @@ fun ChatScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                }
-            }
-        }
-    ) { padding ->
-        // No changes to content logic
-        when (val state = uiState) {
-            is ChatUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            is ChatUiState.Success -> {
-                if (state.messages.isEmpty()) {
-                    EmptyChatState(modifier = Modifier.fillMaxSize().padding(padding))
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                        state = listState,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        reverseLayout = true
-                    ) {
-                        items(state.messages.reversed(), key = { it.id }) { message ->
-                            MessageBubble(
-                                message = message,
-                                currentUserId = viewModel.getCurrentUserId()
-                            )
-                        }
-
-                        // Security Warning (Minimal)
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "Messages are not end-to-end encrypted",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            is ChatUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
                 }
             }
         }

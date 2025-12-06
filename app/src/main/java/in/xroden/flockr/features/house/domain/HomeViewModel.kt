@@ -17,6 +17,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
+import `in`.xroden.flockr.features.house.model.InvitationWithHouse
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val houseRepository: HouseRepository,
@@ -32,14 +34,21 @@ class HomeViewModel @Inject constructor(
     private val _joinState = MutableStateFlow<JoinHouseUiState>(JoinHouseUiState.Idle)
     val joinState: StateFlow<JoinHouseUiState> = _joinState.asStateFlow()
 
+    private val _pendingInvitations = MutableStateFlow<List<InvitationWithHouse>>(emptyList())
+    val pendingInvitations: StateFlow<List<InvitationWithHouse>> = _pendingInvitations.asStateFlow()
+
     init {
         loadHouses()
+        loadPendingInvitations()
     }
 
     fun loadHouses() {
         viewModelScope.launch {
             _uiState.value = HouseListUiState.Loading
             
+            // Load invitations in parallel or sequence
+            loadPendingInvitations()
+
             houseRepository.getHousesFlow().collect { result ->
                 result.fold(
                     onSuccess = { houses ->
@@ -52,9 +61,7 @@ class HomeViewModel @Inject constructor(
                             val monthlyExpenseDeferred = async {
                                 val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                                 val currentMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}-01"
-                                android.util.Log.d("HomeViewModel", "Loading monthly summary for house ${house.id}, month: $currentMonth")
                                 val result = expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: java.math.BigDecimal.ZERO
-                                android.util.Log.d("HomeViewModel", "Monthly expense for house ${house.id}: $result")
                                 result
                             }
 
@@ -84,6 +91,26 @@ class HomeViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun loadPendingInvitations() {
+        viewModelScope.launch {
+            houseRepository.getPendingInvitations().fold(
+                onSuccess = { invitations ->
+                    _pendingInvitations.value = invitations
+                },
+                onFailure = {
+                    // Ignore error or log it
+                    _pendingInvitations.value = emptyList()
+                }
+            )
+        }
+    }
+
+    fun refresh() {
+        loadHouses()
+        // loadPendingInvitations is called inside loadHouses (roughly) but let's be explicit
+        loadPendingInvitations()
     }
 
     fun createHouse(
@@ -136,10 +163,12 @@ class HomeViewModel @Inject constructor(
             
             houseRepository.acceptInvitation(invitationId).fold(
                 onSuccess = {
-                    // Refresh houses after accepting
-                    loadHouses()
+                    // Update invitations list
+                    loadPendingInvitations()
+                    // Houses will update automatically via Flow if triggered, 
+                    // but we can force refresh if needed (Flow handles it mostly)
                     _joinState.value = JoinHouseUiState.Success(null)
-                    kotlinx.coroutines.delay(1000)
+                    kotlinx.coroutines.delay(500)
                     _joinState.value = JoinHouseUiState.Idle
                 },
                 onFailure = { error ->
@@ -148,6 +177,14 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             )
+        }
+    }
+    
+    fun declineInvitation(invitationId: String) {
+        viewModelScope.launch {
+            houseRepository.rejectInvitation(invitationId).onSuccess {
+                loadPendingInvitations()
+            }
         }
     }
 
