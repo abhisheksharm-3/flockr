@@ -165,13 +165,7 @@ class NotificationRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            supabase.from("notifications")
-                .update(NotificationUpdate(isRead = true)) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("is_read", false)
-                    }
-                }
+            supabase.postgrest.rpc("mark_all_notifications_read")
 
             Result.success(Unit)
         } catch (e: Exception) {

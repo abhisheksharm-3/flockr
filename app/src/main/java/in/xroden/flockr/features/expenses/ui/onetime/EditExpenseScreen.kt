@@ -466,7 +466,11 @@ fun EditExpenseScreen(
                             val parts = date.split("-")
                             LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
                         } catch (e: Exception) {
-                            Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            try {
+                                Clock.System.todayIn(TimeZone.of(houseConfig?.timezone ?: TimeZone.currentSystemDefault().id))
+                            } catch (e: Exception) {
+                                Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            }
                         }
 
                         // Prepare split parameters

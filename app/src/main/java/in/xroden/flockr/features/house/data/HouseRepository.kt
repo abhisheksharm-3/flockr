@@ -23,6 +23,7 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -153,7 +154,10 @@ class HouseRepository @Inject constructor(
         address: String?,
         latitude: Double?,
         longitude: Double?,
-        currencyCode: String = "USD"
+        currencyCode: String = "USD",
+        dateFormat: String = "dd/MM/yyyy",
+        firstDayOfWeek: Int = 1, // Monday
+        timezone: String = "UTC"
     ): Result<House> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
@@ -199,19 +203,23 @@ class HouseRepository @Inject constructor(
 
             val rpcResponse = Json.decodeFromString<CreateHouseResponse>(rpcResponseRaw)
 
-            if (currencyCode != "USD") {
-                try {
-                    supabase.from("house_config")
-                        .update(
-                            HouseConfigUpdate(currencyCode = currencyCode)
-                        ) {
-                            filter {
-                                eq("house_id", rpcResponse.houseId)
-                            }
+            // Update Config
+            try {
+                supabase.from("house_config")
+                    .update(
+                        HouseConfigUpdate(
+                            currencyCode = currencyCode,
+                            dateFormat = dateFormat,
+                            firstDayOfWeek = firstDayOfWeek,
+                            timezone = timezone
+                        )
+                    ) {
+                        filter {
+                            eq("house_id", rpcResponse.houseId)
                         }
-                } catch (e: Exception) {
-                    // Non-critical
-                }
+                    }
+            } catch (e: Exception) {
+                // Non-critical
             }
 
             val house = supabase.from("houses")
@@ -369,7 +377,7 @@ class HouseRepository @Inject constructor(
                                 houseId = houseId,
                                 title = "House Invitation",
                                 message = "You've been invited to join ${house.name}",
-                                type = "house_invitation"
+                                type = "house_invitation:${house.inviteCode ?: ""}"
                             )
                         )
                 } catch (e: Exception) {
@@ -383,42 +391,19 @@ class HouseRepository @Inject constructor(
         }
     }
 
-    suspend fun getHouseByInviteCode(inviteCode: String): Result<House?> {
+    suspend fun getHouseByInviteCode(inviteCode: String): Result<`in`.xroden.flockr.features.house.model.HousePreview?> {
         return try {
             val trimmedCode = inviteCode.trim().uppercase()
 
             @Serializable
             data class InviteCodeParam(val code: String)
 
-            @Serializable
-            data class MinimalHouseResult(
-                val id: String,
-                val name: String,
-                @SerialName("header_image_url")
-                val headerImageUrl: String?
-            )
-
             val result = supabase.postgrest.rpc(
-                "get_house_by_invite_code",
+                "get_house_by_invite_code_v2",
                 parameters = InviteCodeParam(trimmedCode)
-            ).decodeSingleOrNull<MinimalHouseResult>()
+            ).decodeSingleOrNull<`in`.xroden.flockr.features.house.model.HousePreview>()
 
-            val house = result?.let {
-                House(
-                    id = it.id,
-                    name = it.name,
-                    ownerId = "",
-                    inviteCode = null,
-                    address = null,
-                    latitude = null,
-                    longitude = null,
-                    createdAt = null,
-                    updatedAt = null,
-                    headerImageUrl = it.headerImageUrl
-                )
-            }
-
-            Result.success(house)
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -594,7 +579,7 @@ class HouseRepository @Inject constructor(
 
     suspend fun getHouseAuditLogs(houseId: String): List<`in`.xroden.flockr.features.house.model.HouseAuditLog> {
         return try {
-            supabase.from("house_audit_logs")
+            supabase.from("house_audit_log")
                 .select(Columns.ALL) {
                     filter {
                         eq("house_id", houseId)
@@ -664,6 +649,28 @@ class HouseRepository @Inject constructor(
             )
 
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadHouseHeaderImage(houseId: String, byteArray: ByteArray): Result<String> {
+        return try {
+            val fileName = "header_${houseId}_${System.currentTimeMillis()}.jpg"
+            val bucket = supabase.storage.from("house_headers")
+            val path = bucket.upload(fileName, byteArray, upsert = true)
+            val publicUrl = bucket.publicUrl(fileName)
+
+            // Update house record
+            supabase.from("houses").update(
+                mapOf("header_image_url" to publicUrl)
+            ) {
+                filter {
+                    eq("id", houseId)
+                }
+            }
+
+            Result.success(publicUrl)
         } catch (e: Exception) {
             Result.failure(e)
         }

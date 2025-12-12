@@ -37,6 +37,9 @@ class HomeViewModel @Inject constructor(
     private val _pendingInvitations = MutableStateFlow<List<InvitationWithHouse>>(emptyList())
     val pendingInvitations: StateFlow<List<InvitationWithHouse>> = _pendingInvitations.asStateFlow()
 
+    private val _previewState = MutableStateFlow<HousePreviewUiState>(HousePreviewUiState.Idle)
+    val previewState: StateFlow<HousePreviewUiState> = _previewState.asStateFlow()
+
     init {
         loadHouses()
         loadPendingInvitations()
@@ -118,13 +121,26 @@ class HomeViewModel @Inject constructor(
         address: String?,
         latitude: Double?,
         longitude: Double?,
-        currencyCode: String = "USD"
+        currencyCode: String = "USD",
+        dateFormat: String = "dd/MM/yyyy",
+        firstDayOfWeek: Int = 1,
+        timezone: String = "UTC",
+        headerImageBytes: ByteArray? = null
     ) {
         viewModelScope.launch {
             _createState.value = CreateHouseUiState.Loading
             
-            houseRepository.createHouse(name, address, latitude, longitude, currencyCode).fold(
+            houseRepository.createHouse(
+                name, address, latitude, longitude, currencyCode, 
+                dateFormat, firstDayOfWeek, timezone
+            ).fold(
                 onSuccess = { house ->
+                    if (headerImageBytes != null) {
+                        houseRepository.uploadHouseHeaderImage(house.id, headerImageBytes)
+                            .onSuccess {
+                                // Ideally update the local house object or rely on refreshing
+                            }
+                    }
                     _createState.value = CreateHouseUiState.Success(house)
                     kotlinx.coroutines.delay(1000)
                     _createState.value = CreateHouseUiState.Idle
@@ -198,5 +214,65 @@ class HomeViewModel @Inject constructor(
 
     fun resetJoinState() {
         _joinState.value = JoinHouseUiState.Idle
+    }
+
+    fun resetPreviewState() {
+        _previewState.value = HousePreviewUiState.Idle
+    }
+
+    fun validateInviteCode(code: String) {
+        viewModelScope.launch {
+            _previewState.value = HousePreviewUiState.Loading
+            houseRepository.getHouseByInviteCode(code).fold(
+                onSuccess = { preview ->
+                    if (preview != null) {
+                        _previewState.value = HousePreviewUiState.Success(preview)
+                    } else {
+                        _previewState.value = HousePreviewUiState.Error("Invalid invite code")
+                    }
+                },
+                onFailure = { error ->
+                    _previewState.value = HousePreviewUiState.Error(
+                        message = error.message ?: "Failed to validate code"
+                    )
+                }
+            )
+        }
+    }
+
+    // Helper for Dialog (Suspend)
+    suspend fun fetchHouseByInviteCode(code: String): House? {
+        // This maps the preview data or fetches full house details if possible
+        // Ideally we use a specific RPC that returns House details from code before joining
+        // For now, reusing getHouseByInviteCode which returns a Preview object, mapping to House roughly
+        // OR better: Assume the user meant to use the Preview flow. But the Dialog expects House.
+        // Let's add a repository method that returns House-like object or modify Dialog.
+        // Actually, let's keep it simple: existing getHouseByInviteCode returns HousePreview. 
+        // We will modify Repository to return House if needed, or just map.
+        // Checking HouseRepository... let's implement a direct call here.
+        
+        return houseRepository.getHouseByInviteCode(code).getOrNull()?.let { preview ->
+            // Map Preview to House (Partial)
+            House(
+                id = preview.id,
+                name = preview.name,
+                address = null,
+                latitude = null,
+                longitude = null,
+                inviteCode = code, // We know the code
+                createdAt = kotlinx.datetime.Clock.System.now(), // Dummy
+                ownerId = "unknown", 
+                headerImageUrl = preview.headerImageUrl
+            )
+        }
+    }
+
+    fun joinHouse(inviteCode: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            houseRepository.joinHouseByInviteCode(inviteCode).fold(
+                onSuccess = { onResult(true, null) },
+                onFailure = { onResult(false, it.message) }
+            )
+        }
     }
 }

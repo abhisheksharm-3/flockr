@@ -12,9 +12,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.content.Context
+import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
+    private val houseRepository: HouseRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HouseSettingsUiState>(HouseSettingsUiState.Loading)
@@ -102,6 +107,37 @@ class HouseSettingsViewModel @Inject constructor(
                     )
                 }
             )
+        }
+    }
+
+    fun uploadHeaderImage(houseId: String, uri: Uri) {
+        viewModelScope.launch {
+            _updateState.value = UpdateHouseSettingsUiState.Loading
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+
+                if (bytes != null) {
+                    houseRepository.uploadHouseHeaderImage(houseId, bytes).fold(
+                        onSuccess = {
+                            _updateState.value = UpdateHouseSettingsUiState.Success
+                            loadHouseSettings(houseId)
+                            kotlinx.coroutines.delay(1000)
+                            _updateState.value = UpdateHouseSettingsUiState.Idle
+                        },
+                        onFailure = { error ->
+                            _updateState.value = UpdateHouseSettingsUiState.Error(
+                                message = error.message ?: "Failed to upload image"
+                            )
+                        }
+                    )
+                } else {
+                    _updateState.value = UpdateHouseSettingsUiState.Error("Failed to read image")
+                }
+            } catch (e: Exception) {
+                _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Error processing image")
+            }
         }
     }
 

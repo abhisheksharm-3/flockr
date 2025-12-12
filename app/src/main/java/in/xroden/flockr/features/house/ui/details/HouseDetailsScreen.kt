@@ -26,6 +26,7 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.ui.theme.*
+import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -260,12 +261,21 @@ private fun HouseInfoCard(
         ) {
             // Full Background Image
             if (house != null) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = `in`.xroden.flockr.R.drawable.house),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                )
+                if (house.headerImageUrl != null) {
+                    AsyncImage(
+                        model = house.headerImageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = `in`.xroden.flockr.R.drawable.house),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                }
             }
 
             // Gradient Overlay for Text Readability

@@ -45,10 +45,8 @@ fun ChatScreen(
     }
 
     Scaffold(
-        modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
-            .imePadding(), // Move IME padding here to resize entire scaffold
-        contentWindowInsets = WindowInsets.statusBars, // Only consume status bars, let IME be handled by modifier
+        modifier = Modifier, // Removed imePadding from here, let content handle it
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Chat", fontWeight = FontWeight.Bold) },
@@ -70,7 +68,8 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                // Removed imePadding from here
+                .navigationBarsPadding() // Handle nav bar
+                .imePadding() // Handle keyboard
         ) {
             // Main Content (Messages)
             Box(modifier = Modifier.weight(1f)) {

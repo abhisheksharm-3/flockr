@@ -137,7 +137,13 @@ fun BillsScreen(
                                     houseId = houseId,
                                     expenseId = expense.id,
                                     amount = expense.amount,
-                                    paymentDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                                    paymentDate = Clock.System.todayIn(
+                                        try {
+                                            TimeZone.of(houseConfig?.timezone ?: TimeZone.currentSystemDefault().id)
+                                        } catch (e: Exception) {
+                                            TimeZone.currentSystemDefault()
+                                        }
+                                    )
                                 )
                             }
                         )

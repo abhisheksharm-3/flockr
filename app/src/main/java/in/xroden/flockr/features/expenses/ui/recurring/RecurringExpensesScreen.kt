@@ -428,8 +428,24 @@ fun RecurringExpenseCard(
     modifier: Modifier = Modifier
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    // Simple logic: if due day is past today, it's overdue (unless paid - which we don't track perfectly yet without history check)
-    // For now, let's just show the next due date
+    
+    // Check if paid in current cycle
+    val isPaidThisPeriod = remember(expense.lastPaidDate, expense.frequency) {
+        if (expense.lastPaidDate == null) return@remember false
+        when (expense.frequency) {
+             ExpenseFrequency.MONTHLY -> 
+                 expense.lastPaidDate.month == today.month && expense.lastPaidDate.year == today.year
+             ExpenseFrequency.WEEKLY -> {
+                 val daysDiff = today.toEpochDays() - expense.lastPaidDate.toEpochDays()
+                 daysDiff < 7
+             }
+             ExpenseFrequency.ANNUAL ->
+                 expense.lastPaidDate.year == today.year
+             else -> false 
+        }
+    }
+
+    // Simple logic: if due day is past today, it's overdue (unless paid)
     val nextDueDate = getNextDueDate(expense.dueDay, today)
     val daysUntilDue = nextDueDate.dayOfYear - today.dayOfYear
 
@@ -519,7 +535,14 @@ fun RecurringExpenseCard(
                     )
                 }
 
-                if (daysUntilDue < 0) {
+                if (isPaidThisPeriod) {
+                    Text(
+                        text = "Paid",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CategoryGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else if (daysUntilDue < 0) {
                     Text(
                         text = "Overdue",
                         style = MaterialTheme.typography.labelSmall,
@@ -542,18 +565,33 @@ fun RecurringExpenseCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = onMarkAsPaid,
-                    modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
-                ) {
-                    Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Paid", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                if (!isPaidThisPeriod) {
+                    Button(
+                        onClick = onMarkAsPaid,
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Paid", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                     OutlinedButton(
+                        onClick = {},
+                        enabled = false, 
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        border = BorderStroke(1.dp, CategoryGreen)
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(16.dp), tint = CategoryGreen)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Done", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge, color = CategoryGreen)
+                    }
                 }
 
                 OutlinedButton(
