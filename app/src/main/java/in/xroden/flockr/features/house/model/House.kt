@@ -111,7 +111,7 @@ data class HouseAuditLog(
     @SerialName("target_user_id")
     val targetUserId: String? = null,
     @SerialName("details")
-    val details: Map<String, String> = emptyMap(),
+    val details: kotlinx.serialization.json.JsonObject = kotlinx.serialization.json.JsonObject(emptyMap()),
     @SerialName("created_at")
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant

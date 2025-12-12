@@ -85,6 +85,7 @@ class RecurringExpenseViewModel @Inject constructor(
             ).fold(
                 onSuccess = {
                     _createState.value = CreateExpenseUiState.Success
+                    loadRecurringExpenses(houseId)
                     kotlinx.coroutines.delay(1000)
                     _createState.value = CreateExpenseUiState.Idle
                 },

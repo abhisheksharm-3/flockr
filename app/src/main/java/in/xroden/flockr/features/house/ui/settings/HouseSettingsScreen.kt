@@ -27,6 +27,13 @@ import `in`.xroden.flockr.features.house.domain.HouseSettingsViewModel
  * Only accessible to Owners and Admins
  * Allows editing house details, currency, and other settings
  */
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import coil.compose.AsyncImage
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseSettingsScreen(
@@ -45,6 +52,15 @@ fun HouseSettingsScreen(
     var isSaving by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var currentUserId by remember { mutableStateOf<String?>(null) }
+    
+    // Image Picker
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.uploadHeaderImage(houseId, uri)
+        }
+    }
 
     // Form fields
     var houseName by remember { mutableStateOf("") }
@@ -147,29 +163,12 @@ fun HouseSettingsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.background,
-                tonalElevation = 2.dp,
-                shadowElevation = 8.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Button(
+                actions = {
+                    TextButton(
                         onClick = {
                             if (houseName.length < 2) {
                                 nameError = "Name must be at least 2 characters"
-                                return@Button
+                                return@TextButton
                             }
 
                             isSaving = true
@@ -177,9 +176,7 @@ fun HouseSettingsScreen(
                                 val nameChanged = houseName != house?.name
                                 val addressChanged = address != (house?.address ?: "")
 
-                                // Update house details if changed
                                 if (nameChanged || addressChanged) {
-                                    android.util.Log.d("HouseSettingsScreen", "Updating house: name=$houseName, address=$address")
                                     viewModel.updateHouse(
                                         houseId = houseId,
                                         name = if (nameChanged) houseName else null,
@@ -187,8 +184,6 @@ fun HouseSettingsScreen(
                                     )
                                 }
 
-                                // Update all config fields
-                                android.util.Log.d("HouseSettingsScreen", "Updating config: currency=$currency, dateFormat=$dateFormat, firstDay=$firstDayOfWeek, timezone=$timezone")
                                 viewModel.updateHouseConfig(
                                     houseId = houseId,
                                     currencyCode = currency,
@@ -198,41 +193,26 @@ fun HouseSettingsScreen(
                                 )
 
                                 isSaving = false
-                                snackbarHostState.showSnackbar("Settings saved successfully")
+                                snackbarHostState.showSnackbar("Settings saved")
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = !isSaving && nameError == null && houseName.isNotBlank(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        enabled = !isSaving && nameError == null && houseName.isNotBlank()
                     ) {
                         if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
+                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Save Changes",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                             Text("Save", fontWeight = FontWeight.Bold)
                         }
                     }
-                }
-            }
-        }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // bottomBar removed
     ) { padding ->
         if (isLoading) {
             Box(
@@ -346,7 +326,16 @@ fun HouseSettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         if (house?.headerImageUrl != null) {
-                            // Show current image
+                            AsyncImage(
+                                model = house?.headerImageUrl,
+                                contentDescription = "Header Image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .clip(MaterialTheme.shapes.medium),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -359,7 +348,7 @@ fun HouseSettingsScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Image Preview",
+                                        text = "No header image",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -368,16 +357,16 @@ fun HouseSettingsScreen(
                         }
 
                         Text(
-                            text = "Add a header image to personalize your household (Coming Soon)",
+                            text = "Add a header image to personalize your household",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         OutlinedButton(
                             onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Image upload feature coming soon!")
-                                }
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium

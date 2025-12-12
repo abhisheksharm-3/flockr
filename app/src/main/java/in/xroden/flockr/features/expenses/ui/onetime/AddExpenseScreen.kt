@@ -47,8 +47,26 @@ fun AddExpenseScreen(
 ) {
     var name by remember { mutableStateOf(initialName ?: "") }
     var amount by remember { mutableStateOf("") }
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    
     var date by remember { 
         mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+    }
+
+    // Update date when house timezone loads, only if it hasn't been changed (simple heuristic or just initial)
+    // Actually, simpler to just start with system and let user change if needed, 
+    // OR use LaunchedEffect to set it once config loads.
+    LaunchedEffect(houseConfig) {
+        houseConfig?.timezone?.let { tz ->
+             try {
+                 val houseDate = Clock.System.todayIn(TimeZone.of(tz)).toString()
+                 // Only update if current value is default/empty/system-today 
+                 // (Hard to track 'touched' state without extra var, but reasonable to update on load)
+                 if (date == Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
+                     date = houseDate
+                 }
+             } catch (e: Exception) { /* Ignore */ }
+        }
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember {
@@ -69,7 +87,6 @@ fun AddExpenseScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val createState by viewModel.createState.collectAsState()
     
-    val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
 
     LaunchedEffect(houseId) {

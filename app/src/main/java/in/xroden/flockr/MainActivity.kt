@@ -43,7 +43,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import `in`.xroden.flockr.features.house.ui.home.JoinHouseDialog
+import android.content.Intent
 import androidx.compose.animation.fadeOut
+import `in`.xroden.flockr.data.enums.NotificationType
+
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -84,10 +92,32 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
+
             FlockrTheme(darkTheme = darkTheme) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     FlockrNavigation()
                     
+                    // Global Dialogs
+                    val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
+                    
+                    // Handle Intent
+                    LaunchedEffect(intent) {
+                        handleIntent(intent) { code ->
+                             setInviteCode(code)
+                        }
+                    }
+
+                    if (inviteCode != null) {
+                        `in`.xroden.flockr.features.house.ui.home.JoinHouseByCodeDialog(
+                            inviteCode = inviteCode,
+                            onDismiss = { setInviteCode(null) },
+                            onHouseJoined = { 
+                                setInviteCode(null)
+                                // Optional: Navigation handled inside or just refresh
+                            }
+                        )
+                    }
+
                     // App Lock Overlay
                     AnimatedVisibility(
                         visible = isAppLocked,
@@ -102,6 +132,35 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Update intent for Recomposition/LaunchedEffect
+    }
+
+    private fun handleIntent(intent: Intent?, onInviteFound: (String) -> Unit) {
+        intent?.let {
+            val type = it.getStringExtra("notification_type") ?: it.getStringExtra("type")
+            android.util.Log.d("MainActivity", "handleIntent: type=$type")
+            // Check for HOUSE_INVITE (matches enum or string convention)
+            if (type != null) {
+                if (type == "house_invitation" || type == "HOUSE_INVITE") {
+                    val code = it.getStringExtra("invite_code") ?: it.getStringExtra("code")
+                    android.util.Log.d("MainActivity", "handleIntent: found code=$code")
+                    if (code != null) {
+                        onInviteFound(code)
+                    }
+                } else if (type.startsWith("house_invitation:")) {
+                    val code = type.substringAfter("house_invitation:")
+                    android.util.Log.d("MainActivity", "handleIntent: found deep link code=$code")
+                    if (code.isNotEmpty()) {
+                        onInviteFound(code)
+                    }
+                }
+            }
+        }
+    }
+
 
     override fun onStop() {
         super.onStop()

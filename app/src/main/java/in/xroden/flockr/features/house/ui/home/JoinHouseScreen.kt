@@ -36,49 +36,70 @@ fun JoinHouseScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     var inviteCode by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var isValidating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var previewHouse by remember { mutableStateOf<House?>(null) }
     
-    val scope = rememberCoroutineScope()
     val joinState by viewModel.joinState.collectAsState()
+    val previewState by viewModel.previewState.collectAsState()
 
     // Observe join state
     LaunchedEffect(joinState) {
         when (val state = joinState) {
             is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Success -> {
-                isLoading = false
                 delay(300)
                 onHouseJoined(state.house?.id ?: "")
+                viewModel.resetJoinState()
             }
             is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Error -> {
-                isLoading = false
                 errorMessage = state.message
             }
-            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Loading -> {
-                isLoading = true
-                errorMessage = null
-            }
-            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Idle -> {
-                // Do nothing
-            }
+            else -> {}
+        }
+    }
+
+    // Observe preview state for errors
+    LaunchedEffect(previewState) {
+        if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Error) {
+             errorMessage = (previewState as `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Error).message
         }
     }
 
     // Validate code when it's complete
     LaunchedEffect(inviteCode) {
         if (inviteCode.length == 6) {
-            isValidating = true
-            errorMessage = null
-            delay(300) // Debounce
-            // This would ideally call a repository function to validate and preview the house
-            // For now, we'll skip the preview
-            isValidating = false
+             viewModel.validateInviteCode(inviteCode)
         } else {
-            previewHouse = null
-            errorMessage = null
+             viewModel.resetPreviewState()
+             errorMessage = null
         }
+    }
+
+    if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Success) {
+        val preview = (previewState as `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Success).preview
+        AlertDialog(
+            onDismissRequest = { viewModel.resetPreviewState() },
+            title = { Text("Join ${preview.name}?") },
+            text = {
+                Column {
+                    Text("Owner: ${preview.ownerName ?: "Unknown"}")
+                    Text("Members: ${preview.memberCount ?: 0}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Do you want to join this household?")
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.joinHouseByInviteCode(inviteCode)
+                    viewModel.resetPreviewState()
+                }) {
+                    Text("Join")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.resetPreviewState() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -176,7 +197,7 @@ fun JoinHouseScreen(
                     value = inviteCode,
                     onValueChange = {
                         inviteCode = it.uppercase().take(6)
-                        errorMessage = null
+                        errorMessage = null // Reset local error, wait for validation
                     },
                     placeholder = { Text("Enter 6-digit code") },
                     modifier = Modifier.fillMaxWidth(),
@@ -195,23 +216,20 @@ fun JoinHouseScreen(
                         }
                     },
                     trailingIcon = {
-                        when {
-                            isValidating -> CircularProgressIndicator(
+                        if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Loading) {
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
                             )
-                            inviteCode.length == 6 && errorMessage == null -> Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Valid",
-                                tint = MaterialTheme.colorScheme.tertiary
-                            )
+                        } else if (inviteCode.length == 6 && errorMessage == null) {
+                             // Maybe waiting for validation
                         }
                     },
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Characters
                     ),
                     singleLine = true,
-                    enabled = !isLoading,
+                    enabled = joinState !is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Loading,
                     shape = MaterialTheme.shapes.medium
                 )
 
@@ -224,58 +242,6 @@ fun JoinHouseScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Join Button
-            Button(
-                onClick = {
-                    if (inviteCode.length != 6) {
-                        errorMessage = "Invite code must be 6 characters"
-                        return@Button
-                    }
-
-                    isLoading = true
-                    errorMessage = null
-
-                    viewModel.joinHouseByInviteCode(inviteCode)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = !isLoading && inviteCode.length == 6 && errorMessage == null,
-                shape = MaterialTheme.shapes.medium
-            ) {
-                if (isLoading) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                        Text("Joining...")
-                    }
-                } else {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            "Join Household",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Info Card
             Card(

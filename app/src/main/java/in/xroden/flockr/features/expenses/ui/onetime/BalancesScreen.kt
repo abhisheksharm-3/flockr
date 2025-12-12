@@ -162,11 +162,13 @@ fun BalancesScreen(
                     // totalYouOwe = Sum of negative balances (absolute value)
                     // totalYouAreOwed = Sum of positive balances
                     
-                    val totalYouOwe = othersBalances.filter { it.balance < java.math.BigDecimal.ZERO }
-                        .fold(java.math.BigDecimal.ZERO) { acc, balance -> acc + balance.balance.abs() }
-                    
-                    val totalYouAreOwed = othersBalances.filter { it.balance > java.math.BigDecimal.ZERO }
+                    // totalYouOwe = Sum of others' positive balances (They are owed => I owe them)
+                    val totalYouOwe = othersBalances.filter { it.balance > java.math.BigDecimal.ZERO }
                         .fold(java.math.BigDecimal.ZERO) { acc, balance -> acc + balance.balance }
+                    
+                    // totalYouAreOwed = Sum of others' negative balances (They owe => I am owed)
+                    val totalYouAreOwed = othersBalances.filter { it.balance < java.math.BigDecimal.ZERO }
+                        .fold(java.math.BigDecimal.ZERO) { acc, balance -> acc + balance.balance.abs() }
 
                     item {
                         Row(
@@ -367,28 +369,22 @@ fun BalanceCard(
     val amount = balance.balance
     
     // Logic Fix:
-    // For Current User: 
-    //   Positive = I am Creditor (They Owe Us)
-    //   Negative = I am Debtor (We Owe Them)
-    // For Other Users (viewing their card):
-    //   Positive = They are Creditor (We Owe Them)
-    //   Negative = They are Debtor (They Owe Us)
+    // If balance > 0 => User is Owed by House (Asset) -> Green/Tertiary
+    // If balance < 0 => User Owes House (Liability) -> Red/Error
     
     val isCurrentUser = balance.userId == currentUserId
-    
-    val theyOweUs = if (isCurrentUser) {
-        amount > java.math.BigDecimal.ZERO
+    val isPositive = amount > java.math.BigDecimal.ZERO
+    val absAmount = amount.abs()
+
+    // Determine Status Text and Color
+    val statusText = if (isCurrentUser) {
+        if (isPositive) "owes you" else "you owe" 
     } else {
-        amount < java.math.BigDecimal.ZERO // They are Debtor -> They Owe Us
-    }
-    
-    val weOweThem = if (isCurrentUser) {
-        amount < java.math.BigDecimal.ZERO
-    } else {
-        amount > java.math.BigDecimal.ZERO // They are Creditor -> We Owe Them
+        if (isPositive) "is owed" else "owes"
     }
 
-    val absAmount = amount.abs()
+    val statusColor = if (isPositive) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+    val containerColor = if (isPositive) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.errorContainer
 
     if (balance.userId == currentUserId) return
 
@@ -425,16 +421,13 @@ fun BalanceCard(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(
-                                    if (theyOweUs) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                                    else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                ),
+                                .background(containerColor.copy(alpha = 0.5f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                tint = statusColor,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -446,7 +439,7 @@ fun BalanceCard(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (theyOweUs) "owes you" else "you owe",
+                                text = statusText,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -462,7 +455,7 @@ fun BalanceCard(
                             text = "$currencySymbol${"%.2f".format(absAmount)}",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (theyOweUs) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                            color = statusColor
                         )
                         IconButton(onClick = { 
                             expanded = !expanded
@@ -478,6 +471,8 @@ fun BalanceCard(
                 }
 
                 // Settle Button (only show if WE owe THEM)
+                // If isPositive is true (They are Owed), then We Owe Them.
+                val weOweThem = !isCurrentUser && isPositive
                 if (weOweThem) {
                     Button(
                         onClick = onSettleClick,

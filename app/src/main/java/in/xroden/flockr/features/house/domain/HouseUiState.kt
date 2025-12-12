@@ -42,4 +42,11 @@ sealed interface InvitationsUiState {
     data class Error(val message: String) : InvitationsUiState
 }
 
+sealed interface HousePreviewUiState {
+    data object Idle : HousePreviewUiState
+    data object Loading : HousePreviewUiState
+    data class Success(val preview: `in`.xroden.flockr.features.house.model.HousePreview) : HousePreviewUiState
+    data class Error(val message: String) : HousePreviewUiState
+}
+
 
