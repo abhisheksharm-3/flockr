@@ -1,6 +1,5 @@
 package `in`.xroden.flockr.features.expenses.ui.recurring
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,11 +13,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
-
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
-import kotlinx.datetime.toJavaLocalDate
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,11 +30,14 @@ fun BillHistoryScreen(
 ) {
     val historyState by viewModel.paymentHistoryState.collectAsState()
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
+    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     // Fetch house members to resolve names
     val houseMembers = produceState<List<`in`.xroden.flockr.features.house.model.MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
-        value = expenseViewModel.getHouseMembers(houseId)
+        val result = runCatching {
+             expenseViewModel.getHouseMembers(houseId)
+        }.getOrDefault(emptyList())
+        value = result
     }
 
     LaunchedEffect(recurringExpenseId) {
@@ -66,7 +67,7 @@ fun BillHistoryScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -92,7 +93,8 @@ fun BillHistoryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(historyState) { payment ->
+                // Using key for performance
+                items(historyState, key = { it.id }) { payment ->
                     val payerName = houseMembers.value.find { it.userId == payment.paidBy }?.fullName ?: "Unknown User"
                     
                     Card(
@@ -120,7 +122,7 @@ fun BillHistoryScreen(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = payment.paymentDate.toString(),
+                                    text = payment.paymentDate.toString(), // TODO: Format nicely if needed, effectively ISO is okay for now but localization preferred
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

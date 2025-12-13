@@ -5,8 +5,6 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
 
 class BiometricAuthManager(private val context: Context) {
 
@@ -38,11 +36,6 @@ class BiometricAuthManager(private val context: Context) {
                 if (errorCode != BiometricPrompt.ERROR_USER_CANCELED && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
                     onError(errString.toString())
                 }
-            }
-
-            override fun onAuthenticationFailed() {
-                super.onAuthenticationFailed()
-                // optional: onError("Authentication failed")
             }
         }
 

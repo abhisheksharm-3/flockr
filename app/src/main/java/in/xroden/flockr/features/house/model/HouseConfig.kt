@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.features.house.model
 
 import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

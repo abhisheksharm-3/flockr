@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chores.domain.ChoreUiState
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
@@ -38,6 +37,7 @@ fun ProductivityScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val chores = (uiState as? ChoreUiState.Success)?.allChores ?: emptyList()
+    // Use stable inputs for remember
     val completedChores = remember(chores) { chores.filter { it.isCompleted && it.completedByName != null } }
     
     val stats = remember(completedChores) {
@@ -77,7 +77,7 @@ fun ProductivityScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Hero / Podium
-            item {
+            item(key = "podium") {
                 if (topPerformer != null) {
                     PodiumCard(topPerformer.first, topPerformer.second)
                 } else {
@@ -85,7 +85,7 @@ fun ProductivityScreen(
                 }
             }
             
-            item {
+            item(key = "leaderboard_header") {
                 Text(
                     "Leaderboard",
                     style = MaterialTheme.typography.titleLarge,
@@ -94,12 +94,13 @@ fun ProductivityScreen(
                 )
             }
 
-            itemsIndexed(stats) { index, (name, count) ->
+            // Stable list of items
+            itemsIndexed(items = stats, key = { _, item -> item.first }) { index, (name, count) ->
                 RankItem(index + 1, name, count)
             }
             
             if (stats.isEmpty() && topPerformer == null) {
-                item {
+                item(key = "empty_message") {
                     Text(
                         "No stats available yet. Complete some chores!",
                         style = MaterialTheme.typography.bodyLarge,
@@ -123,26 +124,12 @@ fun PodiumCard(name: String, count: Int) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
+            modifier = Modifier.fillMaxWidth().padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                contentAlignment = Alignment.Center
-            ) {
-                 // Background glow
-                 Box(
-                    modifier = Modifier
-                        .size(110.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f))
-                 )
-                 Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(80.dp)
-                 ) {
+            Box(contentAlignment = Alignment.Center) {
+                 Box(Modifier.size(110.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.2f)))
+                 Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(80.dp)) {
                      Box(contentAlignment = Alignment.Center) {
                          Text(
                              name.take(1).uppercase(),
@@ -152,7 +139,6 @@ fun PodiumCard(name: String, count: Int) {
                          )
                      }
                  }
-                 // Crown
                  Icon(
                      Icons.Default.EmojiEvents,
                      null,
@@ -167,37 +153,19 @@ fun PodiumCard(name: String, count: Int) {
             }
             
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "Keep it up, $name!",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
+            Text("Keep it up, $name!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "$count chores completed",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-            )
+            Text("$count chores completed", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
         }
     }
 }
 
 @Composable
 fun EmptyStateCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Default.Star, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
-            Spacer(modifier = Modifier.height(8.dp))
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.Star, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.height(8.dp))
             Text("No chores completed yet", style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -206,60 +174,28 @@ fun EmptyStateCard() {
 @Composable
 fun RankItem(rank: Int, name: String, count: Int) {
     val containerColor = when (rank) {
-        1 -> Color(0xFFFFD700).copy(alpha = 0.15f) // Gold
-        2 -> Color(0xFFC0C0C0).copy(alpha = 0.15f) // Silver
-        3 -> Color(0xFFCD7F32).copy(alpha = 0.15f) // Bronze
+        1 -> Color(0xFFFFD700).copy(alpha = 0.15f)
+        2 -> Color(0xFFC0C0C0).copy(alpha = 0.15f)
+        3 -> Color(0xFFCD7F32).copy(alpha = 0.15f)
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
     
-    // Explicitly using safe colors for visibility
-    val _rankColor = when (rank) {
-         1 -> Color(0xFFD4AF37) // Darker gold for text
+    val rankColor = when (rank) {
+         1 -> Color(0xFFD4AF37)
          2 -> Color(0xFF757575) 
          3 -> Color(0xFFA0522D)
          else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "#$rank",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Black,
-                color = _rankColor,
-                modifier = Modifier.width(64.dp)
-            )
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+    Card(colors = CardDefaults.cardColors(containerColor = containerColor), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("#$rank", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = rankColor, modifier = Modifier.width(64.dp))
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-            
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = CircleShape, // Pill
-                modifier = Modifier.height(32.dp)
-            ) {
-                 Box(modifier = Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        "$count",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+            Surface(color = MaterialTheme.colorScheme.surface, shape = CircleShape, modifier = Modifier.height(32.dp)) {
+                 Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+                    Text("$count", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                  }
             }
         }

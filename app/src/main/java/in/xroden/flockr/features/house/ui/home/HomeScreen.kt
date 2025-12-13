@@ -1,6 +1,5 @@
 package `in`.xroden.flockr.features.house.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,24 +10,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import `in`.xroden.flockr.ui.components.ExpandableContent
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.domain.HouseListUiState
@@ -40,6 +32,9 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,19 +57,14 @@ fun HomeScreen(
     val profileUiState by profileViewModel.uiState.collectAsState()
     val pendingInvitations by viewModel.pendingInvitations.collectAsState()
 
-    // Extract unread count from notification UI state
     val unreadCount = when (val state = notificationUiState) {
         is `in`.xroden.flockr.features.notifications.domain.NotificationUiState.Success -> state.unreadCount
         else -> 0
     }
 
-    // Extract profile from UI state
-    val profile = when (val state = profileUiState) {
-        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
-        else -> null
-    }
-
-    // Get time-based greeting
+    val profile = (profileUiState as? `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success)?.profile
+    
+    // Greeting Logic - Memoized
     val greeting = remember {
         val hour = LocalTime.now().hour
         when (hour) {
@@ -85,147 +75,31 @@ fun HomeScreen(
         }
     }
 
-    val userName = profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
+    val userName = remember(profile?.fullName) {
+        profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
+    }
+    
     var showJoinDialog by remember { mutableStateOf(false) }
-    var manualInviteCode by remember { mutableStateOf<String?>(null) } // New state for unified flow
+    var manualInviteCode by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .statusBarsPadding()
-            ) {
-                // Top Row: Avatar/Settings and Notifications
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Profile/Settings Button
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        onClick = onSettingsClick,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = userName.firstOrNull()?.toString() ?: "U",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Right Side Actions
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Add House Button
-                        var showAddMenu by remember { mutableStateOf(false) }
-                        Box {
-                             IconButton(
-                                onClick = { showAddMenu = true },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                            ) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    "Add House",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            
-                            DropdownMenu(
-                                expanded = showAddMenu,
-                                onDismissRequest = { showAddMenu = false },
-                                offset = androidx.compose.ui.unit.DpOffset(x = 0.dp, y = 4.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Join Household", fontWeight = FontWeight.Bold) },
-                                    leadingIcon = { Icon(Icons.Default.Home, null) },
-                                    onClick = {
-                                        showAddMenu = false
-                                        showJoinDialog = true // Trigger manual entry dialog
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Create Household", fontWeight = FontWeight.Bold) },
-                                    leadingIcon = { Icon(Icons.Default.Add, null) },
-                                    onClick = {
-                                        showAddMenu = false
-                                        onCreateHouseClick()
-                                    }
-                                )
-                            }
-                        }
-
-                        // Notification Button
-                        IconButton(
-                            onClick = onNotificationsClick,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            BadgedBox(
-                                badge = {
-                                    if (unreadCount > 0) {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.error,
-                                            contentColor = MaterialTheme.colorScheme.onError,
-                                            modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
-                                        ) {
-                                            Text(
-                                                unreadCount.toString(),
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Default.Notifications,
-                                    "Notifications",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Greeting
-                Text(
-                    text = greeting,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-                Text(
-                    text = userName,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        },
+            HomeTopBar(
+                userName = userName,
+                unreadCount = unreadCount,
+                greeting = greeting,
+                onSettingsClick = onSettingsClick,
+                onNotificationsClick = onNotificationsClick,
+                onCreateHouseClick = onCreateHouseClick,
+                onJoinHouseClick = { showJoinDialog = true }
+            )
+        }
     ) { padding ->
-        // Main content: handle uiState (loading/success/error)
         when (val state = uiState) {
             is HouseListUiState.Loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -234,9 +108,7 @@ fun HomeScreen(
 
             is HouseListUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
@@ -254,7 +126,6 @@ fun HomeScreen(
                             EmptyHouseState(onCreateHouseClick)
                         }
                     } else {
-                        // Pending Invitations
                         if (pendingInvitations.isNotEmpty()) {
                             item {
                                 Text(
@@ -264,21 +135,17 @@ fun HomeScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            
-                            items(pendingInvitations) { invite ->
+                            items(items = pendingInvitations, key = { it.id }) { invite ->
                                 InvitationCard(
                                     invitation = invite,
                                     onAccept = { viewModel.acceptInvitation(invite.id) },
                                     onDecline = { viewModel.declineInvitation(invite.id) }
                                 )
                             }
-                            
-                             item {
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
+                            item { Spacer(modifier = Modifier.height(16.dp)) }
                         }
                         
-                        items(state.houses) { houseData ->
+                        items(items = state.houses, key = { it.house.id }) { houseData ->
                             HouseCard(
                                 houseData = houseData,
                                 onClick = { onHouseClick(houseData.house.id) }
@@ -286,43 +153,28 @@ fun HomeScreen(
                         }
                     }
 
-
-
-                    // Bottom spacer
-                    item {
-                        Spacer(modifier = Modifier.height(100.dp))
-                    }
+                    item { Spacer(modifier = Modifier.height(100.dp)) }
                 }
             }
 
             is HouseListUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                Box( modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Text(text = "Could not load households", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
     }
 
-    // Manual Entry Dialog
     if (showJoinDialog) {
         EnterInviteCodeDialog(
             onDismiss = { showJoinDialog = false },
             onJoinHouse = { inviteCode ->
                 showJoinDialog = false
-                manualInviteCode = inviteCode // Trigger Unified Flow
+                manualInviteCode = inviteCode
             }
         )
     }
     
-    // Unified Join Flow (Preview Dialog)
     if (manualInviteCode != null) {
         JoinHouseByCodeDialog(
             inviteCode = manualInviteCode!!,
@@ -336,13 +188,139 @@ fun HomeScreen(
 }
 
 @Composable
+fun HomeTopBar(
+    userName: String,
+    unreadCount: Int,
+    greeting: String,
+    onSettingsClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    onCreateHouseClick: () -> Unit,
+    onJoinHouseClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                onClick = onSettingsClick,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = userName.firstOrNull()?.toString() ?: "U",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                var showAddMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(
+                        onClick = { showAddMenu = true },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            "Add House",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showAddMenu,
+                        onDismissRequest = { showAddMenu = false },
+                        offset = androidx.compose.ui.unit.DpOffset(x = 0.dp, y = 4.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Join Household", fontWeight = FontWeight.Bold) },
+                            leadingIcon = { Icon(Icons.Default.Home, null) },
+                            onClick = {
+                                showAddMenu = false
+                                onJoinHouseClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Create Household", fontWeight = FontWeight.Bold) },
+                            leadingIcon = { Icon(Icons.Default.Add, null) },
+                            onClick = {
+                                showAddMenu = false
+                                onCreateHouseClick()
+                            }
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onNotificationsClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    BadgedBox(
+                        badge = {
+                            if (unreadCount > 0) {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                ) {
+                                    Text(unreadCount.toString(), style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            "Notifications",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = greeting,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+        )
+        Text(
+            text = userName,
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Composable
 fun EnterInviteCodeDialog(
     onDismiss: () -> Unit,
     onJoinHouse: (String) -> Unit
 ) {
     var code by remember { mutableStateOf("") }
     
-    // M3 Styled Dialog
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Have an Invite Code?", fontWeight = FontWeight.Bold) },
@@ -374,9 +352,7 @@ fun EnterInviteCodeDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLarge
@@ -392,7 +368,7 @@ fun EmptyHouseState(onCreateHouseClick: () -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         ),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(24.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(
@@ -403,9 +379,7 @@ fun EmptyHouseState(onCreateHouseClick: () -> Unit) {
             Icon(
                 Icons.Default.Home,
                 null,
-                modifier = Modifier
-                    .size(48.dp)
-                    .padding(bottom = 16.dp),
+                modifier = Modifier.size(48.dp).padding(bottom = 16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
             Text(
@@ -433,34 +407,31 @@ fun HouseCard(
             .height(180.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Background Layer
             if (!houseData.house.headerImageUrl.isNullOrBlank()) {
                 AsyncImage(
-                    model = houseData.house.headerImageUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(houseData.house.headerImageUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                // Dark Scrim for readability
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.4f))
                 )
             } else {
-                // Fallback: Elegant dark gradient-free solid with geometric accent
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.primaryContainer)
                 )
-                // Abstract geometric shape
                 Icon(
                     imageVector = Icons.Default.Home,
                     contentDescription = null,
@@ -473,59 +444,31 @@ fun HouseCard(
                 )
             }
 
-            // Content Overlay
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
+                modifier = Modifier.fillMaxSize().padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Row: Stats Pills (Glassmorphism)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Members
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(Icons.Default.Person, null, modifier = Modifier.size(14.dp))
-                            Text(
-                                "${houseData.memberCount}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                // Stats
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    GlassPill {
+                        Icon(Icons.Default.Person, null, modifier = Modifier.size(14.dp))
+                        Text(
+                            "${houseData.memberCount}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
-                    // Expenses
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                "${houseData.currencySymbol}${houseData.monthlyExpense.toInt()}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    GlassPill {
+                        Text(
+                            "${houseData.currencySymbol}${houseData.monthlyExpense.toInt()}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
-                // Bottom Content: Name & Address
+                // Title
                 Column {
                     Text(
                         text = houseData.house.name,
@@ -539,7 +482,7 @@ fun HouseCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
+                                null,
                                 modifier = Modifier.size(14.dp),
                                 tint = Color.White.copy(alpha = 0.8f)
                             )
@@ -556,6 +499,22 @@ fun HouseCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun GlassPill(content: @Composable RowScope.() -> Unit) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+        contentColor = Color.White
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            content = content
+        )
     }
 }
 
@@ -590,18 +549,14 @@ fun InvitationCard(
                 Button(
                     onClick = onAccept,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Accept")
                 }
                 OutlinedButton(
                     onClick = onDecline,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                 ) {
                     Text("Decline")
@@ -610,5 +565,3 @@ fun InvitationCard(
         }
     }
 }
-
-

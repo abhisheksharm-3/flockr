@@ -281,7 +281,9 @@ class ChoreRepository @Inject constructor(
             supabase.from("chores")
                 .update(
                     ChoreUpdate(
-                        isCompleted = true
+                        isCompleted = true,
+                        completedBy = currentUserId,
+                        completedAt = kotlinx.datetime.Clock.System.now()
                     )
                 ) {
                     filter {

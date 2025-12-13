@@ -25,7 +25,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
-import `in`.xroden.flockr.features.expenses.data.ExpenseRepository.DebtBreakdownItem
 import java.math.BigDecimal
 import kotlin.math.abs
 
@@ -38,7 +37,9 @@ fun BalancesScreen(
 ) {
     val uiState by viewModel.balanceState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
+    val currencySymbol = remember(houseConfig) {
+        houseConfig?.getCurrencySymbol() ?: "$"
+    }
 
     LaunchedEffect(houseId) {
         viewModel.loadBalances(houseId)
@@ -54,7 +55,7 @@ fun BalancesScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background
                 )
@@ -62,11 +63,7 @@ fun BalancesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Box(Modifier.fillMaxSize().padding(padding)) {
             when (val state = uiState) {
                 is BalanceUiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -82,9 +79,7 @@ fun BalancesScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(16.dp)
                         )
-                        Button(onClick = { viewModel.loadBalances(houseId) }) {
-                            Text("Retry")
-                        }
+                        Button(onClick = { viewModel.loadBalances(houseId) }) { Text("Retry") }
                     }
                 }
                 is BalanceUiState.Success -> {
@@ -119,12 +114,17 @@ fun BalancesContent(
     onSettle: (UserBalance, Double, String) -> Unit,
     viewModel: ExpenseViewModel
 ) {
-    val otherBalances = balances.filter { it.userId != currentUserId }
+    val otherBalances = remember(balances, currentUserId) {
+        balances.filter { it.userId != currentUserId }
+    }
     
     // Calculate totals based on MY balance
-    val myBalance = balances.find { it.userId == currentUserId }?.balance?.toDouble() ?: 0.0
-    val totalYouOwe = if (myBalance < 0) abs(myBalance) else 0.0
-    val totalYouAreOwed = if (myBalance > 0) abs(myBalance) else 0.0
+    val (totalYouOwe, totalYouAreOwed) = remember(balances, currentUserId) {
+        val myBalance = balances.find { it.userId == currentUserId }?.balance?.toDouble() ?: 0.0
+        val owe = if (myBalance < 0) abs(myBalance) else 0.0
+        val owed = if (myBalance > 0) abs(myBalance) else 0.0
+        owe to owed
+    }
 
     LazyColumn(
         contentPadding = PaddingValues(24.dp),
@@ -151,12 +151,7 @@ fun BalancesContent(
 
         if (otherBalances.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(
                         "All settled up! 🎉",
                         style = MaterialTheme.typography.bodyLarge,
@@ -165,7 +160,10 @@ fun BalancesContent(
                 }
             }
         } else {
-            items(otherBalances) { balance ->
+            items(
+                items = otherBalances,
+                key = { it.userId }
+            ) { balance ->
                 BalanceItemCard(
                     houseId = houseId,
                     balance = balance,
@@ -188,28 +186,15 @@ fun NetBalanceCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text(
-                "Net Balance",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Text("Net Balance", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 // You Owe Column (Red)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "You Owe",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text("You Owe", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                     Text(
                         "$currencySymbol${"%.2f".format(totalYouOwe)}",
                         style = MaterialTheme.typography.headlineSmall,
@@ -218,23 +203,12 @@ fun NetBalanceCard(
                     )
                 }
 
-                // Divider
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(48.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                )
-                
-                Spacer(modifier = Modifier.width(24.dp))
+                Box(Modifier.width(1.dp).height(48.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
+                Spacer(Modifier.width(24.dp))
 
                 // You are Owed Column (Green/Primary)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "You are Owed",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text("You are Owed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     Text(
                         "$currencySymbol${"%.2f".format(totalYouAreOwed)}",
                         style = MaterialTheme.typography.headlineSmall,
@@ -262,7 +236,6 @@ fun BalanceItemCard(
     // Logic: 
     // balance.balance > 0 -> They have +50 (Owed by house/me) -> I owe them (relative)
     // balance.balance < 0 -> They have -50 (Owe house/me) -> They owe me
-    // User confirmed this > logic was working for them.
     val iOweThem = balance.balance > BigDecimal.ZERO
     val isSettled = balance.balance.compareTo(BigDecimal.ZERO) == 0
     val amount = balance.balance.abs().toDouble()
@@ -297,28 +270,14 @@ fun BalanceItemCard(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // Header Row
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Avatar
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(48.dp)) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = balance.fullName?.firstOrNull()?.toString()?.uppercase() ?: "?",
@@ -329,24 +288,13 @@ fun BalanceItemCard(
                     }
                 }
                 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(Modifier.width(16.dp))
                 
-                // Name & Status using updated Hierarchy
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = balance.fullName ?: "User",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (iOweThem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text(balance.fullName ?: "User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(statusText, style = MaterialTheme.typography.bodySmall, color = if (iOweThem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 }
 
-                // Amount
                 Text(
                     text = "$currencySymbol${"%.2f".format(amount)}",
                     style = MaterialTheme.typography.titleLarge,
@@ -358,48 +306,23 @@ fun BalanceItemCard(
             // Actions & Expansion
             AnimatedVisibility(visible = expanded) {
                 Column {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     
                     if (isSettled) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                             Text(
-                                "All settled up!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                             Text("All settled up!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                         }
                     } else if (isBreakdownLoading) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(Modifier.size(24.dp))
                         }
                     } else if (breakdownItems.isNullOrEmpty()) {
-                         Text(
-                            "No details available.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
+                         Text("No details available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     } else {
                         breakdownItems.forEachIndexed { index, item ->
                             ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = item.expenseName,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = item.date.toString(),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
+                                headlineContent = { Text(item.expenseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface) },
+                                supportingContent = { Text(item.date.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                                 trailingContent = {
                                     Text(
                                         text = "$currencySymbol${"%.2f".format(item.amountOwed.toDouble())}",
@@ -412,10 +335,7 @@ fun BalanceItemCard(
                                 modifier = Modifier.padding(vertical = 4.dp)
                             )
                             if (index < breakdownItems.lastIndex) {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.1f),
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
@@ -424,25 +344,18 @@ fun BalanceItemCard(
             
             // Settle Button only if I owe them
             if (iOweThem) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = { showSettleDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = MaterialTheme.shapes.large
                 ) {
                     Text("Settle Up")
                 }
             } else if (!expanded) {
-                 // Hint using Icon if not expanded and no button
                  Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                      Icon(
-                        Icons.Default.ExpandMore, 
-                        null, 
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                      Icon(Icons.Default.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                  }
             }
         }
@@ -475,34 +388,20 @@ fun SettleBalanceDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "Settle Up",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "You are settling with ${balance.fullName ?: "User"}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("Settle Up", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("You are settling with ${balance.fullName ?: "User"}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                // Amount Input
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
@@ -515,7 +414,6 @@ fun SettleBalanceDialog(
                     textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
 
-                // Note Input
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -526,20 +424,10 @@ fun SettleBalanceDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
                     Button(
-                        onClick = { 
-                            amount.toDoubleOrNull()?.let { onSettle(it, description.takeIf { d -> d.isNotBlank() }) }
-                        },
+                        onClick = { amount.toDoubleOrNull()?.let { onSettle(it, description.takeIf { d -> d.isNotBlank() }) } },
                         enabled = isValid,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

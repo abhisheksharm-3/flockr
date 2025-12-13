@@ -1,7 +1,6 @@
 package `in`.xroden.flockr.di
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -32,29 +31,18 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
-        Log.d("AppModule", "========== Creating Supabase client ==========")
-        Log.d("AppModule", "Supabase URL: $SUPABASE_URL")
-        Log.d("AppModule", "Supabase Key length: ${SUPABASE_KEY.length}")
-
-        return try {
-            createSupabaseClient(
-                supabaseUrl = SUPABASE_URL,
-                supabaseKey = SUPABASE_KEY
-            ) {
-                install(Auth) {
-                    scheme = "flockr"
-                    host = "login"
-                }
-                install(Postgrest)
-                install(Storage)
-                install(Realtime)
-                install(Functions)
-            }.also {
-                Log.d("AppModule", "✅ Supabase client created successfully")
+        return createSupabaseClient(
+            supabaseUrl = SUPABASE_URL,
+            supabaseKey = SUPABASE_KEY
+        ) {
+            install(Auth) {
+                scheme = "flockr"
+                host = "login"
             }
-        } catch (e: Exception) {
-            Log.e("AppModule", "❌ Error creating Supabase client", e)
-            throw e
+            install(Postgrest)
+            install(Storage)
+            install(Realtime)
+            install(Functions)
         }
     }
 

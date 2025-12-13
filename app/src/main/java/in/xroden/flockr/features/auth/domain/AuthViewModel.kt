@@ -85,14 +85,7 @@ class AuthViewModel @Inject constructor(
         )
 
     init {
-        // Start a global timeout to prevent infinite loading
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(3000) // 3 second timeout
-            val currentState = _sessionState.value
-            if (currentState is SessionStatus.LoadingFromStorage) {
-                _sessionState.value = SessionStatus.NotAuthenticated(false)
-            }
-        }
+
 
         // Collect repository session flow
         viewModelScope.launch {

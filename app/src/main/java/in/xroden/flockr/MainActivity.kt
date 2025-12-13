@@ -87,7 +87,7 @@ class MainActivity : FragmentActivity() {
             LaunchedEffect(Unit) {
                 if (!PermissionHandler.hasNotificationPermission(this@MainActivity)) {
                     permissionManager.requestNotificationPermission { granted ->
-                        android.util.Log.d("MainActivity", "Notification permission: $granted")
+                        // Permission result handled
                     }
                 }
             }
@@ -140,8 +140,6 @@ class MainActivity : FragmentActivity() {
 
     private fun handleIntent(intent: Intent?, onInviteFound: (String) -> Unit) {
         intent?.let {
-            android.util.Log.d("MainActivity", "handleIntent: action=${it.action}, data=${it.data}, extras=${it.extras}")
-            
             // 1. Check Data (Deep Link)
             // Format: flockr://invite/{code} or https://flockr.com/invite/{code}
             val data = it.data
@@ -149,27 +147,22 @@ class MainActivity : FragmentActivity() {
                 val pathSegments = data.pathSegments
                 // Path examples: /invite/ABC123
                 if (pathSegments.size >= 2 && pathSegments[0] == "invite") {
-                    val code = pathSegments[1]
-                    android.util.Log.d("MainActivity", "handleIntent: Found code in deep link: $code")
-                    onInviteFound(code)
+                    onInviteFound(pathSegments[1])
                     return
                 }
             }
 
             // 2. Check Extras (Notification)
             val type = it.getStringExtra("notification_type") ?: it.getStringExtra("type")
-            android.util.Log.d("MainActivity", "handleIntent: type=$type")
             
             if (type != null) {
                 if (type == "house_invitation" || type == "HOUSE_INVITE") {
                     val code = it.getStringExtra("invite_code") ?: it.getStringExtra("code")
-                    android.util.Log.d("MainActivity", "handleIntent: found code in extras=$code")
                     if (code != null) {
                         onInviteFound(code)
                     }
                 } else if (type.startsWith("house_invitation:")) {
                     val code = type.substringAfter("house_invitation:")
-                    android.util.Log.d("MainActivity", "handleIntent: found parsed code=$code")
                     if (code.isNotEmpty()) {
                         onInviteFound(code)
                     }

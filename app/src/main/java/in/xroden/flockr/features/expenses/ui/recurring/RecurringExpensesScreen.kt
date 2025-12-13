@@ -5,9 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -16,8 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
@@ -26,11 +24,10 @@ import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +42,9 @@ fun RecurringExpensesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val houseConfig by expenseViewModel.houseConfig.collectAsState()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+    val currencySymbol = remember(houseConfig) {
+        houseConfig?.getCurrencySymbol() ?: "$"
+    }
 
     var selectedExpense by remember { mutableStateOf<RecurringExpense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -59,17 +58,9 @@ fun RecurringExpensesScreen(
     if (showDeleteDialog && selectedExpense != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
-            },
+            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Delete Recurring Bill?", fontWeight = FontWeight.Bold) },
-            text = {
-                Text("Are you sure you want to delete '${selectedExpense?.name}'? This will also delete all payment history for this bill.")
-            },
+            text = { Text("Are you sure you want to delete '${selectedExpense?.name}'? This will also delete all payment history for this bill.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -79,21 +70,12 @@ fun RecurringExpensesScreen(
                             selectedExpense = null
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("Delete", fontWeight = FontWeight.Bold)
-                }
+                ) { Text("Delete", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showDeleteDialog = false },
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
-                }
+                TextButton(onClick = { showDeleteDialog = false }, shape = MaterialTheme.shapes.medium) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
             },
             containerColor = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.medium
@@ -104,26 +86,13 @@ fun RecurringExpensesScreen(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Recurring Bills",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                },
+                title = { Text("Recurring Bills", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
@@ -140,47 +109,31 @@ fun RecurringExpensesScreen(
     ) { padding ->
         when (val state = uiState) {
             is RecurringExpenseUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
             is RecurringExpenseUiState.Success -> {
                 if (state.expenses.isEmpty()) {
-                    EmptyRecurringState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                    )
+                    EmptyRecurringState(Modifier.fillMaxSize().padding(padding))
                 } else {
-                    val recurringExpenses = state.expenses
-
-                    // Group expenses by frequency
-                    val groupedExpenses = recurringExpenses.groupBy { it.frequency }
-                    val frequencyOrder = listOf(
-                        ExpenseFrequency.DAILY,
-                        ExpenseFrequency.WEEKLY,
-                        ExpenseFrequency.BIWEEKLY,
-                        ExpenseFrequency.MONTHLY,
-                        ExpenseFrequency.QUARTERLY,
-                        ExpenseFrequency.SEMIANNUAL,
-                        ExpenseFrequency.ANNUAL,
-                        ExpenseFrequency.CUSTOM
-                    )
-                    val sortedGroups = frequencyOrder.mapNotNull { freq ->
-                        groupedExpenses[freq]?.let { freq to it }
+                    val sortedGroups = remember(state.expenses) {
+                        val groupedExpenses = state.expenses.groupBy { it.frequency }
+                        val frequencyOrder = listOf(
+                            ExpenseFrequency.DAILY,
+                            ExpenseFrequency.WEEKLY,
+                            ExpenseFrequency.BIWEEKLY,
+                            ExpenseFrequency.MONTHLY,
+                            ExpenseFrequency.QUARTERLY,
+                            ExpenseFrequency.SEMIANNUAL,
+                            ExpenseFrequency.ANNUAL,
+                            ExpenseFrequency.CUSTOM
+                        )
+                        frequencyOrder.mapNotNull { freq -> groupedExpenses[freq]?.let { freq to it } }
                     }
 
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
+                        modifier = Modifier.fillMaxSize().padding(padding),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
@@ -188,45 +141,28 @@ fun RecurringExpensesScreen(
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                                ),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
                                 shape = MaterialTheme.shapes.large,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("Recurring Bills", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                                         Text(
-                                            text = "Recurring Bills",
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                        Text(
-                                            text = "${recurringExpenses.size} active bill${if (recurringExpenses.size != 1) "s" else ""}",
+                                            text = "${state.expenses.size} active bill${if (state.expenses.size != 1) "s" else ""}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     Box(
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .clip(MaterialTheme.shapes.medium)
-                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                        modifier = Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Receipt,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                                        Icon(Icons.Default.Receipt, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                                     }
                                 }
                             }
@@ -242,7 +178,10 @@ fun RecurringExpensesScreen(
                                 )
                             }
 
-                            items(expenses) { expense ->
+                            items(
+                                items = expenses,
+                                key = { it.id }
+                            ) { expense ->
                                 RecurringExpenseCard(
                                     expense = expense,
                                     currencySymbol = currencySymbol,
@@ -254,59 +193,32 @@ fun RecurringExpensesScreen(
                                             paymentDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
                                         )
                                     },
-                                    onEdit = {
-                                        onNavigateToEditBill(expense.id)
-                                    },
+                                    onEdit = { onNavigateToEditBill(expense.id) },
                                     onDelete = {
                                         selectedExpense = expense
                                         showDeleteDialog = true
                                     },
-                                    onHistory = {
-                                        onNavigateToHistory(expense.id, expense.name)
-                                    }
+                                    onHistory = { onNavigateToHistory(expense.id, expense.name) }
                                 )
                             }
                         }
 
-                        // Bottom Spacer
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
                 }
             }
             is RecurringExpenseUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = "Error loading recurring expenses",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+                        Text("Error loading recurring expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                         Button(
                             onClick = { viewModel.loadRecurringExpenses(houseId) },
                             shape = MaterialTheme.shapes.medium,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text("Retry", fontWeight = FontWeight.SemiBold)
                         }
                     }
@@ -316,10 +228,7 @@ fun RecurringExpensesScreen(
     }
 }
 
-
-
-// Helper function reused
-private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
+private fun getCategoryColor(category: String): Color {
     return when (category.lowercase()) {
         "groceries", "food" -> CategoryGreen
         "utilities", "services" -> CategoryBlue
@@ -333,7 +242,7 @@ private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Col
     }
 }
 
-private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vector.ImageVector {
+private fun getCategoryIcon(category: String): ImageVector {
     return when (category.lowercase()) {
         "groceries", "food" -> Icons.Default.ShoppingCart
         "utilities", "services" -> Icons.Default.Build
@@ -349,33 +258,16 @@ private fun getCategoryIcon(category: String): androidx.compose.ui.graphics.vect
 
 @Composable
 fun EmptyRecurringState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+            modifier = Modifier.size(80.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Receipt,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Icon(Icons.Default.Receipt, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
         }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "No Recurring Bills",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(24.dp))
+        Text("No Recurring Bills", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(Modifier.height(8.dp))
         Text(
             text = "Add recurring bills to track them automatically",
             style = MaterialTheme.typography.bodyLarge,
@@ -386,26 +278,16 @@ fun EmptyRecurringState(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun FrequencySection(
-    frequency: String,
-    count: Int,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+fun FrequencySection(frequency: String, count: Int, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = frequency.lowercase().replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = MaterialTheme.shapes.extraSmall
-        ) {
+        Spacer(Modifier.width(8.dp))
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.extraSmall) {
             Text(
                 text = "$count",
                 style = MaterialTheme.typography.labelSmall,
@@ -429,105 +311,53 @@ fun RecurringExpenseCard(
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     
-    // Check if paid in current cycle
     val isPaidThisPeriod = remember(expense.lastPaidDate, expense.frequency) {
         if (expense.lastPaidDate == null) return@remember false
         when (expense.frequency) {
-             ExpenseFrequency.MONTHLY -> 
-                 expense.lastPaidDate.month == today.month && expense.lastPaidDate.year == today.year
-             ExpenseFrequency.WEEKLY -> {
-                 val daysDiff = today.toEpochDays() - expense.lastPaidDate.toEpochDays()
-                 daysDiff < 7
-             }
-             ExpenseFrequency.ANNUAL ->
-                 expense.lastPaidDate.year == today.year
+             ExpenseFrequency.MONTHLY -> expense.lastPaidDate.month == today.month && expense.lastPaidDate.year == today.year
+             ExpenseFrequency.WEEKLY -> (today.toEpochDays() - expense.lastPaidDate.toEpochDays()) < 7
+             ExpenseFrequency.ANNUAL -> expense.lastPaidDate.year == today.year
              else -> false 
         }
     }
 
-    // Simple logic: if due day is past today, it's overdue (unless paid)
     val nextDueDate = getNextDueDate(expense.dueDay, today)
     val daysUntilDue = nextDueDate.dayOfYear - today.dayOfYear
 
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Top row: name/category on the left, amount on the right
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            // Top row
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.weight(1f)) {
                     Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(getCategoryColor(expense.category).copy(alpha = 0.1f)),
+                        modifier = Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(getCategoryColor(expense.category).copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = getCategoryIcon(expense.category),
-                            contentDescription = null,
-                            tint = getCategoryColor(expense.category),
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(getCategoryIcon(expense.category), null, tint = getCategoryColor(expense.category), modifier = Modifier.size(24.dp))
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = expense.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = expense.category,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(expense.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(expense.category, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
-                Text(
-                    text = "$currencySymbol${expense.amount}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("$currencySymbol${expense.amount}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             // Due Date & Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Event,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.Event, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
                     Text(
                         text = "Due: ${nextDueDate.dayOfMonth} ${nextDueDate.month.name.lowercase().replaceFirstChar { it.uppercase() }}",
                         style = MaterialTheme.typography.bodySmall,
@@ -536,47 +366,27 @@ fun RecurringExpenseCard(
                 }
 
                 if (isPaidThisPeriod) {
-                    Text(
-                        text = "Paid",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CategoryGreen,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Paid", style = MaterialTheme.typography.labelSmall, color = CategoryGreen, fontWeight = FontWeight.Bold)
                 } else if (daysUntilDue < 0) {
-                    Text(
-                        text = "Overdue",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Overdue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 } else if (daysUntilDue <= 3) {
-                    Text(
-                        text = "Due Soon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Due Soon", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!isPaidThisPeriod) {
                     Button(
                         onClick = onMarkAsPaid,
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
                         Text("Paid", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                     }
                 } else {
@@ -588,8 +398,8 @@ fun RecurringExpenseCard(
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         border = BorderStroke(1.dp, CategoryGreen)
                     ) {
-                        Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(16.dp), tint = CategoryGreen)
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp), tint = CategoryGreen)
+                        Spacer(Modifier.width(4.dp))
                         Text("Done", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge, color = CategoryGreen)
                     }
                 }
@@ -600,18 +410,15 @@ fun RecurringExpenseCard(
                     shape = MaterialTheme.shapes.medium,
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.History, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.History, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text("History", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onEdit,
                     modifier = Modifier.weight(1f),
@@ -619,8 +426,8 @@ fun RecurringExpenseCard(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text("Edit", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
 
@@ -628,14 +435,12 @@ fun RecurringExpenseCard(
                     onClick = onDelete,
                     modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
                     Text("Delete", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 }
             }
@@ -647,32 +452,22 @@ private fun getNextDueDate(dueDay: Int, today: kotlinx.datetime.LocalDate): kotl
     val currentMonthDue = kotlinx.datetime.LocalDate(
         today.year,
         today.month,
-        dueDay.coerceAtMost(
-            today.month.length(
-                today.year % 4 == 0 && (today.year % 100 != 0 || today.year % 400 == 0)
-            )
-        )
+        dueDay.coerceAtMost(today.month.length(today.year % 4 == 0 && (today.year % 100 != 0 || today.year % 400 == 0)))
     )
 
     return if (currentMonthDue < today) {
-        // If due date passed this month, it's next month
         val nextMonth = today.month.plus(1)
         val nextYear = if (today.month == kotlinx.datetime.Month.DECEMBER) today.year + 1 else today.year
         kotlinx.datetime.LocalDate(
             nextYear,
             nextMonth,
-            dueDay.coerceAtMost(
-                nextMonth.length(
-                    nextYear % 4 == 0 && (nextYear % 100 != 0 || nextYear % 400 == 0)
-                )
-            )
+            dueDay.coerceAtMost(nextMonth.length(nextYear % 4 == 0 && (nextYear % 100 != 0 || nextYear % 400 == 0)))
         )
     } else {
         currentMonthDue
     }
 }
 
-// Extension to get length of month
 private fun kotlinx.datetime.Month.length(isLeapYear: Boolean): Int {
     return when (this) {
         kotlinx.datetime.Month.FEBRUARY -> if (isLeapYear) 29 else 28

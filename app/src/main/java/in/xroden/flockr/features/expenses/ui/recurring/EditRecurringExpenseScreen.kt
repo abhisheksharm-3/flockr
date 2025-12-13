@@ -1,13 +1,12 @@
 package `in`.xroden.flockr.features.expenses.ui.recurring
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
-import `in`.xroden.flockr.features.expenses.model.RecurringExpense
-import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -35,16 +33,16 @@ fun EditRecurringExpenseScreen(
     val uiState by viewModel.uiState.collectAsState()
     
     // Find the expense to edit
-    val expense = (uiState as? `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState.Success)
+    val expense = (uiState as? RecurringExpenseUiState.Success)
         ?.expenses?.find { it.id == expenseId }
 
-    // If expense not found (or still loading), show loading or error
+    LaunchedEffect(houseId) {
+        viewModel.loadRecurringExpenses(houseId)
+    }
+
     if (expense == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
-        }
-        LaunchedEffect(houseId) {
-            viewModel.loadRecurringExpenses(houseId)
         }
         return
     }
@@ -113,7 +111,6 @@ fun EditRecurringExpenseScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -123,7 +120,6 @@ fun EditRecurringExpenseScreen(
                 shape = MaterialTheme.shapes.medium
             )
 
-            // Amount
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it },
@@ -134,7 +130,6 @@ fun EditRecurringExpenseScreen(
                 shape = MaterialTheme.shapes.medium
             )
 
-            // Due Day
             OutlinedTextField(
                 value = dueDay,
                 onValueChange = { 
@@ -154,7 +149,6 @@ fun EditRecurringExpenseScreen(
                 }
             )
 
-            // Category
             ExposedDropdownMenuBox(
                 expanded = expandedCategory,
                 onExpandedChange = { expandedCategory = !expandedCategory }
@@ -165,7 +159,7 @@ fun EditRecurringExpenseScreen(
                     readOnly = true,
                     label = { Text("Category") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                     shape = MaterialTheme.shapes.medium
                 )
                 ExposedDropdownMenu(
@@ -175,16 +169,12 @@ fun EditRecurringExpenseScreen(
                     categories.forEach { cat ->
                         DropdownMenuItem(
                             text = { Text(cat) },
-                            onClick = {
-                                category = cat
-                                expandedCategory = false
-                            }
+                            onClick = { category = cat; expandedCategory = false }
                         )
                     }
                 }
             }
 
-            // Frequency
             ExposedDropdownMenuBox(
                 expanded = expandedFrequency,
                 onExpandedChange = { expandedFrequency = !expandedFrequency }
@@ -195,7 +185,7 @@ fun EditRecurringExpenseScreen(
                     readOnly = true,
                     label = { Text("Frequency") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                     shape = MaterialTheme.shapes.medium
                 )
                 ExposedDropdownMenu(
@@ -205,16 +195,12 @@ fun EditRecurringExpenseScreen(
                     ExpenseFrequency.entries.forEach { freq ->
                         DropdownMenuItem(
                             text = { Text(freq.toDisplayName()) },
-                            onClick = {
-                                frequency = freq
-                                expandedFrequency = false
-                            }
+                            onClick = { frequency = freq; expandedFrequency = false }
                         )
                     }
                 }
             }
 
-            // Custom Days
             if (frequency == ExpenseFrequency.CUSTOM) {
                 OutlinedTextField(
                     value = customDays,
@@ -227,17 +213,12 @@ fun EditRecurringExpenseScreen(
                 )
             }
 
-            // Reminder Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Enable Reminders",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Text("Enable Reminders", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 Switch(
                     checked = reminderEnabled,
                     onCheckedChange = { reminderEnabled = it },
@@ -248,7 +229,6 @@ fun EditRecurringExpenseScreen(
                 )
             }
 
-            // Reminder Days
             if (reminderEnabled) {
                 OutlinedTextField(
                     value = reminderDays,
@@ -261,7 +241,6 @@ fun EditRecurringExpenseScreen(
                 )
             }
 
-            // Notes
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
@@ -276,11 +255,8 @@ fun EditRecurringExpenseScreen(
         }
     }
 
-    // Due Day Date Picker
     if (showDueDayPicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = System.currentTimeMillis()
-        )
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
         DatePickerDialog(
             onDismissRequest = { showDueDayPicker = false },
             confirmButton = {
@@ -291,23 +267,15 @@ fun EditRecurringExpenseScreen(
                         dueDay = date.dayOfMonth.toString()
                     }
                     showDueDayPicker = false
-                }) {
-                    Text("OK", fontWeight = FontWeight.Bold)
-                }
+                }) { Text("OK", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showDueDayPicker = false }) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
-                }
+                TextButton(onClick = { showDueDayPicker = false }) { Text("Cancel", fontWeight = FontWeight.Medium) }
             },
             shape = MaterialTheme.shapes.large
         ) {
             DatePicker(state = datePickerState, title = {
-                Text(
-                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
-                    text = "Select due day",
-                    style = MaterialTheme.typography.titleMedium
-                ) 
+                Text(modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp), text = "Select due day", style = MaterialTheme.typography.titleMedium)
             })
         }
     }

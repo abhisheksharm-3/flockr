@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +26,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.domain.ChatUiState
 import `in`.xroden.flockr.features.chat.domain.ChatViewModel
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.Duration
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +49,7 @@ fun ChatScreen(
     }
 
     Scaffold(
-        modifier = Modifier, // Removed imePadding from here, let content handle it
+        modifier = Modifier,
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             CenterAlignedTopAppBar(
@@ -68,10 +72,9 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .navigationBarsPadding() // Handle nav bar
-                .imePadding() // Handle keyboard
+                .navigationBarsPadding()
+                .imePadding()
         ) {
-            // Main Content (Messages)
             Box(modifier = Modifier.weight(1f)) {
                 when (val state = uiState) {
                     is ChatUiState.Loading -> {
@@ -93,15 +96,17 @@ fun ChatScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 reverseLayout = true
                             ) {
-                                items(state.messages.reversed(), key = { it.id }) { message ->
+                                items(
+                                    items = state.messages.reversed(),
+                                    key = { it.id } // Stable key optimization
+                                ) { message ->
                                     MessageBubble(
                                         message = message,
                                         currentUserId = viewModel.getCurrentUserId()
                                     )
                                 }
 
-                                // Security Warning (Minimal)
-                                item {
+                                item(key = "security_warning") {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -131,13 +136,13 @@ fun ChatScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
+                            Text("Something went wrong", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             }
 
-            // Floating Input Area - Moved inside Column
+            // Input Area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,7 +154,6 @@ fun ChatScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Input Field Pill
                     TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
@@ -160,16 +164,15 @@ fun ChatScreen(
                         placeholder = { Text("Message...", style = MaterialTheme.typography.bodyLarge) },
                         maxLines = 4,
                         colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                         ),
                         shape = CircleShape
                     )
 
-                    // Send Button
                     val isEnabled = messageText.isNotBlank()
                     
                     FilledIconButton(
@@ -242,17 +245,24 @@ fun MessageBubble(
 ) {
     val isCurrentUser = currentUserId != null && message.userId == currentUserId
     
-    // Expressive shapes: simpler curves for bubble effect
-    val bubbleShape = if (isCurrentUser) {
-        RoundedCornerShape(24.dp, 24.dp, 4.dp, 24.dp)
-    } else {
-        RoundedCornerShape(24.dp, 24.dp, 24.dp, 4.dp)
+    // Remember shape to avoid re-allocation
+    val bubbleShape = remember(isCurrentUser) {
+        if (isCurrentUser) {
+            RoundedCornerShape(24.dp, 24.dp, 4.dp, 24.dp)
+        } else {
+            RoundedCornerShape(24.dp, 24.dp, 24.dp, 4.dp)
+        }
+    }
+    
+    // Remember timestamp string to avoid re-parsing on every composition
+    val timestampStr = remember(message.createdAt) {
+        formatTimestamp(message.createdAt.toString())
     }
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp), // Increased vertical breathing room
+            .padding(vertical = 4.dp),
         horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
     ) {
         if (!isCurrentUser && message.senderName != null) {
@@ -267,7 +277,7 @@ fun MessageBubble(
 
         Box(
             modifier = Modifier
-                .widthIn(max = 300.dp) // Slightly wider
+                .widthIn(max = 300.dp)
                 .clip(bubbleShape)
                 .background(
                     if (isCurrentUser) {
@@ -293,7 +303,7 @@ fun MessageBubble(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = formatTimestamp(message.createdAt.toString()),
+                        text = timestampStr,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isCurrentUser) 
                             Color.White.copy(alpha = 0.7f) 
@@ -318,14 +328,15 @@ fun MessageBubble(
 }
 
 private fun formatTimestamp(timestamp: String): String {
-    return try {
-        val instant = java.time.Instant.parse(timestamp)
-        val messageTime = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
-        val now = java.time.LocalDateTime.now()
+    // Silent version: returns "Unknown" on failure without logging
+    return runCatching {
+        val instant = Instant.parse(timestamp)
+        val messageTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+        val now = LocalDateTime.now()
         
-        val minutesAgo = java.time.Duration.between(messageTime, now).toMinutes()
-        val hoursAgo = java.time.Duration.between(messageTime, now).toHours()
-        val daysAgo = java.time.Duration.between(messageTime, now).toDays()
+        val minutesAgo = Duration.between(messageTime, now).toMinutes()
+        val hoursAgo = Duration.between(messageTime, now).toHours()
+        val daysAgo = Duration.between(messageTime, now).toDays()
         
         when {
             minutesAgo < 1 -> "Now"
@@ -334,12 +345,9 @@ private fun formatTimestamp(timestamp: String): String {
             daysAgo == 1L -> "Yesterday"
             daysAgo < 7 -> "${daysAgo}d ago"
             else -> {
-                val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM d")
+                val formatter = DateTimeFormatter.ofPattern("MMM d")
                 messageTime.format(formatter)
             }
         }
-    } catch (e: Exception) {
-        android.util.Log.e("ChatScreen", "Error formatting timestamp: $timestamp", e)
-        "Unknown"
-    }
+    }.getOrDefault("Unknown")
 }

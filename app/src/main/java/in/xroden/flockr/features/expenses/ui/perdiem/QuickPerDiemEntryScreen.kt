@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import `in`.xroden.flockr.utils.getCurrencySymbol
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry

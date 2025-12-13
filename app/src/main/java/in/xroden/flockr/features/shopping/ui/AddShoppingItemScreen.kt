@@ -11,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
 import kotlinx.coroutines.launch
@@ -39,7 +38,7 @@ fun AddShoppingItemScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = { 
+                        onClick = {
                             scope.launch {
                                 viewModel.addItem(houseId, itemName, quantity.takeIf { it.isNotBlank() })
                                 onNavigateBack()
@@ -72,7 +71,7 @@ fun AddShoppingItemScreen(
                 shape = MaterialTheme.shapes.medium,
                 textStyle = MaterialTheme.typography.bodyLarge
             )
-            
+
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { quantity = it },
@@ -83,8 +82,7 @@ fun AddShoppingItemScreen(
                 shape = MaterialTheme.shapes.medium,
                 textStyle = MaterialTheme.typography.bodyLarge
             )
-            
-            // Helper text or suggestions could go here
+
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)

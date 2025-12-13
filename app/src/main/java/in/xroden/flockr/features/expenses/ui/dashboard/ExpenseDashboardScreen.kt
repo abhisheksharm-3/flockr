@@ -25,15 +25,23 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
-import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import `in`.xroden.flockr.features.expenses.model.SpendByMember
 import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.ui.theme.CategoryBlue
+import `in`.xroden.flockr.ui.theme.CategoryGreen
+import `in`.xroden.flockr.ui.theme.CategoryOrange
+import `in`.xroden.flockr.ui.theme.CategoryPurple
 import `in`.xroden.flockr.ui.theme.CategoryRed
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import java.math.BigDecimal
 
 /**
  * Central Finance Dashboard - Hub for all finance features
- * Updated to match app-wide aesthetics
+ * Optimized for performance and clean UI logic.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,39 +58,48 @@ fun ExpenseDashboardScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val expenseState by viewModel.expenseState.collectAsState()
-    val balanceState by viewModel.balanceState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
     val summaryState by viewModel.summaryState.collectAsState()
-    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
+    
+    val currentUserId = viewModel.getCurrentUserId()
+    
+    // Derived state for heavy calculations
+    val currencySymbol by remember {
+        derivedStateOf { houseConfig?.getCurrencySymbol() ?: "$" }
+    }
 
+    val summaryData by remember {
+        derivedStateOf {
+            when (val state = summaryState) {
+                is MonthlySummaryUiState.Success -> Pair(state.summary, state.spendByMember)
+                else -> Pair(null, emptyList<SpendByMember>())
+            }
+        }
+    }
+
+    // Effect to load data
     LaunchedEffect(houseId) {
         viewModel.loadExpenses(houseId)
         viewModel.loadBalances(houseId)
         viewModel.loadHouseConfig(houseId)
-        // Load monthly summary for current month
-        val currentMonth = kotlinx.datetime.Clock.System.now()
-            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-            .date.toString().substring(0, 7) + "-01"  // Get YYYY-MM-01 format
-        viewModel.loadMonthlySummary(houseId, currentMonth)
+        
+        // Calculate current month securely
+        runCatching {
+            val currentMonth = Clock.System.now()
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .date.toString().substring(0, 7) + "-01"
+            viewModel.loadMonthlySummary(houseId, currentMonth)
+        }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Finance",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                },
+                title = { Text("Finance", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -101,9 +118,7 @@ fun ExpenseDashboardScreen(
         ) {
             // Header Section
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = "Finance Hub",
                         style = MaterialTheme.typography.displaySmall,
@@ -120,15 +135,9 @@ fun ExpenseDashboardScreen(
 
             // Quick Stats Row
             item {
-                // Use monthly summary which includes all expense types (one-time, recurring, per diem)
-                val (monthlySummary, spendByMember) = when (val state = summaryState) {
-                    is MonthlySummaryUiState.Success -> state.summary to state.spendByMember
-                    else -> null to emptyList()
-                }
+                val (monthlySummary, spendByMember) = summaryData
                 val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
-
-                val currentUserId = viewModel.getCurrentUserId()
-                val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: java.math.BigDecimal.ZERO
+                val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: BigDecimal.ZERO
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -142,7 +151,7 @@ fun ExpenseDashboardScreen(
                     )
                     FinanceStatCard(
                         label = "YOUR EXPENSE",
-                        value = "$currencySymbol${"%.2f".format(userSpending.toDouble())}",
+                        value = "$currencySymbol${"%.2f".format(userSpending)}",
                         modifier = Modifier.weight(1f),
                         accentColor = MaterialTheme.colorScheme.tertiary,
                         isPositive = true
@@ -150,7 +159,7 @@ fun ExpenseDashboardScreen(
                 }
             }
 
-            // Feature Navigation Cards
+            // Feature Navigation Title
             item {
                 Text(
                     text = "Manage",
@@ -161,6 +170,7 @@ fun ExpenseDashboardScreen(
                 )
             }
 
+            // Feature Cards
             item {
                 FinanceFeatureCard(
                     title = "One-Time Expenses",
@@ -211,6 +221,7 @@ fun ExpenseDashboardScreen(
                 )
             }
 
+            // Reports Title
             item {
                 Text(
                     text = "Reports",
@@ -251,20 +262,18 @@ fun ExpenseDashboardScreen(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
                 is OneTimeExpenseUiState.Error -> {
                     item {
+                        // Error fallback UI without logs
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
                             ),
-                            shape = MaterialTheme.shapes.medium,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                         ) {
                             Row(
@@ -278,7 +287,7 @@ fun ExpenseDashboardScreen(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    text = state.message,
+                                    text = "Could not load recent expenses",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -290,50 +299,13 @@ fun ExpenseDashboardScreen(
                     val recentExpenses = state.expenses.take(5)
                     if (recentExpenses.isEmpty()) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                shape = MaterialTheme.shapes.medium,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(64.dp)
-                                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Receipt,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(32.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Text(
-                                        text = "No expenses yet",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Start by adding your first expense",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            EmptyRecentExpensesCard()
                         }
                     } else {
-                        items(recentExpenses) { expense ->
+                        items(
+                            items = recentExpenses,
+                            key = { it.id } // Stable key
+                        ) { expense ->
                             RecentExpenseCard(
                                 expense = expense,
                                 currencySymbol = currencySymbol,
@@ -341,35 +313,79 @@ fun ExpenseDashboardScreen(
                             )
                         }
 
-                        // View All button
                         item {
-                            TextButton(
-                                onClick = onNavigateToOneTimeExpenses,
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(vertical = 12.dp)
-                            ) {
-                                Text(
-                                    "View All Expenses",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            ViewAllExpensesButton(onClick = onNavigateToOneTimeExpenses)
                         }
                     }
                 }
             }
 
-            // Bottom spacer
             item {
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyRecentExpensesCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Receipt,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = "No expenses yet",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Start by adding your first expense",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ViewAllExpensesButton(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = 12.dp)
+    ) {
+        Text(
+            "View All Expenses",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -384,10 +400,7 @@ private fun FinanceStatCard(
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
@@ -424,11 +437,7 @@ private fun FinanceFeatureCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
@@ -438,7 +447,6 @@ private fun FinanceFeatureCard(
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon with accent color background
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -454,7 +462,6 @@ private fun FinanceFeatureCard(
                 )
             }
 
-            // Text content
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -462,8 +469,7 @@ private fun FinanceFeatureCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = subtitle,
@@ -472,7 +478,6 @@ private fun FinanceFeatureCard(
                 )
             }
 
-            // Arrow indicator
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
@@ -493,11 +498,7 @@ fun RecentExpenseCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
@@ -507,7 +508,6 @@ fun RecentExpenseCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left side - expense details
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -515,8 +515,7 @@ fun RecentExpenseCard(
                 Text(
                     text = expense.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -542,7 +541,6 @@ fun RecentExpenseCard(
                 }
             }
 
-            // Right side - amount
             Text(
                 text = "$currencySymbol${"%.2f".format(expense.amount)}",
                 style = MaterialTheme.typography.titleMedium,

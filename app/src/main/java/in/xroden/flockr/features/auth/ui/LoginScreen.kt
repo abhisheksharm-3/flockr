@@ -144,8 +144,9 @@ fun LoginScreen(
                     ),
                     shape = MaterialTheme.shapes.medium
                 ) {
+                    val error = (uiState as? AuthUiState.Error)?.message ?: "Unknown error"
                     Text(
-                        text = (uiState as AuthUiState.Error).message,
+                        text = error,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(16.dp)
