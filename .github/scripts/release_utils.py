@@ -109,7 +109,8 @@ def set_github_output(key: str, value: str):
     if os.getenv('GITHUB_OUTPUT'):
         with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
             f.write(f"{key}={value}\n")
-    print(f"::set-output name={key}::{value}") # Fallback
+    else:
+        print(f"::set-output name={key}::{value}") # Fallback
 
 def main():
     if len(sys.argv) < 2:
