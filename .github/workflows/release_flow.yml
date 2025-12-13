@@ -87,6 +87,10 @@ jobs:
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
             --stacktrace
             
+      - name: Rename APK
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/flockr-${{ env.VERSION_NAME }}-release.apk
+
       - name: Commit and Tag Release
         run: |
           git config --global user.name "Flockr Bot"
@@ -104,9 +108,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.VERSION_NAME }}
-          name: Visual Update v${{ env.VERSION_NAME }}
+          name: Flockr v${{ env.VERSION_NAME }}
           body_path: RELEASE_BODY.md
           files: |
-            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/release/flockr-${{ env.VERSION_NAME }}-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
