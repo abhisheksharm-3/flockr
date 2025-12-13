@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.launch
@@ -48,9 +50,11 @@ class NotificationRepository @Inject constructor(
                         }
                         order("created_at", Order.DESCENDING)
                     }
-                    .decodeList(NotificationSerializer)
+                
+                val initialResponse = initial
+                val initialList = Json.decodeFromString(ListSerializer(NotificationSerializer), initialResponse.data)
 
-                send(Result.success(initial))
+                send(Result.success(initialList))
 
                 val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                     table = "notifications"
@@ -108,9 +112,10 @@ class NotificationRepository @Inject constructor(
                             }
                             order("created_at", Order.DESCENDING)
                         }
-                        .decodeList(NotificationSerializer)
-
-                    send(Result.success(updated))
+                    
+                    val updatedList = Json.decodeFromString(ListSerializer(NotificationSerializer), updated.data)
+                    
+                    send(Result.success(updatedList))
                 }
             } catch (e: Exception) {
                 send(Result.failure(e))
@@ -132,14 +137,15 @@ class NotificationRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.success(emptyList())
 
-            val notifications = supabase.from("notifications")
-                .select(Columns.ALL) {
+            val response = supabase.from("notifications")
+                    .select(Columns.ALL) {
                     filter {
                         eq("user_id", currentUserId)
                     }
                     order("created_at", Order.DESCENDING)
                 }
-                .decodeList(NotificationSerializer)
+
+            val notifications = Json.decodeFromString(ListSerializer(NotificationSerializer), response.data)
 
             Result.success(notifications)
         } catch (e: Exception) {
