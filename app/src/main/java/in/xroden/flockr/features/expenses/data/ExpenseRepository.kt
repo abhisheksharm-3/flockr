@@ -635,18 +635,35 @@ class ExpenseRepository @Inject constructor(
         date: LocalDate,
         name: String,
         notes: String?
-    ): Result<OneTimeExpense> {
-        return createOneTimeExpense(
-            houseId = houseId,
-            name = name,
-            amount = amount,
-            category = "Settlement",
-            date = date,
-            notes = notes,
-            splitWith = listOf(payeeId),
-            splitType = `in`.xroden.flockr.data.enums.ExpenseSplitType.AMOUNT,
-            splitAmounts = mapOf(payeeId to amount)
-        )
+    ): Result<Unit> {
+        return try {
+            @Serializable
+            data class SettleBalanceParams(
+                @SerialName("p_house_id") val houseId: String,
+                @SerialName("p_payer_id") val payerId: String,
+                @SerialName("p_payee_id") val payeeId: String,
+                @SerialName("p_amount") 
+                @Serializable(with = BigDecimalSerializer::class)
+                val amount: BigDecimal,
+                @SerialName("p_description") val description: String?
+            )
+
+            supabase.postgrest.rpc(
+                function = "settle_balance",
+                parameters = SettleBalanceParams(
+                    houseId = houseId,
+                    payerId = payerId,
+                    payeeId = payeeId,
+                    amount = amount,
+                    description = notes
+                )
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "settleBalance failed", e)
+            Result.failure(e)
+        }
     }
 
     // ANALYTICS & SUMMARIES

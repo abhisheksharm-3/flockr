@@ -326,7 +326,7 @@ class ExpenseViewModel @Inject constructor(
             viewModelScope.launch {
                 expenseRepository.getSpendByCategory(houseId, month).fold(
                     onSuccess = { spending ->
-                        _spendByCategoryState.value = spending
+                        _spendByCategoryState.value = spending.filter { it.category != "Settlement" }
                     },
                     onFailure = { error ->
                         _spendByCategoryState.value = emptyList()
