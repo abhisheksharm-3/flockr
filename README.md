@@ -40,24 +40,6 @@
 - [Roadmap](#-roadmap)
 - [License](#-license)
 
----
-
-## 🎉 What's New in v1.5.5
-
-This release emphasizes **Stability, Automation, and Performance**.
-
-### 🚀 Production-Grade CI/CD
-✨ **Automated Releases** - Push-to-deploy pipeline ensures every version is quality checked.
-✨ **Optimized Builds** - Resource shrinking and better caching for smaller, faster APKs.
-
-### 🎨 Refined Experience
-✨ **Polished UI** - Continued improvements to the Material 3 design system.
-✨ **Bug Fixes** - Critical fixes for notifications, balance tracking, and audit logs.
-
-[See full changelog →](CHANGELOG.md)
-
----
-
 ## 🌟 Features
 
 ### 🎯 Key Highlights
@@ -117,9 +99,6 @@ The app follows a comprehensive design system inspired by modern fintech applica
 - **Consistent Spacing** - 24dp horizontal padding, 20dp item spacing throughout
 - **Component Library** - DataCard, CompactDataCard, ModernListItem, FlockrTextField, FlockrPrimaryButton
 
-**Documentation**:
-- See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for comprehensive guidelines
-
 ### 🔔 Real-Time Updates
 Everything syncs instantly across all devices:
 - Shopping lists
@@ -163,7 +142,6 @@ Flockr is perfect for anyone sharing living spaces and expenses:
 - **Functions**: PostgreSQL RPC functions
 
 **Additional**
-- **Maps**: Google Maps SDK (optional)
 - **Fonts**: Newsreader (serif), Inter (sans-serif)
 - **Theme**: DataStore for persistence
 
