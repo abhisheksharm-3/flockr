@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import `in`.xroden.flockr.ui.components.ExpandableContent
-import `in`.xroden.flockr.ui.components.JoinHouseDialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.domain.HouseListUiState
@@ -88,6 +87,7 @@ fun HomeScreen(
 
     val userName = profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
     var showJoinDialog by remember { mutableStateOf(false) }
+    var manualInviteCode by remember { mutableStateOf<String?>(null) } // New state for unified flow
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
@@ -97,7 +97,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .statusBarsPadding() // Handle safe area manually for this custom header
+                    .statusBarsPadding()
             ) {
                 // Top Row: Avatar/Settings and Notifications
                 Row(
@@ -155,7 +155,7 @@ fun HomeScreen(
                                     leadingIcon = { Icon(Icons.Default.Home, null) },
                                     onClick = {
                                         showAddMenu = false
-                                        onJoinHouseClick()
+                                        showJoinDialog = true // Trigger manual entry dialog
                                     }
                                 )
                                 DropdownMenuItem(
@@ -311,16 +311,76 @@ fun HomeScreen(
         }
     }
 
-    // Join House Dialog
+    // Manual Entry Dialog
     if (showJoinDialog) {
-        JoinHouseDialog(
+        EnterInviteCodeDialog(
             onDismiss = { showJoinDialog = false },
             onJoinHouse = { inviteCode ->
-                viewModel.joinHouseByInviteCode(inviteCode)
                 showJoinDialog = false
+                manualInviteCode = inviteCode // Trigger Unified Flow
             }
         )
     }
+    
+    // Unified Join Flow (Preview Dialog)
+    if (manualInviteCode != null) {
+        JoinHouseByCodeDialog(
+            inviteCode = manualInviteCode!!,
+            onDismiss = { manualInviteCode = null },
+            onHouseJoined = {
+                manualInviteCode = null
+                viewModel.refresh()
+            }
+        )
+    }
+}
+
+@Composable
+fun EnterInviteCodeDialog(
+    onDismiss: () -> Unit,
+    onJoinHouse: (String) -> Unit
+) {
+    var code by remember { mutableStateOf("") }
+    
+    // M3 Styled Dialog
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Have an Invite Code?", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "Enter the code shared with you to preview and join the household.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it },
+                    label = { Text("Invite Code") },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onJoinHouse(code) },
+                enabled = code.isNotBlank(),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text("Next")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.extraLarge
+    )
 }
 
 @Composable

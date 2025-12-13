@@ -1,6 +1,16 @@
 package `in`.xroden.flockr.features.expenses.ui.perdiem
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,23 +19,23 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
-import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
-import `in`.xroden.flockr.ui.theme.DateFormats
 import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Clock
@@ -33,10 +43,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import java.math.BigDecimal
 
-/**
- * Modern screen for adding daily per-diem entries.
- * Shows all active per-diem configs and allows quick entry of quantities.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerDiemDailyEntryScreen(
@@ -64,11 +70,12 @@ fun PerDiemDailyEntryScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Daily Entry",
+                        "Log Daily Usage",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -77,15 +84,26 @@ fun PerDiemDailyEntryScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            "Back"
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
-                ),
-                actions = {
+                )
+            )
+        },
+        bottomBar = {
+            // Sticky Bottom Bar for Action
+            AnimatedVisibility(
+                visible = selectedConfig != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                BottomAppBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
                     Button(
                         onClick = {
                             val quantityDouble = quantity.toDoubleOrNull()
@@ -107,7 +125,8 @@ fun PerDiemDailyEntryScreen(
                                         itemName = selectedConfig!!.itemName,
                                         notes = notes.takeIf { it.isNotBlank() }
                                     )
-                                    snackbarHostState.showSnackbar("Entry added successfully")
+                                    snackbarHostState.showSnackbar("Entry Logged: ${selectedConfig!!.itemName}")
+                                    // Reset but allow logging another? or close? Maybe reset.
                                     quantity = ""
                                     notes = ""
                                     selectedConfig = null
@@ -118,275 +137,173 @@ fun PerDiemDailyEntryScreen(
                                 }
                             }
                         },
-                        enabled = !isLoading && selectedConfig != null && quantity.toDoubleOrNull()?.let { it > 0 } == true,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        enabled = !isLoading,
+                        shape = MaterialTheme.shapes.large
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                         } else {
-                            Text("Log Usage", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Check, null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Log Entry", style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
-            )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (val state = configState) {
             is PerDiemConfigUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
             is PerDiemConfigUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        Text(
-                            text = "Error Loading Configs",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = state.message,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Button(onClick = { viewModel.loadConfigs(houseId) }) {
-                            Text("Retry")
-                        }
-                    }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(state.message, color = MaterialTheme.colorScheme.error)
                 }
             }
             is PerDiemConfigUiState.Success -> {
                 val configs = state.configs
-                if (configs.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.padding(32.dp)
-                        ) {
-                            Text(
-                                text = "No Per Diem Items",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Add per diem config items first from the Per-Diem Config screen",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Text(
+                            "Select an item",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+
+                    if (configs.isEmpty()) {
+                        item {
+                            Text("No items configured yet.", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Header
-                        item {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "Select Item",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "Choose an item to log usage for today",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
 
-                        // Config Items
-                        items(configs) { config ->
-                            val isSelected = selectedConfig?.id == config.id
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { 
-                                        selectedConfig = if (isSelected) null else config
-                                        quantity = ""
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) {
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.surface
-                                    }
-                                ),
-                                shape = MaterialTheme.shapes.large,
-                                border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)) else null
-                            ) {
+                    items(configs) { config ->
+                        val isSelected = selectedConfig?.id == config.id
+                        val containerColor by animateColorAsState(
+                            if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
+                        )
+                        
+                        Card(
+                            onClick = {
+                                selectedConfig = if (isSelected) null else config
+                                if (!isSelected) {
+                                    quantity = "" // Reset on new selection
+                                    notes = ""
+                                }
+                            },
+                             colors = CardDefaults.cardColors(
+                                containerColor = containerColor
+                            ),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.fillMaxWidth().animateContentSize()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column {
                                         Text(
-                                            text = config.itemName,
+                                            config.itemName,
                                             style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Black, // Extra bold for clear hierarchy
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            }
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "$currencySymbol${"%.2f".format(config.rate.toDouble())} per ${config.unit}",
+                                            "$currencySymbol${config.rate} / ${config.unit}",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            }
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     
-                                    if (isSelected) {
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            Icons.Default.AddCircleOutline,
-                                            contentDescription = "Add",
-                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { 
+                                             selectedConfig = if (isSelected) null else config
+                                             if (!isSelected) { quantity = "" }
+                                        }
+                                    )
                                 }
-                            }
-                        }
 
-                        // Entry Details (only show when item is selected)
-                        if (selectedConfig != null) {
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SectionCard(title = "Entry Details for ${selectedConfig!!.itemName}") {
-                                    // Date
-                                    OutlinedTextField(
-                                        value = date,
-                                        onValueChange = { date = it },
-                                        label = { Text("Date *") },
-                                        placeholder = { Text("YYYY-MM-DD") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        enabled = !isLoading,
-                                        singleLine = true,
-                                        shape = MaterialTheme.shapes.medium
-                                    )
-
-                                    // Quantity
-                                    OutlinedTextField(
-                                        value = quantity,
-                                        onValueChange = { quantity = it },
-                                        label = { Text("Quantity (${selectedConfig!!.unit}) *") },
-                                        placeholder = { Text("Enter amount") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        enabled = !isLoading,
-                                        singleLine = true,
-                                        shape = MaterialTheme.shapes.medium,
-                                        textStyle = MaterialTheme.typography.bodyLarge
-                                    )
-
-                                    // Cost Estimate
-                                    val quantityDouble = quantity.toDoubleOrNull()
-                                    if (quantityDouble != null && quantityDouble > 0) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = MaterialTheme.shapes.small,
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                                AnimatedVisibility(visible = isSelected) {
+                                    Column(
+                                        modifier = Modifier.padding(top = 24.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                        
+                                        // Inputs
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            // Date Field (Fake ReadOnly for now)
+                                            OutlinedTextField(
+                                                value = date,
+                                                onValueChange = { date = it }, // Editable for manual fix
+                                                label = { Text("Date") },
+                                                modifier = Modifier.weight(1f),
+                                                shape = MaterialTheme.shapes.medium
                                             )
-                                        ) {
+                                            
+                                            // Quantity
+                                            OutlinedTextField(
+                                                value = quantity,
+                                                onValueChange = { quantity = it },
+                                                label = { Text("Qty (${config.unit})") },
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = KeyboardType.Number,
+                                                    imeAction = ImeAction.Next
+                                                ),
+                                                modifier = Modifier.weight(1f),
+                                                shape = MaterialTheme.shapes.medium
+                                            )
+                                        }
+                                        
+                                        OutlinedTextField(
+                                            value = notes,
+                                            onValueChange = { notes = it },
+                                            label = { Text("Notes") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = MaterialTheme.shapes.medium
+                                        )
+                                        
+                                        // Cost Preview
+                                        val qty = quantity.toDoubleOrNull() ?: 0.0
+                                        val total = qty * config.rate.toDouble()
+                                        if (total > 0) {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
+                                                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha=0.5f), MaterialTheme.shapes.medium)
                                                     .padding(16.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
+                                                Text("Total Cost", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                                                 Text(
-                                                    text = "Total Cost",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                                )
-                                                Text(
-                                                    text = "$currencySymbol${"%.2f".format(quantityDouble * selectedConfig!!.rate.toDouble())}",
-                                                    style = MaterialTheme.typography.titleLarge,
+                                                    "$currencySymbol${"%.2f".format(total)}", 
+                                                    style = MaterialTheme.typography.titleMedium, 
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                                 )
                                             }
                                         }
                                     }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Notes
-                                    OutlinedTextField(
-                                        value = notes,
-                                        onValueChange = { notes = it },
-                                        label = { Text("Notes (Optional)") },
-                                        placeholder = { Text("Add details...") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        minLines = 2,
-                                        enabled = !isLoading,
-                                        shape = MaterialTheme.shapes.medium
-                                    )
                                 }
-                                // Spacer at bottom for scrolling
-                                Spacer(modifier = Modifier.height(64.dp))
                             }
                         }
                     }
+                    
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }

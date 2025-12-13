@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toLocalDateTime
 import java.math.BigDecimal
 import javax.inject.Inject
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
@@ -235,18 +236,27 @@ class ExpenseViewModel @Inject constructor(
 
         fun settleBalance(
             houseId: String,
-            payerId: String,
             payeeId: String,
+            payeeName: String,
             amount: BigDecimal,
-            description: String?
+            notes: String?
         ) {
             viewModelScope.launch {
+                val currentUserId = getCurrentUserId() ?: return@launch
+                val payerName = (_balanceState.value as? BalanceUiState.Success)
+                    ?.balances?.find { it.userId == currentUserId }?.fullName ?: "User"
+                
+                val title = "$payerName settled with $payeeName"
+                val date = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
+
                 expenseRepository.settleBalance(
                     houseId = houseId,
-                    payerId = payerId,
+                    payerId = currentUserId,
                     payeeId = payeeId,
                     amount = amount,
-                    description = description
+                    date = date,
+                    name = title,
+                    notes = notes
                 ).fold(
                     onSuccess = {
                         loadBalances(houseId)

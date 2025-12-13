@@ -2,8 +2,9 @@ package `in`.xroden.flockr.data.enums
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import `in`.xroden.flockr.data.serialization.NotificationTypeSerializer
 
-@Serializable
+@Serializable(with = NotificationTypeSerializer::class)
 enum class NotificationType {
     @SerialName("general")
     GENERAL,

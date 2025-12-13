@@ -1,8 +1,9 @@
 package `in`.xroden.flockr.features.house.ui.home
 
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
@@ -13,19 +14,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import `in`.xroden.flockr.features.house.model.HousePreview
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.domain.HousePreviewUiState
 import `in`.xroden.flockr.features.house.domain.JoinHouseUiState
-import coil.compose.AsyncImage
 
 /**
  * Stateful wrapper for joining a house by code using [HomeViewModel]
@@ -54,26 +53,33 @@ fun JoinHouseByCodeDialog(
     when (val state = previewState) {
         is HousePreviewUiState.Loading -> {
              Dialog(onDismissRequest = onDismiss) {
-                 Box(
-                     modifier = Modifier
-                         .size(100.dp)
-                         .background(Color(0xFF282A36), MaterialTheme.shapes.medium),
-                     contentAlignment = Alignment.Center
+                 Card(
+                     shape = MaterialTheme.shapes.large,
+                     colors = CardDefaults.cardColors(
+                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                     ),
+                     modifier = Modifier.padding(16.dp)
                  ) {
-                     CircularProgressIndicator(color = Color(0xFFBD93F9))
+                     Box(
+                         modifier = Modifier.padding(24.dp),
+                         contentAlignment = Alignment.Center
+                     ) {
+                         CircularProgressIndicator()
+                     }
                  }
              }
         }
         is HousePreviewUiState.Error -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Invalid Invite", color = Color.White) },
-                text = { Text(state.message, color = Color(0xFFF8F8F2)) },
+                title = { Text("Invalid Invite") },
+                text = { Text(state.message) },
                 confirmButton = {
-                    TextButton(onClick = onDismiss) { Text("Close", color = Color(0xFFFF79C6)) }
+                    TextButton(onClick = onDismiss) { Text("Close") }
                 },
-                containerColor = Color(0xFF282A36),
-                titleContentColor = Color(0xFFBD93F9)
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         is HousePreviewUiState.Success -> {
@@ -105,7 +111,7 @@ fun JoinHouseDialog(
                 .padding(16.dp),
             shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF282A36) // Dracula Background
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -117,7 +123,7 @@ fun JoinHouseDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp)
+                        .height(180.dp)
                 ) {
                     if (!house.headerImageUrl.isNullOrEmpty()) {
                         AsyncImage(
@@ -127,31 +133,20 @@ fun JoinHouseDialog(
                             contentScale = ContentScale.Crop
                         )
                         // Gradient Overlay
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color(0xFF282A36)
-                                        )
-                                    )
-                                )
-                        )
+                        
                     } else {
                         // Fallback Pattern
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0xFF44475A)), // Dracula Selection
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Home,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
-                                tint = Color(0xFF6272A4) // Dracula Comment
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
                             )
                         }
                     }
@@ -164,8 +159,8 @@ fun JoinHouseDialog(
                             .padding(8.dp)
                     ) {
                         Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = Color.Black.copy(alpha = 0.4f),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.3f),
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
@@ -187,44 +182,49 @@ fun JoinHouseDialog(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Join House",
+                        text = "Join Household",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFFBD93F9) // Dracula Purple
+                        color = MaterialTheme.colorScheme.primary
                     )
 
                     Text(
                         text = house.name,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF8F8F2), // Dracula Foreground
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
 
                     // Owner / Members Info
-                    Row(
-                        modifier = Modifier
-                            .background(Color(0xFF44475A), MaterialTheme.shapes.large)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color(0xFF8BE9FD), // Dracula Cyan
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Admin: ${house.ownerName}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFFF8F8F2)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Admin: ${house.ownerName}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
 
                     Text(
                         text = "${house.memberCount} members currently",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6272A4) // Dracula Comment
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -237,15 +237,14 @@ fun JoinHouseDialog(
                         enabled = !isLoading,
                         shape = MaterialTheme.shapes.large,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF50FA7B), // Dracula Green
-                            contentColor = Color(0xFF282A36),
-                            disabledContainerColor = Color(0xFF50FA7B).copy(alpha = 0.5f)
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = Color(0xFF282A36),
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 3.dp
                             )
                         } else {
