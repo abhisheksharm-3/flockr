@@ -185,6 +185,7 @@ fun FlockrNavigation(
                 }
 
                 composable(Screen.Notifications.route) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     NotificationScreen(
                         onNavigateBack = { navController.popBackStack() },
                         onNotificationClick = { notification ->
@@ -193,12 +194,34 @@ fun FlockrNavigation(
                             if (houseId != null) {
                                 when (notification.type) {
                                     NotificationType.HOUSE_INVITE -> {
-                                        // Navigate to home screen - user can see the invitation in notifications
-                                        // Or we could show a dialog to accept/decline
-                                        navController.navigate(Screen.Home.route) {
-                                            popUpTo(Screen.Home.route) { inclusive = true }
-                                        }
-                                    }
+                        // Launch deep link intentionally to trigger MainActivity's handling
+                        // This allows the global dialog to appear even from within the app
+                        val inviteCode = try {
+                            val data = notification.data
+                            if (!data.isNullOrEmpty()) {
+                                val json = org.json.JSONObject(data)
+                                json.optString("invite_code").takeIf { it.isNotEmpty() }
+                                    ?: json.optString("code").takeIf { it.isNotEmpty() }
+                            } else null
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        if (!inviteCode.isNullOrEmpty()) {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("flockr://invite/$inviteCode")
+                            )
+                            intent.setPackage(context.packageName)
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        } else {
+                            // Fallback to home if no code
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                        }
+                    }
                                     NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT -> {
                                         navController.navigate(Screen.Expenses.createRoute(houseId))
                                     }

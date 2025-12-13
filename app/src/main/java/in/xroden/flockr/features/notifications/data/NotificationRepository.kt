@@ -2,6 +2,7 @@ package `in`.xroden.flockr.features.notifications.data
 
 import `in`.xroden.flockr.data.dto.NotificationUpdate
 import `in`.xroden.flockr.features.notifications.model.Notification
+import `in`.xroden.flockr.features.notifications.model.NotificationSerializer
 import `in`.xroden.flockr.features.notifications.model.NotificationPreference
 import `in`.xroden.flockr.features.notifications.service.NotificationService
 import io.github.jan.supabase.SupabaseClient
@@ -47,7 +48,7 @@ class NotificationRepository @Inject constructor(
                         }
                         order("created_at", Order.DESCENDING)
                     }
-                    .decodeList<Notification>()
+                    .decodeList(NotificationSerializer)
 
                 send(Result.success(initial))
 
@@ -107,7 +108,7 @@ class NotificationRepository @Inject constructor(
                             }
                             order("created_at", Order.DESCENDING)
                         }
-                        .decodeList<Notification>()
+                        .decodeList(NotificationSerializer)
 
                     send(Result.success(updated))
                 }
@@ -138,7 +139,7 @@ class NotificationRepository @Inject constructor(
                     }
                     order("created_at", Order.DESCENDING)
                 }
-                .decodeList<Notification>()
+                .decodeList(NotificationSerializer)
 
             Result.success(notifications)
         } catch (e: Exception) {

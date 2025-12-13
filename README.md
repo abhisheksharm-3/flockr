@@ -4,7 +4,7 @@
 
 **Modern Household Management Platform**
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/abhisheksharm-3/flockr)
+[![Version](https://img.shields.io/badge/version-1.5.5-blue.svg)](https://github.com/abhisheksharm-3/flockr)
 [![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://www.android.com/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org/)
@@ -22,7 +22,7 @@
 
 ## 📚 Table of Contents
 
-- [What's New](#-whats-new-in-v150)
+- [What's New](#-whats-new-in-v155)
 - [Features](#-features)
   - [Finance Suite](#-finance-suite)
   - [Organization Suite](#-organization-suite)
@@ -42,25 +42,17 @@
 
 ---
 
-## 🎉 What's New in v1.5.0
+## 🎉 What's New in v1.5.5
 
-This is our **biggest release yet** - a complete rebuild from the ground up!
+This release emphasizes **Stability, Automation, and Performance**.
 
-### 🎨 Fresh New Look
-✨ **Complete UI Redesign** - Every screen has been redesigned with a modern, polished appearance  
-🎯 **Better User Experience** - Improved navigation, cleaner layouts, and enhanced readability  
-🌈 **Consistent Design** - All screens now follow the same beautiful design language  
+### 🚀 Production-Grade CI/CD
+✨ **Automated Releases** - Push-to-deploy pipeline ensures every version is quality checked.
+✨ **Optimized Builds** - Resource shrinking and better caching for smaller, faster APKs.
 
-### 🏗️ Under the Hood
-🔧 **Complete Code Reorganization** - We've rebuilt the entire app structure for better performance and maintainability  
-⚡ **Faster & More Stable** - Better organized code means faster load times and fewer bugs  
-🛠️ **Future-Ready** - This foundation makes it easier to add exciting new features  
-
-### 💪 What This Means for You
-- **Same features you love**, just better organized and more beautiful
-- **All your data is safe** - nothing was lost in the transition
-- **Better performance** across the entire app
-- **More polished experience** from start to finish
+### 🎨 Refined Experience
+✨ **Polished UI** - Continued improvements to the Material 3 design system.
+✨ **Bug Fixes** - Critical fixes for notifications, balance tracking, and audit logs.
 
 [See full changelog →](CHANGELOG.md)
 
