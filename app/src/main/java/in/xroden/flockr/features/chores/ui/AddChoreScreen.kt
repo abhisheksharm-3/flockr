@@ -5,20 +5,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
 import `in`.xroden.flockr.features.chores.domain.CreateChoreUiState
-import kotlinx.datetime.LocalDate
+import kotlinx.datetime.*
+import kotlinx.datetime.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +25,7 @@ fun AddChoreScreen(
 ) {
     var taskName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var dueDate by remember { mutableStateOf<Long?>(null) }
+    var dueDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     
     val createState by viewModel.createState.collectAsState()
@@ -51,26 +47,22 @@ fun AddChoreScreen(
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
+            initialSelectedDateMillis = dueDate?.atStartOfDayIn(TimeZone.currentSystemDefault())?.toEpochMilliseconds() ?: Clock.System.now().toEpochMilliseconds()
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    dueDate = datePickerState.selectedDateMillis
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        dueDate = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.currentSystemDefault()).date
+                    }
                     showDatePicker = false
-                }) {
-                    Text("OK")
-                }
+                }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        ) { DatePicker(state = datePickerState) }
     }
 
     Scaffold(
@@ -85,19 +77,11 @@ fun AddChoreScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            val dateStr = dueDate?.let { millis ->
-                                Instant.ofEpochMilli(millis)
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate()
-                                    .toString()
-                            }
                             viewModel.createChore(
                                 houseId = houseId,
                                 taskName = taskName,
                                 description = description.takeIf { it.isNotBlank() },
-                                dueDate = dateStr?.let {
-                                    try { LocalDate.parse(it) } catch (_: Exception) { null }
-                                },
+                                dueDate = dueDate,
                                 recurrencePattern = null,
                                 assignedTo = null
                             )
@@ -126,8 +110,7 @@ fun AddChoreScreen(
                 placeholder = { Text("e.g., Clean kitchen") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium,
-                textStyle = MaterialTheme.typography.bodyLarge
+                shape = MaterialTheme.shapes.medium
             )
 
             OutlinedTextField(
@@ -137,26 +120,24 @@ fun AddChoreScreen(
                 placeholder = { Text("Add any details...") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
-                shape = MaterialTheme.shapes.medium,
-                textStyle = MaterialTheme.typography.bodyLarge
+                shape = MaterialTheme.shapes.medium
             )
 
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = dueDate?.let { millis ->
-                        Instant.ofEpochMilli(millis)
-                            .atZone(ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+                    // Format: Jan 15, 2025
+                    value = dueDate?.let { 
+                        val month = it.month.name.take(3).lowercase().replaceFirstChar { char -> char.uppercase() }
+                        "$month ${it.dayOfMonth}, ${it.year}"
                     } ?: "",
                     onValueChange = { },
                     label = { Text("Due Date (Optional)") },
                     placeholder = { Text("Select date") },
                     leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = false, // Disable typing, force click
+                    enabled = false, 
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
-                    textStyle = MaterialTheme.typography.bodyLarge,
                     colors = OutlinedTextFieldDefaults.colors(
                         disabledTextColor = MaterialTheme.colorScheme.onSurface,
                         disabledBorderColor = MaterialTheme.colorScheme.outline,
@@ -164,12 +145,8 @@ fun AddChoreScreen(
                         disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
-                // Overlay to catch clicks on the disabled text field
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable { showDatePicker = true }
-                )
+                // Overlay to catch clicks
+                Box(Modifier.matchParentSize().clickable { showDatePicker = true })
             }
         }
     }

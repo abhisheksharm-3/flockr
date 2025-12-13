@@ -366,7 +366,10 @@ fun ManageMembersScreen(
                 }
 
                 // Members List
-                items(members) { member ->
+                items(
+                    items = members,
+                    key = { it.userId }
+                ) { member ->
                     MemberListItem(
                         member = member,
                         currentUserRole = currentUserRole,

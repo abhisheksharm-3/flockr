@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
@@ -34,7 +35,7 @@ fun AddPerDiemConfigScreen(
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
     
     val houseConfig by viewModel.houseConfig.collectAsState()
-    val currencySymbol = houseConfig?.currencyCode?.let { `in`.xroden.flockr.ui.util.getCurrencySymbol(it) } ?: "$"
+    val currencySymbol = houseConfig?.currencyCode?.let { getCurrencySymbol(it) } ?: "$"
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }

@@ -23,11 +23,9 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
-import `in`.xroden.flockr.ui.theme.DateFormats
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -49,25 +47,24 @@ fun AddExpenseScreen(
     var amount by remember { mutableStateOf("") }
     val houseConfig by viewModel.houseConfig.collectAsState()
     
+    // Default to system today
     var date by remember { 
         mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
     }
 
-    // Update date when house timezone loads, only if it hasn't been changed (simple heuristic or just initial)
-    // Actually, simpler to just start with system and let user change if needed, 
-    // OR use LaunchedEffect to set it once config loads.
+    // Attempt to respect house timezone if available
     LaunchedEffect(houseConfig) {
         houseConfig?.timezone?.let { tz ->
-             try {
-                 val houseDate = Clock.System.todayIn(TimeZone.of(tz)).toString()
-                 // Only update if current value is default/empty/system-today 
-                 // (Hard to track 'touched' state without extra var, but reasonable to update on load)
-                 if (date == Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
-                     date = houseDate
-                 }
-             } catch (e: Exception) { /* Ignore */ }
+            runCatching {
+                val houseDate = Clock.System.todayIn(TimeZone.of(tz)).toString()
+                // Update if currently default and effectively "untouched"
+                if (date == Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
+                    date = houseDate
+                }
+            }
         }
     }
+
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember {
         mutableStateOf(if (initialQuantity != null) "Quantity: $initialQuantity" else "")
@@ -75,6 +72,8 @@ fun AddExpenseScreen(
     var expandedCategory by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var category by remember { mutableStateOf("Groceries") }
+    
+    // Splitting State
     var enableSplitting by remember { mutableStateOf(false) }
     var splitEqually by remember { mutableStateOf(true) }
     var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
@@ -82,12 +81,13 @@ fun AddExpenseScreen(
     var customSplits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     val categories = ExpenseCategories.DEFAULT
-
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val createState by viewModel.createState.collectAsState()
     
-    val currencySymbol = houseConfig?.getCurrencySymbol() ?: "$"
+    val currencySymbol = remember(houseConfig) {
+        houseConfig?.getCurrencySymbol() ?: "$"
+    }
 
     LaunchedEffect(houseId) {
         viewModel.loadHouseConfig(houseId)
@@ -117,25 +117,13 @@ fun AddExpenseScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Add Expense",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Add Expense", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -149,9 +137,8 @@ fun AddExpenseScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header
             Text(
-                text = "New Expense",
+                "New Expense",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -159,7 +146,6 @@ fun AddExpenseScreen(
 
             // Basic Info Section
             SectionCard(title = "Expense Details") {
-                // Expense Name
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -176,7 +162,6 @@ fun AddExpenseScreen(
                     )
                 )
 
-                // Amount
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
@@ -193,59 +178,30 @@ fun AddExpenseScreen(
                     )
                 )
 
-                // Date Picker Card
                 OutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = !isLoading) { showDatePicker = true },
                     shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Filled.DateRange,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.DateRange, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Column {
-                                Text(
-                                    "Date",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    date,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Text("Date", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(date, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                             }
                         }
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = "Change date",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Filled.Edit, "Change date", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
 
-                // Category Dropdown
                 ExposedDropdownMenuBox(
                     expanded = expandedCategory,
                     onExpandedChange = { expandedCategory = !expandedCategory && !isLoading }
@@ -256,9 +212,7 @@ fun AddExpenseScreen(
                         readOnly = true,
                         label = { Text("Category *") },
                         leadingIcon = { Icon(Icons.Filled.ShoppingBag, null) },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) 
-                        },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
@@ -277,16 +231,12 @@ fun AddExpenseScreen(
                         categories.forEach { cat ->
                             DropdownMenuItem(
                                 text = { Text(cat) },
-                                onClick = {
-                                    category = cat
-                                    expandedCategory = false
-                                }
+                                onClick = { category = cat; expandedCategory = false }
                             )
                         }
                     }
                 }
 
-                // Notes
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -317,18 +267,12 @@ fun AddExpenseScreen(
                 }
             ) {
                 if (enableSplitting) {
-                    // Split Type Selection
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = splitEqually,
                             onClick = { splitEqually = true },
                             label = { Text("Equal Split") },
-                            leadingIcon = if (splitEqually) {
-                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                            } else null,
+                            leadingIcon = if (splitEqually) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
                             enabled = !isLoading,
                             shape = MaterialTheme.shapes.medium
                         )
@@ -336,81 +280,56 @@ fun AddExpenseScreen(
                             selected = !splitEqually,
                             onClick = { splitEqually = false },
                             label = { Text("Custom Amounts") },
-                            leadingIcon = if (!splitEqually) {
-                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                            } else null,
+                            leadingIcon = if (!splitEqually) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
                             enabled = !isLoading,
                             shape = MaterialTheme.shapes.medium
                         )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+                    Text("Select members:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
 
-                    Text(
-                        text = "Select members:",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-
-                    // Member Selection
                     houseMembers.forEach { member ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        key(member.userId) {
                             Row(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Checkbox(
-                                    checked = selectedMembers.contains(member.userId),
-                                    onCheckedChange = { checked ->
-                                        selectedMembers = if (checked) {
-                                            selectedMembers + member.userId
-                                        } else {
-                                            selectedMembers - member.userId
-                                        }
-                                    },
-                                    enabled = !isLoading
-                                )
-                                Column {
-                                    Text(
-                                        text = member.fullName ?: "Unknown",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = selectedMembers.contains(member.userId),
+                                        onCheckedChange = { checked ->
+                                            selectedMembers = if (checked) selectedMembers + member.userId else selectedMembers - member.userId
+                                        },
+                                        enabled = !isLoading
                                     )
-                                    Text(
-                                        text = member.email,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Column {
+                                        Text(member.fullName ?: "Unknown", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                        Text(member.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+
+                                if (!splitEqually && selectedMembers.contains(member.userId)) {
+                                    OutlinedTextField(
+                                        value = customSplits[member.userId] ?: "",
+                                        onValueChange = { value -> customSplits = customSplits + (member.userId to value) },
+                                        label = { Text(currencySymbol) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        modifier = Modifier.width(100.dp),
+                                        enabled = !isLoading,
+                                        singleLine = true,
+                                        shape = MaterialTheme.shapes.small
                                     )
                                 }
-                            }
-
-                            // Custom Amount Field
-                            if (!splitEqually && selectedMembers.contains(member.userId)) {
-                                OutlinedTextField(
-                                    value = customSplits[member.userId] ?: "",
-                                    onValueChange = { value ->
-                                        customSplits = customSplits + (member.userId to value)
-                                    },
-                                    label = { Text(currencySymbol) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    modifier = Modifier.width(100.dp),
-                                    enabled = !isLoading,
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small
-                                )
                             }
                         }
                     }
 
-                    // Split Summary
                     if (selectedMembers.isNotEmpty() && amount.toDoubleOrNull() != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -423,21 +342,10 @@ fun AddExpenseScreen(
                             customSplits.values.mapNotNull { it.toDoubleOrNull() }.sum()
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Split among ${selectedMembers.size} members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
-                                text = "Split among ${selectedMembers.size} members",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = if (splitEqually) {
-                                    "$currencySymbol${"%.2f".format(splitAmount)} each"
-                                } else {
-                                    "$currencySymbol${"%.2f".format(splitAmount)} total"
-                                },
+                                text = if (splitEqually) "$currencySymbol${"%.2f".format(splitAmount)} each" else "$currencySymbol${"%.2f".format(splitAmount)} total",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -446,40 +354,31 @@ fun AddExpenseScreen(
                 }
             }
 
-            // Submit Button
             Button(
                 onClick = {
                     val amt = amount.toDoubleOrNull()
                     if (amt == null) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Please enter a valid amount")
-                        }
+                        scope.launch { snackbarHostState.showSnackbar("Please enter a valid amount") }
                         return@Button
                     }
 
                     isLoading = true
 
-                    // Prepare split parameters
-                    val splitWith = if (enableSplitting && selectedMembers.isNotEmpty()) {
-                        selectedMembers.toList()
-                    } else null
-                    
+                    val splitWith = if (enableSplitting && selectedMembers.isNotEmpty()) selectedMembers.toList() else null
                     val splitType = if (enableSplitting && selectedMembers.isNotEmpty()) {
                         if (splitEqually) ExpenseSplitType.EQUAL else ExpenseSplitType.AMOUNT
                     } else null
-                    
                     val splitAmounts = if (enableSplitting && !splitEqually && selectedMembers.isNotEmpty()) {
                         selectedMembers.mapNotNull { userId ->
                             customSplits[userId]?.toBigDecimalOrNull()?.let { userId to it }
                         }.toMap()
                     } else null
 
-                    // Parse date to kotlinx.datetime.LocalDate
                     val parsedDate: LocalDate = try {
                         val parts = date.split("-")
                         LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
                     } catch (e: Exception) {
-                        kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())
+                        Clock.System.todayIn(TimeZone.currentSystemDefault())
                     }
 
                     viewModel.createOneTimeExpense(
@@ -499,62 +398,38 @@ fun AddExpenseScreen(
                 shape = MaterialTheme.shapes.medium
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.Check, null, Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Add Expense",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Add Expense", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
-            
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
-    // DatePicker Dialog
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = run {
-                try {
-                    val localDate = LocalDate.parse(date)
-                    // Convert LocalDate to epoch milliseconds
-                    localDate.toEpochDays() * 24 * 60 * 60 * 1000L
-                } catch (e: Exception) {
-                    System.currentTimeMillis()
-                }
-            }
+            initialSelectedDateMillis = runCatching {
+                val localDate = LocalDate.parse(date)
+                localDate.toEpochDays() * 24 * 60 * 60 * 1000L
+            }.getOrDefault(System.currentTimeMillis())
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        // Convert epoch millis to LocalDate
                         val epochDays = millis / (24 * 60 * 60 * 1000L)
                         val selectedDate = LocalDate.fromEpochDays(epochDays.toInt())
                         date = selectedDate.toString()
                     }
                     showDatePicker = false
-                }) {
-                    Text("OK", fontWeight = FontWeight.Bold)
-                }
+                }) { Text("OK", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
-                }
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel", fontWeight = FontWeight.Medium) }
             },
             shape = MaterialTheme.shapes.large
         ) {

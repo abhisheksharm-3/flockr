@@ -1,4 +1,4 @@
-package `in`.xroden.flockr.ui.util
+package `in`.xroden.flockr.utils
 
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import java.math.BigDecimal

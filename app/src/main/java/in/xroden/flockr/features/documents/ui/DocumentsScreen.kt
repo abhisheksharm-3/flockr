@@ -39,7 +39,7 @@ fun DocumentsScreen(
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Personal, 1 = House
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Personal, 1 = House
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -97,7 +97,6 @@ fun DocumentsScreen(
             // Upload Progress
             val uploadState by viewModel.uploadState.collectAsState()
             
-            // Show snackbar on success/error
              when (val state = uploadState) {
                 is UploadDocumentUiState.Error -> {
                     LaunchedEffect(state) {
@@ -194,7 +193,7 @@ fun DocumentsScreen(
                     }
                 }
                 
-                items(docs) { doc ->
+                items(items = docs, key = { it.id }) { doc ->
                     FileListItem(doc, 
                         onDownload = { viewModel.downloadDocument(doc) }, 
                         onDelete = { viewModel.deleteDocument(doc.id, doc.storagePath, doc.houseId) }
@@ -278,8 +277,8 @@ fun formatFileSize(size: Long): String {
     val kb = size / 1024.0
     val mb = kb / 1024.0
     return when {
-        mb >= 1 -> String.format("%.1f MB", mb)
-        kb >= 1 -> String.format("%.1f KB", kb)
+        mb >= 1 -> "%.1f MB".format(mb)
+        kb >= 1 -> "%.1f KB".format(kb)
         else -> "$size B"
     }
 }

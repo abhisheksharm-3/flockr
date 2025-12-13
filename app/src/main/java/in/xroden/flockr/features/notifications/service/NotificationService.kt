@@ -126,8 +126,6 @@ class NotificationService @Inject constructor(
             channels.forEach { channel ->
                 notificationManager.createNotificationChannel(channel)
             }
-            
-            android.util.Log.d(TAG, "Created ${channels.size} notification channels")
         }
     }
     
@@ -148,11 +146,10 @@ class NotificationService @Inject constructor(
         houseId: String? = null,
         data: Map<String, String>? = null
     ) {
-        try {
+        runCatching {
             // Check if notifications are enabled
             val notificationManager = NotificationManagerCompat.from(context)
             if (!notificationManager.areNotificationsEnabled()) {
-                android.util.Log.w(TAG, "Notifications are disabled by user")
                 return
             }
             
@@ -205,20 +202,15 @@ class NotificationService @Inject constructor(
             // Show notification with unique ID
             val notificationId = NOTIFICATION_ID_BASE + id.hashCode()
 
-            // Check permission before showing notification (required for Android 13+)
+            // Check permission before showing
             if (notificationManager.areNotificationsEnabled()) {
                 try {
                     @Suppress("MissingPermission")
                     notificationManager.notify(notificationId, notification)
-                    android.util.Log.d(TAG, "Showed notification: id=$notificationId, type=$type, title=$title")
                 } catch (e: SecurityException) {
-                    android.util.Log.w(TAG, "Permission denied for notification", e)
+                    // Permission denied
                 }
-            } else {
-                android.util.Log.w(TAG, "Notifications are disabled, cannot show notification")
             }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error showing notification", e)
         }
     }
 
@@ -228,7 +220,6 @@ class NotificationService @Inject constructor(
      */
     @Suppress("UNUSED_PARAMETER")
     private fun getNotificationIcon(type: String): Int {
-        // Try to use app-specific icon first
         return try {
             // You can add custom drawable resources here
             // For now, use a system icon that's guaranteed to exist
@@ -254,13 +245,10 @@ class NotificationService @Inject constructor(
      * Cancel a specific notification
      */
     fun cancelNotification(id: String) {
-        try {
+        runCatching {
             val notificationManager = NotificationManagerCompat.from(context)
             val notificationId = NOTIFICATION_ID_BASE + id.hashCode()
             notificationManager.cancel(notificationId)
-            android.util.Log.d(TAG, "Cancelled notification: id=$notificationId")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error cancelling notification", e)
         }
     }
     
@@ -268,12 +256,9 @@ class NotificationService @Inject constructor(
      * Cancel all notifications
      */
     fun cancelAllNotifications() {
-        try {
+        runCatching {
             val notificationManager = NotificationManagerCompat.from(context)
             notificationManager.cancelAll()
-            android.util.Log.d(TAG, "Cancelled all notifications")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error cancelling all notifications", e)
         }
     }
     
@@ -297,4 +282,3 @@ class NotificationService @Inject constructor(
         return areNotificationsEnabled()
     }
 }
-

@@ -420,13 +420,15 @@ fun HouseSettingsScreen(
                                 onDismissRequest = { expandedCurrency = false }
                             ) {
                                 currencies.forEach { (code, symbol) ->
-                                    DropdownMenuItem(
-                                        text = { Text("$symbol $code") },
-                                        onClick = {
-                                            currency = code
-                                            expandedCurrency = false
-                                        }
-                                    )
+                                    androidx.compose.runtime.key(code) {
+                                        DropdownMenuItem(
+                                            text = { Text("$symbol $code") },
+                                            onClick = {
+                                                currency = code
+                                                expandedCurrency = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -587,13 +589,15 @@ fun HouseSettingsScreen(
                                 onDismissRequest = { expandedTimezone = false }
                             ) {
                                 timezones.forEach { tz ->
-                                    DropdownMenuItem(
-                                        text = { Text(tz) },
-                                        onClick = {
-                                            timezone = tz
-                                            expandedTimezone = false
-                                        }
-                                    )
+                                    androidx.compose.runtime.key(tz) {
+                                        DropdownMenuItem(
+                                            text = { Text(tz) },
+                                            onClick = {
+                                                timezone = tz
+                                                expandedTimezone = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -11,6 +11,8 @@ data class Profile(
     val email: String,
     @SerialName("full_name")
     val fullName: String? = null,
+    @SerialName("avatar_url")
+    val avatarUrl: String? = null,
     @SerialName("has_completed_onboarding")
     val hasCompletedOnboarding: Boolean = false,
     @SerialName("created_at")

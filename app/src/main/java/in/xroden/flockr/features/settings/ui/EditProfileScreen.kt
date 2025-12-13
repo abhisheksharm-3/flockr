@@ -12,10 +12,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
+import `in`.xroden.flockr.features.settings.domain.ProfileUiState
+import `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,25 +39,23 @@ fun EditProfileScreen(
     val profileUiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
 
-    val profile = when (val state = profileUiState) {
-        is `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success -> state.profile
-        else -> null
-    }
+    val profile = (profileUiState as? ProfileUiState.Success)?.profile
 
     var fullName by remember { mutableStateOf(profile?.fullName ?: "") }
     var profileImageUrl by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            try {
+            runCatching {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                val imageData = inputStream?.readBytes() ?: return@let
+                val imageData = inputStream?.readBytes() ?: return@runCatching
                 viewModel.uploadProfilePicture(imageData)
-            } catch (e: Exception) {
-                // Handle error
+            }.onFailure {
+                errorMessage = "Failed to load image: ${it.message}"
             }
         }
     }
@@ -66,40 +65,34 @@ fun EditProfileScreen(
             fullName = it.fullName ?: ""
         }
     }
+
+    // Handle update success to navigate back or show success
+    LaunchedEffect(updateState) {
+        if (updateState is UpdateProfileUiState.Success) {
+            onNavigateBack()
+        } else if (updateState is UpdateProfileUiState.Error) {
+            errorMessage = (updateState as UpdateProfileUiState.Error).message
+        }
+    }
     
-    val isLoading = updateState is `in`.xroden.flockr.features.settings.domain.UpdateProfileUiState.Loading
+    val isLoading = updateState is UpdateProfileUiState.Loading
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Edit Profile",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Edit Profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Profile Picture
@@ -112,44 +105,36 @@ fun EditProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (profileImageUrl != null) {
+                     // Note: Optimally this should come from ViewModel/Cloud
                     Image(
                         painter = rememberAsyncImagePainter(profileImageUrl),
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Default Avatar",
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                } else if (profile?.avatarUrl != null) {
+                     Image(
+                        painter = rememberAsyncImagePainter(profile.avatarUrl),
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Icon(Icons.Default.Person, "Default Avatar", Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
 
-                // Camera icon overlay
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(40.dp)
+                        .clip(CircleShape).background(MaterialTheme.colorScheme.primary)
                         .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Change Photo",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.CameraAlt, "Change Photo", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(Modifier.height(40.dp))
 
-            // Full Name Field
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
@@ -161,12 +146,16 @@ fun EditProfileScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                )
+                ),
+                isError = errorMessage != null
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            if (errorMessage != null) {
+                Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, start = 4.dp).align(Alignment.Start))
+            }
 
-            // Email Field (Read Only)
+            Spacer(Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = profile?.email ?: "",
                 onValueChange = { },
@@ -174,9 +163,9 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 readOnly = true,
-                enabled = false, // Visibly disabled
+                enabled = false,
                 shape = MaterialTheme.shapes.medium,
-                leadingIcon = { Icon(Icons.Default.Email, null) }, // Requires Email Icon import
+                leadingIcon = { Icon(Icons.Default.Email, null) },
                 colors = OutlinedTextFieldDefaults.colors(
                     disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
                     disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -184,34 +173,19 @@ fun EditProfileScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
 
             Button(
-                onClick = {
-                    viewModel.updateProfile(fullName)
-                    onNavigateBack()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                onClick = { viewModel.updateProfile(fullName) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = fullName.isNotBlank() && !isLoading,
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
-                    Text(
-                        "Save Changes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("Save Changes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

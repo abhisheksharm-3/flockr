@@ -26,7 +26,7 @@ import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.ui.theme.DateFormats
 import `in`.xroden.flockr.ui.theme.Spacing
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
+import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 

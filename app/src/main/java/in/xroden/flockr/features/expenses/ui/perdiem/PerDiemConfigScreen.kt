@@ -27,8 +27,7 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.ui.util.getCurrencySymbol
-import java.math.BigDecimal
+import `in`.xroden.flockr.utils.getCurrencySymbol
 
 /**
  * Modern per-diem configuration screen for managing daily shared items

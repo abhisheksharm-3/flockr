@@ -69,28 +69,9 @@ fun FlockrNavigation(
     val profile by authViewModel.profile.collectAsState(initial = null)
     val authUiState by authViewModel.authNavigationState.collectAsState(initial = AuthNavigationState.Loading)
 
-    androidx.compose.runtime.LaunchedEffect(authUiState) {
-        android.util.Log.i("FlockrNavigation", "🎯 Auth state changed: ${authUiState::class.simpleName}")
-        when (authUiState) {
-            is AuthNavigationState.Loading -> android.util.Log.d("FlockrNavigation", "Loading authentication state...")
-            is AuthNavigationState.Unauthenticated -> android.util.Log.d("FlockrNavigation", "User not authenticated, showing login")
-            is AuthNavigationState.NeedsOnboarding -> android.util.Log.d("FlockrNavigation", "User needs onboarding")
-            is AuthNavigationState.Authenticated -> android.util.Log.d("FlockrNavigation", "User authenticated, profile=${profile?.fullName}")
-        }
-    }
 
-    androidx.compose.runtime.DisposableEffect(navController) {
-        val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, arguments ->
-            android.util.Log.i("FlockrNavigation", "🧭 Navigation: → ${destination.route}")
-            arguments?.keySet()?.forEach { key ->
-                // android.util.Log.d("FlockrNavigation", "   └─ $key = ${arguments.get(key)}")
-            }
-        }
-        navController.addOnDestinationChangedListener(listener)
-        onDispose {
-            navController.removeOnDestinationChangedListener(listener)
-        }
-    }
+
+
 
     //
     // 2. FIXED: The 'when' block was syntactically incorrect.
@@ -838,7 +819,7 @@ fun FlockrNavigation(
         // For transient loading (hasAuthenticatedSession = true), we might want to show a small indicator or nothing.
         // For now, let's show the full screen loader only if we have NO content to show.
         if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {
-            android.util.Log.d("FlockrNavigation", "📱 Rendering full screen loading")
+
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center

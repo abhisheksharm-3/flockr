@@ -7,6 +7,7 @@ import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.SerialName
@@ -30,7 +31,7 @@ class DocumentRepository @Inject constructor(
                 .select(Columns.ALL) {
                     filter {
                         eq("user_id", currentUserId)
-                        isNull("house_id")
+                        filter("house_id", FilterOperator.IS, null)
                     }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                 }
