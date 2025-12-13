@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-12-13
+
+### 🐛 Bug Fixes
+- **Deep Links**: Fixed crash when clicking invitation links (added missing intent filter).
+- **Chores**: 'Complete Chore' now correctly records who completed it and when.
+- **Documents**: Fixed key bug where Personal and House documents were not properly isolated.
+- **Stability**: Resolved coroutine suspension errors in real-time updates and fixed all build compilation issues.
+
+### 🧹 Maintenance
+- **Cleanup**: Removed unused UI components (`FlockrCard`, `FlockrButton`) and redundant screens.
+- **Refactoring**: Consolidated utility functions and standardized codebase imports.
+
+---
+
 ## [1.5.6] - 2025-12-13
 
 ### Bug Fixes
