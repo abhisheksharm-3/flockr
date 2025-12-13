@@ -383,23 +383,38 @@ fun BalanceItemCard(
                             color = MaterialTheme.colorScheme.outline
                         )
                     } else {
-                        breakdownItems.forEach { item ->
-                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    item.expenseName, 
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    "$currencySymbol${"%.2f".format(item.amountOwed.toDouble())}", 
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (item.amountOwed < BigDecimal.ZERO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        breakdownItems.forEachIndexed { index, item ->
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = item.expenseName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = item.date.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingContent = {
+                                    Text(
+                                        text = "$currencySymbol${"%.2f".format(item.amountOwed.toDouble())}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (item.amountOwed < BigDecimal.ZERO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                            if (index < breakdownItems.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.1f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
                         }
