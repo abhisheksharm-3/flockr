@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.4] - 2025-12-19
+
+### Improvements
+- **Code Quality**: Refactored database queries to use the latest type-safe filter syntax.
+- **UI Updates**: Updated deprecated icons for better Right-to-Left (RTL) support.
+### Bug Fixes
+- **Join House**: Fixed an issue where the preview screen would not appear after entering a code.
+- **Startup**: Resolved a resource reference error in the splash loader.
+
+---
+
 ## [1.6.3] - 2025-12-19
 
 ### 🐛 Bug Fixes
