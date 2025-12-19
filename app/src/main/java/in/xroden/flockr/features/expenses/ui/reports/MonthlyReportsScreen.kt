@@ -1,11 +1,11 @@
 package `in`.xroden.flockr.features.expenses.ui.reports
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,12 +23,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
-import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
+
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.ui.theme.DateFormats
-import `in`.xroden.flockr.ui.theme.Spacing
+
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -53,7 +53,6 @@ fun MonthlyReportsScreen(
     var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
     val summaryState by viewModel.summaryState.collectAsState()
     val perDiemBillState by perDiemViewModel.billState.collectAsState()
-    val perDiemConfigState by perDiemViewModel.configState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
@@ -203,7 +202,7 @@ fun MonthlyReportsScreen(
                             } else java.math.BigDecimal.ZERO
 
                             Text(
-                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(totalExpenses),
+                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), totalExpenses),
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -237,7 +236,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.oneTimeExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.oneTimeExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -259,7 +258,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.recurringExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.recurringExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -281,7 +280,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(summary?.perDiemExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.perDiemExpenses ?: java.math.BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -314,7 +313,7 @@ fun MonthlyReportsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Build member data map - individual spending
                             val memberData = spendByMember.associate {
-                                (it.fullName ?: "Unknown") to (it.totalSpent?.toDouble() ?: 0.0)
+                                (it.fullName ?: "Unknown") to (it.totalSpent.toDouble())
                             }.toMutableMap()
 
                             // Add per diem as "House" spending
@@ -424,7 +423,7 @@ fun MonthlyReportsScreen(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.totalAmount)}",
+                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", item.totalAmount)}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -451,13 +450,13 @@ fun MonthlyReportsScreen(
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                                 )
                                                 Text(
-                                                    text = "Quantity: ${String.format("%.1f", item.totalQuantity)} ${item.unit}",
+                                                    text = "Quantity: ${String.format(java.util.Locale.getDefault(), "%.1f", item.totalQuantity)} ${item.unit}",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                             Text(
-                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", item.rate)}/${item.unit}",
+                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", item.rate)}/${item.unit}",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                             )
@@ -488,7 +487,7 @@ fun MonthlyReportsScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format("%.2f", summary.perDiemExpenses)}",
+                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", summary.perDiemExpenses)}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

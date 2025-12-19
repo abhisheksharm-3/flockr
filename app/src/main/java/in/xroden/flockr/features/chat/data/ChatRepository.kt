@@ -12,6 +12,8 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.postgrest.query.filter.FilterOperation
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -45,7 +47,7 @@ class ChatRepository @Inject constructor(
 
             val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                 table = "messages"
-                filter = "house_id=eq.$houseId"
+                filter(FilterOperation("house_id", FilterOperator.EQ, houseId))
             }
 
             channel.subscribe(blockUntilSubscribed = true)
