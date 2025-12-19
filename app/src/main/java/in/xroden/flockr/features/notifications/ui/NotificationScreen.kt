@@ -1,6 +1,5 @@
 package `in`.xroden.flockr.features.notifications.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Notifications
@@ -259,7 +257,7 @@ private fun formatTimestamp(timestamp: String): String {
                 "$month ${date.dayOfMonth}, ${date.year}"
             }
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "Just now" // Fallback
     }
 }

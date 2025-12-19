@@ -50,7 +50,17 @@ class NotificationViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.markAsRead(notificationId).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is NotificationUiState.Success) {
+                        val updated = currentState.notifications.map { 
+                            if (it.id == notificationId) it.copy(isRead = true) else it 
+                        }
+                        _uiState.value = currentState.copy(
+                            notifications = updated,
+                            unreadCount = updated.count { !it.isRead }
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = NotificationUiState.Error(
@@ -66,7 +76,15 @@ class NotificationViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.markAllAsRead().fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is NotificationUiState.Success) {
+                        val updated = currentState.notifications.map { it.copy(isRead = true) }
+                        _uiState.value = currentState.copy(
+                            notifications = updated,
+                            unreadCount = 0
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = NotificationUiState.Error(
@@ -82,7 +100,15 @@ class NotificationViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.deleteNotification(notificationId).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is NotificationUiState.Success) {
+                        val updated = currentState.notifications.filter { it.id != notificationId }
+                        _uiState.value = currentState.copy(
+                            notifications = updated,
+                            unreadCount = updated.count { !it.isRead }
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = NotificationUiState.Error(
@@ -98,7 +124,14 @@ class NotificationViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.deleteAllNotifications().fold(
                 onSuccess = {
-                    // Success
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is NotificationUiState.Success) {
+                        _uiState.value = currentState.copy(
+                            notifications = emptyList(),
+                            unreadCount = 0
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = NotificationUiState.Error(
