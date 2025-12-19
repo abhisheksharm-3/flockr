@@ -1,15 +1,10 @@
 package `in`.xroden.flockr.features.house.data
 
 import `in`.xroden.flockr.data.dto.HouseConfigUpdate
-import `in`.xroden.flockr.data.dto.HouseInsert
 import `in`.xroden.flockr.data.dto.HouseInvitationInsert
-import `in`.xroden.flockr.data.dto.HouseMemberInsert
-import `in`.xroden.flockr.data.dto.HouseMemberUpdate
 import `in`.xroden.flockr.data.dto.HouseUpdate
-import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import io.github.jan.supabase.SupabaseClient
@@ -30,7 +25,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.merge
-import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -38,8 +32,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.launch
 
 @Singleton
@@ -89,7 +81,7 @@ class HouseRepository @Inject constructor(
             launch {
                 try {
                     supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore
                 }
             }
@@ -221,20 +213,7 @@ class HouseRepository @Inject constructor(
             }
     }
 
-    suspend fun addMemberToHouse(
-        houseId: String,
-        userId: String,
-        role: HouseMemberRole = HouseMemberRole.MEMBER
-    ): Result<Unit> = runCatching {
-        supabase.from("house_members")
-            .insert(
-                HouseMemberInsert(
-                    houseId = houseId,
-                    userId = userId,
-                    role = role
-                )
-            )
-    }
+
 
     suspend fun removeMemberFromHouse(houseId: String, userId: String): Result<Unit> = runCatching {
         @Serializable
@@ -249,21 +228,7 @@ class HouseRepository @Inject constructor(
         )
     }
 
-    suspend fun updateMemberRole(
-        houseId: String,
-        userId: String,
-        newRole: HouseMemberRole
-    ): Result<Unit> = runCatching {
-        supabase.from("house_members")
-            .update(
-                HouseMemberUpdate(role = newRole)
-            ) {
-                filter {
-                    eq("house_id", houseId)
-                    eq("user_id", userId)
-                }
-            }
-    }
+
 
     suspend fun inviteMember(houseId: String, email: String): Result<Unit> = runCatching {
         val currentUserId = userId ?: throw IllegalStateException("No user logged in")
@@ -395,16 +360,7 @@ class HouseRepository @Inject constructor(
     }
 
     suspend fun getPendingInvitations(): Result<List<InvitationWithHouse>> = runCatching {
-        val currentUserId = userId ?: return@runCatching emptyList()
-
-        val userProfile = supabase.from("profiles")
-            .select(Columns.raw("email")) {
-                filter { eq("id", currentUserId) }
-            }
-            .decodeSingleOrNull<kotlinx.serialization.json.JsonObject>()
-
-        val userEmail = userProfile?.get("email")?.jsonPrimitive?.content
-            ?: return@runCatching emptyList()
+        userId ?: return@runCatching emptyList()
 
         supabase.postgrest.rpc(
             "get_my_pending_invitations_with_details"
@@ -440,7 +396,7 @@ class HouseRepository @Inject constructor(
                     order(column = "created_at", order = Order.DESCENDING)
                 }
                 .decodeList<`in`.xroden.flockr.features.house.model.HouseAuditLog>()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

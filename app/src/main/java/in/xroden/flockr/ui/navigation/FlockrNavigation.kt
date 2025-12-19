@@ -9,7 +9,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -50,7 +49,7 @@ import `in`.xroden.flockr.features.shopping.ui.AddShoppingItemScreen
 
 import `in`.xroden.flockr.features.expenses.ui.reports.MonthlyReportsScreen
 import `in`.xroden.flockr.features.house.ui.home.JoinHousePreviewScreen
-import io.github.jan.supabase.gotrue.SessionStatus
+
 
 /**
  * Navigation component for Flockr app with authentication state management.
@@ -67,8 +66,6 @@ fun FlockrNavigation(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
-    val sessionStatus by authViewModel.sessionStatus.collectAsState(initial = SessionStatus.LoadingFromStorage)
-    val profile by authViewModel.profile.collectAsState(initial = null)
     val authUiState by authViewModel.authNavigationState.collectAsState(initial = AuthNavigationState.Loading)
 
 
@@ -205,7 +202,7 @@ fun FlockrNavigation(
                                 json.optString("invite_code").takeIf { it.isNotEmpty() }
                                     ?: json.optString("code").takeIf { it.isNotEmpty() }
                             } else null
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             null
                         }
 
@@ -841,8 +838,5 @@ fun FlockrNavigation(
         // For now, let's show the full screen loader only if we have NO content to show.
         if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {
             FlockrSplashLoader()
-        } else if (authUiState is AuthNavigationState.Loading && hasAuthenticatedSession.value) {
-             // Optional: Show a non-blocking loading indicator for transient states?
-             // For document upload, we prefer nothing to disturb the UI.
         }
     }

@@ -101,7 +101,7 @@ class NotificationRepository @Inject constructor(
                                     data = null
                                 )
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             // Ignore device notification errors
                         }
                     }
@@ -127,7 +127,7 @@ class NotificationRepository @Inject constructor(
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                     try {
                         supabase.realtime.removeChannel(channel)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Ignore cleanup errors
                     }
                 }
@@ -135,25 +135,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun getNotifications(): Result<List<Notification>> {
-        return try {
-            val currentUserId = userId ?: return Result.success(emptyList())
 
-            val response = supabase.from("notifications")
-                    .select(Columns.ALL) {
-                    filter {
-                        eq("user_id", currentUserId)
-                    }
-                    order("created_at", Order.DESCENDING)
-                }
-
-            val notifications = Json.decodeFromString(ListSerializer(NotificationSerializer), response.data)
-
-            Result.success(notifications)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 
     suspend fun markAsRead(notificationId: String): Result<Unit> {
         return try {
@@ -172,7 +154,7 @@ class NotificationRepository @Inject constructor(
 
     suspend fun markAllAsRead(): Result<Unit> {
         return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+            userId ?: return Result.failure(Exception("No user logged in"))
 
             supabase.postgrest.rpc("mark_all_notifications_read")
 
@@ -217,19 +199,8 @@ class NotificationRepository @Inject constructor(
             )
 
             Result.success(Unit)
-        } catch (e: Exception) {
-            // Fallback: delete using delete with filter if RPC doesn't exist yet
-            try {
-                val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
-                supabase.from("notifications").delete {
-                     filter {
-                         eq("user_id", currentUserId)
-                     }
-                }
-                Result.success(Unit)
-            } catch (e2: Exception) {
-                Result.failure(e2)
-            }
+        } catch (e2: Exception) {
+            Result.failure(e2)
         }
     }
 
@@ -252,52 +223,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun updateNotificationPreferences(
-        houseId: String,
-        enableMemberJoined: Boolean?,
-        enableExpenseAdded: Boolean?,
-        enableChoreAssigned: Boolean?,
-        enableMessageSent: Boolean?,
-        enableShoppingItemAdded: Boolean?
-    ): Result<Unit> {
-        return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
-            @kotlinx.serialization.Serializable
-            data class PreferenceUpdate(
-                @kotlinx.serialization.SerialName("enable_member_joined")
-                val enableMemberJoined: Boolean? = null,
-                @kotlinx.serialization.SerialName("enable_expense_added")
-                val enableExpenseAdded: Boolean? = null,
-                @kotlinx.serialization.SerialName("enable_chore_assigned")
-                val enableChoreAssigned: Boolean? = null,
-                @kotlinx.serialization.SerialName("enable_message_sent")
-                val enableMessageSent: Boolean? = null,
-                @kotlinx.serialization.SerialName("enable_shopping_item_added")
-                val enableShoppingItemAdded: Boolean? = null
-            )
-
-            supabase.from("notification_preferences")
-                .update(
-                    PreferenceUpdate(
-                        enableMemberJoined = enableMemberJoined,
-                        enableExpenseAdded = enableExpenseAdded,
-                        enableChoreAssigned = enableChoreAssigned,
-                        enableMessageSent = enableMessageSent,
-                        enableShoppingItemAdded = enableShoppingItemAdded
-                    )
-                ) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("house_id", houseId)
-                    }
-                }
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
     suspend fun ensurePreferencesExist(houseId: String) {
         try {
             val currentUserId = userId ?: return
@@ -326,7 +252,7 @@ class NotificationRepository @Inject constructor(
                 )
                 supabase.from("notification_preferences").insert(defaultPref)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore
         }
     }
@@ -342,7 +268,7 @@ class NotificationRepository @Inject constructor(
                     }
                 }
                 .decodeList<NotificationPreference>()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

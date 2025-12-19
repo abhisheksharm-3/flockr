@@ -60,7 +60,6 @@ fun SettingsScreen(
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
     val profileUiState by profileViewModel.uiState.collectAsState()
     val profile = (profileUiState as? ProfileUiState.Success)?.profile
-    val profileError = (profileUiState as? ProfileUiState.Error)?.message
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
@@ -229,6 +228,7 @@ fun SettingsScreen(
                 scope.launch {
                     showLogoutDialog = false
                     authViewModel.signOut()
+                    onLogout()
                 }
             },
             onDismiss = { showLogoutDialog = false }

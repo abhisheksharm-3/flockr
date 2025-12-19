@@ -3,13 +3,12 @@ package `in`.xroden.flockr.features.house.ui.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.runtime.*
@@ -142,7 +141,7 @@ fun HouseSettingsScreen(
     }
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -165,11 +164,6 @@ fun HouseSettingsScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            if (houseName.length < 2) {
-                                nameError = "Name must be at least 2 characters"
-                                return@TextButton
-                            }
-
                             isSaving = true
                             scope.launch {
                                 val nameChanged = houseName != house?.name
@@ -410,7 +404,7 @@ fun HouseSettingsScreen(
                                 onDismissRequest = { expandedCurrency = false }
                             ) {
                                 currencies.forEach { (code, symbol) ->
-                                    androidx.compose.runtime.key(code) {
+                                    key(code) {
                                         DropdownMenuItem(
                                             text = { Text("$symbol $code") },
                                             onClick = {
@@ -579,7 +573,7 @@ fun HouseSettingsScreen(
                                 onDismissRequest = { expandedTimezone = false }
                             ) {
                                 timezones.forEach { tz ->
-                                    androidx.compose.runtime.key(tz) {
+                                    key(tz) {
                                         DropdownMenuItem(
                                             text = { Text(tz) },
                                             onClick = {

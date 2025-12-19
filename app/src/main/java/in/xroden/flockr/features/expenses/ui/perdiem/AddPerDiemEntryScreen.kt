@@ -133,7 +133,7 @@ fun AddPerDiemEntryScreen(
                                         notes = notes.takeIf { it.isNotBlank() }
                                     )
                                     onNavigateBack()
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     snackbarHostState.showSnackbar("Failed to log usage")
                                     isLoading = false
                                 }
