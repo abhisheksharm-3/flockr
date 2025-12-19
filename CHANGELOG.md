@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2025-12-19
+
+### 🐛 Bug Fixes
+- **Join House Preview**: Fixed an issue where the Join House Preview screen was not appearing after entering an invite code.
+- **Deep Linking**: Fixed deep links (`flockr://invite/CODE`) not opening the preview screen correctly.
+- **Empty State**: Fixed a blank screen issue when validating invite codes.
+
+---
+
 ## [1.6.2] - 2025-12-19
 
 ### 🐛 Bug Fixes
