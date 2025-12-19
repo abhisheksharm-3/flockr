@@ -12,7 +12,7 @@ import java.util.Locale
 fun getCurrencySymbol(currencyCode: String): String {
     return try {
         Currency.getInstance(currencyCode).symbol
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         when (currencyCode) {
             "USD" -> "$"
             "EUR" -> "€"
@@ -44,7 +44,7 @@ fun BigDecimal.formatAsCurrency(currencyCode: String): String {
         val format = NumberFormat.getCurrencyInstance(getLocaleForCurrency(currencyCode))
         format.currency = currency
         format.format(this)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         val symbol = getCurrencySymbol(currencyCode)
         "$symbol${this.setScale(2, java.math.RoundingMode.HALF_UP)}"
     }

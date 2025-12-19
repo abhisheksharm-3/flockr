@@ -122,7 +122,21 @@ class ChoreViewModel @Inject constructor(
         viewModelScope.launch {
             choreRepository.completeChore(choreId, houseId, taskName).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is ChoreUiState.Success) {
+                        val now = kotlinx.datetime.Clock.System.now()
+                        val updatedAll = currentState.allChores.map { chore ->
+                            if (chore.id == choreId) {
+                                chore.copy(isCompleted = true, completedAt = now)
+                            } else chore
+                        }
+                        _uiState.value = currentState.copy(
+                            allChores = updatedAll,
+                            activeChores = updatedAll.filter { !it.isCompleted },
+                            completedChores = updatedAll.filter { it.isCompleted }
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = ChoreUiState.Error(
@@ -138,7 +152,16 @@ class ChoreViewModel @Inject constructor(
         viewModelScope.launch {
             choreRepository.deleteChore(choreId).fold(
                 onSuccess = {
-                    // Success - state updated via flow
+                    // Optimistically update UI
+                    val currentState = _uiState.value
+                    if (currentState is ChoreUiState.Success) {
+                        val updatedAll = currentState.allChores.filter { it.id != choreId }
+                        _uiState.value = currentState.copy(
+                            allChores = updatedAll,
+                            activeChores = updatedAll.filter { !it.isCompleted },
+                            completedChores = updatedAll.filter { it.isCompleted }
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = ChoreUiState.Error(

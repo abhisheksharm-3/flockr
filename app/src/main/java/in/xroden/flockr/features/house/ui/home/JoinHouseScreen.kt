@@ -1,11 +1,9 @@
 package `in`.xroden.flockr.features.house.ui.home
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,9 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

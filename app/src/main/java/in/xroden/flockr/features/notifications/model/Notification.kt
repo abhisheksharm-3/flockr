@@ -52,7 +52,7 @@ object FlexibleDataSerializer : KSerializer<String?> {
                     jsonElement.toString()
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
