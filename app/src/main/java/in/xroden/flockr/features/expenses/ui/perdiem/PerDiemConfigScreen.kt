@@ -1,7 +1,6 @@
 package `in`.xroden.flockr.features.expenses.ui.perdiem
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -147,7 +145,7 @@ fun PerDiemConfigScreen(
                                 ) {
                                     Icon(
                                         Icons.Outlined.Info,
-                                        null,
+                                        contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
@@ -243,7 +241,7 @@ private fun PerDiemConfigCard(
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
                 ) {
                     Text(
-                        text = "$currencySymbol${"%.2f".format(config.rate)}/${config.unit}",
+                        text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)}/${config.unit}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.tertiary,

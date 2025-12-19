@@ -2,7 +2,7 @@ package `in`.xroden.flockr.ui.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -22,6 +22,7 @@ import `in`.xroden.flockr.features.auth.ui.LoginScreen
 import `in`.xroden.flockr.features.auth.ui.SignupScreen
 import `in`.xroden.flockr.features.chat.ui.ChatScreen
 import `in`.xroden.flockr.features.documents.ui.DocumentsScreen
+import `in`.xroden.flockr.ui.components.loading.FlockrSplashLoader
 import `in`.xroden.flockr.features.house.ui.home.CreateHouseScreen
 import `in`.xroden.flockr.features.house.ui.home.HomeScreen
 import `in`.xroden.flockr.features.house.ui.home.JoinHouseScreen
@@ -839,13 +840,7 @@ fun FlockrNavigation(
         // For transient loading (hasAuthenticatedSession = true), we might want to show a small indicator or nothing.
         // For now, let's show the full screen loader only if we have NO content to show.
         if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            FlockrSplashLoader()
         } else if (authUiState is AuthNavigationState.Loading && hasAuthenticatedSession.value) {
              // Optional: Show a non-blocking loading indicator for transient states?
              // For document upload, we prefer nothing to disturb the UI.

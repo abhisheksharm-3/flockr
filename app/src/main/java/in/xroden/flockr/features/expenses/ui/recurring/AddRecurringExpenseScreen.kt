@@ -1,16 +1,21 @@
 package `in`.xroden.flockr.features.expenses.ui.recurring
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Repeat
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -437,7 +442,7 @@ fun AddRecurringExpenseScreen(
 
                     if (splitType == "custom" && selectedMembers.isNotEmpty()) {
                         val totalCustom = customAmounts.values.sum()
-                        if (totalCustom > amount.toDoubleOrNull() ?: 0.0) {
+                        if (totalCustom > (amount.toDoubleOrNull() ?: 0.0)) {
                             scope.launch { snackbarHostState.showSnackbar("Custom amounts exceed total bill amount") }
                             return@Button
                         }

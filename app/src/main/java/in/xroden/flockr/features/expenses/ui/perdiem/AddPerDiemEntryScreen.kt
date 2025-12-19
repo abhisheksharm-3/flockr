@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -221,7 +222,7 @@ fun AddPerDiemEntryScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "$currencySymbol${"%.2f".format(config.rate)} per ${config.unit}",
+                                "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -308,7 +309,7 @@ fun AddPerDiemEntryScreen(
                                         style = MaterialTheme.typography.bodyLarge
                                     )
                                     Text(
-                                        "$currencySymbol${"%.2f".format(quantityDouble * config.rate.toDouble())}",
+                                        "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", quantityDouble * config.rate.toDouble())}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.tertiary
@@ -390,7 +391,7 @@ fun AddPerDiemEntryScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Outlined.Notes,
+                                        Icons.AutoMirrored.Outlined.Notes,
                                         null,
                                         tint = MaterialTheme.colorScheme.primary
                                     )

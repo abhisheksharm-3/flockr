@@ -1,14 +1,12 @@
 package `in`.xroden.flockr
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.ui.navigation.FlockrNavigation
@@ -46,13 +44,11 @@ import androidx.compose.animation.fadeIn
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import `in`.xroden.flockr.features.house.ui.home.JoinHousePreviewScreen
+
 import android.content.Intent
 import androidx.compose.animation.fadeOut
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
-import `in`.xroden.flockr.data.enums.NotificationType
 
 
 @AndroidEntryPoint
@@ -93,7 +89,7 @@ class MainActivity : FragmentActivity() {
             // Request notification permission on first launch
             LaunchedEffect(Unit) {
                 if (!PermissionHandler.hasNotificationPermission(this@MainActivity)) {
-                    permissionManager.requestNotificationPermission { granted ->
+                    permissionManager.requestNotificationPermission { _ ->
                         // Permission result handled
                     }
                 }

@@ -190,7 +190,7 @@ private fun PerDiemQuickSelectCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "$currencySymbol${"%.2f".format(config.rate)} per ${config.unit}",
+                        text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

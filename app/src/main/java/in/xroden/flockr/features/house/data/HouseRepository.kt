@@ -23,6 +23,8 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.postgrest.query.filter.FilterOperation
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +71,7 @@ class HouseRepository @Inject constructor(
 
             val membersFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                 table = "house_members"
-                filter = "user_id=eq.$currentUserId"
+                filter(FilterOperation("user_id", FilterOperator.EQ, currentUserId))
             }
 
             channel.subscribe(blockUntilSubscribed = true)
