@@ -3,6 +3,7 @@ package `in`.xroden.flockr.features.expenses.ui.perdiem
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -59,8 +60,8 @@ fun PerDiemTransactionsScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Per Diem Transactions",
-                        style = MaterialTheme.typography.titleLarge,
+                        "Transactions",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
@@ -107,8 +108,9 @@ fun PerDiemTransactionsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     // Month selector
                     item {
@@ -129,28 +131,28 @@ fun PerDiemTransactionsScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = MaterialTheme.colorScheme.primary
                             ),
-                            shape = MaterialTheme.shapes.medium
+                            shape = RoundedCornerShape(20.dp)
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Total for $monthName ${selectedMonth.year}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    text = "Total Spending • $monthName",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                                 )
                                 Text(
                                     text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", totalAmount)}",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
                         }
@@ -173,7 +175,7 @@ fun PerDiemTransactionsScreen(
                                         imageVector = Icons.Default.Receipt,
                                         contentDescription = null,
                                         modifier = Modifier.size(64.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
                                     )
                                     Text(
                                         text = "No transactions",
@@ -197,9 +199,9 @@ fun PerDiemTransactionsScreen(
                             item {
                                 Text(
                                     text = formatDate(date),
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                                 )
                             }
@@ -215,11 +217,6 @@ fun PerDiemTransactionsScreen(
                                 )
                             }
                         }
-                    }
-
-                    // Bottom spacing
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -241,9 +238,10 @@ private fun PerDiemTransactionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
-        shape = MaterialTheme.shapes.medium
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -254,61 +252,68 @@ private fun PerDiemTransactionCard(
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = entry.itemName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ShoppingBag,
+                        imageVector = Icons.Default.Inventory2,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "${String.format(Locale.getDefault(), "%.1f", entry.quantity)} ${entry.unit} @ $currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.rate)}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 // User Name
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Text(
                         text = entry.userName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
 
                 if (!entry.notes.isNullOrBlank()) {
-                    Text(
-                        text = entry.notes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                     Surface(
+                         color = MaterialTheme.colorScheme.surface,
+                         shape = RoundedCornerShape(6.dp),
+                         modifier = Modifier.padding(top = 4.dp)
+                     ) {
+                         Text(
+                             text = entry.notes,
+                             style = MaterialTheme.typography.bodySmall,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                         )
+                     }
                 }
             }
 
             Column(
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.totalCost)}",
@@ -316,16 +321,20 @@ private fun PerDiemTransactionCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 Box {
-                    IconButton(onClick = { showMenu = true }) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = "More options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    
+
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
@@ -458,50 +467,50 @@ private fun MonthSelector(
     val monthName = selectedMonth.month.name.lowercase()
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = MaterialTheme.shapes.medium
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH)) }) {
-                Icon(
-                    Icons.Default.ChevronLeft,
-                    "Previous month",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Text(
-                text = "$monthName ${selectedMonth.year}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+        FilledTonalIconButton(
+            onClick = { onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH)) },
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             )
+        ) {
+            Icon(
+                Icons.Default.ChevronLeft,
+                "Previous month",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
-            val isFuture = selectedMonth.plus(1, DateTimeUnit.MONTH) > currentMonthStart
+        Text(
+            text = "$monthName ${selectedMonth.year}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
-            IconButton(
-                onClick = { onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH)) },
-                enabled = !isFuture
-            ) {
-                Icon(
-                    Icons.Default.ChevronRight,
-                    "Next month",
-                    tint = if (!isFuture)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
+        val isFuture = selectedMonth.plus(1, DateTimeUnit.MONTH) > currentMonthStart
+
+        FilledTonalIconButton(
+            onClick = { onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH)) },
+            enabled = !isFuture,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
+            Icon(
+                Icons.Default.ChevronRight,
+                "Next month",
+                tint = if (!isFuture)
+                    MaterialTheme.colorScheme.onSurface
+                else
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            )
         }
     }
 }

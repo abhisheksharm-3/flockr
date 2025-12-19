@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.ui.perdiem
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,8 +55,8 @@ fun QuickPerDiemEntryScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Add Per Diem Entry",
-                        style = MaterialTheme.typography.titleLarge,
+                        "Add Entry",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
@@ -67,6 +68,15 @@ fun QuickPerDiemEntryScreen(
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                },
+                actions = {
+                   IconButton(onClick = onNavigateToConfig) {
+                       Icon(
+                           Icons.Default.Settings,
+                           "Manage Items",
+                           tint = MaterialTheme.colorScheme.onSurface
+                       )
+                   }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -89,21 +99,22 @@ fun QuickPerDiemEntryScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
                     Column(
+                        modifier = Modifier.padding(bottom = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = "Select Item",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Choose which per-diem item you want to log usage for",
+                            text = "Choose an item to log usage",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -114,17 +125,24 @@ fun QuickPerDiemEntryScreen(
                     OutlinedButton(
                         onClick = onNavigateToTransactions,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Receipt,
+                            imageVector = Icons.Default.History,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "View All Transactions",
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = "View Transaction History",
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -151,11 +169,11 @@ private fun PerDiemQuickSelectCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -165,24 +183,32 @@ private fun PerDiemQuickSelectCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
                 // Icon based on category
-                Icon(
-                    imageVector = when (config.category.lowercase()) {
-                        "beverage" -> Icons.Default.LocalCafe
-                        "food" -> Icons.Default.Fastfood
-                        "grocery" -> Icons.Default.ShoppingBasket
-                        else -> Icons.Default.Receipt
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                         Icon(
+                            imageVector = when (config.category.lowercase()) {
+                                "beverage" -> Icons.Default.LocalCafe
+                                "food" -> Icons.Default.Fastfood
+                                "grocery" -> Icons.Default.ShoppingBasket
+                                else -> Icons.Default.Receipt
+                            },
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
 
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = config.itemName,
                         style = MaterialTheme.typography.titleMedium,
@@ -190,7 +216,7 @@ private fun PerDiemQuickSelectCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
+                        text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)} / ${config.unit}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -199,8 +225,8 @@ private fun PerDiemQuickSelectCard(
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Add entry",
-                tint = MaterialTheme.colorScheme.primary,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(24.dp)
             )
         }
