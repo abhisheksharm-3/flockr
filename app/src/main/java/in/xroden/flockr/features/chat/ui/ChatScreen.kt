@@ -60,7 +60,7 @@ fun ChatScreen(
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
@@ -78,12 +78,7 @@ fun ChatScreen(
             Box(modifier = Modifier.weight(1f)) {
                 when (val state = uiState) {
                     is ChatUiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        `in`.xroden.flockr.ui.components.loading.ChatScreenSkeleton()
                     }
                     is ChatUiState.Success -> {
                         if (state.messages.isEmpty()) {

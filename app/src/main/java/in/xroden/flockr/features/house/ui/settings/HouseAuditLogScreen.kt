@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -89,7 +90,7 @@ fun HouseAuditLogScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
@@ -313,7 +314,7 @@ private fun getActionIcon(action: String): androidx.compose.ui.graphics.vector.I
         "member_removed", "member_left" -> Icons.Default.PersonRemove
         "role_changed" -> Icons.Default.AdminPanelSettings
         "house_updated" -> Icons.Default.Edit
-        "expense_added" -> Icons.Default.ReceiptLong
+        "expense_added" -> Icons.AutoMirrored.Filled.ReceiptLong
         "chore_created" -> Icons.Default.CleaningServices
         else -> Icons.Default.Info
     }

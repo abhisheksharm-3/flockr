@@ -88,9 +88,9 @@ fun OneTimeExpensesScreen(
     ) { padding ->
         when (val state = expenseState) {
             is OneTimeExpenseUiState.Loading -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
+                `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton(
+                    modifier = Modifier.padding(padding)
+                )
             }
             is OneTimeExpenseUiState.Success -> {
                 // Optimize sorting and filtering with derivedStateOf/remember

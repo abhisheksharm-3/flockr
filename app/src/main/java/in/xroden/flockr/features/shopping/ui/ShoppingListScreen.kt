@@ -93,7 +93,7 @@ fun ShoppingListScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
@@ -143,9 +143,7 @@ fun ShoppingListScreen(
 
             when (val state = uiState) {
                 is ShoppingUiState.Loading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
+                    `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton()
                 }
                 is ShoppingUiState.Success -> {
                     val items = state.items

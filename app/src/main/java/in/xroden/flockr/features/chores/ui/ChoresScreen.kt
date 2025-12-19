@@ -104,7 +104,7 @@ fun ChoresScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 ),
                 actions = {
@@ -129,9 +129,9 @@ fun ChoresScreen(
     ) { padding ->
         when (val state = uiState) {
             is ChoreUiState.Loading -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
+                `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton(
+                    modifier = Modifier.padding(padding)
+                )
             }
             is ChoreUiState.Success -> {
                 val filteredChores = when (filterOption) {

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -205,7 +206,7 @@ fun HouseSettingsScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -403,7 +404,7 @@ fun HouseSettingsScreen(
                                 placeholder = "Select currency",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.AttachMoney,
@@ -460,7 +461,7 @@ fun HouseSettingsScreen(
                                 placeholder = "Select date format",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
@@ -510,7 +511,7 @@ fun HouseSettingsScreen(
                                 placeholder = "Select first day",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.CalendarMonth,
@@ -572,7 +573,7 @@ fun HouseSettingsScreen(
                                 placeholder = "Select timezone",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Schedule,

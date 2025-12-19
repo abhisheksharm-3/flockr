@@ -21,6 +21,7 @@ import kotlinx.serialization.json.JsonPrimitive
  * - JSON object: {"type":"expense"}
  * - null
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 object FlexibleDataSerializer : KSerializer<String?> {
     override val descriptor: SerialDescriptor = 
         PrimitiveSerialDescriptor("FlexibleData", PrimitiveKind.STRING)

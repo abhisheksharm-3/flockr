@@ -53,7 +53,7 @@ fun ProductivityDialog(
                             Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
