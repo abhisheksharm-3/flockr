@@ -1,19 +1,18 @@
 package `in`.xroden.flockr.features.house.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
+import `in`.xroden.flockr.features.house.domain.JoinHouseUiState
+import `in`.xroden.flockr.features.house.domain.HousePreviewUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,64 +37,45 @@ fun JoinHouseScreen(
     val joinState by viewModel.joinState.collectAsState()
     val previewState by viewModel.previewState.collectAsState()
 
-    // Observe join state
     LaunchedEffect(joinState) {
         when (val state = joinState) {
-            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Success -> {
+            is JoinHouseUiState.Success -> {
                 delay(300)
                 onHouseJoined(state.house?.id ?: "")
                 viewModel.resetJoinState()
             }
-            is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Error -> {
+            is JoinHouseUiState.Error -> {
                 errorMessage = state.message
             }
             else -> {}
         }
     }
 
-    // Observe preview state for errors
     LaunchedEffect(previewState) {
-        if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Error) {
-             errorMessage = (previewState as `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Error).message
+        if (previewState is HousePreviewUiState.Error) {
+            errorMessage = (previewState as HousePreviewUiState.Error).message
         }
     }
 
-    // Validate code when it's complete
     LaunchedEffect(inviteCode) {
         if (inviteCode.length == 6) {
-             viewModel.validateInviteCode(inviteCode)
+            viewModel.validateInviteCode(inviteCode)
         } else {
-             viewModel.resetPreviewState()
-             errorMessage = null
+            viewModel.resetPreviewState()
+            errorMessage = null
         }
     }
 
-    if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Success) {
-        val preview = (previewState as `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Success).preview
-        AlertDialog(
-            onDismissRequest = { viewModel.resetPreviewState() },
-            title = { Text("Join ${preview.name}?") },
-            text = {
-                Column {
-                    Text("Owner: ${preview.ownerName ?: "Unknown"}")
-                    Text("Members: ${preview.memberCount ?: 0}")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Do you want to join this household?")
-                }
+    if (previewState is HousePreviewUiState.Success) {
+        val preview = (previewState as HousePreviewUiState.Success).preview
+        JoinHouseDialog(
+            house = preview,
+            onDismiss = { viewModel.resetPreviewState() },
+            onJoin = {
+                viewModel.joinHouseByInviteCode(inviteCode)
+                viewModel.resetPreviewState()
             },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.joinHouseByInviteCode(inviteCode)
-                    viewModel.resetPreviewState()
-                }) {
-                    Text("Join")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.resetPreviewState() }) {
-                    Text("Cancel")
-                }
-            }
+            isLoading = joinState is JoinHouseUiState.Loading
         )
     }
 
@@ -131,35 +113,29 @@ fun JoinHouseScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Icon
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .border(
-                        2.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        MaterialTheme.shapes.medium
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title
+            // Icon Container
+            Surface(
+                modifier = Modifier.size(100.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Home,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             Text(
                 text = "Join a Household",
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
@@ -176,86 +152,111 @@ fun JoinHouseScreen(
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Invite Code Input
-            Column(
-                modifier = Modifier.fillMaxWidth()
+            // Invite Code Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
-                Text(
-                    text = "Invite Code",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                OutlinedTextField(
-                    value = inviteCode,
-                    onValueChange = {
-                        inviteCode = it.uppercase().take(6)
-                        errorMessage = null // Reset local error, wait for validation
-                    },
-                    placeholder = { Text("Enter 6-digit code") },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 4.sp
-                    ),
-                    isError = errorMessage != null,
-                    supportingText = {
-                        errorMessage?.let {
-                            Text(
-                                text = it,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Outlined.Key,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
-                    },
-                    trailingIcon = {
-                        if (previewState is `in`.xroden.flockr.features.house.domain.HousePreviewUiState.Loading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else if (inviteCode.length == 6 && errorMessage == null) {
-                             // Maybe waiting for validation
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters
-                    ),
-                    singleLine = true,
-                    enabled = joinState !is `in`.xroden.flockr.features.house.domain.JoinHouseUiState.Loading,
-                    shape = MaterialTheme.shapes.medium
-                )
+                        Text(
+                            "Invite Code",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
-                Text(
-                    text = "${inviteCode.length}/6 characters",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                )
+                    OutlinedTextField(
+                        value = inviteCode,
+                        onValueChange = {
+                            inviteCode = it.uppercase().take(6)
+                            errorMessage = null
+                        },
+                        placeholder = { Text("Enter 6-digit code") },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 4.sp
+                        ),
+                        isError = errorMessage != null,
+                        supportingText = {
+                            if (errorMessage != null) {
+                                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("${inviteCode.length}/6 characters")
+                            }
+                        },
+                        trailingIcon = {
+                            if (previewState is HousePreviewUiState.Loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Characters
+                        ),
+                        singleLine = true,
+                        enabled = joinState !is JoinHouseUiState.Loading,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
                 ),
-                shape = MaterialTheme.shapes.medium
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                null,
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
                     Column {
                         Text(
                             text = "About Invite Codes",

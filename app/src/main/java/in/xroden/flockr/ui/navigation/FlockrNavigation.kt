@@ -48,6 +48,7 @@ import `in`.xroden.flockr.features.chores.ui.ProductivityScreen
 import `in`.xroden.flockr.features.shopping.ui.AddShoppingItemScreen
 
 import `in`.xroden.flockr.features.expenses.ui.reports.MonthlyReportsScreen
+import `in`.xroden.flockr.features.house.ui.home.JoinHousePreviewScreen
 import io.github.jan.supabase.gotrue.SessionStatus
 
 /**
@@ -117,6 +118,9 @@ fun FlockrNavigation(
                         },
                         onJoinHouseClick = {
                             navController.navigate(Screen.JoinHouse.route)
+                        },
+                        onNavigateToJoinPreview = { inviteCode ->
+                            navController.navigate(Screen.JoinHousePreview.createRoute(inviteCode))
                         }
                     )
                 }
@@ -140,6 +144,22 @@ fun FlockrNavigation(
                             }
                         },
                         onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Screen.JoinHousePreview.route,
+                    arguments = listOf(navArgument("inviteCode") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val inviteCode = backStackEntry.arguments?.getString("inviteCode") ?: return@composable
+                    JoinHousePreviewScreen(
+                        inviteCode = inviteCode,
+                        onNavigateBack = { navController.popBackStack() },
+                        onHouseJoined = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                        }
                     )
                 }
 

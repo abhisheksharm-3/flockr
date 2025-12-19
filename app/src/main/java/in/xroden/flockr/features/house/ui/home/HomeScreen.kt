@@ -26,7 +26,9 @@ import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.domain.HouseListUiState
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
+import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
+import `in`.xroden.flockr.features.settings.domain.ProfileUiState
 import java.time.LocalTime
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -35,6 +37,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +47,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onCreateHouseClick: () -> Unit,
     onJoinHouseClick: () -> Unit,
+    onNavigateToJoinPreview: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     notificationViewModel: NotificationViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
@@ -58,11 +62,11 @@ fun HomeScreen(
     val pendingInvitations by viewModel.pendingInvitations.collectAsState()
 
     val unreadCount = when (val state = notificationUiState) {
-        is `in`.xroden.flockr.features.notifications.domain.NotificationUiState.Success -> state.unreadCount
+        is NotificationUiState.Success -> state.unreadCount
         else -> 0
     }
 
-    val profile = (profileUiState as? `in`.xroden.flockr.features.settings.domain.ProfileUiState.Success)?.profile
+    val profile = (profileUiState as? ProfileUiState.Success)?.profile
     
     // Greeting Logic - Memoized
     val greeting = remember {
@@ -173,14 +177,11 @@ fun HomeScreen(
     }
     
     if (manualInviteCode != null) {
-        JoinHouseByCodeDialog(
-            inviteCode = manualInviteCode!!,
-            onDismiss = { manualInviteCode = null },
-            onHouseJoined = {
-                manualInviteCode = null
-                viewModel.refresh()
-            }
-        )
+        // Navigate to full-screen preview
+        LaunchedEffect(manualInviteCode) {
+            onNavigateToJoinPreview(manualInviteCode!!)
+            manualInviteCode = null
+        }
     }
 }
 
@@ -363,31 +364,43 @@ fun EmptyHouseState(onCreateHouseClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onCreateHouseClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                Icons.Default.Home,
-                null,
-                modifier = Modifier.size(48.dp).padding(bottom = 16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Home,
+                        null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
+                }
+            }
             Text(
                 "No households yet",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 "Create or join a house to get started",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }

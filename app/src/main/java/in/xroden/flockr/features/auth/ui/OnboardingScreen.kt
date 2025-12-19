@@ -6,13 +6,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,45 +36,18 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    var showCarousel by remember { mutableStateOf(true) }
-    var isUpdating by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Get the current profile name from the StateFlow
-    val profile by viewModel.profile.collectAsState()
-    var fullName by remember { mutableStateOf("") }
-
-    // Initialize fullName with profile data when available
-    LaunchedEffect(profile) {
-        if (fullName.isEmpty() && profile?.fullName?.isNotBlank() == true) {
-            fullName = profile?.fullName ?: ""
-        }
-    }
-
-    if (showCarousel) {
-        OnboardingCarousel(
-            onComplete = { showCarousel = false }
-        )
-    } else {
-        OnboardingSetup(
-            fullName = fullName,
-            onFullNameChange = { fullName = it },
-            isLoading = isUpdating,
-            onComplete = {
-                if (!isUpdating && fullName.isNotBlank()) {
-                    isUpdating = true
-                    coroutineScope.launch {
-                        viewModel.updateProfile(
-                            fullName = fullName,
-                            hasCompletedOnboarding = true
-                        )
-                        // Don't set isUpdating = false or call onComplete()
-                        // Let the state flow handle navigation
-                    }
-                }
+    OnboardingCarousel(
+        onComplete = {
+            // Mark onboarding complete and go directly to home
+            coroutineScope.launch {
+                viewModel.updateProfile(
+                    hasCompletedOnboarding = true
+                )
             }
-        )
-    }
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -81,38 +57,55 @@ fun OnboardingCarousel(
 ) {
     val pages = listOf(
         OnboardingPage(
-            icon = Icons.Default.Home,
+            icon = Icons.Outlined.Home,
             title = "Welcome to Flockr",
-            description = "The all-in-one app for managing your household. Track expenses, organize chores, and stay connected with your housemates."
+            description = "The all-in-one app for managing your household. Track expenses, organize chores, and stay connected."
         ),
         OnboardingPage(
-            icon = Icons.Default.Star,
+            icon = Icons.Outlined.Receipt,
             title = "Track Finances",
-            description = "Split bills easily, track who owes what, and generate automated expense reports. Never lose track of shared expenses again."
+            description = "Split bills easily, track who owes what, and generate automated expense reports."
         ),
         OnboardingPage(
-            icon = Icons.Default.CheckCircle,
+            icon = Icons.Outlined.TaskAlt,
             title = "Organize Chores",
-            description = "Assign tasks, create shopping lists, and keep everyone on the same page. Household management made simple."
+            description = "Assign tasks, create shopping lists, and keep everyone on the same page."
         ),
         OnboardingPage(
-            icon = Icons.Default.Notifications,
+            icon = Icons.Outlined.Notifications,
             title = "Stay Connected",
-            description = "Real-time notifications, group chat, and document sharing. Everything your household needs in one place."
+            description = "Real-time notifications, group chat, and document sharing. Everything in one place."
         )
     )
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier = Modifier.fillMaxSize()
         ) {
+            // Skip button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onComplete) {
+                    Text(
+                        "Skip",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             // Pager
             HorizontalPager(
                 state = pagerState,
@@ -121,51 +114,37 @@ fun OnboardingCarousel(
                 OnboardingPageContent(pages[page])
             }
 
-            // Page indicators
-            Row(
+            // Bottom section
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                repeat(pages.size) { index ->
-                    Box(
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .size(if (index == pagerState.currentPage) 12.dp else 8.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (index == pagerState.currentPage)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            )
-                    )
-                }
-            }
-
-            // Navigation buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 32.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                if (pagerState.currentPage > 0) {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                            }
-                        }
-                    ) {
-                        Text("Back", fontWeight = FontWeight.SemiBold)
+                // Page indicators
+                Row(
+                    modifier = Modifier.padding(bottom = 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    repeat(pages.size) { index ->
+                        Box(
+                            modifier = Modifier
+                                .size(
+                                    width = if (index == pagerState.currentPage) 24.dp else 8.dp,
+                                    height = 8.dp
+                                )
+                                .clip(CircleShape)
+                                .background(
+                                    if (index == pagerState.currentPage)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                )
+                        )
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(1.dp))
                 }
 
+                // Navigation button
                 Button(
                     onClick = {
                         if (pagerState.currentPage < pages.size - 1) {
@@ -176,14 +155,35 @@ fun OnboardingCarousel(
                             onComplete()
                         }
                     },
-                    modifier = Modifier.widthIn(min = 120.dp),
-                    shape = MaterialTheme.shapes.medium
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Text(
-                        if (pagerState.currentPage < pages.size - 1) "Next"
-                        else "Get Started",
+                        if (pagerState.currentPage < pages.size - 1) "Continue" else "Get Started",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                // Back button (if not first page)
+                if (pagerState.currentPage > 0) {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                            }
+                        },
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Back", fontWeight = FontWeight.Medium)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
         }
@@ -199,36 +199,47 @@ fun OnboardingPageContent(page: OnboardingPage) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
+        // Icon container with subtle background
+        Box(
             modifier = Modifier
-                .size(160.dp)
-                .padding(bottom = 32.dp)
+                .size(140.dp)
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = page.icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+            Icon(
+                imageVector = page.icon,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
+
+        Spacer(modifier = Modifier.height(48.dp))
 
         Text(
             text = page.title,
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 16.dp)
+            color = MaterialTheme.colorScheme.onBackground
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = page.description,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4f
         )
     }
 }
@@ -242,20 +253,6 @@ fun OnboardingSetup(
     onComplete: () -> Unit
 ) {
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Complete Your Profile",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
@@ -263,49 +260,68 @@ fun OnboardingSetup(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Avatar placeholder
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "What's your name?",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 32.dp)
-                )
-
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = onFullNameChange,
-                    label = { Text("Your Full Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
-                )
-
-                Text(
-                    text = "This is how you'll appear to other household members",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 12.dp)
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "What's your name?",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "This is how you'll appear to\nyour household members",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            OutlinedTextField(
+                value = fullName,
+                onValueChange = onFullNameChange,
+                label = { Text("Full Name") },
+                placeholder = { Text("Enter your name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
             Button(
                 onClick = onComplete,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 enabled = fullName.isNotBlank() && !isLoading,
-                shape = MaterialTheme.shapes.medium,
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -317,9 +333,15 @@ fun OnboardingSetup(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Complete Setup", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Complete Setup",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

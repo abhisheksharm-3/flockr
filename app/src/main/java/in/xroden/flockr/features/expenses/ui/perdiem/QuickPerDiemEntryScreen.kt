@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
+import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.utils.getCurrencySymbol
 
 /**
@@ -34,10 +36,10 @@ fun QuickPerDiemEntryScreen(
 ) {
     val configsState by viewModel.configState.collectAsState()
     val configs = when (val state = configsState) {
-        is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Success -> state.configs
+        is PerDiemConfigUiState.Success -> state.configs
         else -> emptyList()
     }
-    val isLoading = configsState is `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState.Loading
+    val isLoading = configsState is PerDiemConfigUiState.Loading
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
@@ -74,14 +76,7 @@ fun QuickPerDiemEntryScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            ListScreenSkeleton(modifier = Modifier.fillMaxSize().padding(padding))
         } else if (configs.isEmpty()) {
             EmptyPerDiemConfigState(
                 modifier = Modifier
