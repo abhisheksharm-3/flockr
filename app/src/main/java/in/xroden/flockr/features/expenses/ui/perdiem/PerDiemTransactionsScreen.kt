@@ -147,7 +147,7 @@ fun PerDiemTransactionsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", totalAmount)}",
+                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", totalAmount)}",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -273,7 +273,7 @@ private fun PerDiemTransactionCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "${String.format(java.util.Locale.getDefault(), "%.1f", entry.quantity)} ${entry.unit} @ $currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", entry.rate)}",
+                        text = "${String.format(Locale.getDefault(), "%.1f", entry.quantity)} ${entry.unit} @ $currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.rate)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -311,7 +311,7 @@ private fun PerDiemTransactionCard(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", entry.totalCost)}",
+                    text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.totalCost)}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -510,7 +510,7 @@ private fun formatDate(date: LocalDate): String {
     return try {
         val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
         javaDate.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy"))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "${date.dayOfMonth}/${date.monthNumber}/${date.year}"
     }
 }

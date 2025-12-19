@@ -20,14 +20,12 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
 
 @Singleton
 class ChatRepository @Inject constructor(
@@ -64,7 +62,7 @@ class ChatRepository @Inject constructor(
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore cleanup errors
                 }
             }
@@ -98,7 +96,7 @@ class ChatRepository @Inject constructor(
                             ?: Instant.DISTANT_PAST,
                         senderName = senderName
                     )
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }
@@ -150,7 +148,7 @@ class ChatRepository @Inject constructor(
                         excludeUserId = currentUserId
                     )
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore notification errors
             }
 
@@ -160,18 +158,5 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteMessage(messageId: String): Result<Unit> {
-        return try {
-            supabase.from("messages")
-                .delete {
-                    filter {
-                        eq("id", messageId)
-                    }
-                }
 
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 }

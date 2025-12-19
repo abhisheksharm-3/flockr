@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
 import `in`.xroden.flockr.features.house.domain.CreateHouseUiState
@@ -85,11 +84,11 @@ private fun CreateHouseScreenContent(
                 contentResolver.openInputStream(uri)?.use { inputStream ->
                     imageBytes = inputStream.readBytes()
                 }
-            } catch (e: Exception) {
-                Log.e(SCREEN_NAME, "Error reading image", e)
+                } catch (_: Exception) {
+                    Log.e(SCREEN_NAME, "Error reading image")
+                }
             }
         }
-    }
     
     // Localization
     var currency by remember { mutableStateOf("USD") }
@@ -134,7 +133,6 @@ private fun CreateHouseScreenContent(
         HouseCreatedSuccessDialog(
             house = createdHouse!!,
             onDismiss = {
-                showSuccessDialog = false
                 onHouseCreated(createdHouse!!.id)
             }
         )

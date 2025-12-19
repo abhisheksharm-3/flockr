@@ -61,7 +61,7 @@ class ShoppingRepository @Inject constructor(
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore cleanup errors
                 }
             }
@@ -173,7 +173,7 @@ class ShoppingRepository @Inject constructor(
                         excludeUserId = currentUserId
                     )
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore notification errors
             }
 
@@ -251,7 +251,7 @@ class ShoppingRepository @Inject constructor(
                         excludeUserId = currentUserId
                     )
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore notification errors
             }
 

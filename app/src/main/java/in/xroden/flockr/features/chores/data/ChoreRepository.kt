@@ -36,37 +36,7 @@ class ChoreRepository @Inject constructor(
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    @Serializable
-    private data class ChoreWithProfiles(
-        val id: String,
-        @SerialName("house_id")
-        val houseId: String,
-        @SerialName("task_name")
-        val taskName: String,
-        val description: String? = null,
-        @SerialName("assigned_to")
-        val assignedTo: String? = null,
-        @SerialName("due_date")
-        val dueDate: LocalDate? = null,
-        @SerialName("is_completed")
-        val isCompleted: Boolean = false,
-        @SerialName("completed_at")
-        val completedAt: Instant? = null,
-        @SerialName("completed_by")
-        val completedBy: String? = null,
-        @SerialName("recurrence_pattern")
-        val recurrencePattern: String? = null,
-        @SerialName("created_by")
-        val createdBy: String? = null,
-        @SerialName("created_at")
-        val createdAt: Instant,
-        @SerialName("assigned_to_name")
-        val assignedToName: String? = null,
-        @SerialName("completed_by_name")
-        val completedByName: String? = null,
-        @SerialName("created_by_name")
-        val createdByName: String? = null
-    )
+
 
     fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> = callbackFlow {
         val channelId = "chores_$houseId"
@@ -96,7 +66,7 @@ class ChoreRepository @Inject constructor(
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     supabase.realtime.removeChannel(channel)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore cleanup errors
                 }
             }
@@ -142,7 +112,7 @@ class ChoreRepository @Inject constructor(
                     recurrencePattern = obj["recurrence_pattern"]?.jsonPrimitive?.contentOrNull?.let {
                         try {
                             `in`.xroden.flockr.data.enums.ChoreRecurrence.valueOf(it.uppercase())
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             null
                         }
                     },
@@ -238,7 +208,7 @@ class ChoreRepository @Inject constructor(
                         )
                     )
                 }
-            } catch (notificationError: Exception) {
+            } catch (_: Exception) {
                 // Don't fail the whole operation if notification fails
             }
 
@@ -322,7 +292,7 @@ class ChoreRepository @Inject constructor(
                         excludeUserId = currentUserId
                     )
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore notification errors
             }
 

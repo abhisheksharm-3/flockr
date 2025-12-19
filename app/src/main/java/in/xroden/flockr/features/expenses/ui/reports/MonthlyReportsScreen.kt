@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +26,6 @@ import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.ui.theme.DateFormats
 
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.YearMonth
@@ -35,7 +33,6 @@ import java.time.format.DateTimeFormatter
 
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
-import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -318,7 +315,7 @@ fun MonthlyReportsScreen(
 
                             // Add per diem as "House" spending
                             val perDiemTotal = perDiemItemized.fold(java.math.BigDecimal.ZERO) { acc, item ->
-                                acc.add(item.totalAmount ?: java.math.BigDecimal.ZERO)
+                                acc.add(item.totalAmount)
                             }
                             
                             if (perDiemTotal > java.math.BigDecimal.ZERO) {
@@ -362,7 +359,7 @@ fun MonthlyReportsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Category data is now fully aggregated by the RPC
                             val categoryData = spendByCategory.associate {
-                                (it.category ?: "Uncategorized") to (it.totalAmount?.toDouble() ?: 0.0)
+                                (it.category) to (it.totalAmount.toDouble())
                             }
 
                             SimplePieChart(
