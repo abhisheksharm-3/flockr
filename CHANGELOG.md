@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2025-12-19
+
+### 🐛 Bug Fixes
+- **Realtime Updates**: Fixed notifications, chores, and per-diem screens not updating immediately after changes.
+- **Compiler Warnings**: Cleaned up 80+ unused imports/parameters across the codebase.
+
+### ✨ Improvements
+- **Skeleton Loaders**: Replaced circular loading with shimmer skeletons across all screens.
+- **Optimistic UI**: Instant feedback when marking notifications read or completing chores.
+
+### 🧹 Code Cleanup
+- Removed unused ProductivityDialog.kt
+- Fixed empty if blocks and redundant qualifiers.
+
+---
+
 ## [1.6.0] - 2025-12-13
 
 ### 🐛 Bug Fixes
