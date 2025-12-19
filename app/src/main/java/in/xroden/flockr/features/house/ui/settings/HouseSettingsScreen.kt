@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.runtime.*
@@ -16,24 +17,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.features.house.domain.HouseSettingsViewModel
-
-/**
- * House Settings Screen
- * Only accessible to Owners and Admins
- * Allows editing house details, currency, and other settings
- */
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.draw.clip
-import coil.compose.AsyncImage
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
+import `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState
+import `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,7 +94,7 @@ fun HouseSettingsScreen(
 
     LaunchedEffect(settingsUiState) {
         when (val state = settingsUiState) {
-            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Success -> {
+            is HouseSettingsUiState.Success -> {
                 isLoading = false
                 currency = state.config.currencyCode
                 dateFormat = state.config.dateFormat
@@ -113,10 +111,10 @@ fun HouseSettingsScreen(
                     }
                 }
             }
-            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Error -> {
+            is HouseSettingsUiState.Error -> {
                 isLoading = false
             }
-            is `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState.Loading -> {
+            is HouseSettingsUiState.Loading -> {
                 isLoading = true
             }
         }
@@ -125,19 +123,19 @@ fun HouseSettingsScreen(
     // Observe update state for success/error
     LaunchedEffect(updateState) {
         when (val state = updateState) {
-            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Success -> {
+            is UpdateHouseSettingsUiState.Success -> {
                 isSaving = false
                 snackbarHostState.showSnackbar("Settings saved successfully")
                 onNavigateBack()
             }
-            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Error -> {
+            is UpdateHouseSettingsUiState.Error -> {
                 isSaving = false
                 snackbarHostState.showSnackbar(state.message)
             }
-            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Loading -> {
+            is UpdateHouseSettingsUiState.Loading -> {
                 isSaving = true
             }
-            is `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState.Idle -> {
+            is UpdateHouseSettingsUiState.Idle -> {
                 // Do nothing
             }
         }
@@ -216,16 +214,7 @@ fun HouseSettingsScreen(
         // bottomBar removed
     ) { padding ->
         if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            ListScreenSkeleton(modifier = Modifier.fillMaxSize().padding(padding))
         } else {
             Column(
                 modifier = Modifier

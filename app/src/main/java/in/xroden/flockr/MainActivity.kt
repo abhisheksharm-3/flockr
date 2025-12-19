@@ -47,9 +47,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import `in`.xroden.flockr.features.house.ui.home.JoinHouseDialog
+import `in`.xroden.flockr.features.house.ui.home.JoinHousePreviewScreen
 import android.content.Intent
 import androidx.compose.animation.fadeOut
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import `in`.xroden.flockr.data.enums.NotificationType
 
 
@@ -70,6 +72,11 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         
         permissionManager = PermissionManager(this)
+        
+        // Trigger lock check on cold start (app was killed)
+        if (savedInstanceState == null) {
+            lastBackgroundTimestamp = 1L  // Force lock check on resume
+        }
         
         setContent {
             // Observe theme from the injected viewModel
@@ -108,12 +115,15 @@ class MainActivity : FragmentActivity() {
                     }
 
                     if (inviteCode != null) {
-                        `in`.xroden.flockr.features.house.ui.home.JoinHouseByCodeDialog(
-                            inviteCode = inviteCode,
-                            onDismiss = { setInviteCode(null) },
-                            onHouseJoined = { 
-                                setInviteCode(null)
-                                // Optional: Navigation handled inside or just refresh
+                        // Show alert for deep link - user can navigate to join screen manually
+                        AlertDialog(
+                            onDismissRequest = { setInviteCode(null) },
+                            title = { Text("Invite Code Received") },
+                            text = { Text("Open the app and use code: $inviteCode to join the household.") },
+                            confirmButton = {
+                                TextButton(onClick = { setInviteCode(null) }) {
+                                    Text("Got it")
+                                }
                             }
                         )
                     }

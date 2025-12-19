@@ -36,6 +36,11 @@ import `in`.xroden.flockr.features.settings.domain.ProfileUiState
 import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Star
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,7 +168,7 @@ fun SettingsScreen(
 
                 SettingsSection(title = "Security") {
                     SettingsItem(
-                        icon = Icons.Default.Settings,
+                        icon = Icons.Default.Lock,
                         title = "App Lock",
                         subtitle = "Secure your app with biometrics",
                         onClick = onNavigateToSecurity
@@ -172,21 +177,21 @@ fun SettingsScreen(
 
                 SettingsSection(title = "About") {
                     SettingsItem(
-                        icon = Icons.Default.Settings,
+                        icon = Icons.Default.Info,
                         title = "Flockr",
                         subtitle = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                         showChevron = false
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    SettingsItem(Icons.Default.Person, "Developer", "Abhishek Sharma", showChevron = false)
+                    SettingsItem(Icons.Default.Code, "Developer", "Abhishek Sharma", showChevron = false)
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     
                     val context = LocalContext.current
-                    SettingsItem(Icons.Default.Person, "Website", "abhisheksan.com", onClick = {
+                    SettingsItem(Icons.Default.Language, "Website", "abhisheksan.com", onClick = {
                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
                     })
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    SettingsItem(Icons.Default.Settings, "GitHub Repository", "View source code & contribute", onClick = {
+                    SettingsItem(Icons.Default.Star, "GitHub Repository", "View source code & contribute", onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/abhisheksharm-3/flockr")))
                     })
                 }
@@ -346,7 +351,7 @@ private fun SettingsItem(
     subtitle: String,
     onClick: (() -> Unit)? = null,
     showChevron: Boolean = onClick != null,
-    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
     Surface(
         onClick = { onClick?.invoke() },
@@ -359,7 +364,15 @@ private fun SettingsItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(icon, null, Modifier.size(24.dp), tint = iconTint)
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = iconTint.copy(alpha = 0.1f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = iconTint)
+                }
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = if (iconTint == MaterialTheme.colorScheme.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

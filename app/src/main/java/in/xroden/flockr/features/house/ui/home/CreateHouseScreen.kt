@@ -38,6 +38,7 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.house.domain.HomeViewModel
+import `in`.xroden.flockr.features.house.domain.CreateHouseUiState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -115,16 +116,16 @@ private fun CreateHouseScreenContent(
 
     LaunchedEffect(createState) {
         when (val state = createState) {
-            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Success -> {
+            is CreateHouseUiState.Success -> {
                 isCreating = false
                 createdHouse = state.house
                 showSuccessDialog = true
             }
-            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Error -> {
+            is CreateHouseUiState.Error -> {
                 isCreating = false
                 snackbarHostState.showSnackbar(state.message)
             }
-            is `in`.xroden.flockr.features.house.domain.CreateHouseUiState.Loading -> isCreating = true
+            is CreateHouseUiState.Loading -> isCreating = true
             else -> {}
         }
     }

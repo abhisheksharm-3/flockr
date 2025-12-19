@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemEntryUiState
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
+import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.*
 import java.time.format.DateTimeFormatter
@@ -83,14 +84,7 @@ fun PerDiemTransactionsScreen(
         // FIX: Handle the UI State (Loading/Success/Error) explicitly
         when (val state = entryState) {
             is PerDiemEntryUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                ListScreenSkeleton(modifier = Modifier.fillMaxSize().padding(padding))
             }
             is PerDiemEntryUiState.Error -> {
                 Box(
