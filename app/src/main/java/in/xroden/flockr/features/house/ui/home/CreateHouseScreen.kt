@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.animation.*
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.runtime.*
@@ -149,7 +150,7 @@ private fun CreateHouseScreenContent(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background
                 )
@@ -316,7 +317,7 @@ private fun CreateHouseScreenContent(
                                 readOnly = true,
                                 label = { Text("Currency") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                 shape = MaterialTheme.shapes.medium
                             )
@@ -346,7 +347,7 @@ private fun CreateHouseScreenContent(
                                 readOnly = true,
                                 label = { Text("Date Format") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dateFormatExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                 shape = MaterialTheme.shapes.medium
                             )
@@ -383,7 +384,7 @@ private fun CreateHouseScreenContent(
                                 readOnly = true,
                                 label = { Text("Timezone") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timezoneExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                 shape = MaterialTheme.shapes.medium
                             )

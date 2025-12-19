@@ -64,8 +64,8 @@ private fun getLocaleForCurrency(currencyCode: String): Locale {
         "EUR" -> Locale.GERMANY
         "GBP" -> Locale.UK
         "JPY" -> Locale.JAPAN
-        "INR" -> Locale("en", "IN")
-        "AUD" -> Locale("en", "AU")
+        "INR" -> Locale.Builder().setLanguage("en").setRegion("IN").build()
+        "AUD" -> Locale.Builder().setLanguage("en").setRegion("AU").build()
         "CNY" -> Locale.CHINA
         else -> Locale.getDefault()
     }

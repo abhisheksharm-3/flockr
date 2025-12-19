@@ -21,8 +21,8 @@ fun FlockrTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Use transparent status bar for modern edge-to-edge design
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            // Modern edge-to-edge: use WindowCompat for status bar handling
+            WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

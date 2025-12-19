@@ -255,15 +255,8 @@ fun ExpenseDashboardScreen(
 
             when (val state = expenseState) {
                 is OneTimeExpenseUiState.Loading -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        }
+                    items(3) {
+                        `in`.xroden.flockr.ui.components.loading.SkeletonExpenseCard()
                     }
                 }
                 is OneTimeExpenseUiState.Error -> {

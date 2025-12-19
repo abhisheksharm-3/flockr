@@ -95,16 +95,9 @@ fun NotificationScreen(
     ) { padding ->
         when (val state = uiState) {
             is NotificationUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton(
+                    modifier = Modifier.padding(padding)
+                )
             }
             is NotificationUiState.Success -> {
                 if (state.notifications.isEmpty()) {

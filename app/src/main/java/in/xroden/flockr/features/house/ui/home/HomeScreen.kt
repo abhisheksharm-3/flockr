@@ -98,12 +98,9 @@ fun HomeScreen(
     ) { padding ->
         when (val state = uiState) {
             is HouseListUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                `in`.xroden.flockr.ui.components.loading.HomeScreenSkeleton(
+                    modifier = Modifier.padding(padding)
+                )
             }
 
             is HouseListUiState.Success -> {
