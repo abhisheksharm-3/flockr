@@ -178,6 +178,48 @@ fun LoginScreen(
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
+            // Google Sign In Button
+            OutlinedButton(
+                onClick = { viewModel.signInWithGoogle() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                enabled = uiState !is AuthUiState.Loading
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Google "G" Logo
+                    Surface(
+                        modifier = Modifier.size(20.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Text(
+                            "G",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(top = 1.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Continue with Google",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
             // Sign up prompt
             OutlinedButton(
                 onClick = onNavigateToSignup,

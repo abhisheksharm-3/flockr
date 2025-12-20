@@ -8,6 +8,9 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.util.Log
 import `in`.xroden.flockr.MainActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -146,13 +149,21 @@ class NotificationService @Inject constructor(
         houseId: String? = null,
         data: Map<String, String>? = null
     ) {
-        runCatching {
-            // Check if notifications are enabled
-            val notificationManager = NotificationManagerCompat.from(context)
-            if (!notificationManager.areNotificationsEnabled()) {
-                return
-            }
-            
+        // Check if notifications are enabled at system level
+        val notificationManager = NotificationManagerCompat.from(context)
+        if (!notificationManager.areNotificationsEnabled()) {
+            return
+        }
+
+        // Check for runtime permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+             if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                 Log.w(TAG, "Notification permission not granted, skipping notification: $title")
+                 return
+             }
+        }
+        
+        try {
             // Determine channel based on type
             val channelId = when (type.lowercase()) {
                 "expense", "settlement", "per_diem" -> CHANNEL_EXPENSES
@@ -202,15 +213,9 @@ class NotificationService @Inject constructor(
             // Show notification with unique ID
             val notificationId = NOTIFICATION_ID_BASE + id.hashCode()
 
-            // Check permission before showing
-            if (notificationManager.areNotificationsEnabled()) {
-                try {
-                    @Suppress("MissingPermission")
-                    notificationManager.notify(notificationId, notification)
-                } catch (e: SecurityException) {
-                    // Permission denied
-                }
-            }
+            notificationManager.notify(notificationId, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show notification: ${e.message}", e)
         }
     }
 
@@ -218,16 +223,10 @@ class NotificationService @Inject constructor(
      * Get notification icon based on type
      * Using R.drawable icons when available, fallback to android.R
      */
-    @Suppress("UNUSED_PARAMETER")
     private fun getNotificationIcon(type: String): Int {
-        return try {
-            // You can add custom drawable resources here
-            // For now, use a system icon that's guaranteed to exist
-            android.R.drawable.ic_dialog_info
-        } catch (_: Exception) {
-            // Fallback to absolutely reliable system icon
-            android.R.drawable.ic_notification_clear_all
-        }
+        // You can add custom drawable resources here
+        // For now, use a system icon that's guaranteed to exist
+        return android.R.drawable.ic_dialog_info
     }
     
     /**

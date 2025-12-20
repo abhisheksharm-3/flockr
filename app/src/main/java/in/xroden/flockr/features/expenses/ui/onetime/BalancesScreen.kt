@@ -1,8 +1,9 @@
 package `in`.xroden.flockr.features.expenses.ui.onetime
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
-
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,15 +56,24 @@ fun BalancesScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Balances & IOUs", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Balances & IOUs",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -74,16 +86,36 @@ fun BalancesScreen(
                 }
                 is BalanceUiState.Error -> {
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        Surface(
+                            modifier = Modifier.size(64.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Outlined.Warning,
+                                    null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                         Text(
-                            text = state.message,
+                            state.message,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
+                            style = MaterialTheme.typography.bodyLarge
                         )
-                        Button(onClick = { viewModel.loadBalances(houseId) }) { Text("Retry") }
+                        Button(
+                            onClick = { viewModel.loadBalances(houseId) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Retry", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
                 is BalanceUiState.Success -> {
@@ -121,8 +153,7 @@ fun BalancesContent(
     val otherBalances = remember(balances, currentUserId) {
         balances.filter { it.userId != currentUserId }
     }
-    
-    // Calculate totals based on MY balance
+
     val (totalYouOwe, totalYouAreOwed) = remember(balances, currentUserId) {
         val myBalance = balances.find { it.userId == currentUserId }?.balance?.toDouble() ?: 0.0
         val owe = if (myBalance < 0) abs(myBalance) else 0.0
@@ -130,78 +161,51 @@ fun BalancesContent(
         owe to owed
     }
 
+    val netBalance = totalYouAreOwed - totalYouOwe
+
     LazyColumn(
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        // Summary Card
+        // Hero Card with gradient
         item {
-            NetBalanceCard(
+            BalanceHeroCard(
+                netBalance = netBalance,
                 totalYouOwe = totalYouOwe,
                 totalYouAreOwed = totalYouAreOwed,
                 currencySymbol = currencySymbol
             )
         }
 
+        // Section Header
         item {
-            Text(
-                text = "Individual Balances",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "With Housemates",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    "${otherBalances.size} people",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         if (otherBalances.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Outlined.CheckCircle,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
-                        Text(
-                            "All settled up! 🎉",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "No outstanding balances with housemates",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                AllSettledCard()
             }
         } else {
-            items(
-                items = otherBalances,
-                key = { it.userId }
-            ) { balance ->
-                BalanceItemCard(
+            items(items = otherBalances, key = { it.userId }) { balance ->
+                BalancePersonCard(
                     houseId = houseId,
                     balance = balance,
                     currencySymbol = currencySymbol,
@@ -215,141 +219,124 @@ fun BalancesContent(
 }
 
 @Composable
-fun NetBalanceCard(
+private fun BalanceHeroCard(
+    netBalance: Double,
     totalYouOwe: Double,
     totalYouAreOwed: Double,
     currencySymbol: String
 ) {
+    val isPositive = netBalance >= 0
+    val cardColor = if (isPositive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+    val contentColor = if (isPositive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header with icon
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Outlined.AccountBalance,
-                            null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                Text(
-                    "Net Balance",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            // Net Balance Header
+            Text(
+                "Net Balance",
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor.copy(alpha = 0.8f)
+            )
 
-            // Balance amounts row
+            // Large Amount
+            Text(
+                "${if (isPositive) "+" else "-"}$currencySymbol${"%.2f".format(kotlin.math.abs(netBalance))}",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = contentColor
+            )
+
+            // Status Text
+            Text(
+                if (isPositive) "You're in credit" else "You owe overall",
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor.copy(alpha = 0.8f)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Breakdown row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                // You Owe Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                // You Owe
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        color = contentColor.copy(alpha = 0.15f)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(28.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Outlined.ArrowUpward,
-                                        null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                "You Owe",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.error
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Outlined.ArrowUpward,
+                                null,
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Text(
-                            "$currencySymbol${"%.2f".format(totalYouOwe)}",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "$currencySymbol${"%.2f".format(totalYouOwe)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(
+                        "You owe",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
                 }
 
-                // You are Owed Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Divider
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(60.dp)
+                        .background(contentColor.copy(alpha = 0.3f))
+                )
+
+                // You're Owed
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        color = contentColor.copy(alpha = 0.15f)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(28.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Outlined.ArrowDownward,
-                                        null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                "You're Owed",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Outlined.ArrowDownward,
+                                null,
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Text(
-                            "$currencySymbol${"%.2f".format(totalYouAreOwed)}",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "$currencySymbol${"%.2f".format(totalYouAreOwed)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(
+                        "You're owed",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
                 }
             }
         }
@@ -357,7 +344,52 @@ fun NetBalanceCard(
 }
 
 @Composable
-fun BalanceItemCard(
+private fun AllSettledCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Celebration,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            Text(
+                "All settled up!",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "No outstanding balances with housemates",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun BalancePersonCard(
     houseId: String,
     balance: UserBalance,
     currencySymbol: String,
@@ -367,20 +399,17 @@ fun BalanceItemCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showSettleDialog by remember { mutableStateOf(false) }
-    
-    // Logic: 
-    // balance.balance > 0 -> They have +50 (Owed by house/me) -> I owe them (relative)
-    // balance.balance < 0 -> They have -50 (Owe house/me) -> They owe me
+
     val iOweThem = balance.balance > BigDecimal.ZERO
     val isSettled = balance.balance.compareTo(BigDecimal.ZERO) == 0
     val amount = balance.balance.abs().toDouble()
-    
-    val color = when {
-        isSettled -> MaterialTheme.colorScheme.onSurfaceVariant
+
+    val statusColor = when {
+        isSettled -> MaterialTheme.colorScheme.tertiary
         iOweThem -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary
     }
-    
+
     val statusText = when {
         isSettled -> "Settled"
         iOweThem -> "You owe"
@@ -390,11 +419,11 @@ fun BalanceItemCard(
     // Breakdown State
     val debtBreakdowns by viewModel.debtBreakdownState.collectAsState()
     val loadingBreakdowns by viewModel.loadingBreakdowns.collectAsState()
-    
+
     val payerId = if (iOweThem) currentUserId else balance.userId
     val payeeId = if (iOweThem) balance.userId else currentUserId
     val breakdownKey = "${payerId}_${payeeId}"
-    
+
     val breakdownItems = debtBreakdowns[breakdownKey]
     val isBreakdownLoading = loadingBreakdowns.contains(breakdownKey)
 
@@ -405,94 +434,175 @@ fun BalanceItemCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .clickable { expanded = !expanded },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             // Header Row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(48.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Avatar
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = statusColor.copy(alpha = 0.15f)
+                ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = balance.fullName?.firstOrNull()?.toString()?.uppercase() ?: "?",
+                            balance.fullName?.firstOrNull()?.uppercase() ?: "?",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = statusColor
                         )
                     }
                 }
-                
-                Spacer(Modifier.width(16.dp))
-                
-                Column(Modifier.weight(1f)) {
-                    Text(balance.fullName ?: "User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(statusText, style = MaterialTheme.typography.bodySmall, color = if (iOweThem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                }
 
-                Text(
-                    text = "$currencySymbol${"%.2f".format(amount)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = color
-                )
-            }
-
-            // Actions & Expansion
-            AnimatedVisibility(visible = expanded) {
-                Column {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    
-                    if (isSettled) {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                             Text("All settled up!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else if (isBreakdownLoading) {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(Modifier.size(24.dp))
-                        }
-                    } else if (breakdownItems.isNullOrEmpty()) {
-                         Text("No details available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                    } else {
-                        breakdownItems.forEachIndexed { index, item ->
-                            ListItem(
-                                headlineContent = { Text(item.expenseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface) },
-                                supportingContent = { Text(item.date.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                trailingContent = {
-                                    Text(
-                                        text = "$currencySymbol${"%.2f".format(item.amountOwed.toDouble())}",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (item.amountOwed < BigDecimal.ZERO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                modifier = Modifier.padding(vertical = 4.dp)
+                // Name and Status
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        balance.fullName ?: "User",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = statusColor.copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                statusText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusColor,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
-                            if (index < breakdownItems.lastIndex) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
-                            }
                         }
                     }
                 }
-            }
-            
-            // Settle Button only if I owe them
-            if (iOweThem) {
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = { showSettleDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Text("Settle Up")
+
+                // Amount
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "$currencySymbol${"%.2f".format(amount)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                    Icon(
+                        Icons.Default.ExpandMore,
+                        null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-            } else if (!expanded) {
-                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                      Icon(Icons.Default.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                 }
+            }
+
+            // Expandable Section
+            AnimatedVisibility(visible = expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+
+                    when {
+                        isSettled -> {
+                            Text(
+                                "All settled up!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        isBreakdownLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                        breakdownItems.isNullOrEmpty() -> {
+                            Text(
+                                "No breakdown available",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        else -> {
+                            breakdownItems.forEach { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            item.expenseName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            item.date.toString(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        "$currencySymbol${"%.2f".format(item.amountOwed.toDouble().let { abs(it) })}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (item.amountOwed < BigDecimal.ZERO)
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Settle Button
+                    if (iOweThem && !isSettled) {
+                        Button(
+                            onClick = { showSettleDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                Icons.Outlined.Payments,
+                                null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Settle Up", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
             }
         }
     }
@@ -502,8 +612,8 @@ fun BalanceItemCard(
             balance = balance,
             currencySymbol = currencySymbol,
             onDismiss = { showSettleDialog = false },
-            onSettle = { settlAmount, note ->
-                onSettle(balance, settlAmount, note ?: "Settlement")
+            onSettle = { settleAmount, note ->
+                onSettle(balance, settleAmount, note ?: "Settlement")
                 showSettleDialog = false
             }
         )
@@ -523,8 +633,9 @@ fun SettleBalanceDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
@@ -532,10 +643,34 @@ fun SettleBalanceDialog(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Header
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Outlined.Payments,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Settle Up", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Text("You are settling with ${balance.fullName ?: "User"}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Settle Up",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Pay ${balance.fullName ?: "User"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 OutlinedTextField(
@@ -545,7 +680,7 @@ fun SettleBalanceDialog(
                     prefix = { Text(currencySymbol) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = MaterialTheme.shapes.large,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
@@ -554,21 +689,34 @@ fun SettleBalanceDialog(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Note (Optional)") },
-                    placeholder = { Text("e.g. Cleared all dues") },
+                    placeholder = { Text("e.g. Paid via UPI") },
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel")
+                    }
                     Button(
-                        onClick = { amount.toDoubleOrNull()?.let { onSettle(it, description.takeIf { d -> d.isNotBlank() }) } },
+                        onClick = {
+                            amount.toDoubleOrNull()?.let {
+                                onSettle(it, description.takeIf { d -> d.isNotBlank() })
+                            }
+                        },
                         enabled = isValid,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Pay Now")
+                        Text("Pay Now", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

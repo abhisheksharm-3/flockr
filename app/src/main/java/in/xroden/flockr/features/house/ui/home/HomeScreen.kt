@@ -90,7 +90,7 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
             HomeTopBar(
-                userName = userName,
+                profile = profile,
                 unreadCount = unreadCount,
                 greeting = greeting,
                 onSettingsClick = onSettingsClick,
@@ -187,7 +187,7 @@ fun HomeScreen(
 
 @Composable
 fun HomeTopBar(
-    userName: String,
+    profile: `in`.xroden.flockr.features.auth.model.Profile?,
     unreadCount: Int,
     greeting: String,
     onSettingsClick: () -> Unit,
@@ -195,6 +195,10 @@ fun HomeTopBar(
     onCreateHouseClick: () -> Unit,
     onJoinHouseClick: () -> Unit
 ) {
+    val userName = remember(profile?.fullName) {
+        profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -214,12 +218,24 @@ fun HomeTopBar(
                 modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = userName.firstOrNull()?.toString() ?: "U",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (!profile?.avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(profile.avatarUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Profile",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = userName.firstOrNull()?.toString() ?: "U",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 

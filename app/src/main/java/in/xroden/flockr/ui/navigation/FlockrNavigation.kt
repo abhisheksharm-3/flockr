@@ -747,9 +747,10 @@ fun FlockrNavigation(
                         onNavigateToProfile = { navController.navigate(Screen.EditProfile.route) },
                         onNavigateToNotificationPreferences = { navController.navigate(Screen.NotificationPreferences.route) },
                         onLogout = {
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
-                            }
+                            // Don't navigate to login route - it doesn't exist in authenticated graph
+                            // The authViewModel.signOut() in SettingsScreen will change auth state
+                            // which triggers the UI to show the unauthenticated (login) screen
+                            navController.popBackStack(Screen.Home.route, inclusive = true)
                         },
                         onNavigateToSecurity = {
                             navController.navigate(Screen.SecuritySettings.route)

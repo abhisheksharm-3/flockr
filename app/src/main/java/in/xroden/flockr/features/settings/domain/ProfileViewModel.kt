@@ -12,7 +12,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val storageRepository: `in`.xroden.flockr.features.common.data.StorageRepository,
+    private val bitmapUtils: `in`.xroden.flockr.utils.BitmapUtils
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -77,7 +79,52 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun uploadProfilePicture(imageData: ByteArray) {
-        // TODO: Implement profile picture upload when storage is configured
-        _updateState.value = UpdateProfileUiState.Error("Profile picture upload not yet implemented")
+        viewModelScope.launch {
+            _updateState.value = UpdateProfileUiState.Loading
+            
+            val currentUser = authRepository.currentUser
+            if (currentUser == null) {
+                _updateState.value = UpdateProfileUiState.Error("User not logged in")
+                return@launch
+            }
+
+            runCatching {
+                // 1. Compress image
+                val compressedBytes = bitmapUtils.compressImage(imageData)
+                
+                // 2. Generate unique filename to avoid CDN caching
+                // Format: {userId}/avatar_{timestamp}.jpg
+                val timestamp = System.currentTimeMillis()
+                val fileName = "${currentUser.id}/avatar_$timestamp.jpg"
+                
+                // 3. Upload to Supabase Storage
+                val publicUrl = storageRepository.uploadFile(fileName, compressedBytes)
+                
+                // 4. Update profile with new URL
+                authRepository.updateProfile(
+                    fullName = null,
+                    hasCompletedOnboarding = null,
+                    avatarUrl = publicUrl
+                ).getOrThrow()
+                
+            }.fold(
+                onSuccess = {
+                    // Update state to success to clear loading
+                    _updateState.value = UpdateProfileUiState.Success
+                    
+                    // FORCE reload profile immediately to reflect changes in UI
+                    _uiState.value = ProfileUiState.Loading 
+                    loadProfile()
+                    
+                    kotlinx.coroutines.delay(1000)
+                    _updateState.value = UpdateProfileUiState.Idle
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateProfileUiState.Error(
+                        message = error.message ?: "Failed to upload profile picture"
+                    )
+                }
+            )
+        }
     }
 }

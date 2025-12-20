@@ -48,6 +48,10 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun signInWithGoogle(): Result<Unit> = runCatching {
+        supabase.auth.signInWith(io.github.jan.supabase.gotrue.providers.Google)
+    }
+
     suspend fun signOut(): Result<Unit> = runCatching {
         supabase.auth.signOut()
     }
@@ -64,10 +68,10 @@ class AuthRepository @Inject constructor(
             .decodeSingle<Profile>()
     }
 
-    suspend fun updateProfile(fullName: String?, hasCompletedOnboarding: Boolean?): Result<Unit> = runCatching {
+    suspend fun updateProfile(fullName: String?, hasCompletedOnboarding: Boolean?, avatarUrl: String? = null): Result<Unit> = runCatching {
         val userId = currentUser?.id ?: throw IllegalStateException("No user logged in")
 
-        if (fullName == null && hasCompletedOnboarding == null) {
+        if (fullName == null && hasCompletedOnboarding == null && avatarUrl == null) {
             return@runCatching
         }
 
@@ -75,7 +79,8 @@ class AuthRepository @Inject constructor(
             .update(
                 ProfileUpdate(
                     fullName = fullName,
-                    hasCompletedOnboarding = hasCompletedOnboarding
+                    hasCompletedOnboarding = hasCompletedOnboarding,
+                    avatarUrl = avatarUrl
                 )
             ) {
                 filter { eq("id", userId) }

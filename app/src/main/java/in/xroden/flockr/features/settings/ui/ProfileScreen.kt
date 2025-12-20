@@ -149,6 +149,25 @@ fun ProfileScreen(
 
                         // Avatar
                         Box(contentAlignment = Alignment.BottomEnd) {
+                            
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                                contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+                                onResult = { uri ->
+                                    if (uri != null) {
+                                        // Read text from URI and convert to byte array
+                                        // Use captured context
+                                        val inputStream = context.contentResolver.openInputStream(uri)
+                                        val bytes = inputStream?.readBytes()
+                                        inputStream?.close()
+                                        
+                                        if (bytes != null) {
+                                           viewModel.uploadProfilePicture(bytes)
+                                        }
+                                    }
+                                }
+                            )
+
                             Surface(
                                 modifier = Modifier
                                     .size(160.dp)
@@ -158,13 +177,36 @@ fun ProfileScreen(
                                 shadowElevation = 12.dp
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    // Normally AsyncImage here. Using Icon for now or Placeholder.
-                                    Icon(
-                                        Icons.Default.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(80.dp),
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                    if (!profile.avatarUrl.isNullOrEmpty()) {
+                                        coil.compose.AsyncImage(
+                                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                                .data(profile.avatarUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Profile Picture",
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(80.dp),
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    
+                                    // Loading overlay
+                                    if (updateState is UpdateProfileUiState.Loading) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator()
+                                        }
+                                    }
                                 }
                             }
                             
@@ -180,7 +222,14 @@ fun ProfileScreen(
                                     modifier = Modifier
                                         .padding(8.dp)
                                         .size(40.dp)
-                                        .border(4.dp, MaterialTheme.colorScheme.background, CircleShape),
+                                        .border(4.dp, MaterialTheme.colorScheme.background, CircleShape)
+                                        .clickable {
+                                            photoPickerLauncher.launch(
+                                                androidx.activity.result.PickVisualMediaRequest(
+                                                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                                )
+                                            )
+                                        },
                                     shadowElevation = 4.dp
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {

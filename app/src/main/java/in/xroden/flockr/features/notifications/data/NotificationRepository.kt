@@ -66,6 +66,7 @@ class NotificationRepository @Inject constructor(
                 channel.subscribe(blockUntilSubscribed = true)
 
                 changeFlow.collect { action ->
+                    // Handle INSERT - show notification and refetch
                     if (action is PostgresAction.Insert) {
                         try {
                             val record = action.record
@@ -106,6 +107,7 @@ class NotificationRepository @Inject constructor(
                         }
                     }
 
+                    // Handle INSERT, UPDATE, and DELETE - all trigger a refetch for accurate unread count
                     kotlinx.coroutines.delay(100)
                     val updated = supabase.from("notifications")
                         .select(Columns.ALL) {

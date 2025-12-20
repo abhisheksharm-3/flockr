@@ -17,6 +17,7 @@ import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,8 +122,18 @@ fun BillHistoryScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
+                                val Utils = LocalConfiguration.current.locales[0]
+                                val date = try {
+                                    java.time.LocalDate.parse(payment.paymentDate.toString())
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                val formattedDate = date?.format(
+                                    DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+                                ) ?: payment.paymentDate.toString()
+
                                 Text(
-                                    text = payment.paymentDate.toString(), // TODO: Format nicely if needed, effectively ISO is okay for now but localization preferred
+                                    text = formattedDate,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

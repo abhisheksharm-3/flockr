@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
+import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 
@@ -28,8 +29,7 @@ import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.ui.theme.*
 
 import `in`.xroden.flockr.utils.getCurrencySymbol
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.*
 
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
@@ -47,18 +47,20 @@ fun MonthlyReportsScreen(
     viewModel: ExpenseViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    var selectedMonth by remember { mutableStateOf(YearMonth.now()) }
+    var selectedMonth by remember { 
+        mutableStateOf(
+            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
+                LocalDate(it.year, it.month, 1)
+            }
+        ) 
+    }
     val summaryState by viewModel.summaryState.collectAsState()
     val perDiemBillState by perDiemViewModel.billState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
 
     LaunchedEffect(houseId, selectedMonth) {
-        val monthStr = selectedMonth.format(DateTimeFormatter.ofPattern(DateFormats.YEAR_MONTH)) + "-01"
+        val monthStr = "${selectedMonth.year}-${selectedMonth.monthNumber.toString().padStart(2, '0')}-01"
         viewModel.loadMonthlySummary(houseId, monthStr)
-        viewModel.loadMonthlySummary(houseId, monthStr)
-        // viewModel.loadPerDiemBillItemized(houseId, monthStr) // Removed from ExpenseViewModel
-        // viewModel.loadSpendByCategory(houseId, monthStr) // Loaded via loadMonthlySummary
-        // viewModel.loadSpendByMember(houseId, monthStr) // Loaded via loadMonthlySummary
         viewModel.loadHouseConfig(houseId)
         perDiemViewModel.loadConfigs(houseId)
         perDiemViewModel.loadPerDiemReports(houseId, monthStr)
@@ -116,47 +118,11 @@ fun MonthlyReportsScreen(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Financial Summary",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+
+                    MonthSelector(
+                        selectedMonth = selectedMonth,
+                        onMonthChange = { selectedMonth = it }
                     )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { selectedMonth = selectedMonth.minusMonths(1) }) {
-                                Icon(Icons.Default.ChevronLeft, "Previous Month")
-                            }
-
-                            Text(
-                                text = selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            IconButton(
-                                onClick = { selectedMonth = selectedMonth.plusMonths(1) },
-                                enabled = selectedMonth < YearMonth.now()
-                            ) {
-                                Icon(Icons.Default.ChevronRight, "Next Month")
-                            }
-                        }
-                    }
                 }
             }
 
@@ -286,9 +252,7 @@ fun MonthlyReportsScreen(
                         }
                     }
                 }
-            }
-
-            // Spending by Member
+            }      // Spending by Member
             item {
                 SectionCard(title = "Spending by Member") {
                     val spendByMember = if (summaryState is MonthlySummaryUiState.Success) {
