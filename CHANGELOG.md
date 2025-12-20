@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.5] - 2025-12-20
 
+### New Features\
+- **Monthly Productivity**: Productivity screen now shows monthly stats with month selector. See who completed the most chores each month!\
+- **Yearly Top 3**: Added yearly top performers section showing the top 3 contributors for the current year.\
+\
+### UI Improvements\
+- **House Settings**: Redesigned with FormSectionCard pattern for consistent styling.\
+- **Edit Recurring Bill**: Cleaned up Save button styling to match app theme.\
+- **Invite Member Dialog**: Simplified layout with cleaner informational card.
+
+---
+
+## [1.6.5] - 2025-12-20
+
 ### ✨ New Features
 - **Monthly Productivity**: Productivity screen now shows monthly stats with a month selector. See who completed the most chores each month!
 - **Yearly Top 3**: Added a yearly top performers section showing the top 3 contributors for the currently selected year with medal colors.
