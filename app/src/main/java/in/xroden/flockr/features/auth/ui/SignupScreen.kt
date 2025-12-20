@@ -41,7 +41,7 @@ fun SignupScreen(
     var confirmPassword by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
     val signInState by viewModel.signInState.collectAsState()
-    
+
     // Get Activity context for Credential Manager
     val context = LocalContext.current
     val activity = context as? Activity
@@ -118,8 +118,10 @@ fun SignupScreen(
                         onValueChange = { fullName = it },
                         placeholder = "John Doe",
                         leadingIcon = {
-                            Icon(Icons.Default.Person, "Name",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.Person, "Name",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -138,8 +140,10 @@ fun SignupScreen(
                         onValueChange = { email = it },
                         placeholder = "your.email@example.com",
                         leadingIcon = {
-                            Icon(Icons.Default.Email, "Email",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.Email, "Email",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -158,8 +162,10 @@ fun SignupScreen(
                         onValueChange = { password = it },
                         placeholder = { Text("Create a strong password") },
                         leadingIcon = {
-                            Icon(Icons.Default.Lock, "Password",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.Lock, "Password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
@@ -185,8 +191,10 @@ fun SignupScreen(
                         onValueChange = { confirmPassword = it },
                         placeholder = { Text("Re-enter your password") },
                         leadingIcon = {
-                            Icon(Icons.Default.Lock, "Confirm",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.Lock, "Confirm",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
@@ -236,11 +244,11 @@ fun SignupScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = uiState !is AuthUiState.Loading &&
-                         fullName.isNotBlank() &&
-                         email.isNotBlank() &&
-                         password.isNotBlank() &&
-                         confirmPassword.isNotBlank() &&
-                         password == confirmPassword,
+                        fullName.isNotBlank() &&
+                        email.isNotBlank() &&
+                        password.isNotBlank() &&
+                        confirmPassword.isNotBlank() &&
+                        password == confirmPassword,
                 isLoading = uiState is AuthUiState.Loading
             )
 
@@ -262,46 +270,40 @@ fun SignupScreen(
 
             // Google Sign In Button - Premium Design
             val isSigningIn = signInState is SignInUiState.Loading
-            
+
             Button(
-                onClick = { 
-                    activity?.let { viewModel.signInWithGoogle(it) }
-                },
+                onClick = { },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
-                    contentColor = Color(0xFF1F1F1F)
+                    contentColor = Color(0xFF1F1F1F),
+                    disabledContainerColor = Color.White.copy(alpha = 0.6f),
+                    disabledContentColor = Color(0xFF1F1F1F).copy(alpha = 0.6f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 2.dp,
-                    pressedElevation = 4.dp
+                    pressedElevation = 4.dp,
+                    disabledElevation = 0.dp
                 ),
-                enabled = activity != null && !isSigningIn && uiState !is AuthUiState.Loading
+                enabled = false
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (isSigningIn) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = Color(0xFF1F1F1F)
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_google),
-                            contentDescription = "Google",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_google),
+                        contentDescription = "Google",
+                        modifier = Modifier.size(24.dp),
+                        alpha = 0.6f
+                    )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = if (isSigningIn) "Signing in..." else "Continue with Google",
+                        text = "Google Sign In is in works",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
