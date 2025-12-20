@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2025-12-20
+
+### Code Quality Improvements\
+- **Deprecated API Fix**: Migrated from deprecated `dayOfMonth` property to `day` across all date formatting code.\
+- **Auth Screen Redesign**: Improved Welcome, Sign Up, and Sign In screens with premium card-based styling and better dark mode support.\
+\
+### Bug Fixes\
+- Fixed date formatting in expense reports and transaction screens.\
+- Improved date display consistency across the app.
+
+---
+
 ## [1.6.5] - 2025-12-20
 
 ### New Features\
