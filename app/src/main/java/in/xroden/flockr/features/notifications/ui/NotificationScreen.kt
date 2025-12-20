@@ -22,6 +22,7 @@ import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
 import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -234,7 +235,7 @@ private fun NotificationItem(
 private fun formatTimestamp(timestamp: String): String {
     return try {
         val notifTime = kotlinx.datetime.Instant.parse(timestamp)
-        val now = kotlinx.datetime.Clock.System.now()
+        val now = Clock.System.now()
         val diff = now - notifTime
 
         when {
@@ -245,7 +246,7 @@ private fun formatTimestamp(timestamp: String): String {
             else -> {
                 val date = notifTime.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
                 val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-                "$month ${date.dayOfMonth}, ${date.year}"
+                "$month ${date.day}, ${date.year}"
             }
         }
     } catch (_: Exception) {

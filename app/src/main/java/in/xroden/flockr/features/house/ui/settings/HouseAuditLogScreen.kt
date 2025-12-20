@@ -28,6 +28,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import android.util.Log
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.serialization.json.JsonPrimitive
 
 @HiltViewModel
 class HouseAuditLogViewModel @Inject constructor(
@@ -43,13 +47,13 @@ class HouseAuditLogViewModel @Inject constructor(
     fun loadAuditLogs(houseId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            android.util.Log.d("HouseAuditLog", "Loading audit logs for houseId: $houseId")
+            Log.d("HouseAuditLog", "Loading audit logs for houseId: $houseId")
             try {
                 val logs = houseRepository.getHouseAuditLogs(houseId)
-                android.util.Log.d("HouseAuditLog", "Loaded ${logs.size} audit logs")
+                Log.d("HouseAuditLog", "Loaded ${logs.size} audit logs")
                 _auditLogs.value = logs
             } catch (e: Exception) {
-                android.util.Log.e("HouseAuditLog", "Error loading audit logs", e)
+                Log.e("HouseAuditLog", "Error loading audit logs", e)
             } finally {
                 _isLoading.value = false
             }
@@ -120,7 +124,7 @@ fun HouseAuditLogScreen(
                 } else {
                     // Group logs by date
                     val groupedLogs = auditLogs.groupBy { 
-                       val date = java.util.Date(it.createdAt.toEpochMilliseconds())
+                       val date = Date(it.createdAt.toEpochMilliseconds())
                        SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date)
                     }
 
@@ -185,7 +189,7 @@ fun EmptyAuditLogState() {
 private fun AuditLogCard(log: HouseAuditLog) {
     val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
     val time = remember(log.createdAt) {
-        timeFormat.format(java.util.Date(log.createdAt.toEpochMilliseconds()))
+        timeFormat.format(Date(log.createdAt.toEpochMilliseconds()))
     }
 
     Card(
@@ -260,7 +264,7 @@ private fun AuditLogCard(log: HouseAuditLog) {
                     ) {
                          log.details.forEach { (key, valueElement) ->
                              if (key != "id" && key != "house_id") {
-                                 val value = if (valueElement is kotlinx.serialization.json.JsonPrimitive && valueElement.isString) {
+                             val value = if (valueElement is JsonPrimitive && valueElement.isString) {
                                      valueElement.content
                                  } else {
                                      valueElement.toString()
@@ -295,20 +299,20 @@ private fun formatKey(key: String): String {
 }
 
 @Composable
-private fun getActionColor(action: String): androidx.compose.ui.graphics.Color {
+private fun getActionColor(action: String): Color {
     return when (action.lowercase()) {
-        "member_added", "member_joined" -> androidx.compose.ui.graphics.Color(0xFF4CAF50) // Green
-        "member_removed", "member_left" -> androidx.compose.ui.graphics.Color(0xFFF44336) // Red
-        "role_changed" -> androidx.compose.ui.graphics.Color(0xFFFF9800) // Orange
-        "house_updated" -> androidx.compose.ui.graphics.Color(0xFF2196F3) // Blue
-        "expense_added" -> androidx.compose.ui.graphics.Color(0xFFE91E63) // Pink
-        "chore_created" -> androidx.compose.ui.graphics.Color(0xFF9C27B0) // Purple
+        "member_added", "member_joined" -> Color(0xFF4CAF50) // Green
+        "member_removed", "member_left" -> Color(0xFFF44336) // Red
+        "role_changed" -> Color(0xFFFF9800) // Orange
+        "house_updated" -> Color(0xFF2196F3) // Blue
+        "expense_added" -> Color(0xFFE91E63) // Pink
+        "chore_created" -> Color(0xFF9C27B0) // Purple
         else -> MaterialTheme.colorScheme.secondary
     }
 }
 
 @Composable
-private fun getActionIcon(action: String): androidx.compose.ui.graphics.vector.ImageVector {
+private fun getActionIcon(action: String): ImageVector {
     return when (action.lowercase()) {
         "member_added", "member_joined" -> Icons.Default.PersonAdd
         "member_removed", "member_left" -> Icons.Default.PersonRemove

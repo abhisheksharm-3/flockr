@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
-import kotlinx.datetime.Clock
+import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import java.math.BigDecimal
 import javax.inject.Inject
 
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
+import kotlin.time.Clock
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -64,7 +66,7 @@ class HomeViewModel @Inject constructor(
                             val monthlyExpenseDeferred = async {
                                 val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                                 val currentMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}-01"
-                                val result = expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: java.math.BigDecimal.ZERO
+                                val result = expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: BigDecimal.ZERO
                                 result
                             }
 
@@ -142,7 +144,7 @@ class HomeViewModel @Inject constructor(
                             }
                     }
                     _createState.value = CreateHouseUiState.Success(house)
-                    kotlinx.coroutines.delay(1000)
+                    delay(1000)
                     _createState.value = CreateHouseUiState.Idle
                 },
                 onFailure = { error ->
@@ -161,7 +163,7 @@ class HomeViewModel @Inject constructor(
             houseRepository.joinHouseByInviteCode(inviteCode).fold(
                 onSuccess = { house ->
                     _joinState.value = JoinHouseUiState.Success(house)
-                    kotlinx.coroutines.delay(1000)
+                    delay(1000)
                     _joinState.value = JoinHouseUiState.Idle
                 },
                 onFailure = { error ->
@@ -184,7 +186,7 @@ class HomeViewModel @Inject constructor(
                     // Houses will update automatically via Flow if triggered, 
                     // but we can force refresh if needed (Flow handles it mostly)
                     _joinState.value = JoinHouseUiState.Success(null)
-                    kotlinx.coroutines.delay(500)
+                    delay(500)
                     _joinState.value = JoinHouseUiState.Idle
                 },
                 onFailure = { error ->
@@ -260,7 +262,7 @@ class HomeViewModel @Inject constructor(
                 latitude = null,
                 longitude = null,
                 inviteCode = code, // We know the code
-                createdAt = kotlinx.datetime.Clock.System.now(), // Dummy
+                createdAt = Clock.System.now(), // Dummy
                 ownerId = "unknown", 
                 headerImageUrl = preview.headerImageUrl
             )

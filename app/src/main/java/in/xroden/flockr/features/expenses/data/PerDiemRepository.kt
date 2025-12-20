@@ -11,7 +11,7 @@ import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntry
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order

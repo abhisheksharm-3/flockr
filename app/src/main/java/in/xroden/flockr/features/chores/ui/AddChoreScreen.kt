@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
 import `in`.xroden.flockr.features.chores.domain.CreateChoreUiState
 import kotlinx.datetime.*
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -297,7 +298,7 @@ fun AddChoreScreen(
                                 dueDate?.let {
                                     val month = it.month.name.take(3).lowercase()
                                         .replaceFirstChar { char -> char.uppercase() }
-                                    "$month ${it.dayOfMonth}, ${it.year}"
+                                    "$month ${it.day}, ${it.year}"
                                 } ?: "Not set",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (dueDate != null) 

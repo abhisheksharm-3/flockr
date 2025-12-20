@@ -27,12 +27,13 @@ import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.chores.domain.ChoreUiState
 import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
 import kotlinx.datetime.*
+import kotlin.time.Clock
 
 // Helper functions using pure kotlinx-datetime
 private fun isOverdue(dateString: String): Boolean {
     return try {
         val date = LocalDate.parse(dateString)
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val today = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         date < today
     } catch (_: Exception) {
         false
@@ -44,7 +45,7 @@ private fun formatDate(dateString: String): String {
         val date = LocalDate.parse(dateString)
         // Manual formatting: "Jan 15"
         val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-        "$month ${date.dayOfMonth}"
+        "$month ${date.day}"
     } catch (_: Exception) {
         dateString
     }

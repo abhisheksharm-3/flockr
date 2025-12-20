@@ -25,8 +25,8 @@ import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.utils.getCurrencySymbol
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,11 +186,13 @@ fun RecurringExpensesScreen(
                                     expense = expense,
                                     currencySymbol = currencySymbol,
                                     onMarkAsPaid = {
+                                        val houseTimezone = houseConfig?.timezone
+                                        val tz = houseTimezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
                                         viewModel.markAsPaid(
                                             houseId = houseId,
                                             expenseId = expense.id,
                                             amount = expense.amount,
-                                            paymentDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                                            paymentDate = kotlin.time.Clock.System.todayIn(tz)
                                         )
                                     },
                                     onEdit = { onNavigateToEditBill(expense.id) },
@@ -309,7 +311,9 @@ fun RecurringExpenseCard(
     onHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    // Note: RecurringExpenseCard would need houseConfig passed to use house timezone
+    // For now, using system default - caller should ensure consistency
+    val today = kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault())
     
     val isPaidThisPeriod = remember(expense.lastPaidDate, expense.frequency) {
         if (expense.lastPaidDate == null) return@remember false
@@ -359,7 +363,7 @@ fun RecurringExpenseCard(
                     Icon(Icons.Default.Event, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Due: ${nextDueDate.dayOfMonth} ${nextDueDate.month.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                        text = "Due: ${nextDueDate.day} ${nextDueDate.month.name.lowercase().replaceFirstChar { it.uppercase() }}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -456,8 +460,11 @@ private fun getNextDueDate(dueDay: Int, today: kotlinx.datetime.LocalDate): kotl
     )
 
     return if (currentMonthDue < today) {
-        val nextMonth = today.month.plus(1)
-        val nextYear = if (today.month == kotlinx.datetime.Month.DECEMBER) today.year + 1 else today.year
+        // Calculate next month by adding 1 month to the first day of current month
+        val firstOfNextMonth = kotlinx.datetime.LocalDate(today.year, today.month, 1)
+            .plus(1, kotlinx.datetime.DateTimeUnit.MONTH)
+        val nextMonth = firstOfNextMonth.month
+        val nextYear = firstOfNextMonth.year
         kotlinx.datetime.LocalDate(
             nextYear,
             nextMonth,

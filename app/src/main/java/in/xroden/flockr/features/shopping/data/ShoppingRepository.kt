@@ -4,7 +4,7 @@ import `in`.xroden.flockr.data.dto.ShoppingItemInsert
 import `in`.xroden.flockr.data.dto.ShoppingItemUpdate
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -15,18 +15,24 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.postgrest.query.filter.FilterOperation
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import io.github.jan.supabase.postgrest.query.Order
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.coroutines.launch
 
 @Singleton
 class ShoppingRepository @Inject constructor(
@@ -50,7 +56,7 @@ class ShoppingRepository @Inject constructor(
             channel.subscribe(blockUntilSubscribed = true)
 
             changeFlow.collect {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 send(getShoppingItems(houseId))
             }
         } catch (e: Exception) {
@@ -58,7 +64,7 @@ class ShoppingRepository @Inject constructor(
         }
 
         awaitClose {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            CoroutineScope(Dispatchers.IO).launch {
                 try {
                     supabase.realtime.removeChannel(channel)
                 } catch (_: Exception) {
@@ -79,15 +85,15 @@ class ShoppingRepository @Inject constructor(
                     filter {
                         eq("house_id", houseId)
                     }
-                    order("is_purchased", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
-                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    order("is_purchased", Order.ASCENDING)
+                    order("created_at", Order.DESCENDING)
                 }
-                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .decodeList<JsonObject>()
 
             val items = response.map { obj ->
-                val addedByName = obj["added_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                val addedByName = obj["added_by_profile"]?.takeIf { it !is JsonNull }
                     ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
-                val purchasedByName = obj["purchased_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
+                val purchasedByName = obj["purchased_by_profile"]?.takeIf { it !is JsonNull }
                     ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
 
                 ShoppingItem(

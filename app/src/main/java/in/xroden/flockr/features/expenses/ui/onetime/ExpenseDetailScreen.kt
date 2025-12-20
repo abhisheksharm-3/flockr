@@ -17,10 +17,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.ui.theme.CategoryGreen
 import `in`.xroden.flockr.ui.theme.CategoryRed
+import androidx.compose.ui.graphics.vector.ImageVector
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +40,7 @@ fun ExpenseDetailScreen(
         houseConfig?.getCurrencySymbol() ?: "$"
     }
     
-    var houseMembers by remember { mutableStateOf<List<`in`.xroden.flockr.features.house.model.MemberWithProfile>>(emptyList()) }
+    var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
     LaunchedEffect(houseId, expenseId) {
         viewModel.loadOneTimeExpense(expenseId)
@@ -210,15 +213,15 @@ fun ExpenseDetailScreen(
 
 private fun formatDate(date: kotlinx.datetime.LocalDate, pattern: String): String {
     return runCatching {
-        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
+        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.day)
         val javaPattern = pattern.replace("YYYY", "yyyy").replace("DD", "dd")
-        javaDate.format(java.time.format.DateTimeFormatter.ofPattern(javaPattern))
+        javaDate.format(DateTimeFormatter.ofPattern(javaPattern))
     }.getOrDefault(date.toString())
 }
 
 @Composable
 private fun DetailRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     value: String
 ) {

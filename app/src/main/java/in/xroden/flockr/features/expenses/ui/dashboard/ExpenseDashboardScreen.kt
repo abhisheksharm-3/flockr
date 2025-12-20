@@ -27,7 +27,6 @@ import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.model.SpendByMember
-import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.ui.theme.CategoryGreen
 import `in`.xroden.flockr.ui.theme.CategoryOrange
@@ -35,7 +34,6 @@ import `in`.xroden.flockr.ui.theme.CategoryPurple
 import `in`.xroden.flockr.ui.theme.CategoryRed
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import java.math.BigDecimal
 
@@ -85,7 +83,7 @@ fun ExpenseDashboardScreen(
         
         // Calculate current month securely
         runCatching {
-            val currentMonth = Clock.System.now()
+            val currentMonth = kotlin.time.Clock.System.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toString().substring(0, 7) + "-01"
             viewModel.loadMonthlySummary(houseId, currentMonth)

@@ -49,6 +49,23 @@ import `in`.xroden.flockr.features.shopping.ui.AddShoppingItemScreen
 
 import `in`.xroden.flockr.features.expenses.ui.reports.MonthlyReportsScreen
 import `in`.xroden.flockr.features.house.ui.home.JoinHousePreviewScreen
+import `in`.xroden.flockr.features.auth.ui.WelcomeScreen
+import `in`.xroden.flockr.features.chores.ui.ChoresScreen
+import `in`.xroden.flockr.features.expenses.ui.onetime.EditExpenseScreen
+import `in`.xroden.flockr.features.expenses.ui.recurring.BillHistoryScreen
+import `in`.xroden.flockr.features.expenses.ui.recurring.EditRecurringExpenseScreen
+import `in`.xroden.flockr.features.house.ui.settings.HouseAuditLogScreen
+import `in`.xroden.flockr.features.house.ui.settings.HouseSettingsScreen
+import `in`.xroden.flockr.features.house.ui.settings.ManageMembersScreen
+import `in`.xroden.flockr.features.settings.ui.EditProfileScreen
+import `in`.xroden.flockr.features.settings.ui.NotificationPreferencesScreen
+import `in`.xroden.flockr.features.settings.ui.SecuritySettingsScreen
+import `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalContext
+import org.json.JSONObject
 
 
 /**
@@ -72,10 +89,6 @@ fun FlockrNavigation(
 
 
 
-    //
-    // 2. FIXED: The 'when' block was syntactically incorrect.
-    //    It is now properly structured with 'is' cases.
-    //
     // State to track if we have successfully loaded the authenticated graph at least once
     // This allows us to keep the NavHost in composition during transient "Loading" states
     // (e.g. returning from file picker) preventing the destruction of the DocumentsScreen
@@ -94,7 +107,7 @@ fun FlockrNavigation(
         // Authenticated Content (Main App)
         // We show this if we are currently authenticated OR if we were authenticated and are just in a transient loading state
         if (authUiState is AuthNavigationState.Authenticated || (hasAuthenticatedSession.value && authUiState is AuthNavigationState.Loading)) {
-            androidx.compose.runtime.key("authenticated") {
+            key("authenticated") {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Home.route
@@ -184,7 +197,7 @@ fun FlockrNavigation(
                 }
 
                 composable(Screen.Notifications.route) {
-                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val context = LocalContext.current
                     NotificationScreen(
                         onNavigateBack = { navController.popBackStack() },
                         onNotificationClick = { notification ->
@@ -198,7 +211,7 @@ fun FlockrNavigation(
                         val inviteCode = try {
                             val data = notification.data
                             if (!data.isNullOrEmpty()) {
-                                val json = org.json.JSONObject(data)
+                                val json = JSONObject(data)
                                 json.optString("invite_code").takeIf { it.isNotEmpty() }
                                     ?: json.optString("code").takeIf { it.isNotEmpty() }
                             } else null
@@ -207,12 +220,12 @@ fun FlockrNavigation(
                         }
 
                         if (!inviteCode.isNullOrEmpty()) {
-                            val intent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse("flockr://invite/$inviteCode")
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("flockr://invite/$inviteCode")
                             )
                             intent.setPackage(context.packageName)
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(intent)
                         } else {
                             // Fallback to home if no code
@@ -265,7 +278,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.features.house.ui.settings.ManageMembersScreen(
+                    ManageMembersScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -276,7 +289,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.features.house.ui.settings.HouseSettingsScreen(
+                    HouseSettingsScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAuditLog = {
@@ -296,7 +309,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.features.house.ui.settings.HouseAuditLogScreen(
+                    HouseAuditLogScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() }
                     )
@@ -488,7 +501,7 @@ fun FlockrNavigation(
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
                     val expenseName = backStackEntry.arguments?.getString("expenseName") ?: return@composable
-                    `in`.xroden.flockr.features.expenses.ui.recurring.BillHistoryScreen(
+                    BillHistoryScreen(
                         houseId = houseId,
                         recurringExpenseId = expenseId,
                         expenseName = expenseName,
@@ -506,7 +519,7 @@ fun FlockrNavigation(
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
                     
-                    `in`.xroden.flockr.features.expenses.ui.onetime.EditExpenseScreen(
+                    EditExpenseScreen(
                         houseId = houseId,
                         expenseId = expenseId,
                         onNavigateBack = { navController.popBackStack() }
@@ -554,7 +567,7 @@ fun FlockrNavigation(
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
                     val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
                     
-                    `in`.xroden.flockr.features.expenses.ui.recurring.EditRecurringExpenseScreen(
+                    EditRecurringExpenseScreen(
                         houseId = houseId,
                         expenseId = expenseId,
                         onNavigateBack = { navController.popBackStack() }
@@ -685,7 +698,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.features.shopping.ui.ShoppingListScreen(
+                    ShoppingListScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddItem = { navController.navigate(Screen.AddShoppingItem.createRoute(houseId)) },
@@ -700,7 +713,7 @@ fun FlockrNavigation(
                     arguments = listOf(navArgument("houseId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val houseId = backStackEntry.arguments?.getString("houseId") ?: return@composable
-                    `in`.xroden.flockr.features.chores.ui.ChoresScreen(
+                    ChoresScreen(
                         houseId = houseId,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAddChore = { navController.navigate(Screen.AddChore.createRoute(houseId)) },
@@ -759,19 +772,19 @@ fun FlockrNavigation(
                 }
 
                 composable(Screen.SecuritySettings.route) {
-                    `in`.xroden.flockr.features.settings.ui.SecuritySettingsScreen(
+                    SecuritySettingsScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
                 composable(Screen.NotificationPreferences.route) {
-                    `in`.xroden.flockr.features.settings.ui.NotificationPreferencesScreen(
+                    NotificationPreferencesScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
                 composable(Screen.EditProfile.route) {
-                    `in`.xroden.flockr.features.settings.ui.EditProfileScreen(
+                    EditProfileScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
@@ -782,13 +795,13 @@ fun FlockrNavigation(
 
         // Unauthenticated Content
         if (authUiState is AuthNavigationState.Unauthenticated) {
-            androidx.compose.runtime.key("unauthenticated") {
+            key("unauthenticated") {
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Welcome.route
                 ) {
                     composable(Screen.Welcome.route) {
-                        `in`.xroden.flockr.features.auth.ui.WelcomeScreen(
+                        WelcomeScreen(
                             onGetStarted = {
                                 navController.navigate(Screen.Signup.route)
                             },

@@ -18,7 +18,7 @@ class StorageRepository @Inject constructor(
 
     suspend fun uploadFile(path: String, data: ByteArray): String = withContext(Dispatchers.IO) {
         val bucket = supabase.storage.from(BUCKET_AVATARS)
-        bucket.upload(path, data, upsert = true)
+        bucket.upload(path, data) { upsert = true }
         bucket.publicUrl(path)
     }
 

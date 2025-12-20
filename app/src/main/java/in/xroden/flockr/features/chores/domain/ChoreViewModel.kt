@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import javax.inject.Inject
+import kotlin.time.Clock
 
 @HiltViewModel
 class ChoreViewModel @Inject constructor(
@@ -125,7 +126,7 @@ class ChoreViewModel @Inject constructor(
                     // Optimistically update UI
                     val currentState = _uiState.value
                     if (currentState is ChoreUiState.Success) {
-                        val now = kotlinx.datetime.Clock.System.now()
+                        val now = Clock.System.now()
                         val updatedAll = currentState.allChores.map { chore ->
                             if (chore.id == choreId) {
                                 chore.copy(isCompleted = true, completedAt = now)

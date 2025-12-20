@@ -3,7 +3,7 @@ package `in`.xroden.flockr.features.documents.data
 import `in`.xroden.flockr.data.dto.DocumentInsert
 import `in`.xroden.flockr.features.documents.model.Document
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -95,7 +95,7 @@ class DocumentRepository @Inject constructor(
             }
             android.util.Log.d("DocumentRepository", "Uploading to bucket: $bucket, path: $path")
 
-            supabase.storage.from(bucket).upload(path, fileData, upsert = false)
+            supabase.storage.from(bucket).upload(path, fileData) { upsert = false }
             android.util.Log.d("DocumentRepository", "File uploaded to storage successfully")
 
             val document = supabase.from("documents")

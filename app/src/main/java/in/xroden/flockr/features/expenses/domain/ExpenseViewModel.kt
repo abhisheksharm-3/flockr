@@ -16,6 +16,7 @@ import kotlinx.datetime.toLocalDateTime
 import java.math.BigDecimal
 import javax.inject.Inject
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
+import kotlin.time.Clock
 
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(
@@ -247,7 +248,11 @@ class ExpenseViewModel @Inject constructor(
                     ?.balances?.find { it.userId == currentUserId }?.fullName ?: "User"
                 
                 val title = "$payerName settled with $payeeName"
-                val date = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
+                // Use house timezone if available, fallback to system default
+                val houseTimezone = _houseConfigState.value?.timezone
+                val tz = houseTimezone?.let { runCatching { kotlinx.datetime.TimeZone.of(it) }.getOrNull() } 
+                    ?: kotlinx.datetime.TimeZone.currentSystemDefault()
+                val date = Clock.System.now().toLocalDateTime(tz).date
 
                 expenseRepository.settleBalance(
                     houseId = houseId,

@@ -83,37 +83,3 @@ fun FormSectionCard(
     }
 }
 
-/**
- * Standard form text field with consistent styling.
- */
-@Composable
-fun FormTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null,
-    prefix: String? = null,
-    enabled: Boolean = true,
-    singleLine: Boolean = true,
-    minLines: Int = 1,
-    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = placeholder?.let { { Text(it) } },
-        prefix = prefix?.let { { Text(it) } },
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        singleLine = singleLine,
-        minLines = minLines,
-        keyboardOptions = keyboardOptions,
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-        )
-    )
-}

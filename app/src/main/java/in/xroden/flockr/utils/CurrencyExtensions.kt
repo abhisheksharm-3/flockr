@@ -2,6 +2,7 @@ package `in`.xroden.flockr.utils
 
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -46,7 +47,8 @@ fun BigDecimal.formatAsCurrency(currencyCode: String): String {
         format.format(this)
     } catch (_: Exception) {
         val symbol = getCurrencySymbol(currencyCode)
-        "$symbol${this.setScale(2, java.math.RoundingMode.HALF_UP)}"
+        val scaledAmount = this.setScale(0, RoundingMode.HALF_UP).toLong()
+        return "$symbol$scaledAmount"
     }
 }
 

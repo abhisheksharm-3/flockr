@@ -28,6 +28,8 @@ import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
+import java.util.Locale
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +42,7 @@ fun AddPerDiemEntryScreen(
     var quantity by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).toString())
+        mutableStateOf(Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).toString())
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -67,7 +69,7 @@ fun AddPerDiemEntryScreen(
                 val localDate = LocalDate.parse(date)
                 localDate.atStartOfDayIn(kotlinx.datetime.TimeZone.currentSystemDefault()).toEpochMilliseconds()
             } catch (_: Exception) {
-                kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+                Clock.System.now().toEpochMilliseconds()
             }
         )
         DatePickerDialog(
@@ -222,7 +224,7 @@ fun AddPerDiemEntryScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
+                                "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -309,7 +311,7 @@ fun AddPerDiemEntryScreen(
                                         style = MaterialTheme.typography.bodyLarge
                                     )
                                     Text(
-                                        "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", quantityDouble * config.rate.toDouble())}",
+                                        "$currencySymbol${String.format(Locale.getDefault(), "%.2f", quantityDouble * config.rate.toDouble())}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.tertiary

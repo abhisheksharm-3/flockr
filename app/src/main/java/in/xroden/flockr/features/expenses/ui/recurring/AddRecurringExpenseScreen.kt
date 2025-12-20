@@ -516,7 +516,7 @@ fun AddRecurringExpenseScreen(
                     datePickerState.selectedDateMillis?.let { millis ->
                         val instant = Instant.fromEpochMilliseconds(millis)
                         val date = instant.toLocalDateTime(TimeZone.UTC).date
-                        dueDay = date.dayOfMonth.toString()
+                        dueDay = date.day.toString()
                     }
                     showDueDayPicker = false
                 }) { Text("OK", fontWeight = FontWeight.Bold) }

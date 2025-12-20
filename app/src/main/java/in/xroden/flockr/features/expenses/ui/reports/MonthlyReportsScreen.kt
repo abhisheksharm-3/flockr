@@ -26,13 +26,16 @@ import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.ui.theme.*
 
 import `in`.xroden.flockr.utils.getCurrencySymbol
+import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 import kotlinx.datetime.*
 
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
+import java.math.BigDecimal
+import java.util.Locale
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +50,11 @@ fun MonthlyReportsScreen(
     viewModel: ExpenseViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
+    val summaryState by viewModel.summaryState.collectAsState()
+    val perDiemBillState by perDiemViewModel.billState.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
+    
+    // Initial month based on house timezone, updated when houseConfig loads
     var selectedMonth by remember { 
         mutableStateOf(
             Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
@@ -54,9 +62,14 @@ fun MonthlyReportsScreen(
             }
         ) 
     }
-    val summaryState by viewModel.summaryState.collectAsState()
-    val perDiemBillState by perDiemViewModel.billState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    
+    // Update selected month when house config loads to use correct timezone
+    LaunchedEffect(houseConfig) {
+        houseConfig?.let {
+            val houseToday = it.getTodayInHouseTimezone()
+            selectedMonth = LocalDate(houseToday.year, houseToday.month, 1)
+        }
+    }
 
     LaunchedEffect(houseId, selectedMonth) {
         val monthStr = "${selectedMonth.year}-${selectedMonth.monthNumber.toString().padStart(2, '0')}-01"
@@ -121,7 +134,8 @@ fun MonthlyReportsScreen(
 
                     MonthSelector(
                         selectedMonth = selectedMonth,
-                        onMonthChange = { selectedMonth = it }
+                        onMonthChange = { selectedMonth = it },
+                        timezone = houseConfig?.timezone
                     )
                 }
             }
@@ -162,10 +176,10 @@ fun MonthlyReportsScreen(
                             )
                             val totalExpenses = if (summaryState is MonthlySummaryUiState.Success) {
                                 (summaryState as MonthlySummaryUiState.Success).summary.totalExpenses
-                            } else java.math.BigDecimal.ZERO
+                            } else BigDecimal.ZERO
 
                             Text(
-                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), totalExpenses),
+                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), totalExpenses),
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -199,7 +213,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.oneTimeExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.oneTimeExpenses ?: BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -221,7 +235,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.recurringExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.recurringExpenses ?: BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -243,7 +257,7 @@ fun MonthlyReportsScreen(
                                     letterSpacing = 0.5.sp
                                 )
                                 Text(
-                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(java.util.Locale.getDefault(), summary?.perDiemExpenses ?: java.math.BigDecimal.ZERO),
+                                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.perDiemExpenses ?: BigDecimal.ZERO),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -278,11 +292,11 @@ fun MonthlyReportsScreen(
                             }.toMutableMap()
 
                             // Add per diem as "House" spending
-                            val perDiemTotal = perDiemItemized.fold(java.math.BigDecimal.ZERO) { acc, item ->
+                            val perDiemTotal = perDiemItemized.fold(BigDecimal.ZERO) { acc, item ->
                                 acc.add(item.totalAmount)
                             }
                             
-                            if (perDiemTotal > java.math.BigDecimal.ZERO) {
+                            if (perDiemTotal > BigDecimal.ZERO) {
                                 memberData["House (Per Diem)"] = perDiemTotal.toDouble()
                             }
 
@@ -384,7 +398,7 @@ fun MonthlyReportsScreen(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", item.totalAmount)}",
+                                                text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", item.totalAmount)}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -411,13 +425,13 @@ fun MonthlyReportsScreen(
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                                 )
                                                 Text(
-                                                    text = "Quantity: ${String.format(java.util.Locale.getDefault(), "%.1f", item.totalQuantity)} ${item.unit}",
+                                                    text = "Quantity: ${String.format(Locale.getDefault(), "%.1f", item.totalQuantity)} ${item.unit}",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                             Text(
-                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", item.rate)}/${item.unit}",
+                                                text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", item.rate)}/${item.unit}",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                             )
@@ -431,7 +445,7 @@ fun MonthlyReportsScreen(
                                 (summaryState as MonthlySummaryUiState.Success).summary
                             } else null
 
-                            if (summary?.perDiemExpenses != null && summary.perDiemExpenses > java.math.BigDecimal.ZERO) {
+                            if (summary?.perDiemExpenses != null && summary.perDiemExpenses > BigDecimal.ZERO) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 8.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -448,7 +462,7 @@ fun MonthlyReportsScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(java.util.Locale.getDefault(), "%.2f", summary.perDiemExpenses)}",
+                                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", summary.perDiemExpenses)}",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

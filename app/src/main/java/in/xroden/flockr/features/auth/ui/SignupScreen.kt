@@ -1,5 +1,7 @@
 package `in`.xroden.flockr.features.auth.ui
 
+import android.app.Activity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,11 +15,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.R
 import `in`.xroden.flockr.features.auth.domain.AuthUiState
+import `in`.xroden.flockr.features.auth.domain.SignInUiState
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
@@ -33,6 +40,11 @@ fun SignupScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
+    val signInState by viewModel.signInState.collectAsState()
+    
+    // Get Activity context for Credential Manager
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     Scaffold(
         topBar = {
@@ -248,43 +260,50 @@ fun SignupScreen(
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
-            // Google Sign In Button
-            OutlinedButton(
-                onClick = { viewModel.signInWithGoogle() },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant
+            // Google Sign In Button - Premium Design
+            val isSigningIn = signInState is SignInUiState.Loading
+            
+            Button(
+                onClick = { 
+                    activity?.let { viewModel.signInWithGoogle(it) }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1F1F1F)
                 ),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 4.dp
                 ),
-                enabled = uiState !is AuthUiState.Loading
+                enabled = activity != null && !isSigningIn && uiState !is AuthUiState.Loading
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        modifier = Modifier.size(20.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        Text(
-                            "G",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(top = 1.dp)
+                    if (isSigningIn) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFF1F1F1F)
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_google),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "Continue with Google",
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = if (isSigningIn) "Signing in..." else "Continue with Google",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }

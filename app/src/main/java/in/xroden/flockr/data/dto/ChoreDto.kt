@@ -7,6 +7,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.ExperimentalTime
 
 @Serializable
 data class ChoreInsert(
@@ -27,7 +28,7 @@ data class ChoreInsert(
 )
 
 @Serializable
-data class ChoreUpdate(
+data class ChoreUpdate @OptIn(ExperimentalTime::class) constructor(
     @SerialName("task_name")
     val taskName: String? = null,
     val description: String? = null,

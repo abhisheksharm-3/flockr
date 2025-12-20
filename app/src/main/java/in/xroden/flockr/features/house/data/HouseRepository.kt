@@ -8,7 +8,7 @@ import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -442,7 +442,7 @@ class HouseRepository @Inject constructor(
     suspend fun uploadHouseHeaderImage(houseId: String, byteArray: ByteArray): Result<String> = runCatching {
         val fileName = "header_${houseId}_${System.currentTimeMillis()}.jpg"
         val bucket = supabase.storage.from("house_headers")
-        bucket.upload(fileName, byteArray, upsert = true)
+        bucket.upload(fileName, byteArray) { upsert = true }
         val publicUrl = bucket.publicUrl(fileName)
 
         supabase.from("houses").update(

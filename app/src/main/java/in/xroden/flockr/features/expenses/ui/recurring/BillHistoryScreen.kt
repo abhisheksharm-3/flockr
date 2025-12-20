@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -34,7 +35,7 @@ fun BillHistoryScreen(
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     // Fetch house members to resolve names
-    val houseMembers = produceState<List<`in`.xroden.flockr.features.house.model.MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
+    val houseMembers = produceState<List<MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
         val result = runCatching {
              expenseViewModel.getHouseMembers(houseId)
         }.getOrDefault(emptyList())

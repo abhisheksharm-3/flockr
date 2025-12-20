@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.shopping.data.ShoppingRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +23,7 @@ class ShoppingViewModel @Inject constructor(
     private val _addItemState = MutableStateFlow<AddShoppingItemUiState>(AddShoppingItemUiState.Idle)
     val addItemState: StateFlow<AddShoppingItemUiState> = _addItemState.asStateFlow()
 
-    private var shoppingJob: kotlinx.coroutines.Job? = null
+    private var shoppingJob: Job? = null
 
     fun loadShoppingItems(houseId: String) {
         shoppingJob?.cancel()
@@ -55,8 +57,8 @@ class ShoppingViewModel @Inject constructor(
             shoppingRepository.addShoppingItem(houseId, itemName, quantity).fold(
                 onSuccess = {
                     _addItemState.value = AddShoppingItemUiState.Success
-                    loadShoppingItems(houseId) // Refresh list
-                    kotlinx.coroutines.delay(1000)
+                    loadShoppingItems(houseId)
+                    delay(1000)
                     _addItemState.value = AddShoppingItemUiState.Idle
                 },
                 onFailure = { error ->

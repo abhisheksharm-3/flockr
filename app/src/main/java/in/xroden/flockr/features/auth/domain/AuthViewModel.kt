@@ -1,11 +1,13 @@
 package `in`.xroden.flockr.features.auth.domain
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.AuthRepository
+import `in`.xroden.flockr.features.auth.data.GoogleSignInHelper
 import `in`.xroden.flockr.ui.navigation.AuthNavigationState
-import io.github.jan.supabase.gotrue.SessionStatus
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,10 +20,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val googleSignInHelper: GoogleSignInHelper
 ) : ViewModel() {
 
-    private val _sessionState = MutableStateFlow<SessionStatus>(SessionStatus.LoadingFromStorage)
+    private val _sessionState = MutableStateFlow<SessionStatus>(SessionStatus.Initializing)
     val sessionStatus: StateFlow<SessionStatus> = _sessionState.asStateFlow()
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.NotAuthenticated)
@@ -53,13 +56,13 @@ class AuthViewModel @Inject constructor(
             _uiState
         ) { session, state ->
             when (session) {
-                is SessionStatus.LoadingFromStorage ->
+                is SessionStatus.Initializing ->
                     AuthNavigationState.Loading
 
                 is SessionStatus.NotAuthenticated ->
                     AuthNavigationState.Unauthenticated
 
-                is SessionStatus.NetworkError ->
+                is SessionStatus.RefreshFailure ->
                     AuthNavigationState.Unauthenticated
 
                 is SessionStatus.Authenticated -> {
@@ -91,7 +94,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.sessionFlow.collect { status ->
                 when (status) {
-                    is SessionStatus.LoadingFromStorage -> {
+                    is SessionStatus.Initializing -> {
                         _sessionState.value = status
                         _uiState.value = AuthUiState.Loading
                     }
@@ -103,7 +106,7 @@ class AuthViewModel @Inject constructor(
                         _sessionState.value = status
                         _uiState.value = AuthUiState.NotAuthenticated
                     }
-                    is SessionStatus.NetworkError -> {
+                    is SessionStatus.RefreshFailure -> {
                         _sessionState.value = SessionStatus.NotAuthenticated(false)
                         _uiState.value = AuthUiState.NotAuthenticated
                     }
@@ -177,17 +180,33 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signInWithGoogle() {
+    /**
+     * Native Google Sign-In using Credential Manager.
+     * Requires Activity context for the Credential Manager UI.
+     */
+    fun signInWithGoogle(activity: Activity) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Loading
-            authRepository.signInWithGoogle().fold(
-                onSuccess = {
-                    // Session flow will handle the rest
+            _signInState.value = SignInUiState.Loading
+            
+            googleSignInHelper.signIn(activity).fold(
+                onSuccess = { idToken ->
+                    // Use the ID token to authenticate with Supabase
+                    authRepository.signInWithGoogleIdToken(idToken).fold(
+                        onSuccess = {
+                            _signInState.value = SignInUiState.Success
+                            kotlinx.coroutines.delay(500)
+                            _signInState.value = SignInUiState.Idle
+                        },
+                        onFailure = { error ->
+                            _signInState.value = SignInUiState.Error(
+                                message = error.message ?: "Failed to authenticate with Supabase"
+                            )
+                        }
+                    )
                 },
                 onFailure = { error ->
-                    _uiState.value = AuthUiState.Error(
-                        message = error.message ?: "Google sign in failed",
-                        cause = error
+                    _signInState.value = SignInUiState.Error(
+                        message = error.message ?: "Google sign in failed"
                     )
                 }
             )

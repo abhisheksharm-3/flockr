@@ -3,11 +3,13 @@ package `in`.xroden.flockr.features.auth.data
 import `in`.xroden.flockr.data.dto.ProfileUpdate
 import `in`.xroden.flockr.features.auth.model.Profile
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.SessionStatus
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.user.UserInfo
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,7 +24,7 @@ class AuthRepository @Inject constructor(
         get() = supabase.auth.currentUserOrNull()
 
     suspend fun signUp(email: String, password: String, fullName: String): Result<Unit> = runCatching {
-        supabase.auth.signUpWith(io.github.jan.supabase.gotrue.providers.builtin.Email) {
+        supabase.auth.signUpWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
             data = kotlinx.serialization.json.buildJsonObject {
@@ -42,14 +44,21 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
-        supabase.auth.signInWith(io.github.jan.supabase.gotrue.providers.builtin.Email) {
+        supabase.auth.signInWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
         }
     }
 
-    suspend fun signInWithGoogle(): Result<Unit> = runCatching {
-        supabase.auth.signInWith(io.github.jan.supabase.gotrue.providers.Google)
+    /**
+     * Sign in with a Google ID token obtained from Credential Manager.
+     * This uses Supabase's IDToken provider for native authentication.
+     */
+    suspend fun signInWithGoogleIdToken(idToken: String): Result<Unit> = runCatching {
+        supabase.auth.signInWith(IDToken) {
+            this.provider = Google
+            this.idToken = idToken
+        }
     }
 
     suspend fun signOut(): Result<Unit> = runCatching {

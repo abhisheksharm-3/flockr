@@ -24,6 +24,8 @@ import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.utils.getCurrencySymbol
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -298,7 +300,7 @@ private fun PerDiemQuickSelectCard(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                         ) {
                             Text(
-                                text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)}",
+                                text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)}",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.secondary,

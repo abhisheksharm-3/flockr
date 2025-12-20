@@ -26,6 +26,8 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import java.util.Locale
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +53,9 @@ fun OneTimeExpensesScreen(
     var selectedCategory by remember { mutableStateOf(initialCategory) }
     var selectedUserId by remember { mutableStateOf(initialUserId) }
 
-    // Calculate current month start safely
-    val currentMonthStart = remember {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    // Calculate current month start using house timezone
+    val currentMonthStart = remember(houseConfig) {
+        val now = houseConfig.getTodayInHouseTimezone()
         LocalDate(now.year, now.month, 1)
     }
 
@@ -137,7 +139,8 @@ fun OneTimeExpensesScreen(
                                     onMonthChange = { selectedMonth = it },
                                     showClearButton = selectedMonth != null,
                                     onClearFilter = { selectedMonth = null },
-                                    subtitle = "${filteredExpenses.size} expenses"
+                                    subtitle = "${filteredExpenses.size} expenses",
+                                    timezone = houseConfig?.timezone
                                 )
 
                                 // Category filter chips
@@ -197,6 +200,7 @@ fun OneTimeExpensesScreen(
                                     expense = expense,
                                     houseId = houseId,
                                     currencySymbol = currencySymbol,
+                                    houseConfig = houseConfig,
                                     onClick = { onNavigateToExpenseDetail(expense.id) },
                                     onEdit = { onNavigateToEditExpense(expense.id) }
                                 )
@@ -232,78 +236,11 @@ fun OneTimeExpensesScreen(
 }
 
 @Composable
-fun MonthSelectorCard(
-    selectedMonth: LocalDate?,
-    currentDate: LocalDate,
-    onMonthChange: (LocalDate) -> Unit,
-    onClearFilter: () -> Unit,
-    expenseCount: Int
-) {
-    val displayDate = selectedMonth ?: currentDate
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { onMonthChange(displayDate.minus(1, DateTimeUnit.MONTH)) }) {
-                    Icon(Icons.Default.ChevronLeft, "Previous month", tint = MaterialTheme.colorScheme.primary)
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val monthName = remember(displayDate) {
-                        displayDate.month.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                    }
-                    Text("$monthName ${displayDate.year}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    if (selectedMonth != null) {
-                        Text("$expenseCount expenses", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-
-                val nextMonth = displayDate.plus(1, DateTimeUnit.MONTH)
-                val isFuture = nextMonth > currentDate
-
-                IconButton(
-                    onClick = { if (!isFuture) onMonthChange(nextMonth) },
-                    enabled = !isFuture
-                ) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        "Next month",
-                        tint = if (!isFuture) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                }
-            }
-
-            if (selectedMonth != null) {
-                OutlinedButton(
-                    onClick = onClearFilter,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Icon(Icons.Default.Close, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Show All Expenses", fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun ModernExpenseCard(
     expense: OneTimeExpense,
     houseId: String,
     currencySymbol: String = "$",
+    houseConfig: `in`.xroden.flockr.features.house.model.HouseConfig? = null,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
@@ -350,7 +287,11 @@ fun ModernExpenseCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(expense.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(4.dp))
-                    Text(formatDate(expense.date), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // Use house config date formatting
+                        val formattedDate = remember(expense.date, houseConfig) {
+                            expense.date.formatWithHouseConfig(houseConfig)
+                        }
+                        Text(formattedDate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -430,9 +371,8 @@ fun EmptyExpensesState(modifier: Modifier = Modifier, onAddExpense: () -> Unit) 
     }
 }
 
-private fun formatDate(date: LocalDate): String {
-    return "${date.dayOfMonth.toString().padStart(2, '0')}/${date.monthNumber.toString().padStart(2, '0')}/${date.year}"
-}
+// Date formatting is now handled by DateFormatUtils.formatWithHouseConfig
+// See utils/DateFormatUtils.kt
 
 private fun getCategoryColor(category: String): androidx.compose.ui.graphics.Color {
     return when (category.lowercase()) {
