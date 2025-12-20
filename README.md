@@ -4,7 +4,7 @@
 
 **Modern Household Management Platform**
 
-[![Version](https://img.shields.io/badge/version-1.5.5-blue.svg)](https://github.com/abhisheksharm-3/flockr)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/abhisheksharm-3/flockr)
 [![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://www.android.com/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org/)
@@ -22,7 +22,7 @@
 
 ## 📚 Table of Contents
 
-- [What's New](#-whats-new-in-v155)
+- [What's New](#-whats-new-in-v170)
 - [Features](#-features)
   - [Finance Suite](#-finance-suite)
   - [Organization Suite](#-organization-suite)
@@ -39,6 +39,20 @@
 - [Contributing](#-contributing)
 - [Roadmap](#-roadmap)
 - [License](#-license)
+
+## 🚀 What's New in v1.7.0
+
+> **Release Date:** December 20, 2025
+
+### 🧹 Code Quality Improvements
+- **Deprecated API Fix**: Migrated from deprecated `dayOfMonth` property to `day` across all date formatting code.
+- **Auth Screen Redesign**: Improved Welcome, Sign Up, and Sign In screens with premium card-based styling and better dark mode support.
+
+### 🐛 Bug Fixes
+- **Date Formatting**: Fixed date formatting in expense reports and transaction screens.
+- **Consistency**: Improved date display consistency across the app.
+
+---
 
 ## 🌟 Features
 
