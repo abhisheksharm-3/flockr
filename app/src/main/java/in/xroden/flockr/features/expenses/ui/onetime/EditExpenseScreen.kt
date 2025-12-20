@@ -26,10 +26,10 @@ import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +43,7 @@ fun EditExpenseScreen(
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var date by remember { 
-        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+        mutableStateOf(kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
     }
     var showDatePicker by remember { mutableStateOf(false) }
     var notes by remember { mutableStateOf("") }
@@ -447,12 +447,12 @@ fun EditExpenseScreen(
                             LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
                         }.getOrElse {
                             runCatching {
-                                Clock.System.todayIn(TimeZone.of(houseConfig?.timezone ?: TimeZone.currentSystemDefault().id))
-                            }.getOrDefault(Clock.System.todayIn(TimeZone.currentSystemDefault()))
+                                kotlin.time.Clock.System.todayIn(TimeZone.of(houseConfig?.timezone ?: TimeZone.currentSystemDefault().id))
+                            }.getOrDefault(kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault()))
                         }
                         val splitAmounts = if (enableSplitting && selectedMembers.isNotEmpty()) {
                             if (splitEqually) {
-                                val splitAmount = BigDecimal.valueOf(amt).divide(BigDecimal(selectedMembers.size), 2, java.math.RoundingMode.HALF_UP)
+                                val splitAmount = BigDecimal.valueOf(amt).divide(BigDecimal(selectedMembers.size), 2, RoundingMode.HALF_UP)
                                 selectedMembers.associateWith { splitAmount }
                             } else {
                                 selectedMembers.mapNotNull { userId ->

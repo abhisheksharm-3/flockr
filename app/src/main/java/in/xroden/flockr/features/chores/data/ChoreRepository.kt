@@ -4,7 +4,7 @@ import `in`.xroden.flockr.data.dto.ChoreInsert
 import `in`.xroden.flockr.data.dto.ChoreUpdate
 import `in`.xroden.flockr.features.chores.model.Chore
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -28,6 +28,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 @Singleton
 class ChoreRepository @Inject constructor(
@@ -255,7 +256,7 @@ class ChoreRepository @Inject constructor(
                     ChoreUpdate(
                         isCompleted = true,
                         completedBy = currentUserId,
-                        completedAt = kotlinx.datetime.Clock.System.now()
+                        completedAt = Clock.System.now()
                     )
                 ) {
                     filter {

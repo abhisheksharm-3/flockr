@@ -25,6 +25,7 @@ import kotlinx.datetime.*
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.math.BigDecimal
+import kotlin.time.Clock
 
 /**
  * Screen to view all per diem transactions
@@ -39,7 +40,7 @@ fun PerDiemTransactionsScreen(
 ) {
     // State for month selection (default to 1st of current month)
     var selectedMonth by remember {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         mutableStateOf(LocalDate(now.year, now.month, 1))
     }
 
@@ -545,9 +546,9 @@ private fun MonthSelector(
 
 private fun formatDate(date: LocalDate): String {
     return try {
-        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
+        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.day)
         javaDate.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy"))
     } catch (_: Exception) {
-        "${date.dayOfMonth}/${date.monthNumber}/${date.year}"
+        "${date.day}/${date.monthNumber}/${date.year}"
     }
 }

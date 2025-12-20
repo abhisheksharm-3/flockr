@@ -15,10 +15,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.*
 import java.util.Locale
+import kotlin.time.Clock
 
 /**
  * Unified Month Selector component for consistent styling across all screens.
  * Supports both filter mode (with clear button) and navigation mode.
+ * 
+ * @param timezone Optional timezone ID (e.g., "America/New_York"). If null, uses system default.
  */
 @Composable
 fun MonthSelector(
@@ -27,10 +30,12 @@ fun MonthSelector(
     modifier: Modifier = Modifier,
     showClearButton: Boolean = false,
     onClearFilter: (() -> Unit)? = null,
-    subtitle: String? = null
+    subtitle: String? = null,
+    timezone: String? = null
 ) {
-    val currentMonthStart = remember {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val currentMonthStart = remember(timezone) {
+        val tz = timezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
+        val now = Clock.System.now().toLocalDateTime(tz).date
         LocalDate(now.year, now.month, 1)
     }
 

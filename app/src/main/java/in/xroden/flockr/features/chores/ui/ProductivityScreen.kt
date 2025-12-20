@@ -31,7 +31,6 @@ import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -48,7 +47,7 @@ fun ProductivityScreen(
     val scope = rememberCoroutineScope()
     
     // Month selection state - using first day of month as LocalDate
-    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.monthNumber, 1)) }
     
     LaunchedEffect(houseId) {

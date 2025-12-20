@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Clock
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -65,7 +66,7 @@ class ChatViewModel @Inject constructor(
             houseId = houseId,
             userId = currentUserId,
             content = content,
-            createdAt = kotlinx.datetime.Clock.System.now(),
+            createdAt = Clock.System.now(),
             senderName = "You",
             isPending = true
         )

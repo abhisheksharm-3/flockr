@@ -27,7 +27,6 @@ import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
@@ -49,16 +48,16 @@ fun AddExpenseScreen(
     
     // Default to system today
     var date by remember { 
-        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+        mutableStateOf(kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
     }
 
     // Attempt to respect house timezone if available
     LaunchedEffect(houseConfig) {
         houseConfig?.timezone?.let { tz ->
             runCatching {
-                val houseDate = Clock.System.todayIn(TimeZone.of(tz)).toString()
+                val houseDate = kotlin.time.Clock.System.todayIn(TimeZone.of(tz)).toString()
                 // Update if currently default and effectively "untouched"
-                if (date == Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
+                if (date == kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
                     date = houseDate
                 }
             }
@@ -152,7 +151,7 @@ fun AddExpenseScreen(
                             val parts = date.split("-")
                             LocalDate(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
                         } catch (e: Exception) {
-                            Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault())
                         }
                         viewModel.createOneTimeExpense(
                             houseId = houseId, name = name, amount = BigDecimal.valueOf(amt),

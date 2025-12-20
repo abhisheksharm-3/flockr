@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -34,6 +36,14 @@ android {
     namespace = "in.xroden.flockr"
     compileSdk = 36
 
+    // Read Google Client ID from local.properties
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    val googleClientId = localProperties.getProperty("GOOGLE_CLIENT_ID", "")
+
     defaultConfig {
         applicationId = "in.xroden.flockr"
         minSdk = 29
@@ -44,6 +54,9 @@ android {
         // Make version available to BuildConfig
         buildConfigField("String", "VERSION_NAME", "\"$appVersionName\"")
         buildConfigField("int", "VERSION_CODE", "$appVersionCode")
+        
+        // Google Sign-In Client ID from local.properties
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -61,8 +74,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+            freeCompilerArgs.addAll(
+                "-opt-in=kotlin.time.ExperimentalTime"
+            )
+        }
     }
     buildFeatures {
         compose = true
@@ -91,7 +109,7 @@ dependencies {
 
     // Supabase
     implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.auth)
     implementation(libs.supabase.storage)
     implementation(libs.supabase.realtime)
     implementation(libs.supabase.functions)
@@ -113,6 +131,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.datetime)
 
 
     // DataStore
@@ -128,6 +147,11 @@ dependencies {
     // Accompanist
     implementation(libs.accompanist.systemuicontroller)
 
+    // Google Credential Manager for Native Sign-In
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+
     // Google Fonts
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.0")
 
@@ -136,7 +160,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 

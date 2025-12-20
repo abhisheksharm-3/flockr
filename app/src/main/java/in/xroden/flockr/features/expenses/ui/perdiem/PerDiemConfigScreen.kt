@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import java.util.Locale
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
@@ -241,7 +242,7 @@ private fun PerDiemConfigCard(
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
                 ) {
                     Text(
-                        text = "$currencySymbol${String.format(java.util.Locale.getDefault(), "%.2f", config.rate)}/${config.unit}",
+                        text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)}/${config.unit}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.tertiary,

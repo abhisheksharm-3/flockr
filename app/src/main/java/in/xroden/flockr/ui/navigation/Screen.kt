@@ -1,5 +1,9 @@
 package `in`.xroden.flockr.ui.navigation
 
+import android.net.Uri
+import java.net.URLEncoder
+import `in`.xroden.flockr.features.expenses.model.PerDiemConfig as PerDiemConfigModel
+
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
@@ -84,7 +88,7 @@ sealed class Screen(val route: String) {
         fun createRoute(houseId: String, itemName: String? = null, quantity: Int? = null): String {
             var route = "add_expense_advanced/$houseId"
             if (itemName != null) {
-                route += "?itemName=${java.net.URLEncoder.encode(itemName, "UTF-8")}"
+                route += "?itemName=${URLEncoder.encode(itemName, "UTF-8")}"
                 if (quantity != null) {
                     route += "&quantity=$quantity"
                 }
@@ -131,7 +135,7 @@ sealed class Screen(val route: String) {
     }
 
     object EditPerDiemConfig : Screen("edit_per_diem_config/{houseId}/{configId}?itemName={itemName}&rate={rate}&category={category}&unit={unit}") {
-        fun createRoute(houseId: String, config: `in`.xroden.flockr.features.expenses.model.PerDiemConfig) = 
-            "edit_per_diem_config/$houseId/${config.id}?itemName=${android.net.Uri.encode(config.itemName)}&rate=${config.rate}&category=${android.net.Uri.encode(config.category)}&unit=${android.net.Uri.encode(config.unit)}"
+        fun createRoute(houseId: String, config: PerDiemConfigModel) = 
+            "edit_per_diem_config/$houseId/${config.id}?itemName=${Uri.encode(config.itemName)}&rate=${config.rate}&category=${Uri.encode(config.category)}&unit=${Uri.encode(config.unit)}"
     }
 }

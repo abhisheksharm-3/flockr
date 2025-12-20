@@ -16,6 +16,7 @@ import `in`.xroden.flockr.utils.PermissionHandler
 import `in`.xroden.flockr.utils.PermissionManager
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,7 @@ import androidx.compose.animation.fadeIn
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.Composable
 
 import android.content.Intent
 import androidx.compose.animation.fadeOut
@@ -54,7 +56,7 @@ import androidx.compose.material3.TextButton
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     
-    private val _isAppLocked = kotlinx.coroutines.flow.MutableStateFlow(false)
+    private val _isAppLocked = MutableStateFlow(false)
     private lateinit var permissionManager: PermissionManager
     private var lastBackgroundTimestamp: Long = 0L
     private val settingsViewModel: SettingsViewModel by viewModels()
@@ -231,7 +233,7 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun LockScreenOverlay(onUnlockClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxSize(),

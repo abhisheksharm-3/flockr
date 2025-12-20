@@ -6,7 +6,7 @@ import `in`.xroden.flockr.features.notifications.model.NotificationSerializer
 import `in`.xroden.flockr.features.notifications.model.NotificationPreference
 import `in`.xroden.flockr.features.notifications.service.NotificationService
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -18,16 +18,22 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.postgrest.query.filter.FilterOperation
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonPrimitive
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.launch
 
 @Singleton
 class NotificationRepository @Inject constructor(
@@ -108,7 +114,7 @@ class NotificationRepository @Inject constructor(
                     }
 
                     // Handle INSERT, UPDATE, and DELETE - all trigger a refetch for accurate unread count
-                    kotlinx.coroutines.delay(100)
+                    delay(100)
                     val updated = supabase.from("notifications")
                         .select(Columns.ALL) {
                             filter {
@@ -126,7 +132,7 @@ class NotificationRepository @Inject constructor(
             }
 
             awaitClose {
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     try {
                         supabase.realtime.removeChannel(channel)
                     } catch (_: Exception) {
@@ -168,9 +174,9 @@ class NotificationRepository @Inject constructor(
 
     suspend fun deleteNotification(notificationId: String): Result<Unit> {
         return try {
-            @kotlinx.serialization.Serializable
+            @Serializable
             data class DeleteNotificationParams(
-                @kotlinx.serialization.SerialName("p_notification_id")
+                @SerialName("p_notification_id")
                 val notificationId: String
             )
 
@@ -189,9 +195,9 @@ class NotificationRepository @Inject constructor(
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
             
-            @kotlinx.serialization.Serializable
+            @Serializable
             data class DeleteAllParams(
-                @kotlinx.serialization.SerialName("p_user_id")
+                @SerialName("p_user_id")
                 val userId: String
             )
 
@@ -241,11 +247,10 @@ class NotificationRepository @Inject constructor(
                 .decodeSingleOrNull<NotificationPreference>()
             
             if (existing == null) {
-                // Create default
                 val defaultPref = NotificationPreference(
                     userId = currentUserId,
                     houseId = houseId,
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = UUID.randomUUID().toString(),
                     enableMemberJoined = true,
                     enableExpenseAdded = true,
                     enableChoreAssigned = true,

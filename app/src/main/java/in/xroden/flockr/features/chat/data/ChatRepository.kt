@@ -3,7 +3,7 @@ package `in`.xroden.flockr.features.chat.data
 import `in`.xroden.flockr.data.dto.MessageInsert
 import `in`.xroden.flockr.features.chat.model.Message
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
