@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.5] - 2025-12-20
+
+### ✨ New Features
+- **Monthly Productivity**: Productivity screen now shows monthly stats with a month selector. See who completed the most chores each month!
+- **Yearly Top 3**: Added a yearly top performers section showing the top 3 contributors for the currently selected year with medal colors.
+
+### 🎨 UI Improvements
+- **House Settings**: Redesigned with `FormSectionCard` pattern for consistent styling with icon headers.
+- **Edit Recurring Bill**: Cleaned up Save button styling by removing the Surface wrapper.
+- **Invite Member Dialog**: Simplified layout by moving Send button to TopAppBar and adding an informational card.
+
+---
+
 ## [1.6.4] - 2025-12-19
 
 ### Improvements

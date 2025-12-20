@@ -26,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.ui.components.cards.SectionCard
+import `in`.xroden.flockr.ui.components.forms.FormSectionCard
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
@@ -110,12 +112,10 @@ fun AddRecurringExpenseScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("New Recurring Bill", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-
-            SectionCard(title = "Bill Details") {
+            FormSectionCard(icon = Icons.Default.Edit, title = "Bill Details") {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -125,7 +125,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -142,7 +142,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -168,7 +168,7 @@ fun AddRecurringExpenseScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -189,7 +189,7 @@ fun AddRecurringExpenseScreen(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                         enabled = !isLoading,
-                        shape = MaterialTheme.shapes.medium,
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -221,7 +221,7 @@ fun AddRecurringExpenseScreen(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                         enabled = !isLoading,
-                        shape = MaterialTheme.shapes.medium,
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -251,7 +251,7 @@ fun AddRecurringExpenseScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -261,7 +261,7 @@ fun AddRecurringExpenseScreen(
                 }
             }
 
-            SectionCard(title = "Reminder Settings") {
+            FormSectionCard(icon = Icons.Default.Notifications, title = "Reminder Settings", iconTint = MaterialTheme.colorScheme.tertiary) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Enable Reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -281,7 +281,7 @@ fun AddRecurringExpenseScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -291,7 +291,7 @@ fun AddRecurringExpenseScreen(
                 }
             }
 
-            SectionCard(title = "Notes (Optional)") {
+            FormSectionCard(icon = Icons.Default.Edit, title = "Notes", iconTint = MaterialTheme.colorScheme.secondary) {
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -302,7 +302,7 @@ fun AddRecurringExpenseScreen(
                     enabled = !isLoading,
                     minLines = 3,
                     maxLines = 5,
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -310,7 +310,7 @@ fun AddRecurringExpenseScreen(
                 )
             }
 
-            SectionCard(title = "Payment Options") {
+            FormSectionCard(icon = Icons.Default.CalendarToday, title = "Payment Options", iconTint = MaterialTheme.colorScheme.primary) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Allow Prepayment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -341,7 +341,7 @@ fun AddRecurringExpenseScreen(
             }
 
             if (houseMembers.size > 1) {
-                SectionCard(title = "Split Bill (Optional)") {
+                FormSectionCard(icon = Icons.Default.Repeat, title = "Split Bill", iconTint = MaterialTheme.colorScheme.primary) {
                     Text("Select members to split this bill with", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(12.dp))
 
@@ -359,7 +359,7 @@ fun AddRecurringExpenseScreen(
                                 },
                                 label = { Text(member.fullName ?: member.userId) },
                                 enabled = !isLoading,
-                                shape = MaterialTheme.shapes.medium
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
@@ -376,7 +376,7 @@ fun AddRecurringExpenseScreen(
                                 label = { Text("Equal Split") },
                                 enabled = !isLoading,
                                 modifier = Modifier.weight(1f),
-                                shape = MaterialTheme.shapes.medium
+                                shape = RoundedCornerShape(12.dp)
                             )
                             FilterChip(
                                 selected = splitType == "custom",
@@ -384,7 +384,7 @@ fun AddRecurringExpenseScreen(
                                 label = { Text("Custom Amounts") },
                                 enabled = !isLoading,
                                 modifier = Modifier.weight(1f),
-                                shape = MaterialTheme.shapes.medium
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
 
@@ -410,7 +410,7 @@ fun AddRecurringExpenseScreen(
                                         modifier = Modifier.width(140.dp),
                                         enabled = !isLoading,
                                         singleLine = true,
-                                        shape = MaterialTheme.shapes.medium
+                                        shape = RoundedCornerShape(12.dp)
                                     )
                                 }
                                 Spacer(Modifier.height(8.dp))
@@ -473,17 +473,15 @@ fun AddRecurringExpenseScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !isLoading && name.isNotBlank() && amount.toBigDecimalOrNull() != null && dueDay.toIntOrNull() != null,
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Default.Check, null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add Recurring Bill", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Add Recurring Bill", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 

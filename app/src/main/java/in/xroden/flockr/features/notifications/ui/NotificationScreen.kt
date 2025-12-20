@@ -35,59 +35,43 @@ fun NotificationScreen(
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                            .size(40.dp)
-                    ) {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Notifications",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { viewModel.markAllAsRead() }) {
-                            Icon(
-                                Icons.Default.DoneAll,
-                                "Mark all read",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        IconButton(onClick = { viewModel.clearAllNotifications() }) {
-                            Icon(
-                                Icons.Default.DeleteSweep,
-                                "Clear all",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.markAllAsRead() }) {
+                        Icon(
+                            Icons.Default.DoneAll,
+                            "Mark all read",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    "Notifications",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    IconButton(onClick = { viewModel.clearAllNotifications() }) {
+                        Icon(
+                            Icons.Default.DeleteSweep,
+                            "Clear all",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
                 )
-            }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -107,27 +91,34 @@ fun NotificationScreen(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(32.dp)
                         ) {
                             Surface(
-                                modifier = Modifier.size(120.dp),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.size(96.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Default.Notifications,
                                         contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        modifier = Modifier.size(44.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "All Caught Up",
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "No new notifications to show",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -136,8 +127,8 @@ fun NotificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.notifications) { notification ->
                             NotificationItem(

@@ -177,6 +177,23 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun signInWithGoogle() {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            authRepository.signInWithGoogle().fold(
+                onSuccess = {
+                    // Session flow will handle the rest
+                },
+                onFailure = { error ->
+                    _uiState.value = AuthUiState.Error(
+                        message = error.message ?: "Google sign in failed",
+                        cause = error
+                    )
+                }
+            )
+        }
+    }
+
     fun updateProfile(fullName: String? = null, hasCompletedOnboarding: Boolean? = null) {
         viewModelScope.launch {
             authRepository.updateProfile(fullName, hasCompletedOnboarding).fold(

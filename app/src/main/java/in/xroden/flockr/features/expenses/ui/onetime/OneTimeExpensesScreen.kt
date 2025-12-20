@@ -20,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
+import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
@@ -129,43 +130,53 @@ fun OneTimeExpensesScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item(key = "header") {
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Text(
-                                    text = "All Expenses",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                                MonthSelectorCard(
-                                    selectedMonth = selectedMonth,
-                                    currentDate = currentMonthStart,
+                                MonthSelector(
+                                    selectedMonth = selectedMonth ?: currentMonthStart,
                                     onMonthChange = { selectedMonth = it },
+                                    showClearButton = selectedMonth != null,
                                     onClearFilter = { selectedMonth = null },
-                                    expenseCount = filteredExpenses.size
+                                    subtitle = "${filteredExpenses.size} expenses"
                                 )
 
-                                if (selectedCategory != null || selectedUserId != null) {
+                                // Category filter chips
+                                val categories = remember(state.expenses) {
+                                    state.expenses.map { it.category }.distinct().sorted()
+                                }
+                                if (categories.isNotEmpty()) {
+                                    androidx.compose.foundation.lazy.LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        item {
+                                            FilterChip(
+                                                selected = selectedCategory == null,
+                                                onClick = { selectedCategory = null },
+                                                label = { Text("All") }
+                                            )
+                                        }
+                                        items(count = categories.size) { index ->
+                                            val cat = categories[index]
+                                            FilterChip(
+                                                selected = selectedCategory == cat,
+                                                onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
+                                                label = { Text(cat) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (selectedUserId != null) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        selectedCategory?.let { category ->
-                                            FilterChip(
-                                                selected = true,
-                                                onClick = { selectedCategory = null },
-                                                label = { Text("Category: $category") },
-                                                trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
-                                            )
-                                        }
-                                        selectedUserId?.let {
-                                            FilterChip(
-                                                selected = true,
-                                                onClick = { selectedUserId = null },
-                                                label = { Text("User Filter Active") },
-                                                trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
-                                            )
-                                        }
+                                        FilterChip(
+                                            selected = true,
+                                            onClick = { selectedUserId = null },
+                                            label = { Text("User Filter Active") },
+                                            trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
+                                        )
                                     }
                                 }
                             }

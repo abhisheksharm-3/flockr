@@ -25,8 +25,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.ui.components.forms.FormSectionCard
+import androidx.compose.foundation.shape.RoundedCornerShape
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.features.house.domain.HouseSettingsViewModel
 import `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState
@@ -218,94 +218,61 @@ fun HouseSettingsScreen(
                     .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Header
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Edit House Details",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Update house information and preferences",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
                 // Basic Information
-                SectionCard(title = "Basic Information") {
+                FormSectionCard(
+                    title = "Basic Information",
+                    icon = Icons.Default.Home,
+                    iconTint = MaterialTheme.colorScheme.primary
+                ) {
                     // House Name
-                    Column {
-                        Text(
-                            text = "House Name *",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                    OutlinedTextField(
+                        value = houseName,
+                        onValueChange = { 
+                            houseName = it
+                            nameError = when {
+                                it.isBlank() -> "Name is required"
+                                it.length < 2 -> "Name must be at least 2 characters"
+                                else -> null
+                            }
+                        },
+                        label = { Text("House Name *") },
+                        placeholder = { Text("e.g., Smith Family, Downtown Apartment") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = nameError != null,
+                        supportingText = nameError?.let { { Text(it) } },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
-                        FlockrTextField(
-                            value = houseName,
-                            onValueChange = { 
-                                houseName = it
-                                nameError = when {
-                                    it.isBlank() -> "Name is required"
-                                    it.length < 2 -> "Name must be at least 2 characters"
-                                    else -> null
-                                }
-                            },
-                            placeholder = "e.g., Smith Family, Downtown Apartment",
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            isError = nameError != null
-                        )
-                        nameError?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                            )
-                        }
-                    }
+                    )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Address
-                    Column {
-                        Text(
-                            text = "Address (Optional)",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        label = { Text("Address (Optional)") },
+                        placeholder = { Text("123 Main St, City, State") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
-                        FlockrTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            placeholder = "123 Main St, City, State",
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        )
-                    }
+                    )
                 }
 
                 // Header Image Section
-                SectionCard(title = "Header Image") {
+                FormSectionCard(
+                    title = "Header Image",
+                    icon = Icons.Default.Image,
+                    iconTint = MaterialTheme.colorScheme.tertiary
+                ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -316,7 +283,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp)
-                                    .clip(MaterialTheme.shapes.medium),
+                                    .clip(RoundedCornerShape(12.dp)),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
@@ -324,7 +291,7 @@ fun HouseSettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp),
-                                shape = MaterialTheme.shapes.medium,
+                                shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                             ) {
                                 Box(
@@ -353,10 +320,10 @@ fun HouseSettingsScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                Icons.Default.Image,
+                                Icons.Default.Upload,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -367,37 +334,33 @@ fun HouseSettingsScreen(
                 }
 
                 // Currency Settings
-                SectionCard(title = "Currency & Localization") {
-                    Column {
-                        Text(
-                            text = "Currency",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
+                FormSectionCard(
+                    title = "Currency & Localization",
+                    icon = Icons.Default.Language,
+                    iconTint = MaterialTheme.colorScheme.secondary
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Currency
                         ExposedDropdownMenuBox(
                             expanded = expandedCurrency,
                             onExpandedChange = { expandedCurrency = !expandedCurrency }
                         ) {
-                            FlockrTextField(
+                            OutlinedTextField(
                                 value = "${currencies.find { it.first == currency }?.second} $currency",
                                 onValueChange = {},
                                 readOnly = true,
-                                placeholder = "Select currency",
+                                label = { Text("Currency") },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.AttachMoney,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCurrency)
-                                }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                             ExposedDropdownMenu(
                                 expanded = expandedCurrency,
@@ -416,45 +379,28 @@ fun HouseSettingsScreen(
                                 }
                             }
                         }
-                        Text(
-                            text = "This will be used for all expense displays",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Date Format
-                        Text(
-                            text = "Date Format",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
                         ExposedDropdownMenuBox(
                             expanded = expandedDateFormat,
                             onExpandedChange = { expandedDateFormat = !expandedDateFormat }
                         ) {
-                            FlockrTextField(
+                            OutlinedTextField(
                                 value = dateFormat,
                                 onValueChange = {},
                                 readOnly = true,
-                                placeholder = "Select date format",
+                                label = { Text("Date Format") },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.CalendarToday,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDateFormat)
-                                }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                             ExposedDropdownMenu(
                                 expanded = expandedDateFormat,
@@ -472,39 +418,28 @@ fun HouseSettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         // First Day of Week
-                        Text(
-                            text = "First Day of Week",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
                         ExposedDropdownMenuBox(
                             expanded = expandedFirstDay,
                             onExpandedChange = { expandedFirstDay = !expandedFirstDay }
                         ) {
                             val days = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-                            FlockrTextField(
+                            OutlinedTextField(
                                 value = days[firstDayOfWeek],
                                 onValueChange = {},
                                 readOnly = true,
-                                placeholder = "Select first day",
+                                label = { Text("First Day of Week") },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.CalendarMonth,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFirstDay)
-                                }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                             ExposedDropdownMenu(
                                 expanded = expandedFirstDay,
@@ -522,16 +457,7 @@ fun HouseSettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         // Timezone
-                        Text(
-                            text = "Timezone",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
                         ExposedDropdownMenuBox(
                             expanded = expandedTimezone,
                             onExpandedChange = { expandedTimezone = !expandedTimezone }
@@ -549,24 +475,22 @@ fun HouseSettingsScreen(
                                 "Asia/Kolkata",
                                 "Australia/Sydney"
                             )
-                            FlockrTextField(
+                            OutlinedTextField(
                                 value = timezone,
                                 onValueChange = {},
                                 readOnly = true,
-                                placeholder = "Select timezone",
+                                label = { Text("Timezone") },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
                                 trailingIcon = {
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTimezone)
-                                }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
                             )
                             ExposedDropdownMenu(
                                 expanded = expandedTimezone,
