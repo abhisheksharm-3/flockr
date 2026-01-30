@@ -114,13 +114,10 @@ fun ChoresScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToAddChore,
-                icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Chore") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(8.dp)
+            `in`.xroden.flockr.ui.components.buttons.FlockrExtendedFab(
+                text = "Add Chore",
+                icon = Icons.Default.Add,
+                onClick = onNavigateToAddChore
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -156,29 +153,12 @@ fun ChoresScreen(
                                     viewModel.setFilter(if (selectedTab == 0) ChoreFilter.ACTIVE else ChoreFilter.COMPLETED)
                                 }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    tabs.forEachIndexed { index, title ->
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(4.dp)
-                                                .clip(CircleShape)
-                                                .background(if (selectedTab == index) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                                .clickable { selectedTab = index }
-                                                .padding(vertical = 10.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                title,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (selectedTab == index) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
+                                `in`.xroden.flockr.ui.components.inputs.PillSelector(
+                                    tabs = tabs,
+                                    selectedIndex = selectedTab,
+                                    onTabSelected = { selectedTab = it },
+                                    counts = listOf(state.activeChores.size, state.completedChores.size)
+                                )
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -219,7 +199,7 @@ fun ChoresScreen(
                                 onEdit = { showEditDialog = chore },
                                 onDelete = {
                                     scope.launch {
-                                        viewModel.deleteChore(chore.id)
+                                        viewModel.deleteChore(chore.id, houseId)
                                         snackbarHostState.showSnackbar("Chore deleted")
                                     }
                                 }

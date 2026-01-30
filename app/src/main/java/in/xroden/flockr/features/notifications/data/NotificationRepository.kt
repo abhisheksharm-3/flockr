@@ -18,8 +18,6 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.postgrest.query.filter.FilterOperation
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -39,92 +37,39 @@ import javax.inject.Singleton
 class NotificationRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val notificationService: NotificationService
-) {
+) : INotificationRepository {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    fun getNotificationsFlow(): Flow<Result<List<Notification>>> {
+    override fun getNotificationsFlow(): Flow<Result<List<Notification>>> {
         val currentUserId = userId ?: return flowOf(Result.success(emptyList()))
 
         return callbackFlow {
-            val channelId = "notifications_$currentUserId"
+            // Use unique channel ID to prevent reuse of already-subscribed channels
+            val channelId = "notifications_${currentUserId}_${UUID.randomUUID()}"
             val channel = supabase.realtime.channel(channelId)
 
             try {
-                val initial = supabase.from("notifications")
-                    .select(Columns.ALL) {
-                        filter {
-                            eq("user_id", currentUserId)
-                        }
-                        order("created_at", Order.DESCENDING)
-                    }
-                
-                val initialResponse = initial
-                val initialList = Json.decodeFromString(ListSerializer(NotificationSerializer), initialResponse.data)
-
-                send(Result.success(initialList))
-
+                // Set up change flow BEFORE subscribing (required by Supabase SDK)
                 val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                     table = "notifications"
                     filter(FilterOperation("user_id", FilterOperator.EQ, currentUserId))
                 }
 
+                // Subscribe to channel
                 channel.subscribe(blockUntilSubscribed = true)
 
+                // Fetch and send initial data AFTER subscription
+                val initialList = fetchNotifications(currentUserId)
+                send(Result.success(initialList))
+
+                // Collect changes
                 changeFlow.collect { action ->
-                    // Handle INSERT - show notification and refetch
                     if (action is PostgresAction.Insert) {
-                        try {
-                            val record = action.record
-                            val notificationId = record["id"]?.jsonPrimitive?.content ?: ""
-                            val title = record["title"]?.jsonPrimitive?.content ?: "New Notification"
-                            val message = record["message"]?.jsonPrimitive?.content ?: ""
-                            val houseId = record["house_id"]?.jsonPrimitive?.content
-                            val typeStr = record["type"]?.jsonPrimitive?.content ?: "general"
-
-                            // Check preferences before showing notification
-                            var shouldShow = true
-                            if (houseId != null) {
-                                val prefs = getNotificationPreferences(houseId).getOrNull()
-                                if (prefs != null) {
-                                    shouldShow = when (typeStr) {
-                                        "member_joined" -> prefs.enableMemberJoined
-                                        "expense", "expense_added", "per_diem" -> prefs.enableExpenseAdded
-                                        "chore", "chore_assigned" -> prefs.enableChoreAssigned
-                                        "message", "message_sent" -> prefs.enableMessageSent
-                                        "shopping", "shopping_item", "shopping_item_added" -> prefs.enableShoppingItemAdded
-                                        else -> true
-                                    }
-                                }
-                            }
-
-                            if (shouldShow) {
-                                notificationService.showNotification(
-                                    id = notificationId,
-                                    title = title,
-                                    message = message,
-                                    houseId = houseId,
-                                    type = typeStr,
-                                    data = null
-                                )
-                            }
-                        } catch (_: Exception) {
-                            // Ignore device notification errors
-                        }
+                        handleNewNotification(action)
                     }
-
-                    // Handle INSERT, UPDATE, and DELETE - all trigger a refetch for accurate unread count
                     delay(100)
-                    val updated = supabase.from("notifications")
-                        .select(Columns.ALL) {
-                            filter {
-                                eq("user_id", currentUserId)
-                            }
-                            order("created_at", Order.DESCENDING)
-                        }
-                    
-                    val updatedList = Json.decodeFromString(ListSerializer(NotificationSerializer), updated.data)
-                    
+                    val updatedList = fetchNotifications(currentUserId)
                     send(Result.success(updatedList))
                 }
             } catch (e: Exception) {
@@ -132,20 +77,63 @@ class NotificationRepository @Inject constructor(
             }
 
             awaitClose {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        supabase.realtime.removeChannel(channel)
-                    } catch (_: Exception) {
-                        // Ignore cleanup errors
+                launch { runCatching { supabase.realtime.removeChannel(channel) } }
+            }
+        }
+    }
+
+    private suspend fun fetchNotifications(userId: String): List<Notification> {
+        val response = supabase.from("notifications")
+            .select(Columns.ALL) {
+                filter { eq("user_id", userId) }
+                order("created_at", Order.DESCENDING)
+            }
+        return Json.decodeFromString(ListSerializer(NotificationSerializer), response.data)
+    }
+
+    private suspend fun handleNewNotification(action: PostgresAction.Insert) {
+        try {
+            val record = action.record
+            val notificationId = record["id"]?.jsonPrimitive?.content ?: ""
+            val title = record["title"]?.jsonPrimitive?.content ?: "New Notification"
+            val message = record["message"]?.jsonPrimitive?.content ?: ""
+            val houseId = record["house_id"]?.jsonPrimitive?.content
+            val typeStr = record["type"]?.jsonPrimitive?.content ?: "general"
+
+            var shouldShow = true
+            if (houseId != null) {
+                val prefs = getNotificationPreferences(houseId).getOrNull()
+                if (prefs != null) {
+                    shouldShow = when (typeStr) {
+                        "member_joined" -> prefs.enableMemberJoined
+                        "expense", "expense_added", "per_diem" -> prefs.enableExpenseAdded
+                        "chore", "chore_assigned" -> prefs.enableChoreAssigned
+                        "message", "message_sent" -> prefs.enableMessageSent
+                        "shopping", "shopping_item", "shopping_item_added" -> prefs.enableShoppingItemAdded
+                        else -> true
                     }
                 }
             }
+
+            if (shouldShow) {
+                notificationService.showNotification(
+                    id = notificationId,
+                    title = title,
+                    message = message,
+                    houseId = houseId,
+                    type = typeStr,
+                    data = null
+                )
+            }
+        } catch (_: Exception) {
+            // Ignore device notification errors
         }
     }
 
 
 
-    suspend fun markAsRead(notificationId: String): Result<Unit> {
+
+    override suspend fun markAsRead(notificationId: String): Result<Unit> {
         return try {
             supabase.from("notifications")
                 .update(NotificationUpdate(isRead = true)) {
@@ -160,7 +148,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun markAllAsRead(): Result<Unit> {
+    override suspend fun markAllAsRead(): Result<Unit> {
         return try {
             userId ?: return Result.failure(Exception("No user logged in"))
 
@@ -172,7 +160,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteNotification(notificationId: String): Result<Unit> {
+    override suspend fun deleteNotification(notificationId: String): Result<Unit> {
         return try {
             @Serializable
             data class DeleteNotificationParams(
@@ -191,7 +179,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteAllNotifications(): Result<Unit> {
+    override suspend fun deleteAllNotifications(): Result<Unit> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
             
@@ -212,7 +200,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun getNotificationPreferences(houseId: String): Result<NotificationPreference?> {
+    override suspend fun getNotificationPreferences(houseId: String): Result<NotificationPreference?> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
@@ -232,7 +220,7 @@ class NotificationRepository @Inject constructor(
     }
 
 
-    suspend fun ensurePreferencesExist(houseId: String) {
+    override suspend fun ensurePreferencesExist(houseId: String) {
         try {
             val currentUserId = userId ?: return
             
@@ -264,7 +252,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun getNotificationPreferences(): List<NotificationPreference> {
+    override suspend fun getNotificationPreferences(): List<NotificationPreference> {
         return try {
             val currentUserId = userId ?: return emptyList()
 
@@ -280,7 +268,7 @@ class NotificationRepository @Inject constructor(
         }
     }
 
-    suspend fun updateNotificationPreferences(
+    override suspend fun updateNotificationPreferences(
         houseId: String,
         key: String,
         enabled: Boolean

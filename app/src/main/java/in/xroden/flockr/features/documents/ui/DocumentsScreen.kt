@@ -31,6 +31,7 @@ import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
 import `in`.xroden.flockr.features.documents.domain.DocumentUiState
 import `in`.xroden.flockr.features.documents.domain.UploadDocumentUiState
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +45,8 @@ fun DocumentsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsState()
-    
+    val haptics = rememberHapticFeedback()
+
     LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
 
      val filePickerLauncher = rememberLauncherForActivityResult(
@@ -66,7 +68,7 @@ fun DocumentsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Documents", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -79,7 +81,7 @@ fun DocumentsScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { filePickerLauncher.launch("*/*") },
+                onClick = { haptics.performClick(); filePickerLauncher.launch("*/*") },
                 text = { Text("Upload File", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.CloudUpload, null) },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -126,8 +128,8 @@ fun DocumentsScreen(
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                TabButton("Personal", selectedTab == 0) { selectedTab = 0 }
-                TabButton("House", selectedTab == 1) { selectedTab = 1 }
+                TabButton("Personal", selectedTab == 0) { haptics.performSelection(); selectedTab = 0 }
+                TabButton("House", selectedTab == 1) { haptics.performSelection(); selectedTab = 1 }
             }
             
             // Content

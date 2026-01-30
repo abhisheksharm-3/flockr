@@ -28,6 +28,7 @@ import `in`.xroden.flockr.features.auth.domain.SignInUiState
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +46,7 @@ fun SignupScreen(
     // Get Activity context for Credential Manager
     val context = LocalContext.current
     val activity = context as? Activity
+    val haptics = rememberHapticFeedback()
 
     Scaffold(
         topBar = {
@@ -57,7 +59,7 @@ fun SignupScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateToLogin) {
+                    IconButton(onClick = { haptics.performClick(); onNavigateToLogin() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
@@ -238,6 +240,7 @@ fun SignupScreen(
             FlockrPrimaryButton(
                 text = if (uiState is AuthUiState.Loading) "Creating Account..." else "Create Account",
                 onClick = {
+                    haptics.performClick()
                     if (password == confirmPassword) {
                         viewModel.signUp(email, password, fullName)
                     }
@@ -312,7 +315,7 @@ fun SignupScreen(
 
             // Sign in prompt
             OutlinedButton(
-                onClick = onNavigateToLogin,
+                onClick = { haptics.performClick(); onNavigateToLogin() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {

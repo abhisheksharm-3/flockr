@@ -17,13 +17,13 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : IAuthRepository {
     val sessionFlow: Flow<SessionStatus> = supabase.auth.sessionStatus
 
     val currentUser: UserInfo?
         get() = supabase.auth.currentUserOrNull()
 
-    suspend fun signUp(email: String, password: String, fullName: String): Result<Unit> = runCatching {
+    override suspend fun signUp(email: String, password: String, fullName: String): Result<Unit> = runCatching {
         supabase.auth.signUpWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
@@ -43,7 +43,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+    override suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
         supabase.auth.signInWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
@@ -61,7 +61,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun signOut(): Result<Unit> = runCatching {
+    override suspend fun signOut(): Result<Unit> = runCatching {
         supabase.auth.signOut()
     }
 
@@ -77,7 +77,7 @@ class AuthRepository @Inject constructor(
             .decodeSingle<Profile>()
     }
 
-    suspend fun updateProfile(fullName: String?, hasCompletedOnboarding: Boolean?, avatarUrl: String? = null): Result<Unit> = runCatching {
+    override suspend fun updateProfile(fullName: String?, avatarUrl: String?, hasCompletedOnboarding: Boolean?): Result<Unit> = runCatching {
         val userId = currentUser?.id ?: throw IllegalStateException("No user logged in")
 
         if (fullName == null && hasCompletedOnboarding == null && avatarUrl == null) {
@@ -95,4 +95,10 @@ class AuthRepository @Inject constructor(
                 filter { eq("id", userId) }
             }
     }
+
+    override suspend fun getCurrentProfile(): Result<Profile?> = getProfile()
+
+    override suspend fun isUserAuthenticated(): Boolean = currentUser != null
+
+    override fun getCurrentUserId(): String? = currentUser?.id
 }

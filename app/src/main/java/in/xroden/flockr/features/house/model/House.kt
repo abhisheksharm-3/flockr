@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.data.enums.InvitationStatus
 import `in`.xroden.flockr.data.serialization.InstantSerializer
@@ -8,6 +9,7 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@Immutable
 @Serializable
 data class House(
     val id: String,
@@ -32,6 +34,7 @@ data class House(
     val updatedAt: Instant? = null
 )
 
+@Immutable
 @Serializable
 data class HouseMember(
     val id: String,
@@ -46,12 +49,14 @@ data class HouseMember(
     val joinedAt: Instant
 )
 
+@Immutable
 @Serializable
 data class HouseWithMembers(
     val house: House,
     val members: List<Profile>
 )
 
+@Immutable
 @Serializable
 data class MemberWithProfile(
     @SerialName("user_id")
@@ -67,6 +72,7 @@ data class MemberWithProfile(
     val avatarUrl: String? = null
 )
 
+@Immutable
 @Serializable
 data class HouseInvitation(
     val id: String,
@@ -82,6 +88,7 @@ data class HouseInvitation(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class InvitationWithHouse(
     val id: String,

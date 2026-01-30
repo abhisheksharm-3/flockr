@@ -21,7 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.domain.CreateExpenseUiState
@@ -39,7 +39,7 @@ fun AddExpenseScreen(
     initialQuantity: Int? = null,
     onNavigateBack: () -> Unit,
     onExpenseAdded: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel(),
+    viewModel: OneTimeExpenseViewModel = hiltViewModel(),
     houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf(initialName ?: "") }

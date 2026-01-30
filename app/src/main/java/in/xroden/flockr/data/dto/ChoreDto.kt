@@ -3,11 +3,10 @@ package `in`.xroden.flockr.data.dto
 import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.data.serialization.LocalDateSerializer
 import `in`.xroden.flockr.data.serialization.InstantSerializer
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlin.time.ExperimentalTime
 
 @Serializable
 data class ChoreInsert(
@@ -28,7 +27,7 @@ data class ChoreInsert(
 )
 
 @Serializable
-data class ChoreUpdate @OptIn(ExperimentalTime::class) constructor(
+data class ChoreUpdate(
     @SerialName("task_name")
     val taskName: String? = null,
     val description: String? = null,

@@ -20,7 +20,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.HouseAuditLog
-import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.data.HouseAuditRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,14 +28,13 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
-import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.json.JsonPrimitive
 
 @HiltViewModel
 class HouseAuditLogViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
+    private val houseAuditRepository: HouseAuditRepository
 ) : ViewModel() {
 
     private val _auditLogs = MutableStateFlow<List<HouseAuditLog>>(emptyList())
@@ -47,13 +46,11 @@ class HouseAuditLogViewModel @Inject constructor(
     fun loadAuditLogs(houseId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            Log.d("HouseAuditLog", "Loading audit logs for houseId: $houseId")
             try {
-                val logs = houseRepository.getHouseAuditLogs(houseId)
-                Log.d("HouseAuditLog", "Loaded ${logs.size} audit logs")
+                val logs = houseAuditRepository.getHouseAuditLogs(houseId)
                 _auditLogs.value = logs
-            } catch (e: Exception) {
-                Log.e("HouseAuditLog", "Error loading audit logs", e)
+            } catch (_: Exception) {
+                _auditLogs.value = emptyList()
             } finally {
                 _isLoading.value = false
             }

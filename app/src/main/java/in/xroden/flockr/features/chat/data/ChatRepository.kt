@@ -1,5 +1,9 @@
 package `in`.xroden.flockr.features.chat.data
 
+import `in`.xroden.flockr.core.network.RealtimeConnectionManager
+import `in`.xroden.flockr.core.validation.Validators
+import `in`.xroden.flockr.data.base.BaseRealtimeRepository
+import `in`.xroden.flockr.data.dto.HouseNotificationParams
 import `in`.xroden.flockr.data.dto.MessageInsert
 import `in`.xroden.flockr.features.chat.model.Message
 import io.github.jan.supabase.SupabaseClient
@@ -8,65 +12,35 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
-import io.github.jan.supabase.realtime.PostgresAction
-import io.github.jan.supabase.realtime.channel
-import io.github.jan.supabase.realtime.postgresChangeFlow
-import io.github.jan.supabase.realtime.realtime
-import io.github.jan.supabase.postgrest.query.filter.FilterOperation
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 
 @Singleton
 class ChatRepository @Inject constructor(
-    private val supabase: SupabaseClient
-) {
+    supabase: SupabaseClient,
+    connectionManager: RealtimeConnectionManager
+) : BaseRealtimeRepository(supabase, connectionManager), IChatRepository {
+
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    fun getCurrentUserId(): String? = userId
+    override fun getCurrentUserId(): String? = userId
 
-    fun getMessagesFlow(houseId: String): Flow<Result<List<Message>>> = callbackFlow {
-        val channelId = "messages_$houseId"
-        val channel = supabase.realtime.channel(channelId)
-
-        try {
-            send(getMessages(houseId))
-
-            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "messages"
-                filter(FilterOperation("house_id", FilterOperator.EQ, houseId))
-            }
-
-            channel.subscribe(blockUntilSubscribed = true)
-
-            changeFlow.collect {
-                kotlinx.coroutines.delay(100)
-                send(getMessages(houseId))
-            }
-        } catch (e: Exception) {
-            send(Result.failure(e))
-        }
-
-        awaitClose {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                try {
-                    supabase.realtime.removeChannel(channel)
-                } catch (_: Exception) {
-                    // Ignore cleanup errors
-                }
-            }
-        }
+    override fun getMessagesFlow(houseId: String): Flow<Result<List<Message>>> {
+        return createRealtimeFlow(
+            channelId = "messages_$houseId",
+            table = "messages",
+            filterColumn = "house_id",
+            filterValue = houseId,
+            fetchData = { getMessages(houseId) }
+        )
     }
 
     suspend fun getMessages(houseId: String): Result<List<Message>> {
@@ -107,36 +81,22 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    suspend fun sendMessage(houseId: String, content: String): Result<Unit> {
+    override suspend fun sendMessage(houseId: String, content: String): Result<Unit> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+
+            val validatedContent = Validators.validateMessageContent(content).getOrThrow()
 
             supabase.from("messages")
                 .insert(
                     MessageInsert(
                         houseId = houseId,
                         userId = currentUserId,
-                        content = content
+                        content = validatedContent
                     )
                 )
 
             try {
-                @Serializable
-                data class HouseNotificationParams(
-                    @SerialName("p_house_id")
-                    val houseId: String,
-                    @SerialName("p_title")
-                    val title: String,
-                    @SerialName("p_message")
-                    val message: String,
-                    @SerialName("p_type")
-                    val type: String,
-                    @SerialName("p_data")
-                    val data: String,
-                    @SerialName("p_exclude_user_id")
-                    val excludeUserId: String?
-                )
-
                 supabase.postgrest.rpc(
                     function = "create_notification_for_house",
                     parameters = HouseNotificationParams(
@@ -149,7 +109,6 @@ class ChatRepository @Inject constructor(
                     )
                 )
             } catch (_: Exception) {
-                // Ignore notification errors
             }
 
             Result.success(Unit)

@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
-import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import `in`.xroden.flockr.features.expenses.data.IRecurringExpenseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RecurringExpenseViewModel @Inject constructor(
-    private val expenseRepository: ExpenseRepository
+    private val recurringExpenseRepository: IRecurringExpenseRepository,
+    private val houseRepository: HouseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<RecurringExpenseUiState>(RecurringExpenseUiState.Loading)
@@ -28,11 +32,21 @@ class RecurringExpenseViewModel @Inject constructor(
     private val _paymentHistoryState = MutableStateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>>(emptyList())
     val paymentHistoryState: StateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>> = _paymentHistoryState.asStateFlow()
 
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
+    private var currentHouseId: String? = null
+
     fun loadRecurringExpenses(houseId: String) {
+        val skipLoading = currentHouseId == houseId && _uiState.value is RecurringExpenseUiState.Success
+        currentHouseId = houseId
+
         viewModelScope.launch {
-            _uiState.value = RecurringExpenseUiState.Loading
-            
-            expenseRepository.getRecurringExpenses(houseId).fold(
+            if (!skipLoading) {
+                _uiState.value = RecurringExpenseUiState.Loading
+            }
+
+            recurringExpenseRepository.getRecurringExpenses(houseId).fold(
                 onSuccess = { expenses ->
                     _uiState.value = RecurringExpenseUiState.Success(expenses)
                 },
@@ -66,7 +80,7 @@ class RecurringExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             _createState.value = CreateExpenseUiState.Loading
             
-            expenseRepository.createRecurringExpense(
+            recurringExpenseRepository.createRecurringExpense(
                 houseId = houseId,
                 name = name,
                 amount = amount,
@@ -108,7 +122,7 @@ class RecurringExpenseViewModel @Inject constructor(
         isActive: Boolean?
     ) {
         viewModelScope.launch {
-            expenseRepository.updateRecurringExpense(
+            recurringExpenseRepository.updateRecurringExpense(
                 expenseId = expenseId,
                 name = name,
                 amount = amount,
@@ -145,17 +159,13 @@ class RecurringExpenseViewModel @Inject constructor(
         paymentDate: LocalDate
     ) {
         viewModelScope.launch {
-            android.util.Log.d("RecurringExpenseViewModel", "markAsPaid called - houseId: $houseId, expenseId: $expenseId")
-            
             _uiState.value = RecurringExpenseUiState.Loading
             
-            expenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
+            recurringExpenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
                 onSuccess = {
-                    android.util.Log.d("RecurringExpenseViewModel", "markAsPaid successful, reloading expenses")
                     loadRecurringExpenses(houseId)
                 },
                 onFailure = { error ->
-                    android.util.Log.e("RecurringExpenseViewModel", "markAsPaid failed", error)
                     _uiState.value = RecurringExpenseUiState.Error(
                         message = error.message ?: "Failed to mark expense as paid",
                         cause = error
@@ -167,7 +177,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
     fun deleteRecurringExpense(houseId: String, expenseId: String) {
         viewModelScope.launch {
-            expenseRepository.deleteRecurringExpense(expenseId).fold(
+            recurringExpenseRepository.deleteRecurringExpense(expenseId).fold(
                 onSuccess = {
                     loadRecurringExpenses(houseId)
                 },
@@ -187,7 +197,7 @@ class RecurringExpenseViewModel @Inject constructor(
 
     fun loadPaymentHistory(recurringExpenseId: String) {
         viewModelScope.launch {
-            expenseRepository.getPaymentHistory(recurringExpenseId).fold(
+            recurringExpenseRepository.getPaymentHistory(recurringExpenseId).fold(
                 onSuccess = { history ->
                     _paymentHistoryState.value = history
                 },
@@ -196,5 +206,22 @@ class RecurringExpenseViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            houseRepository.getHouseConfig(houseId).fold(
+                onSuccess = { config ->
+                    _houseConfig.value = config
+                },
+                onFailure = {
+                    _houseConfig.value = null
+                }
+            )
+        }
+    }
+
+    suspend fun getHouseMembers(houseId: String): List<MemberWithProfile> {
+        return houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
     }
 }

@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,7 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
@@ -39,7 +41,7 @@ fun OneTimeExpensesScreen(
     onAddExpense: () -> Unit,
     onNavigateToExpenseDetail: (String) -> Unit,
     onNavigateToEditExpense: (String) -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
     val expenseState by viewModel.expenseState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
@@ -47,6 +49,9 @@ fun OneTimeExpensesScreen(
     val currencySymbol = remember(houseConfig) {
         getCurrencySymbol(houseConfig?.currencyCode ?: "$")
     }
+    
+    val isRefreshing = expenseState is OneTimeExpenseUiState.Loading
+    val pullToRefreshState = rememberPullToRefreshState()
 
     // State for filtering
     var selectedMonth by remember { mutableStateOf<LocalDate?>(null) }
@@ -78,13 +83,10 @@ fun OneTimeExpensesScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddExpense,
-                icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Expense", fontWeight = FontWeight.Bold) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(8.dp)
+            `in`.xroden.flockr.ui.components.buttons.FlockrExtendedFab(
+                text = "Add Expense",
+                icon = Icons.Default.Add,
+                onClick = onAddExpense
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -124,91 +126,97 @@ fun OneTimeExpensesScreen(
                         onAddExpense = onAddExpense
                     )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { viewModel.loadExpenses(houseId) },
+                        state = pullToRefreshState,
+                        modifier = Modifier.fillMaxSize().padding(padding)
                     ) {
-                        item(key = "header") {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item(key = "header") {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                                MonthSelector(
-                                    selectedMonth = selectedMonth ?: currentMonthStart,
-                                    onMonthChange = { selectedMonth = it },
-                                    showClearButton = selectedMonth != null,
-                                    onClearFilter = { selectedMonth = null },
-                                    subtitle = "${filteredExpenses.size} expenses",
-                                    timezone = houseConfig?.timezone
-                                )
+                                    MonthSelector(
+                                        selectedMonth = selectedMonth ?: currentMonthStart,
+                                        onMonthChange = { selectedMonth = it },
+                                        showClearButton = selectedMonth != null,
+                                        onClearFilter = { selectedMonth = null },
+                                        subtitle = "${filteredExpenses.size} expenses",
+                                        timezone = houseConfig?.timezone
+                                    )
 
-                                // Category filter chips
-                                val categories = remember(state.expenses) {
-                                    state.expenses.map { it.category }.distinct().sorted()
-                                }
-                                if (categories.isNotEmpty()) {
-                                    androidx.compose.foundation.lazy.LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        item {
-                                            FilterChip(
-                                                selected = selectedCategory == null,
-                                                onClick = { selectedCategory = null },
-                                                label = { Text("All") }
-                                            )
-                                        }
-                                        items(count = categories.size) { index ->
-                                            val cat = categories[index]
-                                            FilterChip(
-                                                selected = selectedCategory == cat,
-                                                onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
-                                                label = { Text(cat) }
-                                            )
+                                    // Category filter chips
+                                    val categories = remember(state.expenses) {
+                                        state.expenses.map { it.category }.distinct().sorted()
+                                    }
+                                    if (categories.isNotEmpty()) {
+                                        androidx.compose.foundation.lazy.LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            item {
+                                                FilterChip(
+                                                    selected = selectedCategory == null,
+                                                    onClick = { selectedCategory = null },
+                                                    label = { Text("All") }
+                                                )
+                                            }
+                                            items(count = categories.size) { index ->
+                                                val cat = categories[index]
+                                                FilterChip(
+                                                    selected = selectedCategory == cat,
+                                                    onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
+                                                    label = { Text(cat) }
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                if (selectedUserId != null) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        FilterChip(
-                                            selected = true,
-                                            onClick = { selectedUserId = null },
-                                            label = { Text("User Filter Active") },
-                                            trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
-                                        )
+                                    if (selectedUserId != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            FilterChip(
+                                                selected = true,
+                                                onClick = { selectedUserId = null },
+                                                label = { Text("User Filter Active") },
+                                                trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
                         
-                        if (filteredExpenses.isEmpty()) {
-                             item(key = "empty_filter") {
-                                 Box(
-                                     modifier = Modifier.fillMaxWidth().padding(32.dp),
-                                     contentAlignment = Alignment.Center
-                                 ) {
-                                     Text("No expenses match filter", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
-                                 }
-                             }
-                        } else {
-                            items(filteredExpenses, key = { it.id }) { expense ->
-                                ModernExpenseCard(
-                                    expense = expense,
-                                    houseId = houseId,
-                                    currencySymbol = currencySymbol,
-                                    houseConfig = houseConfig,
-                                    onClick = { onNavigateToExpenseDetail(expense.id) },
-                                    onEdit = { onNavigateToEditExpense(expense.id) }
-                                )
+                            if (filteredExpenses.isEmpty()) {
+                                item(key = "empty_filter") {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("No expenses match filter", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+                                    }
+                                }
+                            } else {
+                                items(filteredExpenses, key = { it.id }) { expense ->
+                                    ModernExpenseCard(
+                                        expense = expense,
+                                        houseId = houseId,
+                                        currencySymbol = currencySymbol,
+                                        houseConfig = houseConfig,
+                                        onClick = { onNavigateToExpenseDetail(expense.id) },
+                                        onEdit = { onNavigateToEditExpense(expense.id) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
                             }
-                        }
 
-                        item(key = "spacer") {
-                            Spacer(modifier = Modifier.height(80.dp))
+                            item(key = "spacer") {
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
                         }
                     }
                 }
@@ -243,7 +251,8 @@ fun ModernExpenseCard(
     houseConfig: `in`.xroden.flockr.features.house.model.HouseConfig? = null,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    modifier: Modifier = Modifier,
+    viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -276,7 +285,7 @@ fun ModernExpenseCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(0.dp),
@@ -287,11 +296,11 @@ fun ModernExpenseCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(expense.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(4.dp))
-                        // Use house config date formatting
-                        val formattedDate = remember(expense.date, houseConfig) {
-                            expense.date.formatWithHouseConfig(houseConfig)
-                        }
-                        Text(formattedDate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Use house config date formatting
+                    val formattedDate = remember(expense.date, houseConfig) {
+                        expense.date.formatWithHouseConfig(houseConfig)
+                    }
+                    Text(formattedDate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

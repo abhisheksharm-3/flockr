@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.data.enums.HouseMemberRole
@@ -22,7 +23,8 @@ sealed interface HouseManagementUiState {
 
 @HiltViewModel
 class HouseManagementViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
+    private val houseRepository: HouseRepository,
+    private val houseInvitationRepository: HouseInvitationRepository
 ) : ViewModel() {
 
     private val _detailState = MutableStateFlow<HouseDetailUiState>(HouseDetailUiState.Loading)
@@ -68,7 +70,7 @@ class HouseManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _invitationsState.value = InvitationsUiState.Loading
             
-            houseRepository.getPendingInvitations().fold(
+            houseInvitationRepository.getPendingInvitations().fold(
                 onSuccess = { invitations ->
                     // Filter by houseId since API returns all invitations
                     val filtered = invitations.filter { invitation -> invitation.houseId == houseId }
@@ -88,29 +90,29 @@ class HouseManagementViewModel @Inject constructor(
     }
 
     suspend fun getPendingInvitations(houseId: String): List<InvitationWithHouse> {
-        return houseRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
+        return houseInvitationRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
     }
 
     suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
-        return houseRepository.removeMemberFromHouse(houseId, userId).onSuccess {
+        return houseRepository.removeMember(houseId, userId).onSuccess {
             loadHouseDetails(houseId)
         }
     }
 
     suspend fun inviteMember(houseId: String, email: String): Result<Unit> {
-        return houseRepository.inviteMember(houseId, email).onSuccess {
+        return houseInvitationRepository.inviteMember(houseId, email).onSuccess {
             loadInvitations(houseId)
         }
     }
 
     suspend fun cancelInvitation(houseId: String, email: String): Result<Unit> {
-        return houseRepository.cancelInvitation(houseId, email).onSuccess {
+        return houseInvitationRepository.cancelInvitation(houseId, email).onSuccess {
             loadInvitations(houseId)
         }
     }
 
     suspend fun resendInvitationNotification(houseId: String, email: String): Result<Unit> {
-        return houseRepository.resendInvitationNotification(houseId, email)
+        return houseInvitationRepository.resendInvitationNotification(houseId, email)
     }
 
     suspend fun getHouseMembers(houseId: String) = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }

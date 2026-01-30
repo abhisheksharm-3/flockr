@@ -29,8 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.BalanceViewModel
 import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
+import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import java.math.BigDecimal
 import kotlin.math.abs
@@ -40,13 +41,16 @@ import kotlin.math.abs
 fun BalancesScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: BalanceViewModel = hiltViewModel(),
+    houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.balanceState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }
+    
+    val currentUserId = houseManagementViewModel.getCurrentUserId() ?: ""
 
     LaunchedEffect(houseId) {
         viewModel.loadBalances(houseId)
@@ -119,15 +123,21 @@ fun BalancesScreen(
                     }
                 }
                 is BalanceUiState.Success -> {
+                    // Get current user's name from balances
+                    val currentUserName = state.balances.find { it.userId == currentUserId }?.fullName ?: "You"
+                    
                     BalancesContent(
                         houseId = houseId,
                         balances = state.balances,
-                        currentUserId = viewModel.getCurrentUserId() ?: "",
+                        currentUserId = currentUserId,
+                        currentUserName = currentUserName,
                         currencySymbol = currencySymbol,
                         onSettle = { userBalance, amount, notes ->
                             viewModel.settleBalance(
                                 houseId = houseId,
+                                currentUserId = currentUserId,
                                 payeeId = userBalance.userId,
+                                payerName = currentUserName,
                                 payeeName = userBalance.fullName ?: "User",
                                 amount = amount.toBigDecimal(),
                                 notes = notes
@@ -146,9 +156,10 @@ fun BalancesContent(
     houseId: String,
     balances: List<UserBalance>,
     currentUserId: String,
+    currentUserName: String,
     currencySymbol: String,
     onSettle: (UserBalance, Double, String) -> Unit,
-    viewModel: ExpenseViewModel
+    viewModel: BalanceViewModel
 ) {
     val otherBalances = remember(balances, currentUserId) {
         balances.filter { it.userId != currentUserId }
@@ -394,7 +405,7 @@ fun BalancePersonCard(
     balance: UserBalance,
     currencySymbol: String,
     onSettle: (UserBalance, Double, String) -> Unit,
-    viewModel: ExpenseViewModel,
+    viewModel: BalanceViewModel,
     currentUserId: String
 ) {
     var expanded by remember { mutableStateOf(false) }

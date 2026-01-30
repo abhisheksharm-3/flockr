@@ -8,47 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
-object PermissionHandler {
-    
-    fun hasNotificationPermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true // No permission needed for Android 12 and below
-        }
-    }
-
-    fun hasLocationPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    fun hasStoragePermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-}
-
 class PermissionManager(private val activity: ComponentActivity) {
-    
+
     private var onNotificationPermissionResult: ((Boolean) -> Unit)? = null
     private var onLocationPermissionResult: ((Boolean) -> Unit)? = null
     private var onStoragePermissionResult: ((Boolean) -> Unit)? = null
@@ -93,12 +54,26 @@ class PermissionManager(private val activity: ComponentActivity) {
 
     fun requestStoragePermission(onResult: (Boolean) -> Unit) {
         onStoragePermissionResult = onResult
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
+        storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+    }
+
+    companion object {
+        fun hasNotificationPermission(context: Context): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
         }
-        storagePermissionLauncher.launch(permission)
+
+        fun hasStoragePermission(context: Context): Boolean {
+            return ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_MEDIA_IMAGES
+            ) == PackageManager.PERMISSION_GRANTED
+        }
     }
 }
-

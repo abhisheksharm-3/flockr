@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.enums.ExpenseDueStatus
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
@@ -12,6 +13,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import java.math.BigDecimal
 
+@Immutable
 @Serializable
 data class OneTimeExpense(
     val id: String,
@@ -33,6 +35,7 @@ data class OneTimeExpense(
     val splits: List<ExpenseSplit>? = null
 )
 
+@Immutable
 @Serializable
 data class RecurringExpense(
     val id: String,
@@ -85,6 +88,7 @@ data class RecurringExpense(
     val daysUntilDue: Int? = null
 )
 
+@Immutable
 @Serializable
 data class ExpenseSplit(
     val id: String,
@@ -102,6 +106,7 @@ data class ExpenseSplit(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class Transaction(
     val id: String,
@@ -121,6 +126,7 @@ data class Transaction(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class PaymentHistory(
     val id: String,

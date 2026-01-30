@@ -27,14 +27,26 @@ class ChoreViewModel @Inject constructor(
     private val _filterOption = MutableStateFlow(ChoreFilter.ALL)
     val filterOption: StateFlow<ChoreFilter> = _filterOption.asStateFlow()
 
+    private var currentHouseId: String? = null
+    private var choreJob: kotlinx.coroutines.Job? = null
+
     fun setFilter(filter: ChoreFilter) {
         _filterOption.value = filter
     }
 
     fun loadChores(houseId: String) {
-        viewModelScope.launch {
-            _uiState.value = ChoreUiState.Loading
-            
+        // Skip if already loading the same house
+        if (currentHouseId == houseId && choreJob?.isActive == true) return
+
+        choreJob?.cancel()
+        currentHouseId = houseId
+
+        choreJob = viewModelScope.launch {
+            // Only show loading on first load
+            if (_uiState.value !is ChoreUiState.Success) {
+                _uiState.value = ChoreUiState.Loading
+            }
+
             choreRepository.getChoresFlow(houseId).collect { result ->
                 result.fold(
                     onSuccess = { chores ->
@@ -56,9 +68,7 @@ class ChoreViewModel @Inject constructor(
                 )
             }
         }
-    }
-
-    fun createChore(
+    }    fun createChore(
         houseId: String,
         taskName: String,
         description: String?,
@@ -121,25 +131,29 @@ class ChoreViewModel @Inject constructor(
 
     fun completeChore(choreId: String, houseId: String, taskName: String) {
         viewModelScope.launch {
-            choreRepository.completeChore(choreId, houseId, taskName).fold(
+            // Optimistic update BEFORE server call for snappier UI
+            val currentState = _uiState.value
+            if (currentState is ChoreUiState.Success) {
+                val now = Clock.System.now()
+                val updatedAll = currentState.allChores.map { chore ->
+                    if (chore.id == choreId) {
+                        chore.copy(isCompleted = true, completedAt = now)
+                    } else chore
+                }
+                _uiState.value = currentState.copy(
+                    allChores = updatedAll,
+                    activeChores = updatedAll.filter { !it.isCompleted },
+                    completedChores = updatedAll.filter { it.isCompleted }
+                )
+            }
+
+            choreRepository.completeChore(choreId, houseId).fold(
                 onSuccess = {
-                    // Optimistically update UI
-                    val currentState = _uiState.value
-                    if (currentState is ChoreUiState.Success) {
-                        val now = Clock.System.now()
-                        val updatedAll = currentState.allChores.map { chore ->
-                            if (chore.id == choreId) {
-                                chore.copy(isCompleted = true, completedAt = now)
-                            } else chore
-                        }
-                        _uiState.value = currentState.copy(
-                            allChores = updatedAll,
-                            activeChores = updatedAll.filter { !it.isCompleted },
-                            completedChores = updatedAll.filter { it.isCompleted }
-                        )
-                    }
+                    // Server confirmed - realtime flow will sync
                 },
                 onFailure = { error ->
+                    // Revert optimistic update on failure
+                    loadChores(houseId)
                     _uiState.value = ChoreUiState.Error(
                         message = error.message ?: "Failed to complete chore",
                         cause = error
@@ -149,9 +163,9 @@ class ChoreViewModel @Inject constructor(
         }
     }
 
-    fun deleteChore(choreId: String) {
+    fun deleteChore(choreId: String, houseId: String) {
         viewModelScope.launch {
-            choreRepository.deleteChore(choreId).fold(
+            choreRepository.deleteChore(choreId, houseId).fold(
                 onSuccess = {
                     // Optimistically update UI
                     val currentState = _uiState.value

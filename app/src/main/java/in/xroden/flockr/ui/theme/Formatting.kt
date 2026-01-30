@@ -9,14 +9,3 @@ object DateFormats {
     const val YEAR_MONTH = "yyyy-MM"
     const val MONTH_YEAR = "MMMM yyyy"
 }
-
-/**
- * UI spacing and sizing constants
- */
-object Spacing {
-    const val STANDARD_PADDING = 16
-    const val CARD_SPACING = 12
-    const val SMALL_PADDING = 8
-    const val LARGE_PADDING = 24
-}
-

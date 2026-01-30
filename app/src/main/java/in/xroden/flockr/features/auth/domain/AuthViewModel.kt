@@ -76,8 +76,10 @@ class AuthViewModel @Inject constructor(
                                 AuthNavigationState.NeedsOnboarding
                             }
                         }
-                        else ->
-                            AuthNavigationState.Loading
+                        is AuthUiState.Error, is AuthUiState.NotAuthenticated -> {
+                            // Profile load failed or user is not authenticated - sign out
+                            AuthNavigationState.Unauthenticated
+                        }
                     }
                 }
             }
@@ -215,7 +217,11 @@ class AuthViewModel @Inject constructor(
 
     fun updateProfile(fullName: String? = null, hasCompletedOnboarding: Boolean? = null) {
         viewModelScope.launch {
-            authRepository.updateProfile(fullName, hasCompletedOnboarding).fold(
+            authRepository.updateProfile(
+                fullName = fullName,
+                avatarUrl = null,
+                hasCompletedOnboarding = hasCompletedOnboarding
+            ).fold(
                 onSuccess = {
                     loadProfile()
                 },

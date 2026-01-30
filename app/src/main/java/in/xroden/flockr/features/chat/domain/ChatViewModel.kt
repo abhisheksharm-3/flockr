@@ -23,20 +23,25 @@ class ChatViewModel @Inject constructor(
     val sendState: StateFlow<SendMessageUiState> = _sendState.asStateFlow()
 
     private var messagesJob: kotlinx.coroutines.Job? = null
+    private var currentHouseId: String? = null
 
     fun loadMessages(houseId: String) {
-        // Cancel any existing job to avoid multiple subscriptions
+        // Skip if already loading the same house
+        if (currentHouseId == houseId && messagesJob?.isActive == true) return
+
         messagesJob?.cancel()
+        currentHouseId = houseId
 
         messagesJob = viewModelScope.launch {
-            _uiState.value = ChatUiState.Loading
-            
+            // Only show loading on first load
+            if (_uiState.value !is ChatUiState.Success) {
+                _uiState.value = ChatUiState.Loading
+            }
+
             chatRepository.getMessagesFlow(houseId).collect { result ->
                 result.fold(
                     onSuccess = { messages ->
                         val currentUserId = chatRepository.getCurrentUserId()
-                        // Merge with pending messages, avoiding duplicates if possible (though IDs differ)
-                        // We just append pending messages at the end (since they are new)
                         val allMessages = messages + _pendingMessages.value
                         _uiState.value = ChatUiState.Success(allMessages, currentUserId)
                     },

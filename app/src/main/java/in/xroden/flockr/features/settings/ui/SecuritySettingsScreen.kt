@@ -18,9 +18,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import dagger.hilt.android.EntryPointAccessors
+import `in`.xroden.flockr.di.BiometricEntryPoint
 import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
-import `in`.xroden.flockr.utils.BiometricAuthManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +33,12 @@ fun SecuritySettingsScreen(
     val context = LocalContext.current
     var showBiometricError by remember { mutableStateOf<String?>(null) }
     
-    val biometricManager = remember { BiometricAuthManager(context) }
+    val biometricManager = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            BiometricEntryPoint::class.java
+        ).biometricAuthManager()
+    }
     val canAuthenticate = remember { biometricManager.canAuthenticate() }
 
     Scaffold(

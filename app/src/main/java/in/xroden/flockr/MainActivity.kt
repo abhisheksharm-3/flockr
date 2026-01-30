@@ -12,8 +12,9 @@ import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.ui.navigation.FlockrNavigation
 import `in`.xroden.flockr.ui.theme.FlockrTheme
 import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
-import `in`.xroden.flockr.utils.PermissionHandler
 import `in`.xroden.flockr.utils.PermissionManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
 
 import androidx.fragment.app.FragmentActivity
 import `in`.xroden.flockr.utils.BiometricAuthManager
+import `in`.xroden.flockr.core.validation.Validators
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
@@ -90,9 +92,16 @@ class MainActivity : FragmentActivity() {
 
             // Request notification permission on first launch
             LaunchedEffect(Unit) {
-                if (!PermissionHandler.hasNotificationPermission(this@MainActivity)) {
-                    permissionManager.requestNotificationPermission { _ ->
-                        // Permission result handled
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val hasPermission = ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                    if (!hasPermission) {
+                        permissionManager.requestNotificationPermission { _ ->
+                            // Permission result handled
+                        }
                     }
                 }
             }
@@ -148,6 +157,13 @@ class MainActivity : FragmentActivity() {
 
     private fun handleIntent(intent: Intent?, onInviteFound: (String) -> Unit) {
         intent?.let {
+            // Helper to validate and pass invite code
+            fun processInviteCode(code: String) {
+                Validators.validateInviteCode(code).onSuccess { validCode ->
+                    onInviteFound(validCode)
+                }
+            }
+
             // 1. Check Data (Deep Link)
             // Format: flockr://invite/{code} or https://flockr.com/invite/{code}
             val data = it.data
@@ -155,7 +171,7 @@ class MainActivity : FragmentActivity() {
                 val pathSegments = data.pathSegments
                 // Path examples: /invite/ABC123
                 if (pathSegments.size >= 2 && pathSegments[0] == "invite") {
-                    onInviteFound(pathSegments[1])
+                    processInviteCode(pathSegments[1])
                     return
                 }
             }
@@ -167,12 +183,12 @@ class MainActivity : FragmentActivity() {
                 if (type == "house_invitation" || type == "HOUSE_INVITE") {
                     val code = it.getStringExtra("invite_code") ?: it.getStringExtra("code")
                     if (code != null) {
-                        onInviteFound(code)
+                        processInviteCode(code)
                     }
                 } else if (type.startsWith("house_invitation:")) {
                     val code = type.substringAfter("house_invitation:")
                     if (code.isNotEmpty()) {
-                        onInviteFound(code)
+                        processInviteCode(code)
                     }
                 }
             }

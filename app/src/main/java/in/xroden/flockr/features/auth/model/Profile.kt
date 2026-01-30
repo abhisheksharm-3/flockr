@@ -1,10 +1,12 @@
 package `in`.xroden.flockr.features.auth.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@Immutable
 @Serializable
 data class Profile(
     val id: String,

@@ -1,0 +1,69 @@
+package `in`.xroden.flockr.features.expenses.domain.usecase
+
+import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import kotlinx.datetime.LocalDate
+import java.math.BigDecimal
+import javax.inject.Inject
+
+/**
+ * Use case for creating one-time expenses with split logic.
+ * Handles validation and business rules for expense creation.
+ */
+class CreateOneTimeExpenseUseCase @Inject constructor(
+    private val expenseRepository: ExpenseRepository
+) {
+    /**
+     * Creates a one-time expense with proper validation and split handling.
+     *
+     * @param houseId The house where the expense belongs
+     * @param name Name/description of the expense
+     * @param amount Total amount of the expense
+     * @param category Expense category
+     * @param paidBy User ID who paid for the expense
+     * @param date Date of the expense
+     * @param notes Optional notes
+     * @param splitWith List of user IDs to split with (empty = no split)
+     * @param splitType How to split the expense (equal/custom)
+     * @param customAmounts Custom split amounts (only for custom split type)
+     * @return Result indicating success or failure
+     */
+    suspend operator fun invoke(
+        houseId: String,
+        name: String,
+        amount: BigDecimal,
+        category: String,
+        paidBy: String,
+        date: LocalDate,
+        notes: String?,
+        splitWith: List<String>,
+        splitType: ExpenseSplitType?,
+        customAmounts: Map<String, BigDecimal>?
+    ): Result<Unit> {
+        // Validation: Ensure amount is positive
+        if (amount <= BigDecimal.ZERO) {
+            return Result.failure(IllegalArgumentException("Amount must be greater than zero"))
+        }
+
+        // Validation: If custom split, ensure amounts are provided and sum correctly
+        if (splitType == ExpenseSplitType.CUSTOM && customAmounts != null) {
+            val totalCustom = customAmounts.values.fold(BigDecimal.ZERO) { acc, value -> acc + value }
+            if (totalCustom != amount) {
+                return Result.failure(IllegalArgumentException("Custom split amounts must sum to total amount"))
+            }
+        }
+
+        return expenseRepository.createOneTimeExpense(
+            houseId = houseId,
+            name = name,
+            amount = amount,
+            category = category,
+            paidBy = paidBy,
+            date = date,
+            notes = notes,
+            splitWith = splitWith,
+            splitType = splitType,
+            customAmounts = customAmounts
+        )
+    }
+}

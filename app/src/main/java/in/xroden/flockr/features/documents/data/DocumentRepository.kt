@@ -12,18 +12,19 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.util.Objects.isNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DocumentRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : IDocumentRepository {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    suspend fun getPersonalDocuments(): Result<List<Document>> {
+    override fun getCurrentUserId(): String? = userId
+
+    override suspend fun getPersonalDocuments(): Result<List<Document>> {
         return try {
             val currentUserId = userId ?: return Result.success(emptyList())
 
@@ -43,7 +44,7 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getHouseDocuments(houseId: String): Result<List<Document>> {
+    override suspend fun getHouseDocuments(houseId: String): Result<List<Document>> {
         return try {
             val documents = supabase.from("documents")
                 .select(Columns.ALL) {
@@ -60,29 +61,24 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun uploadDocument(
+    override suspend fun uploadDocument(
         houseId: String?,
         fileName: String,
         fileData: ByteArray,
         mimeType: String
     ): Result<Document> {
         return try {
-            android.util.Log.d("DocumentRepository", "uploadDocument called - fileName: $fileName, houseId: $houseId, fileSize: ${fileData.size}")
             val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
 
             // Check limits
             if (houseId != null) {
                 val houseDocs = getHouseDocuments(houseId).getOrDefault(emptyList())
-                android.util.Log.d("DocumentRepository", "House documents count: ${houseDocs.size}/3")
                 if (houseDocs.size >= 3) {
-                    android.util.Log.w("DocumentRepository", "House document limit reached (max 3)")
                     return Result.failure(Exception("House document limit reached (max 3)"))
                 }
             } else {
                 val personalDocs = getPersonalDocuments().getOrDefault(emptyList())
-                android.util.Log.d("DocumentRepository", "Personal documents count: ${personalDocs.size}/2")
                 if (personalDocs.size >= 2) {
-                    android.util.Log.w("DocumentRepository", "Personal document limit reached (max 2)")
                     return Result.failure(Exception("Personal document limit reached (max 2)"))
                 }
             }
@@ -93,10 +89,8 @@ class DocumentRepository @Inject constructor(
             } else {
                 "$currentUserId/${System.currentTimeMillis()}_$fileName"
             }
-            android.util.Log.d("DocumentRepository", "Uploading to bucket: $bucket, path: $path")
 
             supabase.storage.from(bucket).upload(path, fileData) { upsert = false }
-            android.util.Log.d("DocumentRepository", "File uploaded to storage successfully")
 
             val document = supabase.from("documents")
                 .insert(
@@ -112,7 +106,6 @@ class DocumentRepository @Inject constructor(
                     select()
                 }
                 .decodeSingle<Document>()
-            android.util.Log.d("DocumentRepository", "Document metadata inserted, ID: ${document.id}")
 
             if (houseId != null) {
                 try {
@@ -148,24 +141,20 @@ class DocumentRepository @Inject constructor(
                 }
             }
 
-            android.util.Log.d("DocumentRepository", "uploadDocument completed successfully")
             Result.success(document)
         } catch (e: Exception) {
-            android.util.Log.e("DocumentRepository", "uploadDocument failed", e)
-            android.util.Log.e("DocumentRepository", "Exception message: ${e.message}")
             Result.failure(e)
         }
     }
 
-    suspend fun deleteDocument(documentId: String, storagePath: String, houseId: String?): Result<Unit> {
+    override suspend fun deleteDocument(documentId: String, storagePath: String, houseId: String?): Result<Unit> {
         return try {
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
 
             try {
                 supabase.storage.from(bucket).delete(storagePath)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Continue even if storage deletion fails
-                android.util.Log.e("DocumentRepository", "Failed to delete from storage: ${e.message}")
             }
 
             supabase.from("documents")
@@ -181,7 +170,7 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> {
+    override suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> {
         return try {
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
             val url = supabase.storage.from(bucket).createSignedUrl(storagePath, kotlin.time.Duration.parse("PT1H"))
@@ -192,7 +181,7 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> {
+    override suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> {
         return try {
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
             

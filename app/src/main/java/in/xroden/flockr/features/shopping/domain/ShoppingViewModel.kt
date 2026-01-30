@@ -5,10 +5,11 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.shopping.data.ShoppingRepository
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,13 +24,25 @@ class ShoppingViewModel @Inject constructor(
     private val _addItemState = MutableStateFlow<AddShoppingItemUiState>(AddShoppingItemUiState.Idle)
     val addItemState: StateFlow<AddShoppingItemUiState> = _addItemState.asStateFlow()
 
+    private val _events = Channel<ShoppingEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
     private var shoppingJob: Job? = null
+    private var currentHouseId: String? = null
 
     fun loadShoppingItems(houseId: String) {
+        // Skip if already loading the same house
+        if (currentHouseId == houseId && shoppingJob?.isActive == true) return
+
         shoppingJob?.cancel()
+        currentHouseId = houseId
+
         shoppingJob = viewModelScope.launch {
-            _uiState.value = ShoppingUiState.Loading
-            
+            // Only show loading on first load, not refreshes
+            if (_uiState.value !is ShoppingUiState.Success) {
+                _uiState.value = ShoppingUiState.Loading
+            }
+
             shoppingRepository.getShoppingItemsFlow(houseId).collect { result ->
                 result.fold(
                     onSuccess = { items ->
@@ -57,9 +70,8 @@ class ShoppingViewModel @Inject constructor(
             shoppingRepository.addShoppingItem(houseId, itemName, quantity).fold(
                 onSuccess = {
                     _addItemState.value = AddShoppingItemUiState.Success
+                    _events.send(ShoppingEvent.ItemAdded)
                     loadShoppingItems(houseId)
-                    delay(1000)
-                    _addItemState.value = AddShoppingItemUiState.Idle
                 },
                 onFailure = { error ->
                     _addItemState.value = AddShoppingItemUiState.Error(
@@ -72,15 +84,23 @@ class ShoppingViewModel @Inject constructor(
 
     fun markAsPurchased(itemId: String, houseId: String, itemName: String) {
         viewModelScope.launch {
+            // Optimistic update for snappier UI
+            val currentState = _uiState.value
+            if (currentState is ShoppingUiState.Success) {
+                val updatedItems = currentState.items.map { item ->
+                    if (item.id == itemId) item.copy(isPurchased = true) else item
+                }
+                _uiState.value = ShoppingUiState.Success(updatedItems)
+            }
+
             shoppingRepository.markAsPurchased(itemId, houseId, itemName).fold(
                 onSuccess = {
-                    loadShoppingItems(houseId) // Refresh list
+                    // Realtime flow will sync actual state
                 },
                 onFailure = { error ->
-                    _uiState.value = ShoppingUiState.Error(
-                        message = error.message ?: "Failed to mark item as purchased",
-                        cause = error
-                    )
+                    // Revert on failure - reload from server
+                    loadShoppingItems(houseId)
+                    _events.send(ShoppingEvent.Error(error.message ?: "Failed to mark as purchased"))
                 }
             )
         }
@@ -106,17 +126,23 @@ class ShoppingViewModel @Inject constructor(
         }
     }
 
-    fun deleteItem(itemId: String) {
+    fun deleteItem(itemId: String, houseId: String) {
         viewModelScope.launch {
-            shoppingRepository.deleteShoppingItem(itemId).fold(
+            // Optimistic delete
+            val currentState = _uiState.value
+            if (currentState is ShoppingUiState.Success) {
+                val updatedItems = currentState.items.filter { it.id != itemId }
+                _uiState.value = ShoppingUiState.Success(updatedItems)
+            }
+
+            shoppingRepository.deleteShoppingItem(itemId, houseId).fold(
                 onSuccess = {
-                    // Implicitly refreshes if flow works, but force reload to be safe
+                    // Realtime flow will sync
                 },
                 onFailure = { error ->
-                    _uiState.value = ShoppingUiState.Error(
-                        message = error.message ?: "Failed to delete item",
-                        cause = error
-                    )
+                    // Revert on failure
+                    loadShoppingItems(houseId)
+                    _events.send(ShoppingEvent.Error(error.message ?: "Failed to delete item"))
                 }
             )
         }
@@ -124,15 +150,21 @@ class ShoppingViewModel @Inject constructor(
 
     fun clearPurchasedItems(houseId: String) {
         viewModelScope.launch {
+            // Optimistic clear
+            val currentState = _uiState.value
+            if (currentState is ShoppingUiState.Success) {
+                val updatedItems = currentState.items.filter { !it.isPurchased }
+                _uiState.value = ShoppingUiState.Success(updatedItems)
+            }
+
             shoppingRepository.clearPurchasedItems(houseId).fold(
                 onSuccess = {
-                    loadShoppingItems(houseId) // Refresh
+                    // Realtime flow will sync
                 },
                 onFailure = { error ->
-                    _uiState.value = ShoppingUiState.Error(
-                        message = error.message ?: "Failed to clear purchased items",
-                        cause = error
-                    )
+                    // Revert on failure
+                    loadShoppingItems(houseId)
+                    _events.send(ShoppingEvent.Error(error.message ?: "Failed to clear items"))
                 }
             )
         }
@@ -142,3 +174,9 @@ class ShoppingViewModel @Inject constructor(
         _addItemState.value = AddShoppingItemUiState.Idle
     }
 }
+
+sealed class ShoppingEvent {
+    object ItemAdded : ShoppingEvent()
+    data class Error(val message: String) : ShoppingEvent()
+}
+

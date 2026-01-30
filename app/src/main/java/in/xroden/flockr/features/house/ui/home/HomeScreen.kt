@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,6 +16,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +64,9 @@ fun HomeScreen(
     val notificationUiState by notificationViewModel.uiState.collectAsState()
     val profileUiState by profileViewModel.uiState.collectAsState()
     val pendingInvitations by viewModel.pendingInvitations.collectAsState()
+
+    val isRefreshing = uiState is HouseListUiState.Loading
+    val pullToRefreshState = rememberPullToRefreshState()
 
     val unreadCount = when (val state = notificationUiState) {
         is NotificationUiState.Success -> state.unreadCount
@@ -108,59 +115,78 @@ fun HomeScreen(
             }
 
             is HouseListUiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refresh() },
+                    state = pullToRefreshState,
+                    modifier = Modifier.fillMaxSize().padding(padding)
                 ) {
-                    item {
-                        Text(
-                            text = "Your Households",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (state.houses.isEmpty()) {
-                        item {
-                            EmptyHouseState(onCreateHouseClick)
-                        }
-                    } else {
-                        if (pendingInvitations.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Invitations",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            items(items = pendingInvitations, key = { it.id }) { invite ->
-                                InvitationCard(
-                                    invitation = invite,
-                                    onAccept = { viewModel.acceptInvitation(invite.id) },
-                                    onDecline = { viewModel.declineInvitation(invite.id) }
-                                )
-                            }
-                            item { Spacer(modifier = Modifier.height(16.dp)) }
-                        }
-                        
-                        items(items = state.houses, key = { it.house.id }) { houseData ->
-                            HouseCard(
-                                houseData = houseData,
-                                onClick = { onHouseClick(houseData.house.id) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        item(key = "header") {
+                            Text(
+                                text = "Your Households",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
 
-                    item { Spacer(modifier = Modifier.height(100.dp)) }
+                        if (state.houses.isEmpty()) {
+                            item {
+                                EmptyHouseState(onCreateHouseClick)
+                            }
+                        } else {
+                            if (pendingInvitations.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Invitations",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                items(items = pendingInvitations, key = { it.id }) { invite ->
+                                    InvitationCard(
+                                        invitation = invite,
+                                        onAccept = { viewModel.acceptInvitation(invite.id) },
+                                        onDecline = { viewModel.rejectInvitation(invite.id) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                                item { Spacer(modifier = Modifier.height(16.dp)) }
+                            }
+                        
+                            items(items = state.houses, key = { it.house.id }) { houseData ->
+                                HouseCard(
+                                    houseData = houseData,
+                                    onClick = { onHouseClick(houseData.house.id) },
+                                    modifier = Modifier.animateItem()
+                                )
+                            }
+                        }
+
+                        item(key = "bottom_spacer") { Spacer(modifier = Modifier.height(100.dp)) }
+                    }
                 }
             }
 
             is HouseListUiState.Error -> {
-                Box( modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text(text = "Could not load households", color = MaterialTheme.colorScheme.error)
+                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Could not load households",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.refresh() }) {
+                            Text("Retry")
+                        }
+                    }
                 }
             }
         }
@@ -425,13 +451,20 @@ fun EmptyHouseState(onCreateHouseClick: () -> Unit) {
 @Composable
 fun HouseCard(
     houseData: HouseCardData,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val haptics = rememberHapticFeedback()
+
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(180.dp)
-            .clickable(onClick = onClick),
+            .clickable {
+                haptics.performClick()
+                onClick()
+            },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -439,10 +472,14 @@ fun HouseCard(
         Box(modifier = Modifier.fillMaxSize()) {
             if (!houseData.house.headerImageUrl.isNullOrBlank()) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(houseData.house.headerImageUrl)
-                        .crossfade(true)
-                        .build(),
+                    model = remember(houseData.house.headerImageUrl) {
+                        ImageRequest.Builder(context)
+                            .data(houseData.house.headerImageUrl)
+                            .crossfade(150)
+                            .memoryCacheKey(houseData.house.id)
+                            .diskCacheKey(houseData.house.id)
+                            .build()
+                    },
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -548,10 +585,13 @@ fun GlassPill(content: @Composable RowScope.() -> Unit) {
 fun InvitationCard(
     invitation: `in`.xroden.flockr.features.house.model.InvitationWithHouse,
     onAccept: () -> Unit,
-    onDecline: () -> Unit
+    onDecline: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val haptics = rememberHapticFeedback()
+    
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
@@ -573,14 +613,20 @@ fun InvitationCard(
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = onAccept,
+                    onClick = {
+                        haptics.performSuccess()
+                        onAccept()
+                    },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Accept")
                 }
                 OutlinedButton(
-                    onClick = onDecline,
+                    onClick = {
+                        haptics.performClick()
+                        onDecline()
+                    },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)

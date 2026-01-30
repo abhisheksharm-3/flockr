@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.expenses.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.data.serialization.LocalDateSerializer
@@ -9,6 +10,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
+@Immutable
 @Serializable
 data class PerDiemConfig(
     val id: String,
@@ -27,6 +29,7 @@ data class PerDiemConfig(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class PerDiemEntry(
     val id: String,
@@ -44,6 +47,7 @@ data class PerDiemEntry(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class PerDiemBillItemized(
     @SerialName("item_name")
@@ -60,6 +64,7 @@ data class PerDiemBillItemized(
     val totalAmount: BigDecimal
 )
 
+@Immutable
 @Serializable
 data class PerDiemBillByMember(
     @SerialName("user_id")
@@ -74,6 +79,7 @@ data class PerDiemBillByMember(
     val totalAmount: BigDecimal
 )
 
+@Immutable
 @Serializable
 data class PerDiemEntryWithDetails(
     @SerialName("entry_id")

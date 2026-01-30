@@ -1,13 +1,15 @@
 package `in`.xroden.flockr.features.chores.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.data.serialization.LocalDateSerializer
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@Immutable
 @Serializable
 data class Chore(
     val id: String,

@@ -1,12 +1,14 @@
 package `in`.xroden.flockr.features.house.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.utils.getCurrencySymbol
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.Currency
 
+@Immutable
 @Serializable
 data class HouseConfig(
     val id: String,

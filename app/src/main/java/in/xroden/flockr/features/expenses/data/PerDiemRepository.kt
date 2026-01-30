@@ -1,9 +1,11 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import io.github.jan.supabase.postgrest.postgrest
-
+import `in`.xroden.flockr.data.dto.GetPerDiemBillParams
+import `in`.xroden.flockr.data.dto.HouseNotificationParams
+import `in`.xroden.flockr.data.dto.PerDiemBillByMemberParams
 import `in`.xroden.flockr.data.dto.PerDiemConfigInsert
 import `in`.xroden.flockr.data.dto.PerDiemConfigUpdate
+import `in`.xroden.flockr.data.dto.PerDiemEntriesParams
 import `in`.xroden.flockr.data.dto.PerDiemEntryInsert
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
@@ -13,12 +15,11 @@ import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,11 +27,11 @@ import javax.inject.Singleton
 @Singleton
 class PerDiemRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : IPerDiemRepository {
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    suspend fun getPerDiemConfigs(houseId: String): Result<List<PerDiemConfig>> = runCatching {
+    override suspend fun getPerDiemConfigs(houseId: String): Result<List<PerDiemConfig>> = runCatching {
         supabase.from("per_diem_config")
             .select(Columns.ALL) {
                 filter {
@@ -41,7 +42,7 @@ class PerDiemRepository @Inject constructor(
             .decodeList<PerDiemConfig>()
     }
 
-    suspend fun getPerDiemEntries(houseId: String, configId: String? = null): Result<List<PerDiemEntry>> = runCatching {
+    override suspend fun getPerDiemEntries(houseId: String, configId: String?): Result<List<PerDiemEntry>> = runCatching {
         supabase.from("per_diem_entries")
             .select(Columns.ALL) {
                 filter {
@@ -54,7 +55,7 @@ class PerDiemRepository @Inject constructor(
             .decodeList<PerDiemEntry>()
     }
 
-    suspend fun createPerDiemConfig(
+    override suspend fun createPerDiemConfig(
         houseId: String,
         itemName: String,
         rate: BigDecimal,
@@ -76,7 +77,7 @@ class PerDiemRepository @Inject constructor(
             .decodeSingle<PerDiemConfig>()
     }
 
-    suspend fun updatePerDiemConfig(
+    override suspend fun updatePerDiemConfig(
         configId: String,
         itemName: String?,
         rate: BigDecimal?,
@@ -96,7 +97,7 @@ class PerDiemRepository @Inject constructor(
             }
     }
 
-    suspend fun deletePerDiemConfig(configId: String, deleteUsage: Boolean = false): Result<Unit> = runCatching {
+    override suspend fun deletePerDiemConfig(configId: String, deleteUsage: Boolean): Result<Unit> = runCatching {
         if (deleteUsage) {
             supabase.from("per_diem_entries")
                 .delete {
@@ -113,13 +114,13 @@ class PerDiemRepository @Inject constructor(
             }
     }
 
-    suspend fun addPerDiemEntry(
+    override suspend fun addPerDiemEntry(
         houseId: String,
         configId: String,
         quantity: BigDecimal,
         date: LocalDate,
         itemName: String,
-        notes: String? = null
+        notes: String?
     ): Result<PerDiemEntry> = runCatching {
         val currentUserId = userId ?: throw IllegalStateException("No user logged in")
 
@@ -139,16 +140,6 @@ class PerDiemRepository @Inject constructor(
 
         // Best effort notification
         runCatching {
-            @Serializable
-            data class HouseNotificationParams(
-                @SerialName("p_house_id") val houseId: String,
-                @SerialName("p_title") val title: String,
-                @SerialName("p_message") val message: String,
-                @SerialName("p_type") val type: String,
-                @SerialName("p_data") val data: String,
-                @SerialName("p_exclude_user_id") val excludeUserId: String?
-            )
-
             supabase.postgrest.rpc(
                 function = "create_notification_for_house",
                 parameters = HouseNotificationParams(
@@ -165,14 +156,14 @@ class PerDiemRepository @Inject constructor(
         entry
     }
 
-    suspend fun deletePerDiemEntry(entryId: String): Result<Unit> = runCatching {
+    override suspend fun deletePerDiemEntry(entryId: String): Result<Unit> = runCatching {
         supabase.from("per_diem_entries")
             .delete {
                 filter { eq("id", entryId) }
             }
     }
 
-    suspend fun updatePerDiemEntry(
+    override suspend fun updatePerDiemEntry(
         entryId: String,
         quantity: BigDecimal?,
         date: LocalDate?,
@@ -190,29 +181,17 @@ class PerDiemRepository @Inject constructor(
             }
     }
 
-    suspend fun getPerDiemBill(houseId: String, month: String): Result<List<PerDiemBillItemized>> = runCatching {
-        @Serializable
-        data class PerDiemBillParams(
-            @SerialName("p_house_id") val houseId: String,
-            @SerialName("p_month") val month: String
-        )
-
+    override suspend fun getPerDiemBill(houseId: String, month: String): Result<List<PerDiemBillItemized>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_per_diem_bill_itemized",
-            parameters = PerDiemBillParams(
+            parameters = GetPerDiemBillParams(
                 houseId = houseId,
                 month = month
             )
         ).decodeAs<List<PerDiemBillItemized>>()
     }
 
-    suspend fun getPerDiemBillByMember(houseId: String, month: String): Result<List<PerDiemBillByMember>> = runCatching {
-        @Serializable
-        data class PerDiemBillByMemberParams(
-            @SerialName("p_house_id") val houseId: String,
-            @SerialName("p_month") val month: String
-        )
-
+    override suspend fun getPerDiemBillByMember(houseId: String, month: String): Result<List<PerDiemBillByMember>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_per_diem_bill_by_member",
             parameters = PerDiemBillByMemberParams(
@@ -222,18 +201,10 @@ class PerDiemRepository @Inject constructor(
         ).decodeAs<List<PerDiemBillByMember>>()
     }
 
-    suspend fun getPerDiemEntriesWithDetails(
+    override suspend fun getPerDiemEntriesWithDetails(
         houseId: String,
-        month: LocalDate? = null
+        month: LocalDate?
     ): Result<List<PerDiemEntryWithDetails>> = runCatching {
-        @Serializable
-        data class PerDiemEntriesParams(
-            @SerialName("p_house_id") val houseId: String,
-            @SerialName("p_month")
-            @Serializable(with = `in`.xroden.flockr.data.serialization.LocalDateSerializer::class)
-            val month: LocalDate? = null
-        )
-
         supabase.postgrest.rpc(
             function = "get_per_diem_entries_with_details",
             parameters = PerDiemEntriesParams(

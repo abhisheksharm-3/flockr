@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryViewModel
 import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.model.SpendByMember
@@ -53,13 +54,14 @@ fun ExpenseDashboardScreen(
     onNavigateToQuickPerDiem: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToExpenseDetail: (String) -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    expenseViewModel: OneTimeExpenseViewModel = hiltViewModel(),
+    summaryViewModel: MonthlySummaryViewModel = hiltViewModel()
 ) {
-    val expenseState by viewModel.expenseState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
-    val summaryState by viewModel.summaryState.collectAsState()
+    val expenseState by expenseViewModel.expenseState.collectAsState()
+    val houseConfig by expenseViewModel.houseConfig.collectAsState()
+    val summaryState by summaryViewModel.summaryState.collectAsState()
     
-    val currentUserId = viewModel.getCurrentUserId()
+    val currentUserId = expenseViewModel.getCurrentUserId()
     
     // Derived state for heavy calculations
     val currencySymbol by remember {
@@ -75,18 +77,16 @@ fun ExpenseDashboardScreen(
         }
     }
 
-    // Effect to load data
     LaunchedEffect(houseId) {
-        viewModel.loadExpenses(houseId)
-        viewModel.loadBalances(houseId)
-        viewModel.loadHouseConfig(houseId)
+        expenseViewModel.loadExpenses(houseId)
+        expenseViewModel.loadHouseConfig(houseId)
         
         // Calculate current month securely
         runCatching {
             val currentMonth = kotlin.time.Clock.System.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toString().substring(0, 7) + "-01"
-            viewModel.loadMonthlySummary(houseId, currentMonth)
+            summaryViewModel.loadMonthlySummary(houseId, currentMonth)
         }
     }
 

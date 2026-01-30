@@ -24,7 +24,7 @@ import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryViewModel
 import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
 
 import `in`.xroden.flockr.utils.getCurrencySymbol
@@ -47,7 +47,7 @@ fun MonthlyReportsScreen(
     onNavigateToOneTimeExpenses: () -> Unit = {},
     onNavigateToRecurringExpenses: () -> Unit = {},
     onNavigateToPerDiemExpenses: () -> Unit = {},
-    viewModel: ExpenseViewModel = hiltViewModel(),
+    viewModel: MonthlySummaryViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
     val summaryState by viewModel.summaryState.collectAsState()

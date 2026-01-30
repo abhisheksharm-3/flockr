@@ -63,7 +63,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -98,7 +99,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended:1.7.5")
+    implementation(libs.androidx.material.icons.extended)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -106,6 +107,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.lifecycle.viewmodel.compose)
 
     // Supabase
     implementation(libs.supabase.postgrest)
@@ -144,18 +146,15 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.maps.compose)
 
-    // Accompanist
-    implementation(libs.accompanist.systemuicontroller)
-
-    // Google Credential Manager for Native Sign-In
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
 
-    // Google Fonts
-    implementation("androidx.compose.ui:ui-text-google-fonts:1.6.0")
+    implementation(libs.androidx.ui.text.google.fonts)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -163,8 +162,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Biometrics
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation(libs.androidx.biometric)
 }
 
 // Task to print version name for CI/CD

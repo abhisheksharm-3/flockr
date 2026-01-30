@@ -13,7 +13,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.format.DateTimeFormatter
@@ -27,24 +26,23 @@ fun BillHistoryScreen(
     recurringExpenseId: String,
     expenseName: String,
     onNavigateBack: () -> Unit,
-    viewModel: RecurringExpenseViewModel = hiltViewModel(),
-    expenseViewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
     val historyState by viewModel.paymentHistoryState.collectAsState()
-    val houseConfig by expenseViewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     // Fetch house members to resolve names
     val houseMembers = produceState<List<MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
         val result = runCatching {
-             expenseViewModel.getHouseMembers(houseId)
+             viewModel.getHouseMembers(houseId)
         }.getOrDefault(emptyList())
         value = result
     }
 
     LaunchedEffect(recurringExpenseId) {
         viewModel.loadPaymentHistory(recurringExpenseId)
-        expenseViewModel.loadHouseConfig(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(

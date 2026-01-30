@@ -26,11 +26,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.domain.ChatUiState
 import `in`.xroden.flockr.features.chat.domain.ChatViewModel
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.Duration
 import java.time.format.DateTimeFormatter
+import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +45,7 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val haptics = rememberHapticFeedback()
 
     LaunchedEffect(houseId) {
         viewModel.loadMessages(houseId)
@@ -55,7 +58,7 @@ fun ChatScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Chat", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -173,6 +176,7 @@ fun ChatScreen(
                     FilledIconButton(
                         onClick = {
                             if (isEnabled) {
+                                haptics.performClick()
                                 viewModel.sendMessage(houseId, messageText)
                                 messageText = ""
                             }
@@ -233,6 +237,7 @@ fun EmptyChatState(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 fun MessageBubble(
     message: Message,

@@ -16,7 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.theme.CategoryBlue
@@ -32,7 +32,7 @@ fun ExpenseDetailScreen(
     expenseId: String,
     onNavigateBack: () -> Unit,
     onEditExpense: (String) -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
     val expense by viewModel.selectedExpense.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()

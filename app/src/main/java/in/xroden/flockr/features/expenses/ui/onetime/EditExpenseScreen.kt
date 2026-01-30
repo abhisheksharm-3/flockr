@@ -22,7 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
+import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
@@ -37,7 +37,7 @@ fun EditExpenseScreen(
     houseId: String,
     expenseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: ExpenseViewModel = hiltViewModel(),
+    viewModel: OneTimeExpenseViewModel = hiltViewModel(),
     houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }

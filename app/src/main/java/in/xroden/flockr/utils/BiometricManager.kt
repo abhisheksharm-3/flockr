@@ -5,8 +5,14 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class BiometricAuthManager(private val context: Context) {
+@Singleton
+class BiometricAuthManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     private val biometricManager = BiometricManager.from(context)
 

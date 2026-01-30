@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
 
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +27,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.BuildConfig
 import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.features.auth.domain.AuthViewModel
@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
+import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,9 +57,11 @@ fun SettingsScreen(
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberHapticFeedback()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val hapticsEnabled by viewModel.hapticsEnabled.collectAsState(initial = true)
     val profileUiState by profileViewModel.uiState.collectAsState()
     val profile = (profileUiState as? ProfileUiState.Success)?.profile
 
@@ -67,7 +71,7 @@ fun SettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
@@ -132,7 +136,7 @@ fun SettingsScreen(
                         )
                         Text(profile?.email ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = onNavigateToProfile, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
+                        Button(onClick = { haptics.performClick(); onNavigateToProfile() }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
                             Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Edit Profile", fontWeight = FontWeight.SemiBold)
@@ -152,7 +156,15 @@ fun SettingsScreen(
                             ThemeMode.DARK -> "Dark Mode"
                             ThemeMode.SYSTEM -> "System Default"
                         },
-                        onClick = { showThemeDialog = true }
+                        onClick = { haptics.performClick(); showThemeDialog = true }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    SettingsToggleItem(
+                        icon = Icons.Default.Vibration,
+                        title = "Haptic Feedback",
+                        subtitle = "Vibration feedback for interactions",
+                        checked = hapticsEnabled,
+                        onCheckedChange = { haptics.performLightClick(); viewModel.setHapticsEnabled(it) }
                     )
                 }
 
@@ -161,7 +173,7 @@ fun SettingsScreen(
                         icon = Icons.Default.Notifications,
                         title = "Notification Preferences",
                         subtitle = "Manage notification settings for each household",
-                        onClick = onNavigateToNotificationPreferences
+                        onClick = { haptics.performClick(); onNavigateToNotificationPreferences() }
                     )
                 }
 
@@ -170,7 +182,7 @@ fun SettingsScreen(
                         icon = Icons.Default.Lock,
                         title = "App Lock",
                         subtitle = "Secure your app with biometrics",
-                        onClick = onNavigateToSecurity
+                        onClick = { haptics.performClick(); onNavigateToSecurity() }
                     )
                 }
 
@@ -187,10 +199,12 @@ fun SettingsScreen(
                     
                     val context = LocalContext.current
                     SettingsItem(Icons.Default.Language, "Website", "abhisheksan.com", onClick = {
+                       haptics.performClick()
                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
                     })
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     SettingsItem(Icons.Default.Star, "GitHub Repository", "View source code & contribute", onClick = {
+                        haptics.performClick()
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/abhisheksharm-3/flockr")))
                     })
                 }
@@ -200,7 +214,7 @@ fun SettingsScreen(
                         icon = Icons.AutoMirrored.Filled.ExitToApp,
                         title = "Sign Out",
                         subtitle = "Sign out of your account",
-                        onClick = { showLogoutDialog = true },
+                        onClick = { haptics.performHeavyClick(); showLogoutDialog = true },
                         showChevron = false,
                         iconTint = MaterialTheme.colorScheme.error
                     )
@@ -381,3 +395,61 @@ private fun SettingsItem(
         }
     }
 }
+
+@Composable
+private fun SettingsToggleItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    iconTint: Color = MaterialTheme.colorScheme.primary
+) {
+    Surface(
+        onClick = { onCheckedChange(!checked) },
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = iconTint.copy(alpha = 0.1f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = iconTint)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            )
+        }
+    }
+}
+

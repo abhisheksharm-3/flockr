@@ -1,30 +1,39 @@
 package `in`.xroden.flockr.features.house.domain
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
+import `in`.xroden.flockr.features.expenses.data.ExpenseAnalyticsRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import java.math.BigDecimal
 import javax.inject.Inject
 
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.number
 import kotlin.time.Clock
+
+private const val TAG = "HomeViewModel"
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val houseRepository: HouseRepository,
-    private val expenseRepository: ExpenseRepository
+    private val houseInvitationRepository: HouseInvitationRepository,
+    private val expenseAnalyticsRepository: ExpenseAnalyticsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HouseListUiState>(HouseListUiState.Loading)
@@ -42,57 +51,91 @@ class HomeViewModel @Inject constructor(
     private val _previewState = MutableStateFlow<HousePreviewUiState>(HousePreviewUiState.Idle)
     val previewState: StateFlow<HousePreviewUiState> = _previewState.asStateFlow()
 
+    // Job for tracking the houses flow collection to avoid duplicate collectors
+    private var housesJob: Job? = null
+
     init {
         loadHouses()
         loadPendingInvitations()
     }
 
     fun loadHouses() {
-        viewModelScope.launch {
-            _uiState.value = HouseListUiState.Loading
-            
-            // Load invitations in parallel or sequence
-            loadPendingInvitations()
+        Log.d(TAG, "loadHouses() called, current state: ${_uiState.value}")
+        // Cancel any existing collection job to prevent duplicate collectors
+        housesJob?.cancel()
 
-            houseRepository.getHousesFlow().collect { result ->
-                result.fold(
-                    onSuccess = { houses ->
-                        // Enrich house data with member count and monthly expenses
-                        val enrichedHouses = houses.map { house ->
-                            val memberCountDeferred = async {
-                                houseRepository.getHouseMembers(house.id).getOrNull()?.size ?: 0
+        housesJob = viewModelScope.launch {
+            Log.d(TAG, "loadHouses coroutine started")
+            // Only show loading on first load, not refreshes
+            if (_uiState.value !is HouseListUiState.Success) {
+                _uiState.value = HouseListUiState.Loading
+                Log.d(TAG, "Set state to Loading")
+            }
+
+            try {
+                Log.d(TAG, "Starting to collect getHousesFlow()")
+                houseRepository.getHousesFlow().collect { result ->
+                    Log.d(TAG, "Received result from getHousesFlow: isSuccess=${result.isSuccess}")
+                    result.fold(
+                        onSuccess = { houses ->
+                            Log.d(TAG, "Success: received ${houses.size} houses")
+                            // Show basic house data immediately
+                            val basicData = houses.map { house ->
+                                HouseCardData(
+                                    house = house,
+                                    memberCount = 0,
+                                    monthlyExpense = BigDecimal.ZERO,
+                                    currencySymbol = "$"
+                                )
                             }
+                            _uiState.value = HouseListUiState.Success(basicData)
+                            Log.d(TAG, "Set state to Success with ${basicData.size} basic houses")
 
-                            val monthlyExpenseDeferred = async {
-                                val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                                val currentMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}-01"
-                                val result = expenseRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: BigDecimal.ZERO
-                                result
+                            // Fetch all enrichment data in parallel across all houses
+                            coroutineScope {
+                                val enrichmentJobs = houses.map { house ->
+                                    async {
+                                        val memberCount = async {
+                                            houseRepository.getHouseMembers(house.id).getOrNull()?.size ?: 0
+                                        }
+                                        val config = async {
+                                            houseRepository.getHouseConfig(house.id).getOrNull()
+                                        }
+                                        val monthlyExpense = async {
+                                            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                            val currentMonth = "${now.year}-${now.month.number.toString().padStart(2, '0')}-01"
+                                            expenseAnalyticsRepository.getMonthlySummary(house.id, currentMonth).getOrNull()?.totalExpenses ?: BigDecimal.ZERO
+                                        }
+
+                                        val configResult = config.await()
+                                        HouseCardData(
+                                            house = house,
+                                            memberCount = memberCount.await(),
+                                            monthlyExpense = monthlyExpense.await(),
+                                            currencySymbol = configResult?.getCurrencySymbol() ?: "$"
+                                        )
+                                    }
+                                }
+
+                                val enrichedHouses = enrichmentJobs.awaitAll()
+                                _uiState.value = HouseListUiState.Success(enrichedHouses)
+                                Log.d(TAG, "Set state to Success with ${enrichedHouses.size} enriched houses")
                             }
-
-                            val configDeferred = async {
-                                houseRepository.getHouseConfig(house.id).getOrNull()
-                            }
-
-                            val config = configDeferred.await()
-                            val currencySymbol = config?.getCurrencySymbol() ?: "$"
-
-                            HouseCardData(
-                                house = house,
-                                memberCount = memberCountDeferred.await(),
-                                monthlyExpense = monthlyExpenseDeferred.await(),
-                                currencySymbol = currencySymbol
+                        },
+                        onFailure = { error ->
+                            Log.e(TAG, "Failed to load houses", error)
+                            _uiState.value = HouseListUiState.Error(
+                                message = error.message ?: "Failed to load houses",
+                                cause = error
                             )
                         }
-
-                        _uiState.value = HouseListUiState.Success(enrichedHouses)
-                    },
-                    onFailure = { error ->
-                        _uiState.value = HouseListUiState.Error(
-                            message = error.message ?: "Failed to load houses",
-                            cause = error
-                        )
-                    }
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in loadHouses coroutine", e)
+                _uiState.value = HouseListUiState.Error(
+                    message = e.message ?: "Failed to load houses",
+                    cause = e
                 )
             }
         }
@@ -100,7 +143,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadPendingInvitations() {
         viewModelScope.launch {
-            houseRepository.getPendingInvitations().fold(
+            houseInvitationRepository.getPendingInvitations().fold(
                 onSuccess = { invitations ->
                     _pendingInvitations.value = invitations
                 },
@@ -144,8 +187,6 @@ class HomeViewModel @Inject constructor(
                             }
                     }
                     _createState.value = CreateHouseUiState.Success(house)
-                    delay(1000)
-                    _createState.value = CreateHouseUiState.Idle
                 },
                 onFailure = { error ->
                     _createState.value = CreateHouseUiState.Error(
@@ -160,11 +201,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _joinState.value = JoinHouseUiState.Loading
             
-            houseRepository.joinHouseByInviteCode(inviteCode).fold(
+            houseInvitationRepository.joinHouseByInviteCode(inviteCode).fold(
                 onSuccess = { house ->
                     _joinState.value = JoinHouseUiState.Success(house)
-                    delay(1000)
-                    _joinState.value = JoinHouseUiState.Idle
                 },
                 onFailure = { error ->
                     _joinState.value = JoinHouseUiState.Error(
@@ -179,15 +218,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _joinState.value = JoinHouseUiState.Loading
             
-            houseRepository.acceptInvitation(invitationId).fold(
+            houseInvitationRepository.acceptInvitation(invitationId).fold(
                 onSuccess = {
-                    // Update invitations list
                     loadPendingInvitations()
-                    // Houses will update automatically via Flow if triggered, 
-                    // but we can force refresh if needed (Flow handles it mostly)
                     _joinState.value = JoinHouseUiState.Success(null)
-                    delay(500)
-                    _joinState.value = JoinHouseUiState.Idle
                 },
                 onFailure = { error ->
                     _joinState.value = JoinHouseUiState.Error(
@@ -197,12 +231,15 @@ class HomeViewModel @Inject constructor(
             )
         }
     }
-    
-    fun declineInvitation(invitationId: String) {
+
+    fun rejectInvitation(invitationId: String) {
         viewModelScope.launch {
-            houseRepository.rejectInvitation(invitationId).onSuccess {
-                loadPendingInvitations()
-            }
+            houseInvitationRepository.rejectInvitation(invitationId).fold(
+                onSuccess = {
+                    loadPendingInvitations()
+                },
+                onFailure = { /* Log error */ }
+            )
         }
     }
 
@@ -271,7 +308,7 @@ class HomeViewModel @Inject constructor(
 
     fun joinHouse(inviteCode: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
-            houseRepository.joinHouseByInviteCode(inviteCode).fold(
+            houseInvitationRepository.joinHouseByInviteCode(inviteCode).fold(
                 onSuccess = { onResult(true, null) },
                 onFailure = { onResult(false, it.message) }
             )

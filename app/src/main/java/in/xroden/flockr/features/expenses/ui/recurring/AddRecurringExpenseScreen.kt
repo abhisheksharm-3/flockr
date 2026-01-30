@@ -29,7 +29,6 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
@@ -45,8 +44,7 @@ fun AddRecurringExpenseScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     onExpenseAdded: () -> Unit,
-    viewModel: RecurringExpenseViewModel = hiltViewModel(),
-    expenseViewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -79,16 +77,16 @@ fun AddRecurringExpenseScreen(
         "Healthcare", "Education", "Other"
     )
 
-    val houseConfig by expenseViewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
-        expenseViewModel.loadHouseConfig(houseId)
+        viewModel.loadHouseConfig(houseId)
         runCatching {
-            houseMembers = expenseViewModel.getHouseMembers(houseId)
+            houseMembers = viewModel.getHouseMembers(houseId)
         }
     }
 

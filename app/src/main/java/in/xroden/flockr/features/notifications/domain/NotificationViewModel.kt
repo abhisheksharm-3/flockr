@@ -18,14 +18,22 @@ class NotificationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<NotificationUiState>(NotificationUiState.Loading)
     val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
 
+    private var notificationJob: kotlinx.coroutines.Job? = null
+    private var isFirstLoad = true
+
     init {
         loadNotifications()
     }
 
     private fun loadNotifications() {
-        viewModelScope.launch {
-            _uiState.value = NotificationUiState.Loading
-            
+        notificationJob?.cancel()
+        notificationJob = viewModelScope.launch {
+            // Only show loading on first load
+            if (isFirstLoad) {
+                _uiState.value = NotificationUiState.Loading
+                isFirstLoad = false
+            }
+
             notificationRepository.getNotificationsFlow().collect { result ->
                 result.fold(
                     onSuccess = { notifications ->

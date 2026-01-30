@@ -1,24 +1,24 @@
 package `in`.xroden.flockr.features.chores.data
 
+import `in`.xroden.flockr.core.validation.Validators
+import `in`.xroden.flockr.core.security.InputSanitizer
+import `in`.xroden.flockr.core.network.RealtimeConnectionManager
+import `in`.xroden.flockr.core.network.RateLimiter
+import `in`.xroden.flockr.data.base.BaseRealtimeRepository
 import `in`.xroden.flockr.data.dto.ChoreInsert
 import `in`.xroden.flockr.data.dto.ChoreUpdate
+import `in`.xroden.flockr.data.dto.HouseNotificationParams
+import `in`.xroden.flockr.data.dto.NotificationParams
 import `in`.xroden.flockr.features.chores.model.Chore
+import `in`.xroden.flockr.features.chores.model.ChoreWithProfiles
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
-import io.github.jan.supabase.realtime.PostgresAction
-import io.github.jan.supabase.realtime.channel
-import io.github.jan.supabase.realtime.postgresChangeFlow
-import io.github.jan.supabase.realtime.realtime
-import io.github.jan.supabase.postgrest.query.filter.FilterOperation
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -27,56 +27,33 @@ import javax.inject.Singleton
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.coroutines.launch
 import kotlin.time.Clock
 
 @Singleton
 class ChoreRepository @Inject constructor(
-    private val supabase: SupabaseClient
-) {
+    supabase: SupabaseClient,
+    connectionManager: RealtimeConnectionManager,
+    private val rateLimiter: RateLimiter
+) : BaseRealtimeRepository(supabase, connectionManager), IChoreRepository {
+
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
+    override fun getCurrentUserId(): String? = userId
 
-
-    fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> = callbackFlow {
-        val channelId = "chores_$houseId"
-        val channel = supabase.realtime.channel(channelId)
-
-        try {
-            // Emit initial data
-            send(getChores(houseId))
-
-            // Setup realtime listener with database-level filter
-            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "chores"
-                filter(FilterOperation("house_id", FilterOperator.EQ, houseId))
-            }
-
-            channel.subscribe(blockUntilSubscribed = true)
-
-            changeFlow.collect {
-                kotlinx.coroutines.delay(100)
-                send(getChores(houseId))
-            }
-        } catch (e: Exception) {
-            send(Result.failure(e))
-        }
-
-        awaitClose {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                try {
-                    supabase.realtime.removeChannel(channel)
-                } catch (_: Exception) {
-                    // Ignore cleanup errors
-                }
-            }
-        }
+    override fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> {
+        return createRealtimeFlow(
+            channelId = "chores_$houseId",
+            table = "chores",
+            filterColumn = "house_id",
+            filterValue = houseId,
+            fetchData = { getChores(houseId) }
+        )
     }
 
     suspend fun getChores(houseId: String): Result<List<Chore>> {
         return try {
-            val response = supabase.from("chores")
+            val choresWithProfiles = supabase.from("chores")
                 .select(Columns.raw("""
                     *,
                     assigned_to_profile:profiles!chores_assigned_to_fkey(full_name),
@@ -88,49 +65,15 @@ class ChoreRepository @Inject constructor(
                     }
                     order("due_date", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }
-                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .decodeList<ChoreWithProfiles>()
 
-            val chores = response.map { obj ->
-                val assignedToName = obj["assigned_to_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
-                val completedByName = obj["completed_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
-                val createdByName = obj["created_by_profile"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }
-                    ?.jsonObject?.get("full_name")?.jsonPrimitive?.content
-
-                Chore(
-                    id = obj["id"]?.jsonPrimitive?.content ?: "",
-                    houseId = obj["house_id"]?.jsonPrimitive?.content ?: "",
-                    taskName = obj["task_name"]?.jsonPrimitive?.content ?: "",
-                    description = obj["description"]?.jsonPrimitive?.contentOrNull,
-                    assignedTo = obj["assigned_to"]?.jsonPrimitive?.contentOrNull,
-                    assignedToName = assignedToName,
-                    dueDate = obj["due_date"]?.jsonPrimitive?.contentOrNull?.let { LocalDate.parse(it) },
-                    isCompleted = obj["is_completed"]?.jsonPrimitive?.content?.toBoolean() ?: false,
-                    completedAt = obj["completed_at"]?.jsonPrimitive?.contentOrNull?.let { Instant.parse(it) },
-                    completedBy = obj["completed_by"]?.jsonPrimitive?.contentOrNull,
-                    completedByName = completedByName,
-                    recurrencePattern = obj["recurrence_pattern"]?.jsonPrimitive?.contentOrNull?.let {
-                        try {
-                            `in`.xroden.flockr.data.enums.ChoreRecurrence.valueOf(it.uppercase())
-                        } catch (_: Exception) {
-                            null
-                        }
-                    },
-                    createdBy = obj["created_by"]?.jsonPrimitive?.contentOrNull,
-                    createdByName = createdByName,
-                    createdAt = obj["created_at"]?.jsonPrimitive?.content?.let { Instant.parse(it) }
-                        ?: Instant.DISTANT_PAST
-                )
-            }
-
-            Result.success(chores)
+            Result.success(choresWithProfiles.map { it.toChore() })
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun createChore(
+    override suspend fun createChore(
         houseId: String,
         taskName: String,
         description: String?,
@@ -138,84 +81,61 @@ class ChoreRepository @Inject constructor(
         recurrencePattern: `in`.xroden.flockr.data.enums.ChoreRecurrence?,
         assignedTo: String?
     ): Result<Unit> {
-        return try {
-            val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
-
-            supabase.from("chores")
-                .insert(
-                    ChoreInsert(
-                        houseId = houseId,
-                        taskName = taskName,
-                        description = description,
-                        dueDate = dueDate,
-                        recurrencePattern = recurrencePattern,
-                        assignedTo = assignedTo,
-                        createdBy = currentUserId
-                    )
-                )
-
-            // Create notifications for chore creation
+        return rateLimiter.throttle("create_chore", maxRequestsPerMinute = 30) {
             try {
-                if (assignedTo != null && assignedTo != currentUserId) {
-                    @Serializable
-                    data class NotificationParams(
-                        @SerialName("user_id")
-                        val userId: String,
-                        @SerialName("house_id")
-                        val houseId: String,
-                        val title: String,
-                        val message: String,
-                        val type: String,
-                        val data: String
-                    )
+                val currentUserId = userId ?: return@throttle Result.failure(Exception("User not authenticated"))
 
-                    supabase.postgrest.rpc(
-                        function = "create_notification",
-                        parameters = NotificationParams(
-                            userId = assignedTo,
+                val validatedTaskName = Validators.validateChoreTask(taskName).getOrThrow()
+                val sanitizedTaskName = InputSanitizer.sanitizeText(validatedTaskName)
+                val sanitizedDescription = description?.trim()?.takeIf { it.isNotBlank() }
+                    ?.let { InputSanitizer.sanitizeText(it) }
+
+                supabase.from("chores")
+                    .insert(
+                        ChoreInsert(
                             houseId = houseId,
-                            title = "New Chore Assigned",
-                            message = "You have been assigned a new chore: $taskName.",
-                            type = "chore_assigned",
-                            data = """{"type":"chore_assigned","taskName":"$taskName"}"""
+                            taskName = sanitizedTaskName,
+                            description = sanitizedDescription,
+                            dueDate = dueDate,
+                            recurrencePattern = recurrencePattern,
+                            assignedTo = assignedTo,
+                            createdBy = currentUserId
                         )
                     )
-                } else {
-                    @Serializable
-                    data class HouseNotificationParams(
-                        @SerialName("p_house_id")
-                        val houseId: String,
-                        @SerialName("p_title")
-                        val title: String,
-                        @SerialName("p_message")
-                        val message: String,
-                        @SerialName("p_type")
-                        val type: String,
-                        @SerialName("p_data")
-                        val data: String,
-                        @SerialName("p_exclude_user_id")
-                        val excludeUserId: String?
-                    )
 
-                    supabase.postgrest.rpc(
-                        function = "create_notification_for_house",
-                        parameters = HouseNotificationParams(
-                            houseId = houseId,
-                            title = "New Chore Created",
-                            message = "New chore created: $taskName.",
-                            type = "chore",
-                            data = """{"type":"chore","taskName":"$taskName"}""",
-                            excludeUserId = currentUserId
+                try {
+                    if (assignedTo != null && assignedTo != currentUserId) {
+                        supabase.postgrest.rpc(
+                            function = "create_notification",
+                            parameters = NotificationParams(
+                                userId = assignedTo,
+                                houseId = houseId,
+                                title = "New Chore Assigned",
+                                message = "You have been assigned a new chore: $sanitizedTaskName.",
+                                type = "chore_assigned",
+                                data = """{"type":"chore_assigned","taskName":"${sanitizedTaskName.replace("\"", "\\\"")}"}"""
+                            )
                         )
-                    )
+                    } else {
+                        supabase.postgrest.rpc(
+                            function = "create_notification_for_house",
+                            parameters = HouseNotificationParams(
+                                houseId = houseId,
+                                title = "New Chore Created",
+                                message = "New chore created: $sanitizedTaskName.",
+                                type = "chore",
+                                data = """{"type":"chore","taskName":"${sanitizedTaskName.replace("\"", "\\\"")}"}""",
+                                excludeUserId = currentUserId
+                            )
+                        )
+                    }
+                } catch (_: Exception) {
                 }
-            } catch (_: Exception) {
-                // Don't fail the whole operation if notification fails
-            }
 
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
     }
 
@@ -247,9 +167,18 @@ class ChoreRepository @Inject constructor(
         }
     }
 
-    suspend fun completeChore(choreId: String, houseId: String, taskName: String): Result<Unit> {
+    override suspend fun completeChore(choreId: String, houseId: String): Result<Unit> {
         return try {
             val currentUserId = userId ?: return Result.failure(Exception("User not authenticated"))
+
+            // Get task name for notification
+            val chore = supabase.from("chores")
+                .select {
+                    filter { eq("id", choreId) }
+                }
+                .decodeSingleOrNull<Chore>()
+
+            val taskName = chore?.taskName ?: "Chore"
 
             supabase.from("chores")
                 .update(
@@ -266,22 +195,6 @@ class ChoreRepository @Inject constructor(
 
             // Create notification for house
             try {
-                @Serializable
-                data class HouseNotificationParams(
-                    @SerialName("p_house_id")
-                    val houseId: String,
-                    @SerialName("p_title")
-                    val title: String,
-                    @SerialName("p_message")
-                    val message: String,
-                    @SerialName("p_type")
-                    val type: String,
-                    @SerialName("p_data")
-                    val data: String,
-                    @SerialName("p_exclude_user_id")
-                    val excludeUserId: String?
-                )
-
                 supabase.postgrest.rpc(
                     function = "create_notification_for_house",
                     parameters = HouseNotificationParams(
@@ -294,7 +207,6 @@ class ChoreRepository @Inject constructor(
                     )
                 )
             } catch (_: Exception) {
-                // Ignore notification errors
             }
 
             Result.success(Unit)
@@ -303,7 +215,7 @@ class ChoreRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteChore(choreId: String): Result<Unit> {
+    override suspend fun deleteChore(choreId: String, houseId: String): Result<Unit> {
         return try {
             supabase.from("chores")
                 .delete {
@@ -318,7 +230,7 @@ class ChoreRepository @Inject constructor(
         }
     }
 
-    suspend fun clearCompletedChores(houseId: String): Result<Unit> {
+    override suspend fun clearCompletedChores(houseId: String): Result<Unit> {
         return try {
             supabase.from("chores")
                 .delete {

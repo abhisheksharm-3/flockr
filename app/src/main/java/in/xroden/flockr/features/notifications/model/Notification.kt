@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.notifications.model
 
+import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.enums.NotificationType
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import kotlinx.datetime.Instant
@@ -52,12 +53,13 @@ object FlexibleDataSerializer : KSerializer<String?> {
                     jsonElement.toString()
                 }
             }
-        } catch (_: Exception) {
-            null
+        } catch (e: kotlinx.serialization.SerializationException) {
+            null // Invalid JSON in notification data
         }
     }
 }
 
+@Immutable
 @Serializable
 data class Notification(
     val id: String,
@@ -79,6 +81,7 @@ data class Notification(
     val createdAt: Instant
 )
 
+@Immutable
 @Serializable
 data class NotificationPreference(
     val id: String,

@@ -22,7 +22,6 @@ import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
-import `in`.xroden.flockr.features.expenses.domain.ExpenseViewModel
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.TimeZone
@@ -37,11 +36,10 @@ fun RecurringExpensesScreen(
     onNavigateToAddBill: () -> Unit = {},
     onNavigateToEditBill: (String) -> Unit = {},
     onNavigateToHistory: (String, String) -> Unit = { _, _ -> },
-    viewModel: RecurringExpenseViewModel = hiltViewModel(),
-    expenseViewModel: ExpenseViewModel = hiltViewModel()
+    viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val houseConfig by expenseViewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsState()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }
@@ -51,7 +49,7 @@ fun RecurringExpensesScreen(
 
     LaunchedEffect(houseId) {
         viewModel.loadRecurringExpenses(houseId)
-        expenseViewModel.loadHouseConfig(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     // Delete confirmation dialog

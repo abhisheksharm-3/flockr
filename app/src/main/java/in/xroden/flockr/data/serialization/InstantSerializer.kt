@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.data.serialization
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -9,7 +9,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 /**
- * Custom serializer for kotlinx.datetime.Instant
+ * Custom serializer for kotlin.time.Instant
  * Serializes as ISO-8601 timestamp string (e.g., "2024-01-15T10:30:00Z")
  */
 object InstantSerializer : KSerializer<Instant> {

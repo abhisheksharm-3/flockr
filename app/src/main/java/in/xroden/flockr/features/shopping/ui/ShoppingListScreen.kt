@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
 import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
+import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,7 @@ fun ShoppingListScreen(
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val haptics = rememberHapticFeedback()
 
     LaunchedEffect(houseId) {
         viewModel.loadShoppingItems(houseId)
@@ -89,7 +91,7 @@ fun ShoppingListScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Shopping List", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
@@ -98,13 +100,10 @@ fun ShoppingListScreen(
         },
         floatingActionButton = {
             if (selectedTab == 0) {
-                ExtendedFloatingActionButton(
-                    onClick = onNavigateToAddItem,
-                    icon = { Icon(Icons.Default.Add, "Add") },
-                    text = { Text("Add Item") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp)
+                `in`.xroden.flockr.ui.components.buttons.FlockrExtendedFab(
+                    text = "Add Item",
+                    icon = Icons.Default.Add,
+                    onClick = onNavigateToAddItem
                 )
             }
         },
@@ -112,34 +111,22 @@ fun ShoppingListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Pill Selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(4.dp)
-                            .clip(CircleShape)
-                            .background(if (selectedTab == index) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable { selectedTab = index }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            title,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == index) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            // Standardized Pill Selector
+            `in`.xroden.flockr.ui.components.inputs.PillSelector(
+                tabs = tabs,
+                selectedIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(16.dp),
+                counts = remember(uiState) {
+                    val state = uiState
+                    if (state is ShoppingUiState.Success) {
+                        listOf(
+                            state.items.count { !it.isPurchased },
+                            state.items.count { it.isPurchased }
                         )
-                    }
+                    } else null
                 }
-            }
+            )
 
             when (val state = uiState) {
                 is ShoppingUiState.Loading -> {
@@ -178,7 +165,7 @@ fun ShoppingListScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         TextButton(
-                                            onClick = { viewModel.clearPurchasedItems(houseId) },
+                                            onClick = { haptics.performHeavyClick(); viewModel.clearPurchasedItems(houseId) },
                                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                                         ) {
                                             Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
@@ -194,16 +181,18 @@ fun ShoppingListScreen(
                                     item = item,
                                     onChecked = {
                                         if (!item.isPurchased) {
+                                            haptics.performSuccess()
                                             scope.launch {
                                                 viewModel.markAsPurchased(item.id, houseId, item.itemName)
                                                 showConvertDialog = item
                                             }
                                         }
                                     },
-                                    onEdit = { showEditDialog = item },
+                                    onEdit = { haptics.performClick(); showEditDialog = item },
                                     onDelete = {
+                                        haptics.performHeavyClick()
                                         scope.launch {
-                                            viewModel.deleteItem(item.id)
+                                            viewModel.deleteItem(item.id, houseId)
                                             snackbarHostState.showSnackbar("Item removed")
                                         }
                                     },
@@ -219,7 +208,7 @@ fun ShoppingListScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
                             Text("Error loading shopping list", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                            Button(onClick = { viewModel.loadShoppingItems(houseId) }) {
+                            Button(onClick = { haptics.performClick(); viewModel.loadShoppingItems(houseId) }) {
                                 Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Retry")

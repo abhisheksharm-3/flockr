@@ -32,10 +32,17 @@ class PerDiemViewModel @Inject constructor(
     private val _houseConfigState = MutableStateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?>(null)
     val houseConfig: StateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?> = _houseConfigState.asStateFlow()
 
+    private var currentHouseId: String? = null
+
     fun loadConfigs(houseId: String) {
+        val skipLoading = currentHouseId == houseId && _configState.value is PerDiemConfigUiState.Success
+        currentHouseId = houseId
+
         viewModelScope.launch {
-            _configState.value = PerDiemConfigUiState.Loading
-            
+            if (!skipLoading) {
+                _configState.value = PerDiemConfigUiState.Loading
+            }
+
             perDiemRepository.getPerDiemConfigs(houseId).fold(
                 onSuccess = { configs ->
                     _configState.value = PerDiemConfigUiState.Success(configs)
@@ -51,8 +58,11 @@ class PerDiemViewModel @Inject constructor(
 
     fun loadEntriesWithDetails(houseId: String, month: String? = null) {
         viewModelScope.launch {
-            _entryState.value = PerDiemEntryUiState.Loading
-            
+            // Only show loading on first load
+            if (_entryState.value !is PerDiemEntryUiState.Success) {
+                _entryState.value = PerDiemEntryUiState.Loading
+            }
+
             // Convert String to LocalDate if month is provided
             val monthDate: kotlinx.datetime.LocalDate? = month?.let {
                 try {
@@ -77,23 +87,23 @@ class PerDiemViewModel @Inject constructor(
 
     fun loadPerDiemReports(houseId: String, month: String) {
         viewModelScope.launch {
-            _billState.value = PerDiemBillUiState.Loading
-            
-            android.util.Log.d("PerDiemViewModel", "loadPerDiemReports called for houseId: $houseId, month: $month")
+            // Only show loading on first load
+            if (_billState.value !is PerDiemBillUiState.Success) {
+                _billState.value = PerDiemBillUiState.Loading
+            }
+
             val itemizedResult = perDiemRepository.getPerDiemBill(houseId, month)
             val byMemberResult = perDiemRepository.getPerDiemBillByMember(houseId, month)
             
             if (itemizedResult.isSuccess && byMemberResult.isSuccess) {
                 val itemized = itemizedResult.getOrElse { emptyList() }
                 val byMember = byMemberResult.getOrElse { emptyList() }
-                android.util.Log.d("PerDiemViewModel", "loadPerDiemReports success: itemized=${itemized.size}, byMember=${byMember.size}")
                 _billState.value = PerDiemBillUiState.Success(
                     itemized = itemized,
                     byMember = byMember
                 )
             } else {
                 val error = itemizedResult.exceptionOrNull() ?: byMemberResult.exceptionOrNull()
-                android.util.Log.e("PerDiemViewModel", "loadPerDiemReports failed", error)
                 _billState.value = PerDiemBillUiState.Error(
                     message = error?.message ?: "Failed to load per-diem reports"
                 )
