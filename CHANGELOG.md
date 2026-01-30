@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-30
+
+### Updates\
+- **R8/Minification**: Enabled R8 with comprehensive ProGuard rules for optimized builds\
+- **Network Utilities**: Added NetworkMonitor, RetryPolicy, RateLimiter, RealtimeConnectionManager and realtime flow helpers\
+- **Error Handling**: Added domain error types, network error mapping and centralized Logger\
+- **Input Validation**: Added input sanitization, validators and common constants\
+- **Navigation & UI**: Added typed navigation, new UI components (buttons, lists, headers, states), and theme dimension constants\
+- **Haptics & Biometrics**: Added haptics support, preferences and Biometric auth entry point\
+- **Repositories**: Introduced repository interfaces, DI bindings and multiple concrete repositories (expenses, chores, shopping, house, notifications, etc.)\
+- **Configuration**: Updated manifest permissions, .gitignore and libs
+
+---
+
 ## [1.7.0] - 2025-12-20
 
 ### Code Quality Improvements\
