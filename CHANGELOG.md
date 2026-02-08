@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-08
+
+### Updates\
+- **Code Quality**: Cleaned up ViewModel error handling, removed AI-generated comments\
+- **Supabase Security**: Standardized role casing across all RPC functions (Owner/Admin/Member)\
+- **Supabase Security**: Added SET search_path TO 'public' to all SECURITY DEFINER functions\
+- **Function Consolidation**: Removed redundant admin check functions (is_house_admin_or_owner, user_is_admin_in_house)\
+- **Cleanup**: Removed boilerplate test files
+
+---
+
 ## [1.8.0] - 2026-01-30
 
 ### Updates\
