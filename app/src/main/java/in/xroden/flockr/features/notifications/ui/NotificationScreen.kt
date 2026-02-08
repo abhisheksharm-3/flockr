@@ -19,8 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
-import `in`.xroden.flockr.features.notifications.domain.NotificationUiState
-import `in`.xroden.flockr.features.notifications.domain.NotificationViewModel
+import `in`.xroden.flockr.features.notifications.presentation.NotificationUiState
+import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 

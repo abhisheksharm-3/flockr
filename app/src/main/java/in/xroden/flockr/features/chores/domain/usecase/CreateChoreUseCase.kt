@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.features.chores.domain.usecase
 
 import `in`.xroden.flockr.data.enums.ChoreRecurrence
-import `in`.xroden.flockr.features.chores.data.ChoreRepository
+import `in`.xroden.flockr.features.chores.data.IChoreRepository
 import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
@@ -10,7 +10,7 @@ import javax.inject.Inject
  * Encapsulates business rules for chore creation.
  */
 class CreateChoreUseCase @Inject constructor(
-    private val choreRepository: ChoreRepository
+    private val choreRepository: IChoreRepository
 ) {
     /**
      * Creates a new chore with proper validation.

@@ -6,10 +6,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 
-/**
- * Repository interface for expense operations.
- * Enables easy mocking for unit tests.
- */
 interface IExpenseRepository {
     fun getOneTimeExpensesFlow(houseId: String): Flow<Result<List<OneTimeExpense>>>
     suspend fun getOneTimeExpense(expenseId: String): Result<OneTimeExpense>

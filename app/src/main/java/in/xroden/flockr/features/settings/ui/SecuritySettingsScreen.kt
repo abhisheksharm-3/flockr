@@ -21,7 +21,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.EntryPointAccessors
 import `in`.xroden.flockr.di.BiometricEntryPoint
-import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
+import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

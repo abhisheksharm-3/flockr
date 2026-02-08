@@ -20,8 +20,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
-import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.atStartOfDayIn

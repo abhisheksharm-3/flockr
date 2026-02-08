@@ -1,20 +1,26 @@
 package `in`.xroden.flockr.features.house.data
 
-import android.util.Log
+import `in`.xroden.flockr.core.cache.CacheManager
 import `in`.xroden.flockr.core.constants.AppConstants
-import `in`.xroden.flockr.core.validation.Validators
+import `in`.xroden.flockr.core.domain.DomainError
+import `in`.xroden.flockr.core.domain.requireAuthenticated
+import `in`.xroden.flockr.core.security.CodeGenerator
 import `in`.xroden.flockr.core.security.InputSanitizer
-import `in`.xroden.flockr.data.dto.CreateHouseParams
-import `in`.xroden.flockr.data.dto.CreateHouseResponse
-import `in`.xroden.flockr.data.dto.DeleteHouseParams
-import `in`.xroden.flockr.data.dto.GetHouseMembersParams
-import `in`.xroden.flockr.data.dto.GetUserHouseIdsParams
+import `in`.xroden.flockr.core.validation.Validators
 import `in`.xroden.flockr.data.dto.HouseConfigUpdate
-import `in`.xroden.flockr.data.dto.HouseIdResult
 import `in`.xroden.flockr.data.dto.HouseMemberInsert
 import `in`.xroden.flockr.data.dto.HouseUpdate
-import `in`.xroden.flockr.data.dto.LeaveHouseParams
+import `in`.xroden.flockr.data.dto.house.CreateHouseParams
+import `in`.xroden.flockr.data.dto.house.CreateHouseResponse
+import `in`.xroden.flockr.data.dto.house.DeleteHouseParams
+import `in`.xroden.flockr.data.dto.house.GetHouseMembersParams
+import `in`.xroden.flockr.data.dto.house.GetHousesEnrichedParams
+import `in`.xroden.flockr.data.dto.house.GetUserHouseIdsParams
+import `in`.xroden.flockr.data.dto.house.HouseEnrichedResult
+import `in`.xroden.flockr.data.dto.house.HouseIdResult
+import `in`.xroden.flockr.data.dto.house.LeaveHouseParams
 import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.core.storage.IStorageRepository
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.model.HouseConfig
@@ -32,121 +38,76 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
-import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.random.Random
+import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 
-/**
- * Repository for core house management operations.
- * Handles house CRUD, members, and configuration.
- * 
- * @see HouseInvitationRepository for invitation operations
- * @see HouseAuditRepository for audit log operations
- */
+private const val CONFIG_CACHE_TTL_MS = 5 * 60 * 1000L
+
+/** Repository for house management operations. */
 @Singleton
 class HouseRepository @Inject constructor(
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val storageRepository: IStorageRepository,
+    private val cacheManager: CacheManager,
+    private val realtimeConnectionManager: RealtimeConnectionManager
 ) : IHouseRepository {
-    private val userId: String?
+
+    private val authenticatedUserId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    // In-memory cache for house configs with TTL
-    private data class CachedConfig(
-        val config: HouseConfig,
-        val timestamp: Long
-    )
-    private val configCache = mutableMapOf<String, CachedConfig>()
-    private val CONFIG_CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
-
-    override fun getCurrentUserId(): String? = userId
+    override fun getCurrentUserId(): String? = authenticatedUserId
 
     @OptIn(FlowPreview::class)
-    fun getHousesFlow(): Flow<Result<List<House>>> = callbackFlow {
-        Log.d("HouseRepository", "getHousesFlow started")
-        // Wait for user ID with retry - handles timing issues during auth state propagation
-        var currentUserId: String? = null
-        var retryCount = 0
-        val maxRetries = 5
-        val retryDelayMs = 200L
+    override fun getHousesFlow(): Flow<Result<List<House>>> {
+        val userId = authenticatedUserId ?: return flowOf(Result.success(emptyList()))
+        val channelId = "houses_user_$userId"
 
-        while (currentUserId == null && retryCount < maxRetries) {
-            currentUserId = userId
-            if (currentUserId == null) {
-                Log.d("HouseRepository", "User ID null, retry $retryCount/$maxRetries")
-                retryCount++
-                kotlinx.coroutines.delay(retryDelayMs)
-            }
-        }
+        return callbackFlow {
+            val channel = realtimeConnectionManager.getOrCreateChannel(channelId)
 
-        if (currentUserId == null) {
-            Log.w("HouseRepository", "User ID still null after $maxRetries retries, returning empty list")
-            send(Result.success(emptyList()))
-            close()
-            return@callbackFlow
-        }
-
-        Log.d("HouseRepository", "User ID obtained: $currentUserId")
-
-        // Use unique channel ID to prevent reuse of already-subscribed channels
-        val channelId = "houses_user_${currentUserId}_${java.util.UUID.randomUUID()}"
-        val channel = supabase.realtime.channel(channelId)
-        Log.d("HouseRepository", "Created realtime channel: $channelId")
-
-        try {
-            // Set up change flows BEFORE subscribing (required by Supabase SDK)
-            val housesFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "houses"
-            }
-
-            val membersFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "house_members"
-                filter(FilterOperation("user_id", FilterOperator.EQ, currentUserId))
-            }
-
-            // Subscribe to channel
-            Log.d("HouseRepository", "Subscribing to realtime channel...")
-            channel.subscribe(blockUntilSubscribed = true)
-            Log.d("HouseRepository", "Subscribed to realtime channel")
-
-            // Fetch and send initial data AFTER subscription
-            Log.d("HouseRepository", "Fetching initial houses data...")
-            val initialResult = getHouses()
-            Log.d("HouseRepository", "Initial houses result: isSuccess=${initialResult.isSuccess}, count=${initialResult.getOrNull()?.size}")
-            send(initialResult)
-
-            merge(housesFlow, membersFlow)
-                .debounce(AppConstants.REALTIME_DEBOUNCE_MS)
-                .collect {
-                    Log.d("HouseRepository", "Realtime update received, refetching houses")
-                    send(getHouses())
+            try {
+                val housesFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "houses"
                 }
-        } catch (e: Exception) {
-            Log.e("HouseRepository", "Exception in getHousesFlow", e)
-            send(Result.failure(e))
-        }
 
-        awaitClose {
-            Log.d("HouseRepository", "Closing getHousesFlow, removing channel")
-            launch { runCatching { supabase.realtime.removeChannel(channel) } }
+                val membersFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "house_members"
+                    filter(FilterOperation("user_id", FilterOperator.EQ, userId))
+                }
+
+                channel.subscribe(blockUntilSubscribed = true)
+                send(getHouses())
+
+                merge(housesFlow, membersFlow)
+                    .debounce(AppConstants.REALTIME_DEBOUNCE_MS)
+                    .collect { send(getHouses()) }
+            } catch (e: Exception) {
+                send(Result.failure(DomainError.HouseError.LoadFailed(e)))
+            }
+
+            awaitClose {
+                launch { realtimeConnectionManager.removeChannel(channelId) }
+            }
         }
     }
 
-    suspend fun getHouses(): Result<List<House>> = runCatching {
-        val currentUserId = userId ?: return@runCatching emptyList()
+    override suspend fun getHouses(): Result<List<House>> = runCatching {
+        val userId = authenticatedUserId ?: return@runCatching emptyList()
 
         val houseMembers = supabase.postgrest.rpc(
             function = "get_user_house_ids",
-            parameters = GetUserHouseIdsParams(userId = currentUserId)
+            parameters = GetUserHouseIdsParams(userId = userId)
         ).decodeList<HouseIdResult>()
 
         val houseIds = houseMembers.map { it.houseId }
@@ -170,6 +131,14 @@ class HouseRepository @Inject constructor(
             .decodeSingle<House>()
     }
 
+    override suspend fun getHousesEnriched(month: String): Result<List<HouseEnrichedResult>> = runCatching {
+        val userId = authenticatedUserId ?: return@runCatching emptyList()
+        supabase.postgrest.rpc(
+            function = "get_houses_enriched",
+            parameters = GetHousesEnrichedParams(userId = userId, month = month)
+        ).decodeList<HouseEnrichedResult>()
+    }
+
     override suspend fun createHouse(
         name: String,
         address: String?,
@@ -180,18 +149,22 @@ class HouseRepository @Inject constructor(
         firstDayOfWeek: Int,
         timezone: String
     ): Result<House> = runCatching {
-        val currentUserId = userId ?: throw IllegalStateException("No user logged in")
+        val userId = requireAuthenticated(authenticatedUserId)
 
         val validatedName = Validators.validateHouseName(name).getOrThrow()
         val sanitizedName = InputSanitizer.sanitizeText(validatedName)
-        val sanitizedAddress = address?.trim()?.takeIf { it.isNotBlank() }?.let { InputSanitizer.sanitizeText(it) }
+        val sanitizedAddress = address?.trim()?.takeIf { it.isNotBlank() }
+            ?.let { InputSanitizer.sanitizeText(it) }
+        val sanitizedTimezone = InputSanitizer.sanitizeText(timezone)
+        val sanitizedDateFormat = InputSanitizer.sanitizeText(dateFormat)
+        val sanitizedCurrency = InputSanitizer.sanitizeText(currencyCode)
         val inviteCode = generateInviteCode()
 
         val rpcResponseRaw = supabase.postgrest.rpc(
             function = "create_house_with_owner",
             parameters = CreateHouseParams(
                 name = sanitizedName,
-                ownerId = currentUserId,
+                ownerId = userId,
                 inviteCode = inviteCode,
                 address = sanitizedAddress,
                 latitude = latitude,
@@ -201,19 +174,17 @@ class HouseRepository @Inject constructor(
 
         val rpcResponse = Json.decodeFromString<CreateHouseResponse>(rpcResponseRaw)
 
-        runCatching {
-            supabase.from("house_config")
-                .update(
-                    HouseConfigUpdate(
-                        currencyCode = currencyCode,
-                        dateFormat = dateFormat,
-                        firstDayOfWeek = firstDayOfWeek,
-                        timezone = timezone
-                    )
-                ) {
-                    filter { eq("house_id", rpcResponse.houseId) }
-                }
-        }
+        supabase.from("house_config")
+            .update(
+                HouseConfigUpdate(
+                    currencyCode = sanitizedCurrency,
+                    dateFormat = sanitizedDateFormat,
+                    firstDayOfWeek = firstDayOfWeek,
+                    timezone = sanitizedTimezone
+                )
+            ) {
+                filter { eq("house_id", rpcResponse.houseId) }
+            }
 
         supabase.from("houses")
             .select {
@@ -222,18 +193,21 @@ class HouseRepository @Inject constructor(
             .decodeSingle<House>()
     }
 
-    suspend fun updateHouse(
+    override suspend fun updateHouse(
         houseId: String,
         name: String?,
         address: String?,
         latitude: Double?,
         longitude: Double?
     ): Result<Unit> = runCatching {
+        val sanitizedName = name?.let { InputSanitizer.sanitizeText(it) }
+        val sanitizedAddress = address?.let { InputSanitizer.sanitizeText(it) }
+
         supabase.from("houses")
             .update(
                 HouseUpdate(
-                    name = name,
-                    address = address,
+                    name = sanitizedName,
+                    address = sanitizedAddress,
                     latitude = latitude,
                     longitude = longitude
                 )
@@ -256,23 +230,13 @@ class HouseRepository @Inject constructor(
         ).decodeList<MemberWithProfile>()
     }
 
-    override suspend fun getHouseConfig(houseId: String): Result<HouseConfig> {
-        // Check cache first
-        val cached = configCache[houseId]
-        if (cached != null && (System.currentTimeMillis() - cached.timestamp) < CONFIG_CACHE_TTL_MS) {
-            return Result.success(cached.config)
-        }
-        
-        return runCatching {
-            val config = supabase.from("house_config")
+    override suspend fun getHouseConfig(houseId: String): Result<HouseConfig> = runCatching {
+        cacheManager.getOrPut("house_config_$houseId", CONFIG_CACHE_TTL_MS) {
+            supabase.from("house_config")
                 .select(Columns.ALL) {
                     filter { eq("house_id", houseId) }
                 }
                 .decodeSingle<HouseConfig>()
-            
-            // Cache the result
-            configCache[houseId] = CachedConfig(config, System.currentTimeMillis())
-            config
         }
     }
 
@@ -283,33 +247,37 @@ class HouseRepository @Inject constructor(
         firstDayOfWeek: Int?,
         timezone: String?
     ): Result<Unit> = runCatching {
+        val sanitizedCurrency = currencyCode?.let { InputSanitizer.sanitizeText(it) }
+        val sanitizedDateFormat = dateFormat?.let { InputSanitizer.sanitizeText(it) }
+        val sanitizedTimezone = timezone?.let { InputSanitizer.sanitizeText(it) }
+
         supabase.from("house_config")
             .update(
                 HouseConfigUpdate(
-                    currencyCode = currencyCode,
-                    dateFormat = dateFormat,
+                    currencyCode = sanitizedCurrency,
+                    dateFormat = sanitizedDateFormat,
                     firstDayOfWeek = firstDayOfWeek,
-                    timezone = timezone
+                    timezone = sanitizedTimezone
                 )
             ) {
                 filter { eq("house_id", houseId) }
             }
-        // Invalidate cache on update
-        configCache.remove(houseId)
+        cacheManager.invalidate("house_config_$houseId")
     }
 
-    suspend fun deleteHouse(houseId: String): Result<Unit> = runCatching {
+    override suspend fun deleteHouse(houseId: String): Result<Unit> = runCatching {
         supabase.postgrest.rpc(
             function = "delete_house",
             parameters = DeleteHouseParams(houseId = houseId)
         )
+        cacheManager.invalidate("house_config_$houseId")
     }
 
-    suspend fun uploadHouseHeaderImage(houseId: String, byteArray: ByteArray): Result<String> = runCatching {
+    override suspend fun uploadHouseHeaderImage(houseId: String, byteArray: ByteArray): Result<String> = runCatching {
         val fileName = "header_${houseId}_${System.currentTimeMillis()}.jpg"
-        val bucket = supabase.storage.from("house_headers")
-        bucket.upload(fileName, byteArray) { upsert = true }
-        val publicUrl = bucket.publicUrl(fileName)
+        
+        val publicUrl = storageRepository.uploadFile("house_headers", fileName, byteArray)
+            .getOrThrow()
 
         supabase.from("houses").update(
             mapOf("header_image_url" to publicUrl)
@@ -320,12 +288,7 @@ class HouseRepository @Inject constructor(
         publicUrl
     }
 
-    fun generateInviteCode(): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return (1..6)
-            .map { chars[Random.nextInt(chars.length)] }
-            .joinToString("")
-    }
+    override fun generateInviteCode(): String = CodeGenerator.generateInviteCode()
 
     override fun getUserHousesFlow(): Flow<Result<List<HouseCardData>>> {
         return getHousesFlow().map { result ->
@@ -333,7 +296,7 @@ class HouseRepository @Inject constructor(
                 houses.map { house ->
                     HouseCardData(
                         house = house,
-                        memberCount = 0 // Will be enriched later
+                        memberCount = 0
                     )
                 }
             }
@@ -341,7 +304,6 @@ class HouseRepository @Inject constructor(
     }
 
     override suspend fun joinHouseByCode(inviteCode: String): Result<House?> = runCatching {
-        // Validate invite code format
         val validatedCode = Validators.validateInviteCode(inviteCode).getOrThrow()
         
         val house = supabase.from("houses")
@@ -351,12 +313,12 @@ class HouseRepository @Inject constructor(
             .decodeSingleOrNull<House>()
 
         if (house != null) {
-            val currentUserId = userId ?: throw IllegalStateException("No user logged in")
+            val userId = requireAuthenticated(authenticatedUserId)
             supabase.from("house_members")
                 .insert(
                     HouseMemberInsert(
                         houseId = house.id,
-                        userId = currentUserId
+                        userId = userId
                     )
                 )
         }
@@ -364,9 +326,10 @@ class HouseRepository @Inject constructor(
     }
 
     override suspend fun getHouseByInviteCode(inviteCode: String): Result<HousePreview?> = runCatching {
+        val sanitizedCode = InputSanitizer.sanitizeText(inviteCode).uppercase()
         supabase.from("houses")
             .select(Columns.raw("id, name, header_image_url")) {
-                filter { eq("invite_code", inviteCode.uppercase()) }
+                filter { eq("invite_code", sanitizedCode) }
             }
             .decodeSingleOrNull<HousePreview>()
     }
@@ -392,12 +355,12 @@ class HouseRepository @Inject constructor(
     }
 
     override suspend fun leaveHouse(houseId: String): Result<Unit> = runCatching {
-        val currentUserId = userId ?: throw IllegalStateException("No user logged in")
+        val userId = requireAuthenticated(authenticatedUserId)
         supabase.from("house_members")
             .delete {
                 filter {
                     eq("house_id", houseId)
-                    eq("user_id", currentUserId)
+                    eq("user_id", userId)
                 }
             }
     }

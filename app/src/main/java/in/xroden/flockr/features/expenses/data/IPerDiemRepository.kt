@@ -8,10 +8,6 @@ import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 
-/**
- * Repository interface for per-diem expense operations.
- * Enables easy mocking for unit tests.
- */
 interface IPerDiemRepository {
     suspend fun getPerDiemConfigs(houseId: String): Result<List<PerDiemConfig>>
     suspend fun getPerDiemEntries(houseId: String, configId: String? = null): Result<List<PerDiemEntry>>

@@ -8,7 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.Manifest
 import android.os.Build
-import android.util.Log
+import `in`.xroden.flockr.core.logging.Logger
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -159,7 +159,7 @@ class NotificationService @Inject constructor(
         // Check for runtime permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
              if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                 Log.w(TAG, "Notification permission not granted, skipping notification: $title")
+                 Logger.w(TAG, "Notification permission not granted, skipping notification: $title")
                  return
              }
         }
@@ -216,7 +216,7 @@ class NotificationService @Inject constructor(
 
             notificationManager.notify(notificationId, notification)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to show notification: ${e.message}", e)
+            Logger.e(TAG, "Failed to show notification: ${e.message}", e)
         }
     }
 

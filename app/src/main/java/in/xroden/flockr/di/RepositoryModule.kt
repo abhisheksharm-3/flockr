@@ -22,10 +22,20 @@ import `in`.xroden.flockr.features.expenses.data.RecurringExpenseRepository
 import `in`.xroden.flockr.features.expenses.data.TransactionRepository
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
+import `in`.xroden.flockr.features.house.data.IHouseInvitationRepository
+import `in`.xroden.flockr.features.house.data.HouseAuditRepository
+import `in`.xroden.flockr.features.house.data.IHouseAuditRepository
 import `in`.xroden.flockr.features.notifications.data.NotificationRepository
 import `in`.xroden.flockr.features.notifications.data.INotificationRepository
 import `in`.xroden.flockr.features.shopping.data.ShoppingRepository
 import `in`.xroden.flockr.features.shopping.data.IShoppingRepository
+import `in`.xroden.flockr.features.expenses.data.ExpenseAnalyticsRepository
+import `in`.xroden.flockr.features.expenses.data.IExpenseAnalyticsRepository
+import `in`.xroden.flockr.core.storage.StorageRepository
+import `in`.xroden.flockr.core.storage.IStorageRepository
+import `in`.xroden.flockr.features.settings.data.ISettingsRepository
+import `in`.xroden.flockr.features.settings.data.SettingsRepository
 import javax.inject.Singleton
 
 /**
@@ -100,5 +110,34 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         notificationRepository: NotificationRepository
     ): INotificationRepository
-}
 
+    @Binds
+    @Singleton
+    abstract fun bindHouseInvitationRepository(
+        houseInvitationRepository: HouseInvitationRepository
+    ): IHouseInvitationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHouseAuditRepository(
+        houseAuditRepository: HouseAuditRepository
+    ): IHouseAuditRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindExpenseAnalyticsRepository(
+        expenseAnalyticsRepository: ExpenseAnalyticsRepository
+    ): IExpenseAnalyticsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStorageRepository(
+        storageRepository: StorageRepository
+    ): IStorageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSettingsRepository(
+        settingsRepository: SettingsRepository
+    ): ISettingsRepository
+}

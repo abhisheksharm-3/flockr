@@ -15,12 +15,12 @@ import javax.inject.Singleton
 @Singleton
 class HouseAuditRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : IHouseAuditRepository {
     /**
      * Fetches audit logs for a house, ordered by creation date descending.
      * Returns empty list on failure.
      */
-    suspend fun getHouseAuditLogs(houseId: String): List<HouseAuditLog> {
+    override suspend fun getHouseAuditLogs(houseId: String): List<HouseAuditLog> {
         return try {
             supabase.from("house_audit_log")
                 .select(Columns.ALL) {
@@ -36,7 +36,7 @@ class HouseAuditRepository @Inject constructor(
     /**
      * Fetches the most recent audit logs for a house.
      */
-    suspend fun getRecentAuditLogs(houseId: String, limit: Int = 10): List<HouseAuditLog> {
+    override suspend fun getRecentAuditLogs(houseId: String, limit: Int): List<HouseAuditLog> {
         return try {
             supabase.from("house_audit_log")
                 .select(Columns.ALL) {

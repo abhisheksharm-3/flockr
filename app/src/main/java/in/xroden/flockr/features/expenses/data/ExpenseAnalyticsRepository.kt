@@ -1,11 +1,11 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.data.dto.DebtBreakdownItem
-import `in`.xroden.flockr.data.dto.GetDebtBreakdownParams
-import `in`.xroden.flockr.data.dto.GetMonthlySummaryParams
-import `in`.xroden.flockr.data.dto.GetSpendByCategoryParams
-import `in`.xroden.flockr.data.dto.GetSpendByMemberParams
-import `in`.xroden.flockr.data.dto.GetUserBalancesParams
+import `in`.xroden.flockr.data.dto.expense.DebtBreakdownItem
+import `in`.xroden.flockr.data.dto.expense.GetDebtBreakdownParams
+import `in`.xroden.flockr.data.dto.expense.GetMonthlySummaryParams
+import `in`.xroden.flockr.data.dto.expense.GetSpendByCategoryParams
+import `in`.xroden.flockr.data.dto.expense.GetSpendByMemberParams
+import `in`.xroden.flockr.data.dto.expense.GetUserBalancesParams
 import `in`.xroden.flockr.features.expenses.model.MonthlySummary
 import `in`.xroden.flockr.features.expenses.model.SpendByCategory
 import `in`.xroden.flockr.features.expenses.model.SpendByMember
@@ -19,16 +19,16 @@ import javax.inject.Singleton
 @Singleton
 class ExpenseAnalyticsRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : IExpenseAnalyticsRepository {
 
-    suspend fun getUserBalances(houseId: String): Result<List<UserBalance>> = runCatching {
+    override suspend fun getUserBalances(houseId: String): Result<List<UserBalance>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_user_balances",
             parameters = GetUserBalancesParams(houseId = houseId)
         ).decodeList<UserBalance>()
     }
 
-    suspend fun getDebtBreakdown(houseId: String, payerId: String, payeeId: String): Result<List<DebtBreakdownItem>> = runCatching {
+    override suspend fun getDebtBreakdown(houseId: String, payerId: String, payeeId: String): Result<List<DebtBreakdownItem>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_debt_breakdown",
             parameters = GetDebtBreakdownParams(
@@ -39,7 +39,7 @@ class ExpenseAnalyticsRepository @Inject constructor(
         ).decodeList<DebtBreakdownItem>()
     }
 
-    suspend fun getMonthlySummary(houseId: String, month: String): Result<MonthlySummary> = runCatching {
+    override suspend fun getMonthlySummary(houseId: String, month: String): Result<MonthlySummary> = runCatching {
         val summaryList = supabase.postgrest.rpc(
             function = "get_monthly_summary",
             parameters = GetMonthlySummaryParams(
@@ -51,7 +51,7 @@ class ExpenseAnalyticsRepository @Inject constructor(
         summaryList.firstOrNull() ?: throw IllegalStateException("No summary data returned from RPC")
     }
 
-    suspend fun getSpendByMember(houseId: String, month: String): Result<List<SpendByMember>> = runCatching {
+    override suspend fun getSpendByMember(houseId: String, month: String): Result<List<SpendByMember>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_spend_by_member",
             parameters = GetSpendByMemberParams(
@@ -61,7 +61,7 @@ class ExpenseAnalyticsRepository @Inject constructor(
         ).decodeList<SpendByMember>()
     }
 
-    suspend fun getSpendByCategory(houseId: String, month: String): Result<List<SpendByCategory>> = runCatching {
+    override suspend fun getSpendByCategory(houseId: String, month: String): Result<List<SpendByCategory>> = runCatching {
         supabase.postgrest.rpc(
             function = "get_spend_by_category",
             parameters = GetSpendByCategoryParams(

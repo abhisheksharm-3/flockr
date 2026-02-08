@@ -4,10 +4,6 @@ import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.model.NotificationPreference
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Repository interface for notification operations.
- * Enables easy mocking for unit tests.
- */
 interface INotificationRepository {
     fun getNotificationsFlow(): Flow<Result<List<Notification>>>
     suspend fun markAsRead(notificationId: String): Result<Unit>

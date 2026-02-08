@@ -28,9 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
-import `in`.xroden.flockr.features.documents.domain.DocumentViewModel
-import `in`.xroden.flockr.features.documents.domain.DocumentUiState
-import `in`.xroden.flockr.features.documents.domain.UploadDocumentUiState
+import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
+import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
+import `in`.xroden.flockr.features.documents.presentation.UploadDocumentUiState
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -8,10 +8,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 
-/**
- * Repository interface for recurring expense operations.
- * Enables easy mocking for unit tests.
- */
 interface IRecurringExpenseRepository {
     fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>>
     suspend fun getRecurringExpenses(houseId: String): Result<List<RecurringExpense>>

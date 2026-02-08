@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import `in`.xroden.flockr.features.house.model.HousePreview
-import `in`.xroden.flockr.features.house.domain.HomeViewModel
-import `in`.xroden.flockr.features.house.domain.HousePreviewUiState
-import `in`.xroden.flockr.features.house.domain.JoinHouseUiState
+import `in`.xroden.flockr.features.house.presentation.HomeViewModel
+import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
+import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 
 /**

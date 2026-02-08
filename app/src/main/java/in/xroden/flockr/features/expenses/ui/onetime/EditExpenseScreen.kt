@@ -22,8 +22,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
-import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
-import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
+import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
+import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone

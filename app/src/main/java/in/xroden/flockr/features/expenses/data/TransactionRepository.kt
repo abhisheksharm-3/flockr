@@ -2,8 +2,8 @@ package `in`.xroden.flockr.features.expenses.data
 
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.SettleBalanceParams
 import `in`.xroden.flockr.data.dto.TransactionInsert
+import `in`.xroden.flockr.data.dto.expense.SettleBalanceParams
 import `in`.xroden.flockr.features.expenses.model.Transaction
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -23,15 +23,14 @@ class TransactionRepository @Inject constructor(
     connectionManager: RealtimeConnectionManager
 ) : BaseRealtimeRepository(supabase, connectionManager), ITransactionRepository {
 
-    override fun getTransactionsFlow(houseId: String): Flow<Result<List<Transaction>>> {
-        return createRealtimeFlow(
+    override fun getTransactionsFlow(houseId: String): Flow<Result<List<Transaction>>> =
+        createRealtimeFlow(
             channelId = "transactions_$houseId",
             table = "transactions",
             filterColumn = "house_id",
             filterValue = houseId,
             fetchData = { getTransactions(houseId) }
         )
-    }
 
     override suspend fun getTransactions(houseId: String): Result<List<Transaction>> = runCatching {
         supabase.from("transactions")
@@ -51,35 +50,29 @@ class TransactionRepository @Inject constructor(
         description: String?
     ): Result<Transaction> = runCatching {
         supabase.from("transactions")
-            .insert(
-                TransactionInsert(
-                    houseId = houseId,
-                    payerId = payerId,
-                    payeeId = payeeId,
-                    amount = amount,
-                    isSettlement = isSettlement,
-                    description = description
-                )
-            ) {
-                select()
-            }
+            .insert(TransactionInsert(
+                houseId = houseId,
+                payerId = payerId,
+                payeeId = payeeId,
+                amount = amount,
+                isSettlement = isSettlement,
+                description = description
+            )) { select() }
             .decodeSingle<Transaction>()
     }
 
     override suspend fun deleteTransaction(transactionId: String): Result<Unit> = runCatching {
-        supabase.from("transactions")
-            .delete {
-                filter { eq("id", transactionId) }
-            }
+        supabase.from("transactions").delete { filter { eq("id", transactionId) } }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     override suspend fun settleBalance(
         houseId: String,
         payerId: String,
         payeeId: String,
         amount: BigDecimal,
         date: LocalDate,
-        name: String, // Kept for API compatibility, though not used in RPC
+        name: String,
         notes: String?
     ): Result<Unit> = runCatching {
         supabase.postgrest.rpc(

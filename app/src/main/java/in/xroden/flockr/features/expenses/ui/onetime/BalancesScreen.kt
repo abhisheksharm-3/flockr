@@ -29,9 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
-import `in`.xroden.flockr.features.expenses.domain.BalanceViewModel
-import `in`.xroden.flockr.features.expenses.domain.BalanceUiState
-import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
+import `in`.xroden.flockr.features.expenses.presentation.BalanceViewModel
+import `in`.xroden.flockr.features.expenses.presentation.BalanceUiState
+import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import java.math.BigDecimal
 import kotlin.math.abs

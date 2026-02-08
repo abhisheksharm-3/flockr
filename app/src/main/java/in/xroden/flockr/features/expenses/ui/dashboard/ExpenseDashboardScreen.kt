@@ -23,10 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
-import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryViewModel
-import `in`.xroden.flockr.features.expenses.domain.OneTimeExpenseUiState
-import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
+import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
+import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryViewModel
+import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseUiState
+import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryUiState
 import `in`.xroden.flockr.features.expenses.model.SpendByMember
 import `in`.xroden.flockr.ui.theme.CategoryBlue
 import `in`.xroden.flockr.ui.theme.CategoryGreen

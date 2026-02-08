@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.features.expenses.domain.usecase
 
-import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
+import `in`.xroden.flockr.features.expenses.data.IPerDiemRepository
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
 import javax.inject.Inject
@@ -10,7 +10,7 @@ import javax.inject.Inject
  * Coordinates fetching itemized and member-wise reports.
  */
 class LoadPerDiemBillUseCase @Inject constructor(
-    private val perDiemRepository: PerDiemRepository
+    private val perDiemRepository: IPerDiemRepository
 ) {
     /**
      * Loads both itemized and member-wise per-diem billing reports for a month.

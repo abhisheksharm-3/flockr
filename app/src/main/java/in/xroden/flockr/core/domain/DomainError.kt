@@ -1,10 +1,6 @@
 package `in`.xroden.flockr.core.domain
 
-/**
- * Base sealed class for all domain errors in the application.
- * Provides structured error handling with specific error types.
- * Extends Exception so it can be used with Result.failure()
- */
+/** Base sealed class for all domain errors. Extends Exception for Result.failure() compatibility. */
 sealed class DomainError(override val message: String, override val cause: Throwable? = null) : Exception(message, cause) {
 
     sealed class AuthError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {
@@ -51,27 +47,75 @@ sealed class DomainError(override val message: String, override val cause: Throw
         data class UploadFailed(override val message: String, override val cause: Throwable? = null) : StorageError(message, cause)
         data class DownloadFailed(override val cause: Throwable? = null) : StorageError("Failed to download file", cause)
         data class DeleteFailed(override val cause: Throwable? = null) : StorageError("Failed to delete file", cause)
+        data class FileTooLarge(val size: Long, val maxSize: Long) : StorageError("File size $size exceeds maximum $maxSize bytes")
         data class LimitReached(val limitType: String, val maxItems: Int) : StorageError("$limitType document limit reached (max $maxItems)")
+    }
+
+    sealed class ChatError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {
+        data class SendFailed(override val cause: Throwable? = null) : ChatError("Failed to send message", cause)
+        data class LoadFailed(override val cause: Throwable? = null) : ChatError("Failed to load messages", cause)
+    }
+
+    sealed class DocumentError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {
+        data class UploadFailed(override val message: String, override val cause: Throwable? = null) : DocumentError(message, cause)
+        data class DeleteFailed(override val cause: Throwable? = null) : DocumentError("Failed to delete document", cause)
+        data class LoadFailed(override val cause: Throwable? = null) : DocumentError("Failed to load documents", cause)
+        data class InvalidMimeType(val mimeType: String) : DocumentError("Invalid file type: $mimeType")
+    }
+
+    sealed class ShoppingError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {
+        data class AddFailed(override val cause: Throwable? = null) : ShoppingError("Failed to add item", cause)
+        data class UpdateFailed(override val cause: Throwable? = null) : ShoppingError("Failed to update item", cause)
+        data class DeleteFailed(override val cause: Throwable? = null) : ShoppingError("Failed to delete item", cause)
+        data class LoadFailed(override val cause: Throwable? = null) : ShoppingError("Failed to load shopping list", cause)
+    }
+
+    sealed class ChoreError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {
+        data class CreateFailed(override val cause: Throwable? = null) : ChoreError("Failed to create chore", cause)
+        data class UpdateFailed(override val cause: Throwable? = null) : ChoreError("Failed to update chore", cause)
+        data class DeleteFailed(override val cause: Throwable? = null) : ChoreError("Failed to delete chore", cause)
+        data class LoadFailed(override val cause: Throwable? = null) : ChoreError("Failed to load chores", cause)
+        data class CompleteFailed(override val cause: Throwable? = null) : ChoreError("Failed to complete chore", cause)
     }
 
     data class UnknownError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause)
 }
 
-/**
- * Type alias for Result types using DomainError.
- */
 typealias DomainResult<T> = Result<T>
 
-/**
- * Extension function to convert exceptions to DomainError.
- */
-fun Throwable.toDomainError(): DomainError {
-    return when (this) {
-        is IllegalStateException -> when {
-            message?.contains("not authenticated", ignoreCase = true) == true -> DomainError.AuthError.NotAuthenticated
-            else -> DomainError.UnknownError(message ?: "Unknown error", this)
-        }
-        is IllegalArgumentException -> DomainError.ValidationError.InvalidFormat("Input", this.message ?: "Invalid input")
-        else -> DomainError.UnknownError(message ?: "Unknown error occurred", this)
+/** Converts throwable to typed DomainError. */
+fun Throwable.toDomainError(): DomainError = when (this) {
+    is DomainError -> this
+    is IllegalStateException -> when {
+        message?.contains("not authenticated", ignoreCase = true) == true -> DomainError.AuthError.NotAuthenticated
+        message?.contains("no user logged in", ignoreCase = true) == true -> DomainError.AuthError.NotAuthenticated
+        else -> DomainError.UnknownError(message ?: "Unknown error", this)
     }
+    is IllegalArgumentException -> DomainError.ValidationError.InvalidFormat("Input", message ?: "Invalid input")
+    else -> DomainError.UnknownError(message ?: "Unknown error occurred", this)
 }
+
+/** Requires authenticated user or throws NotAuthenticated error. */
+fun requireAuthenticated(userId: String?): String =
+    userId ?: throw DomainError.AuthError.NotAuthenticated
+
+/** Maps Result failure to a different error type. */
+inline fun <T> Result<T>.mapError(transform: (Throwable) -> Throwable): Result<T> =
+    fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { Result.failure(transform(it)) }
+    )
+
+/** Executes onSuccess block as a suspend function. */
+suspend inline fun <T, R> Result<T>.mapSuspend(crossinline transform: suspend (T) -> R): Result<R> =
+    fold(
+        onSuccess = { runCatching { transform(it) } },
+        onFailure = { Result.failure(it) }
+    )
+
+/** FlatMaps Result, allowing chained operations that return Result. */
+inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
+    fold(
+        onSuccess = { transform(it) },
+        onFailure = { Result.failure(it) }
+    )

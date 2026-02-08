@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.auth.domain.AuthViewModel
+import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 import kotlinx.coroutines.launch
 
@@ -37,16 +37,9 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    val coroutineScope = rememberCoroutineScope()
-
     OnboardingCarousel(
         onComplete = {
-            // Mark onboarding complete and go directly to home
-            coroutineScope.launch {
-                viewModel.updateProfile(
-                    hasCompletedOnboarding = true
-                )
-            }
+            viewModel.updateProfile(hasCompletedOnboarding = true)
         }
     )
 }

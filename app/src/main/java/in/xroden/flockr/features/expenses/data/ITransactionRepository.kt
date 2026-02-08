@@ -5,10 +5,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 
-/**
- * Repository interface for transaction operations.
- * Enables easy mocking for unit tests.
- */
 interface ITransactionRepository {
     fun getTransactionsFlow(houseId: String): Flow<Result<List<Transaction>>>
     suspend fun getTransactions(houseId: String): Result<List<Transaction>>

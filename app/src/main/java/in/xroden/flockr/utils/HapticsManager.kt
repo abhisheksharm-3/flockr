@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import dagger.hilt.android.qualifiers.ApplicationContext
-import `in`.xroden.flockr.features.settings.model.HapticsPreferences
+import `in`.xroden.flockr.features.settings.data.ISettingsRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -25,7 +25,7 @@ import javax.inject.Singleton
 @Singleton
 class HapticsManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val hapticsPreferences: HapticsPreferences
+    private val settingsRepository: ISettingsRepository
 ) {
     private val vibrator: Vibrator by lazy {
         val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -101,14 +101,14 @@ class HapticsManager @Inject constructor(
     }
 
     private suspend fun isEnabled(): Boolean {
-        return hapticsPreferences.hapticsEnabled.first()
+        return settingsRepository.hapticsEnabled.first()
     }
 
     /**
      * Check if haptics are currently enabled (public access for HapticFeedback helper)
      */
     suspend fun isHapticsEnabled(): Boolean {
-        return hapticsPreferences.hapticsEnabled.first()
+        return settingsRepository.hapticsEnabled.first()
     }
 
     @SuppressLint("MissingPermission")

@@ -31,15 +31,12 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val SUPABASE_URL = BuildConfig.SUPABASE_URL
-    private const val SUPABASE_KEY = BuildConfig.SUPABASE_KEY
-
     @Provides
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
         return createSupabaseClient(
-            supabaseUrl = SUPABASE_URL,
-            supabaseKey = SUPABASE_KEY
+            supabaseUrl = BuildConfig.SUPABASE_URL,
+            supabaseKey = BuildConfig.SUPABASE_KEY
         ) {
             install(Auth) {
                 defaultExternalAuthAction = io.github.jan.supabase.auth.ExternalAuthAction.CustomTabs()

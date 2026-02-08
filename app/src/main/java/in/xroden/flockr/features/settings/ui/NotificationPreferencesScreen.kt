@@ -22,8 +22,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.notifications.model.NotificationPreference
-import `in`.xroden.flockr.features.notifications.data.NotificationRepository
-import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.notifications.data.INotificationRepository
+import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,10 +31,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** ViewModel for notification preferences management. */
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
-    private val notificationRepository: NotificationRepository,
-    private val houseRepository: HouseRepository
+    private val notificationRepository: INotificationRepository,
+    private val houseRepository: IHouseRepository
 ) : ViewModel() {
 
     private val _preferences = MutableStateFlow<List<NotificationPreference>>(emptyList())

@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
-import `in`.xroden.flockr.features.chores.domain.CreateChoreUiState
+import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
+import `in`.xroden.flockr.features.chores.presentation.CreateChoreUiState
 import kotlinx.datetime.*
 import kotlin.time.Clock
 

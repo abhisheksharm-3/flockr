@@ -15,10 +15,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import `in`.xroden.flockr.data.enums.NotificationType
-import `in`.xroden.flockr.features.auth.domain.AuthViewModel
+import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.house.ui.home.HomeScreen
 import `in`.xroden.flockr.features.notifications.ui.NotificationScreen
 import `in`.xroden.flockr.ui.components.loading.FlockrSplashLoader
+import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.key
@@ -29,12 +30,6 @@ import org.json.JSONObject
  * Navigation component for Flockr app with authentication state management.
  * Uses modular navigation graphs for different features with type-safe routes.
  */
-sealed class AuthNavigationState {
-    object Loading : AuthNavigationState()
-    object Unauthenticated : AuthNavigationState()
-    object NeedsOnboarding : AuthNavigationState()
-    object Authenticated : AuthNavigationState()
-}
 
 @Composable
 fun FlockrNavigation(

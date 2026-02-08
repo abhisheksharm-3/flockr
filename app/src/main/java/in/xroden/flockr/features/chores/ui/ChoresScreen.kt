@@ -24,31 +24,26 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
-import `in`.xroden.flockr.features.chores.domain.ChoreUiState
-import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
+import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
+import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import kotlinx.datetime.*
 import kotlin.time.Clock
 
 // Helper functions using pure kotlinx-datetime
 private fun isOverdue(dateString: String): Boolean {
-    return try {
+    return runCatching {
         val date = LocalDate.parse(dateString)
         val today = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         date < today
-    } catch (_: Exception) {
-        false
-    }
+    }.getOrDefault(false)
 }
 
 private fun formatDate(dateString: String): String {
-    return try {
+    return runCatching {
         val date = LocalDate.parse(dateString)
-        // Manual formatting: "Jan 15"
         val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
         "$month ${date.day}"
-    } catch (_: Exception) {
-        dateString
-    }
+    }.getOrDefault(dateString)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

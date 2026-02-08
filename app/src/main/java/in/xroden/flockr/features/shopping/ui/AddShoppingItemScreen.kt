@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
+import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 import kotlinx.coroutines.launch
 

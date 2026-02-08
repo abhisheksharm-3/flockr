@@ -7,24 +7,26 @@ import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Centralized manager for Supabase realtime connections.
- * Handles channel lifecycle, connection health monitoring, and automatic reconnection.
- */
+/** Centralized manager for Supabase realtime connections with lifecycle awareness. */
 @Singleton
 class RealtimeConnectionManager @Inject constructor(
     private val supabase: SupabaseClient,
     private val networkMonitor: NetworkMonitor
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(job + Dispatchers.IO)
     private val activeChannels = mutableMapOf<String, RealtimeChannel>()
+    private val channelMutex = Mutex()
 
     private val _connectionState = MutableStateFlow<RealtimeConnectionState>(RealtimeConnectionState.Connected)
     val connectionState: StateFlow<RealtimeConnectionState> = _connectionState.asStateFlow()
@@ -33,57 +35,48 @@ class RealtimeConnectionManager @Inject constructor(
         monitorNetworkChanges()
     }
 
-    /**
-     * Gets or creates a realtime channel with the given ID.
-     * Reuses existing channels to prevent duplicate subscriptions.
-     */
-    fun getOrCreateChannel(channelId: String): RealtimeChannel {
-        return activeChannels.getOrPut(channelId) {
-            supabase.realtime.channel(channelId)
+    /** Gets existing channel or creates new one. Thread-safe. */
+    suspend fun getOrCreateChannel(channelId: String): RealtimeChannel = channelMutex.withLock {
+        activeChannels.getOrPut(channelId) { supabase.realtime.channel(channelId) }
+    }
+
+    /** Removes and cleans up a channel by ID. */
+    suspend fun removeChannel(channelId: String) {
+        channelMutex.withLock {
+            activeChannels.remove(channelId)
+        }?.let { channel ->
+            scope.launch { runCatching { supabase.realtime.removeChannel(channel) } }
         }
     }
 
-    /**
-     * Removes a channel and cleans up its subscription.
-     */
-    fun removeChannel(channelId: String) {
-        activeChannels.remove(channelId)?.let { channel ->
-            scope.launch {
-                runCatching {
-                    supabase.realtime.removeChannel(channel)
-                }
-            }
+    /** Removes and cleans up a channel instance. */
+    suspend fun removeChannel(channel: RealtimeChannel) {
+        val channelId = channelMutex.withLock {
+            activeChannels.entries.find { it.value == channel }?.also {
+                activeChannels.remove(it.key)
+            }?.key
+        }
+        if (channelId != null) {
+            scope.launch { runCatching { supabase.realtime.removeChannel(channel) } }
         }
     }
 
-    /**
-     * Removes a channel by reference.
-     */
-    fun removeChannel(channel: RealtimeChannel) {
-        val entry = activeChannels.entries.find { it.value == channel }
-        entry?.let {
-            activeChannels.remove(it.key)
-            scope.launch {
-                runCatching {
-                    supabase.realtime.removeChannel(channel)
-                }
-            }
-        }
-    }
-
-    /**
-     * Cleans up all active channels.
-     * Called when user logs out or app is destroyed.
-     */
+    /** Cleans up all channels. Call on app termination. */
     fun cleanup() {
         scope.launch {
-            activeChannels.values.forEach { channel ->
-                runCatching {
-                    supabase.realtime.removeChannel(channel)
+            channelMutex.withLock {
+                activeChannels.values.forEach { channel ->
+                    runCatching { supabase.realtime.removeChannel(channel) }
                 }
+                activeChannels.clear()
             }
-            activeChannels.clear()
         }
+    }
+
+    /** Cancels scope and releases resources. Call when manager is no longer needed. */
+    fun destroy() {
+        cleanup()
+        job.cancel()
     }
 
     private fun monitorNetworkChanges() {
@@ -100,7 +93,7 @@ class RealtimeConnectionManager @Inject constructor(
 }
 
 sealed class RealtimeConnectionState {
-    object Connected : RealtimeConnectionState()
-    object Disconnected : RealtimeConnectionState()
+    data object Connected : RealtimeConnectionState()
+    data object Disconnected : RealtimeConnectionState()
     data class Error(val message: String) : RealtimeConnectionState()
 }

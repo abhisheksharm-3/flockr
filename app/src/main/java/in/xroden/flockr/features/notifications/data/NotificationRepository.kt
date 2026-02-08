@@ -1,9 +1,13 @@
 package `in`.xroden.flockr.features.notifications.data
 
+import `in`.xroden.flockr.core.domain.requireAuthenticated
+import `in`.xroden.flockr.core.logging.Logger
 import `in`.xroden.flockr.data.dto.NotificationUpdate
+import `in`.xroden.flockr.data.dto.notification.DeleteAllNotificationsParams
+import `in`.xroden.flockr.data.dto.notification.DeleteNotificationParams
 import `in`.xroden.flockr.features.notifications.model.Notification
-import `in`.xroden.flockr.features.notifications.model.NotificationSerializer
 import `in`.xroden.flockr.features.notifications.model.NotificationPreference
+import `in`.xroden.flockr.features.notifications.model.NotificationSerializer
 import `in`.xroden.flockr.features.notifications.service.NotificationService
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -11,21 +15,19 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.filter.FilterOperation
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
-import io.github.jan.supabase.postgrest.query.filter.FilterOperation
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
@@ -38,6 +40,7 @@ class NotificationRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val notificationService: NotificationService
 ) : INotificationRepository {
+
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
@@ -125,106 +128,53 @@ class NotificationRepository @Inject constructor(
                     data = null
                 )
             }
-        } catch (_: Exception) {
-            // Ignore device notification errors
+        } catch (e: Exception) {
+            Logger.w("NotificationRepository", "Failed to show device notification", e)
         }
     }
 
+    override suspend fun markAsRead(notificationId: String): Result<Unit> = runCatching {
+        supabase.from("notifications")
+            .update(NotificationUpdate(isRead = true)) {
+                filter { eq("id", notificationId) }
+            }
+    }
 
+    override suspend fun markAllAsRead(): Result<Unit> = runCatching {
+        requireAuthenticated(userId)
+        supabase.postgrest.rpc("mark_all_notifications_read")
+    }
 
+    override suspend fun deleteNotification(notificationId: String): Result<Unit> = runCatching {
+        supabase.postgrest.rpc(
+            function = "delete_notification",
+            parameters = DeleteNotificationParams(notificationId = notificationId)
+        )
+    }
 
-    override suspend fun markAsRead(notificationId: String): Result<Unit> {
-        return try {
-            supabase.from("notifications")
-                .update(NotificationUpdate(isRead = true)) {
-                    filter {
-                        eq("id", notificationId)
-                    }
+    override suspend fun deleteAllNotifications(): Result<Unit> = runCatching {
+        val currentUserId = requireAuthenticated(userId)
+        supabase.postgrest.rpc(
+            function = "delete_all_notifications",
+            parameters = DeleteAllNotificationsParams(userId = currentUserId)
+        )
+    }
+
+    override suspend fun getNotificationPreferences(houseId: String): Result<NotificationPreference?> = runCatching {
+        val currentUserId = requireAuthenticated(userId)
+        supabase.from("notification_preferences")
+            .select(Columns.ALL) {
+                filter {
+                    eq("user_id", currentUserId)
+                    eq("house_id", houseId)
                 }
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            }
+            .decodeSingleOrNull<NotificationPreference>()
     }
-
-    override suspend fun markAllAsRead(): Result<Unit> {
-        return try {
-            userId ?: return Result.failure(Exception("No user logged in"))
-
-            supabase.postgrest.rpc("mark_all_notifications_read")
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun deleteNotification(notificationId: String): Result<Unit> {
-        return try {
-            @Serializable
-            data class DeleteNotificationParams(
-                @SerialName("p_notification_id")
-                val notificationId: String
-            )
-
-            supabase.postgrest.rpc(
-                function = "delete_notification",
-                parameters = DeleteNotificationParams(notificationId = notificationId)
-            )
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun deleteAllNotifications(): Result<Unit> {
-        return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
-            
-            @Serializable
-            data class DeleteAllParams(
-                @SerialName("p_user_id")
-                val userId: String
-            )
-
-            supabase.postgrest.rpc(
-                function = "delete_all_notifications",
-                parameters = DeleteAllParams(userId = currentUserId)
-            )
-
-            Result.success(Unit)
-        } catch (e2: Exception) {
-            Result.failure(e2)
-        }
-    }
-
-    override suspend fun getNotificationPreferences(houseId: String): Result<NotificationPreference?> {
-        return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
-
-            val prefs = supabase.from("notification_preferences")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("house_id", houseId)
-                    }
-                }
-                .decodeSingleOrNull<NotificationPreference>()
-
-            Result.success(prefs)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
 
     override suspend fun ensurePreferencesExist(houseId: String) {
-        try {
-            val currentUserId = userId ?: return
-            
-            // Check if exists
+        val currentUserId = userId ?: return
+        runCatching {
             val existing = supabase.from("notification_preferences")
                 .select(Columns.ALL) {
                     filter {
@@ -233,74 +183,57 @@ class NotificationRepository @Inject constructor(
                     }
                 }
                 .decodeSingleOrNull<NotificationPreference>()
-            
+
             if (existing == null) {
-                val defaultPref = NotificationPreference(
-                    userId = currentUserId,
-                    houseId = houseId,
-                    id = UUID.randomUUID().toString(),
-                    enableMemberJoined = true,
-                    enableExpenseAdded = true,
-                    enableChoreAssigned = true,
-                    enableMessageSent = true,
-                    enableShoppingItemAdded = true
+                supabase.from("notification_preferences").insert(
+                    NotificationPreference(
+                        id = UUID.randomUUID().toString(),
+                        userId = currentUserId,
+                        houseId = houseId,
+                        enableMemberJoined = true,
+                        enableExpenseAdded = true,
+                        enableChoreAssigned = true,
+                        enableMessageSent = true,
+                        enableShoppingItemAdded = true
+                    )
                 )
-                supabase.from("notification_preferences").insert(defaultPref)
             }
-        } catch (_: Exception) {
-            // Ignore
-        }
+        }.onFailure { Logger.w("NotificationRepository", "Failed to ensure notification preferences exist", it) }
     }
 
     override suspend fun getNotificationPreferences(): List<NotificationPreference> {
-        return try {
-            val currentUserId = userId ?: return emptyList()
-
+        val currentUserId = userId ?: return emptyList()
+        return runCatching {
             supabase.from("notification_preferences")
-                .select(Columns.ALL) {
-                    filter {
-                        eq("user_id", currentUserId)
-                    }
-                }
+                .select(Columns.ALL) { filter { eq("user_id", currentUserId) } }
                 .decodeList<NotificationPreference>()
-        } catch (_: Exception) {
-            emptyList()
-        }
+        }.getOrElse { emptyList() }
     }
 
     override suspend fun updateNotificationPreferences(
         houseId: String,
         key: String,
         enabled: Boolean
-    ): Result<Unit> {
-        return try {
-            val currentUserId = userId ?: return Result.failure(Exception("No user logged in"))
+    ): Result<Unit> = runCatching {
+        val currentUserId = requireAuthenticated(userId)
+        val column = PREFERENCE_KEY_MAP[key] ?: throw IllegalArgumentException("Invalid preference key: $key")
 
-            // Map key to column name if needed, or use dynamic update
-            // Assuming key matches column name for simplicity, or map it
-            val column = when(key) {
-                "enable_member_joined" -> "enable_member_joined"
-                "enable_expense_added" -> "enable_expense_added"
-                "enable_chore_assigned" -> "enable_chore_assigned"
-                "enable_message_sent" -> "enable_message_sent"
-                "enable_shopping_item_added" -> "enable_shopping_item_added"
-                else -> return Result.failure(Exception("Invalid preference key"))
-            }
-
-            // Use a map for update
-            val updateMap = mapOf(column to enabled)
-
-            supabase.from("notification_preferences")
-                .update(updateMap) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("house_id", houseId)
-                    }
+        supabase.from("notification_preferences")
+            .update(mapOf(column to enabled)) {
+                filter {
+                    eq("user_id", currentUserId)
+                    eq("house_id", houseId)
                 }
+            }
+    }
 
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    private companion object {
+        val PREFERENCE_KEY_MAP = mapOf(
+            "enable_member_joined" to "enable_member_joined",
+            "enable_expense_added" to "enable_expense_added",
+            "enable_chore_assigned" to "enable_chore_assigned",
+            "enable_message_sent" to "enable_message_sent",
+            "enable_shopping_item_added" to "enable_shopping_item_added"
+        )
     }
 }

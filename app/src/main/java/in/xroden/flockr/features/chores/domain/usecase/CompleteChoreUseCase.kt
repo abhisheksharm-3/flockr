@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.features.chores.domain.usecase
 
-import `in`.xroden.flockr.features.chores.data.ChoreRepository
+import `in`.xroden.flockr.features.chores.data.IChoreRepository
 import javax.inject.Inject
 
 /**
@@ -8,7 +8,7 @@ import javax.inject.Inject
  * Handles the business logic of marking a chore as complete.
  */
 class CompleteChoreUseCase @Inject constructor(
-    private val choreRepository: ChoreRepository
+    private val choreRepository: IChoreRepository
 ) {
     /**
      * Marks a chore as complete.

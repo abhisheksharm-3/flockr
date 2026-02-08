@@ -28,9 +28,9 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
-import `in`.xroden.flockr.features.house.domain.HouseSettingsViewModel
-import `in`.xroden.flockr.features.settings.domain.HouseSettingsUiState
-import `in`.xroden.flockr.features.settings.domain.UpdateHouseSettingsUiState
+import `in`.xroden.flockr.features.house.presentation.HouseSettingsViewModel
+import `in`.xroden.flockr.features.settings.presentation.HouseSettingsUiState
+import `in`.xroden.flockr.features.settings.presentation.UpdateHouseSettingsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

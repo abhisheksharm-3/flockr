@@ -1,7 +1,6 @@
 package `in`.xroden.flockr.features.chores.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -18,16 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.features.chores.domain.ChoreUiState
-import `in`.xroden.flockr.features.chores.domain.ChoreViewModel
-import `in`.xroden.flockr.features.house.domain.HouseManagementViewModel
+import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
+import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
+import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import kotlinx.coroutines.launch
@@ -48,8 +45,8 @@ fun ProductivityScreen(
     
     // Month selection state - using first day of month as LocalDate
     val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.monthNumber, 1)) }
-    
+    var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.month, 1)) }
+
     LaunchedEffect(houseId) {
         viewModel.loadChores(houseId)
         scope.launch {
@@ -72,10 +69,11 @@ fun ProductivityScreen(
             .filter { chore ->
                 chore.completedAt?.let { completedAt ->
                     val completedDate = completedAt.toLocalDateTime(TimeZone.currentSystemDefault())
-                    completedDate.year == selectedMonth.year && completedDate.monthNumber == selectedMonth.monthNumber
+                    completedDate.year == selectedMonth.year && completedDate.month == selectedMonth.month
                 } ?: false
             }
-            .groupBy { it.completedByName!! }
+            .groupBy { it.completedByName.orEmpty() }
+            .filterKeys { it.isNotEmpty() }
             .mapValues { it.value.size }
             .toList()
             .sortedByDescending { it.second }
@@ -90,7 +88,8 @@ fun ProductivityScreen(
                     completedDate.year == selectedMonth.year
                 } ?: false
             }
-            .groupBy { it.completedByName!! }
+            .groupBy { it.completedByName.orEmpty() }
+            .filterKeys { it.isNotEmpty() }
             .mapValues { it.value.size }
             .toList()
             .sortedByDescending { it.second }

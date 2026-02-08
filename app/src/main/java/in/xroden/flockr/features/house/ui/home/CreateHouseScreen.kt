@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.features.house.ui.home
 
 
-import android.util.Log
+import `in`.xroden.flockr.core.logging.Logger
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -30,8 +30,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
-import `in`.xroden.flockr.features.house.domain.HomeViewModel
-import `in`.xroden.flockr.features.house.domain.CreateHouseUiState
+import `in`.xroden.flockr.features.house.presentation.HomeViewModel
+import `in`.xroden.flockr.features.house.presentation.CreateHouseUiState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -85,7 +85,7 @@ private fun CreateHouseScreenContent(
                     imageBytes = inputStream.readBytes()
                 }
                 } catch (_: Exception) {
-                    Log.e(SCREEN_NAME, "Error reading image")
+                    Logger.e(SCREEN_NAME, "Error reading image")
                 }
             }
         }

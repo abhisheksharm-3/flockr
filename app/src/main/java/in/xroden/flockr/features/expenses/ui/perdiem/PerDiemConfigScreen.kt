@@ -20,8 +20,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
-import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
-import `in`.xroden.flockr.features.expenses.domain.PerDiemConfigUiState
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 

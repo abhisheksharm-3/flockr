@@ -5,10 +5,6 @@ import `in`.xroden.flockr.features.chores.model.Chore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 
-/**
- * Repository interface for chore management operations.
- * Enables easy mocking for unit tests.
- */
 interface IChoreRepository {
     fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>>
     suspend fun createChore(
@@ -17,6 +13,13 @@ interface IChoreRepository {
         description: String?,
         dueDate: LocalDate?,
         recurrencePattern: ChoreRecurrence?,
+        assignedTo: String?
+    ): Result<Unit>
+    suspend fun updateChore(
+        choreId: String,
+        taskName: String?,
+        description: String?,
+        dueDate: LocalDate?,
         assignedTo: String?
     ): Result<Unit>
     suspend fun completeChore(choreId: String, houseId: String): Result<Unit>

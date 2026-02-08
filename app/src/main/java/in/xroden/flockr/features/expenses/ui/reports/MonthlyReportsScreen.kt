@@ -24,15 +24,15 @@ import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 
-import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryViewModel
-import `in`.xroden.flockr.features.expenses.domain.PerDiemViewModel
+import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryViewModel
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 import kotlinx.datetime.*
 
-import `in`.xroden.flockr.features.expenses.domain.MonthlySummaryUiState
-import `in`.xroden.flockr.features.expenses.domain.PerDiemBillUiState
+import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryUiState
+import `in`.xroden.flockr.features.expenses.presentation.PerDiemBillUiState
 import java.math.BigDecimal
 import java.util.Locale
 import kotlin.time.Clock

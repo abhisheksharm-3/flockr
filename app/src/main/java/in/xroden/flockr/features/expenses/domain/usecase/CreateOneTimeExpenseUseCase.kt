@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.features.expenses.domain.usecase
 
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
-import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import `in`.xroden.flockr.features.expenses.data.IExpenseRepository
 import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
@@ -11,7 +11,7 @@ import javax.inject.Inject
  * Handles validation and business rules for expense creation.
  */
 class CreateOneTimeExpenseUseCase @Inject constructor(
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: IExpenseRepository
 ) {
     /**
      * Creates a one-time expense with proper validation and split handling.

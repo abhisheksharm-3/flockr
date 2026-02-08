@@ -20,9 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
-import `in`.xroden.flockr.features.house.domain.HomeViewModel
-import `in`.xroden.flockr.features.house.domain.JoinHouseUiState
-import `in`.xroden.flockr.features.house.domain.HousePreviewUiState
+import `in`.xroden.flockr.features.house.presentation.HomeViewModel
+import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
+import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

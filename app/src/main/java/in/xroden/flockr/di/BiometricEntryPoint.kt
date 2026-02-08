@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.di
 
-import `in`.xroden.flockr.utils.BiometricAuthManager
+import `in`.xroden.flockr.core.managers.BiometricAuthManager
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent

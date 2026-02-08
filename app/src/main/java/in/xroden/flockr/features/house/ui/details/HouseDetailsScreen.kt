@@ -38,15 +38,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.R
 import `in`.xroden.flockr.data.enums.HouseMemberRole
-import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
 import javax.inject.Inject
 
+/** ViewModel for house details screen. */
 @HiltViewModel
 class HouseDetailsViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
+    private val houseRepository: IHouseRepository
 ) : ViewModel() {
     
     private val _house = MutableStateFlow<House?>(null)

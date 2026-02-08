@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.features.expenses.domain.usecase
 
-import `in`.xroden.flockr.features.expenses.data.TransactionRepository
+import `in`.xroden.flockr.features.expenses.data.ITransactionRepository
 import java.math.BigDecimal
 import javax.inject.Inject
 
@@ -9,7 +9,7 @@ import javax.inject.Inject
  * Encapsulates the complex business logic for creating settlement transactions.
  */
 class SettleBalanceUseCase @Inject constructor(
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: ITransactionRepository
 ) {
     /**
      * Settles a balance between two members by creating a settlement transaction.

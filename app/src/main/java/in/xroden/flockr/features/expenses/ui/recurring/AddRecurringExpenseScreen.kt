@@ -29,7 +29,7 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
-import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
+import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.utils.getCurrencySymbol

@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
-import `in`.xroden.flockr.features.chat.domain.ChatUiState
-import `in`.xroden.flockr.features.chat.domain.ChatViewModel
+import `in`.xroden.flockr.features.chat.presentation.ChatUiState
+import `in`.xroden.flockr.features.chat.presentation.ChatViewModel
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 import java.time.Instant
 import java.time.LocalDateTime

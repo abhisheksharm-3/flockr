@@ -17,8 +17,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
-import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseViewModel
-import `in`.xroden.flockr.features.expenses.domain.RecurringExpenseUiState
+import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
+import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseUiState
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime

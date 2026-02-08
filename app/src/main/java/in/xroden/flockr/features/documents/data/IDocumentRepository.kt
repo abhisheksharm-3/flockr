@@ -2,10 +2,6 @@ package `in`.xroden.flockr.features.documents.data
 
 import `in`.xroden.flockr.features.documents.model.Document
 
-/**
- * Repository interface for document operations.
- * Enables easy mocking for unit tests.
- */
 interface IDocumentRepository {
     suspend fun getPersonalDocuments(): Result<List<Document>>
     suspend fun getHouseDocuments(houseId: String): Result<List<Document>>

@@ -29,10 +29,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.BuildConfig
 import `in`.xroden.flockr.features.settings.model.ThemeMode
-import `in`.xroden.flockr.features.auth.domain.AuthViewModel
-import `in`.xroden.flockr.features.settings.domain.SettingsViewModel
-import `in`.xroden.flockr.features.settings.domain.ProfileViewModel
-import `in`.xroden.flockr.features.settings.domain.ProfileUiState
+import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
+import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
+import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
+import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri

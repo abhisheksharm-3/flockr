@@ -24,8 +24,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.features.shopping.domain.ShoppingViewModel
-import `in`.xroden.flockr.features.shopping.domain.ShoppingUiState
+import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
+import `in`.xroden.flockr.features.shopping.presentation.ShoppingUiState
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
