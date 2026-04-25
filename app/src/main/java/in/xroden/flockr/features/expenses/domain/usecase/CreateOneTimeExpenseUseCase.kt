@@ -6,10 +6,6 @@ import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
 
-/**
- * Use case for creating one-time expenses with split logic.
- * Handles validation and business rules for expense creation.
- */
 class CreateOneTimeExpenseUseCase @Inject constructor(
     private val expenseRepository: IExpenseRepository
 ) {

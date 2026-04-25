@@ -5,8 +5,11 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.documents.data.DocumentRepository
+import `in`.xroden.flockr.features.documents.data.IDocumentRepository
+import `in`.xroden.flockr.features.documents.model.Document
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,11 +19,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
-    private val documentRepository: DocumentRepository
+    private val documentRepository: IDocumentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
@@ -32,10 +36,12 @@ class DocumentViewModel @Inject constructor(
     private val _events = Channel<DocumentEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    private val _viewDocumentEvent = MutableSharedFlow<String>()
+    val viewDocumentEvent = _viewDocumentEvent.asSharedFlow()
+
     private var currentHouseId: String? = null
 
-    // Convenience properties for UI screens
-    val personalDocuments: StateFlow<List<`in`.xroden.flockr.features.documents.model.Document>> =
+    val personalDocuments: StateFlow<List<Document>> =
         _uiState.map { state ->
             when (state) {
                 is DocumentUiState.Success -> state.personalDocuments
@@ -47,7 +53,7 @@ class DocumentViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    val houseDocuments: StateFlow<List<`in`.xroden.flockr.features.documents.model.Document>> =
+    val houseDocuments: StateFlow<List<Document>> =
         _uiState.map { state ->
             when (state) {
                 is DocumentUiState.Success -> state.houseDocuments
@@ -63,17 +69,17 @@ class DocumentViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = DocumentUiState.Loading
             currentHouseId = houseId
-            
+
             val personalResult = documentRepository.getPersonalDocuments()
             val houseResult = if (houseId != null) {
                 documentRepository.getHouseDocuments(houseId)
             } else {
                 Result.success(emptyList())
             }
-            
+
             val personal = personalResult.getOrElse { emptyList() }
             val house = houseResult.getOrElse { emptyList() }
-            
+
             if (personalResult.isFailure && houseResult.isFailure) {
                 _uiState.value = DocumentUiState.Error(
                     message = personalResult.exceptionOrNull()?.message ?: "Failed to load documents",
@@ -91,35 +97,33 @@ class DocumentViewModel @Inject constructor(
     fun uploadDocument(uri: Uri, fileName: String, context: Context, houseId: String? = null) {
         viewModelScope.launch {
             _uploadState.value = UploadDocumentUiState.Uploading
-            
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val fileData = inputStream?.readBytes()
-                if (fileData == null) {
-                    _uploadState.value = UploadDocumentUiState.Error("Could not read file")
-                    return@launch
-                }
-                val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
 
-                documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
-                    onSuccess = {
-                        _uploadState.value = UploadDocumentUiState.Success
-                        _events.send(DocumentEvent.DocumentUploaded)
-                        loadDocuments(currentHouseId)
-                    },
-                    onFailure = { error ->
-                        _uploadState.value = UploadDocumentUiState.Error(
-                            message = error.message ?: "Upload failed"
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _uploadState.value = UploadDocumentUiState.Error(e.message ?: "Upload failed")
+            val fileData = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             }
+
+            if (fileData == null) {
+                _uploadState.value = UploadDocumentUiState.Error("Could not read file")
+                return@launch
+            }
+
+            val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+
+            documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
+                onSuccess = {
+                    _uploadState.value = UploadDocumentUiState.Success
+                    _events.send(DocumentEvent.DocumentUploaded)
+                    loadDocuments(currentHouseId)
+                },
+                onFailure = { error ->
+                    _uploadState.value = UploadDocumentUiState.Error(
+                        message = error.message ?: "Upload failed"
+                    )
+                }
+            )
         }
     }
 
-    // Wrapper methods for clarity in UI
     fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
         uploadDocument(uri, fileName, context, houseId = null)
     }
@@ -131,9 +135,7 @@ class DocumentViewModel @Inject constructor(
     fun deleteDocument(documentId: String, storagePath: String, houseId: String?) {
         viewModelScope.launch {
             documentRepository.deleteDocument(documentId, storagePath, houseId).fold(
-                onSuccess = {
-                    loadDocuments(currentHouseId)
-                },
+                onSuccess = { loadDocuments(currentHouseId) },
                 onFailure = { error ->
                     _uiState.value = DocumentUiState.Error(
                         message = error.message ?: "Failed to delete document",
@@ -148,7 +150,6 @@ class DocumentViewModel @Inject constructor(
         _uploadState.value = UploadDocumentUiState.Idle
     }
 
-    // Convenience methods for UI screens
     fun loadPersonalDocuments() {
         viewModelScope.launch {
             val result = documentRepository.getPersonalDocuments()
@@ -183,17 +184,11 @@ class DocumentViewModel @Inject constructor(
             }
         }
     }
-    
 
-    private val _viewDocumentEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
-    val viewDocumentEvent = _viewDocumentEvent.asSharedFlow()
-
-    fun viewDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
+    fun viewDocument(document: Document) {
         viewModelScope.launch {
             documentRepository.getDocumentUrl(document.storagePath, document.houseId).fold(
-                onSuccess = { url ->
-                    _viewDocumentEvent.emit(url)
-                },
+                onSuccess = { url -> _viewDocumentEvent.emit(url) },
                 onFailure = { error ->
                     _uiState.value = DocumentUiState.Error(
                         message = error.message ?: "Failed to get document URL",
@@ -204,13 +199,11 @@ class DocumentViewModel @Inject constructor(
         }
     }
 
-    fun downloadDocument(document: `in`.xroden.flockr.features.documents.model.Document) {
-        // For now, we'll just treat download as view, as Android handles downloads via browser/intent best
+    fun downloadDocument(document: Document) {
         viewDocument(document)
     }
 }
 
 sealed class DocumentEvent {
-    object DocumentUploaded : DocumentEvent()
+    data object DocumentUploaded : DocumentEvent()
 }
-

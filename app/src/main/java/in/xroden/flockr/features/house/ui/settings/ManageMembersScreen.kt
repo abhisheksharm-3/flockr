@@ -58,7 +58,7 @@ fun ManageMembersScreen(
     LaunchedEffect(houseId) {
         isLoading = true
         scope.launch {
-            viewModel.loadHouse(houseId)
+            viewModel.loadHouseDetails(houseId)
             members = viewModel.getHouseMembers(houseId)
             // Find current user's role
             currentUserRole = members.find { it.userId == currentUserId }?.role?.name

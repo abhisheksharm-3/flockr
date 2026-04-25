@@ -31,7 +31,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.presentation.BalanceViewModel
 import `in`.xroden.flockr.features.expenses.presentation.BalanceUiState
-import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import java.math.BigDecimal
 import kotlin.math.abs
@@ -41,8 +40,7 @@ import kotlin.math.abs
 fun BalancesScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: BalanceViewModel = hiltViewModel(),
-    houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
+    viewModel: BalanceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.balanceState.collectAsState()
     val houseConfig by viewModel.houseConfig.collectAsState()
@@ -50,7 +48,7 @@ fun BalancesScreen(
         houseConfig?.getCurrencySymbol() ?: "$"
     }
     
-    val currentUserId = houseManagementViewModel.getCurrentUserId() ?: ""
+    val currentUserId = viewModel.getCurrentUserId() ?: ""
 
     LaunchedEffect(houseId) {
         viewModel.loadBalances(houseId)

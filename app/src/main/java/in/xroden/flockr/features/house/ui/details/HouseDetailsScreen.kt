@@ -44,7 +44,6 @@ import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
 import javax.inject.Inject
 
-/** ViewModel for house details screen. */
 @HiltViewModel
 class HouseDetailsViewModel @Inject constructor(
     private val houseRepository: IHouseRepository
@@ -62,7 +61,7 @@ class HouseDetailsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    fun loadHouse(houseId: String) {
+    fun loadHouseDetails(houseId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             // Run safely, although repo returns Result
@@ -74,7 +73,6 @@ class HouseDetailsViewModel @Inject constructor(
                 val currentUserId = houseRepository.getCurrentUserId()
                 _currentUserRole.value = members.find { it.userId == currentUserId }?.role?.name
             }.onFailure {
-               // Silent failure for now, UI handles nulls
             }
             _isLoading.value = false
         }
@@ -100,7 +98,7 @@ fun HouseDetailsScreen(
     val currentUserRole by viewModel.currentUserRole.collectAsState()
 
     LaunchedEffect(houseId) {
-        viewModel.loadHouse(houseId)
+        viewModel.loadHouseDetails(houseId)
     }
 
     Scaffold(

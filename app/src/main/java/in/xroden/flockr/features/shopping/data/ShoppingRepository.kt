@@ -20,7 +20,6 @@ import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Repository for shopping list operations. */
 @Singleton
 class ShoppingRepository @Inject constructor(
     supabase: SupabaseClient,

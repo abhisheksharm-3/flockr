@@ -38,9 +38,6 @@ import `in`.xroden.flockr.features.settings.data.ISettingsRepository
 import `in`.xroden.flockr.features.settings.data.SettingsRepository
 import javax.inject.Singleton
 
-/**
- * Hilt module for binding repository interfaces to implementations.
- */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {

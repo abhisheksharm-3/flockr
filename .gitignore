@@ -34,3 +34,6 @@ out/
 *~
 *.swp
 *.bak
+
+# Local export files
+supabase.txt

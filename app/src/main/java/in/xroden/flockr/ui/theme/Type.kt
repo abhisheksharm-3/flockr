@@ -9,19 +9,12 @@ import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import `in`.xroden.flockr.R
 
-// =============================================================================
-// MODERN FONT FAMILIES - Google Fonts
-// Space Grotesk for headings (geometric, modern, tech-forward)
-// Plus Jakarta Sans for body (rounded, friendly, highly legible)
-// =============================================================================
-
 private val provider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
     providerPackage = "com.google.android.gms",
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-// Space Grotesk: Modern, geometric sans-serif for headings and display text
 private val spaceGroteskFont = GoogleFont("Space Grotesk")
 val SpaceGroteskFontFamily = FontFamily(
     Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.Normal),
@@ -30,7 +23,6 @@ val SpaceGroteskFontFamily = FontFamily(
     Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.Bold)
 )
 
-// Plus Jakarta Sans: Rounded, friendly sans-serif for body and UI elements
 private val plusJakartaSansFont = GoogleFont("Plus Jakarta Sans")
 val PlusJakartaSansFontFamily = FontFamily(
     Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Normal),
@@ -39,13 +31,7 @@ val PlusJakartaSansFontFamily = FontFamily(
     Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Bold)
 )
 
-// =============================================================================
-// MATERIAL 3 TYPOGRAPHY
-// Standard Material Design 3 type scale with custom fonts
-// =============================================================================
-
 val AppTypography = Typography(
-    // Display styles - Large, bold headlines (Space Grotesk)
     displayLarge = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
         fontWeight = FontWeight.Bold,
@@ -67,8 +53,6 @@ val AppTypography = Typography(
         lineHeight = 52.sp,
         letterSpacing = 0.sp
     ),
-    
-    // Headline styles - Section headers (Space Grotesk)
     headlineLarge = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
         fontWeight = FontWeight.Bold,
@@ -90,8 +74,6 @@ val AppTypography = Typography(
         lineHeight = 36.sp,
         letterSpacing = 0.sp
     ),
-    
-    // Title styles - Card titles and prominent UI text (Plus Jakarta Sans)
     titleLarge = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Bold,
@@ -102,60 +84,56 @@ val AppTypography = Typography(
     titleMedium = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 18.sp, // Increased from 16
+        fontSize = 18.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.1.sp
     ),
     titleSmall = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 16.sp, // Increased from 14
+        fontSize = 16.sp,
         lineHeight = 22.sp,
         letterSpacing = 0.1.sp
     ),
-    
-    // Body styles - Content text (Plus Jakarta Sans)
     bodyLarge = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 18.sp, // Increased from 16 for better readability
+        fontSize = 18.sp,
         lineHeight = 26.sp,
         letterSpacing = 0.15.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp, // Increased from 14
+        fontSize = 16.sp,
         lineHeight = 22.sp,
         letterSpacing = 0.1.sp
     ),
     bodySmall = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp, // Increased from 12
+        fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.2.sp
     ),
-    
-    // Label styles - Buttons, tags, and small UI elements (Plus Jakarta Sans)
     labelLarge = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold, // SemiBold -> Bold
-        fontSize = 16.sp, // Increased from 14
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
         lineHeight = 22.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold, // SemiBold -> Bold
-        fontSize = 14.sp, // Increased from 12
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.4.sp
     ),
     labelSmall = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp, // Increased from 11
+        fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp
     )

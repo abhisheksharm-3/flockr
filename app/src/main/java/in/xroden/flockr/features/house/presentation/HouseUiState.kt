@@ -45,3 +45,16 @@ sealed interface HousePreviewUiState {
     data class Success(val preview: HousePreview) : HousePreviewUiState
     data class Error(val message: String) : HousePreviewUiState
 }
+
+sealed interface HouseSettingsUiState {
+    data object Loading : HouseSettingsUiState
+    data class Success(val config: HouseConfig) : HouseSettingsUiState
+    data class Error(val message: String) : HouseSettingsUiState
+}
+
+sealed interface UpdateHouseSettingsUiState {
+    data object Idle : UpdateHouseSettingsUiState
+    data object Loading : UpdateHouseSettingsUiState
+    data object Success : UpdateHouseSettingsUiState
+    data class Error(val message: String) : UpdateHouseSettingsUiState
+}

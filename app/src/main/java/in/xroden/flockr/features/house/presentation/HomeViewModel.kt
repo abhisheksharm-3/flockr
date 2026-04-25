@@ -217,22 +217,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    suspend fun fetchHouseByInviteCode(code: String): House? {
-        return houseRepository.getHouseByInviteCode(code).getOrNull()?.let { preview ->
-            House(
-                id = preview.id,
-                name = preview.name,
-                address = null,
-                latitude = null,
-                longitude = null,
-                inviteCode = code,
-                createdAt = Clock.System.now(),
-                ownerId = "unknown",
-                headerImageUrl = preview.headerImageUrl
-            )
-        }
-    }
-
     fun joinHouse(inviteCode: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             houseInvitationRepository.joinHouseByInviteCode(inviteCode).fold(

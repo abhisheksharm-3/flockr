@@ -29,8 +29,8 @@ import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import androidx.compose.foundation.shape.RoundedCornerShape
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.features.house.presentation.HouseSettingsViewModel
-import `in`.xroden.flockr.features.settings.presentation.HouseSettingsUiState
-import `in`.xroden.flockr.features.settings.presentation.UpdateHouseSettingsUiState
+import `in`.xroden.flockr.features.house.presentation.HouseSettingsUiState
+import `in`.xroden.flockr.features.house.presentation.UpdateHouseSettingsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,19 +124,19 @@ fun HouseSettingsScreen(
         when (val state = updateState) {
             is UpdateHouseSettingsUiState.Success -> {
                 isSaving = false
+                viewModel.resetUpdateState()
                 snackbarHostState.showSnackbar("Settings saved successfully")
                 onNavigateBack()
             }
             is UpdateHouseSettingsUiState.Error -> {
                 isSaving = false
+                viewModel.resetUpdateState()
                 snackbarHostState.showSnackbar(state.message)
             }
             is UpdateHouseSettingsUiState.Loading -> {
                 isSaving = true
             }
-            is UpdateHouseSettingsUiState.Idle -> {
-                // Do nothing
-            }
+            is UpdateHouseSettingsUiState.Idle -> Unit
         }
     }
 

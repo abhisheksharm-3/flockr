@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.IAuthRepository
 import `in`.xroden.flockr.core.storage.IStorageRepository
+import `in`.xroden.flockr.utils.BitmapUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,7 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val authRepository: IAuthRepository,
     private val storageRepository: IStorageRepository,
-    private val bitmapUtils: `in`.xroden.flockr.utils.BitmapUtils
+    private val bitmapUtils: BitmapUtils
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -61,10 +62,7 @@ class ProfileViewModel @Inject constructor(
             authRepository.updateProfile(fullName = fullName, hasCompletedOnboarding = null).fold(
                 onSuccess = {
                     _updateState.value = UpdateProfileUiState.Success
-                    // Reload profile to get updated data
                     loadProfile()
-                    kotlinx.coroutines.delay(1000)
-                    _updateState.value = UpdateProfileUiState.Idle
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateProfileUiState.Error(
@@ -90,36 +88,20 @@ class ProfileViewModel @Inject constructor(
             }
 
             runCatching {
-                // 1. Compress image
                 val compressedBytes = bitmapUtils.compressImage(imageData)
-                
-                // 2. Generate unique filename to avoid CDN caching
-                // Format: {userId}/avatar_{timestamp}.jpg
-                val timestamp = System.currentTimeMillis()
-                val fileName = "${currentUser.id}/avatar_$timestamp.jpg"
-                
-                // 3. Upload to Supabase Storage (avatars bucket)
+                val fileName = "${currentUser.id}/avatar_${System.currentTimeMillis()}.jpg"
                 val publicUrl = storageRepository.uploadFile("avatars", fileName, compressedBytes)
                     .getOrThrow()
-                
-                // 4. Update profile with new URL
                 authRepository.updateProfile(
                     fullName = null,
                     hasCompletedOnboarding = null,
                     avatarUrl = publicUrl
                 ).getOrThrow()
-                
             }.fold(
                 onSuccess = {
-                    // Update state to success to clear loading
                     _updateState.value = UpdateProfileUiState.Success
-                    
-                    // FORCE reload profile immediately to reflect changes in UI
-                    _uiState.value = ProfileUiState.Loading 
+                    _uiState.value = ProfileUiState.Loading
                     loadProfile()
-                    
-                    kotlinx.coroutines.delay(1000)
-                    _updateState.value = UpdateProfileUiState.Idle
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateProfileUiState.Error(

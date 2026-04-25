@@ -18,12 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
-import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -37,8 +34,7 @@ fun EditExpenseScreen(
     houseId: String,
     expenseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: OneTimeExpenseViewModel = hiltViewModel(),
-    houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
+    viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -72,7 +68,7 @@ fun EditExpenseScreen(
     LaunchedEffect(houseId, expenseId) {
         viewModel.loadHouseConfig(houseId)
         viewModel.loadOneTimeExpense(expenseId)
-        houseMembers = houseManagementViewModel.getHouseMembers(houseId)
+        houseMembers = viewModel.getHouseMembers(houseId)
     }
 
     LaunchedEffect(expenseState) {
@@ -464,7 +460,7 @@ fun EditExpenseScreen(
                             houseId = houseId, expenseId = expenseId, name = name, amount = BigDecimal.valueOf(amt),
                             category = category, date = parsedDate, notes = notes.takeIf { it.isNotBlank() }, splitAmounts = splitAmounts
                         )
-                        scope.launch { delay(500); onNavigateBack() }
+                        onNavigateBack()
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !isSaving && name.isNotBlank() && amount.toDoubleOrNull() != null && date.isNotBlank(),

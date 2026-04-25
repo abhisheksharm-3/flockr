@@ -19,7 +19,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.delay
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
@@ -40,7 +39,6 @@ fun JoinHouseScreen(
     LaunchedEffect(joinState) {
         when (val state = joinState) {
             is JoinHouseUiState.Success -> {
-                delay(300)
                 onHouseJoined(state.house?.id ?: "")
                 viewModel.resetJoinState()
             }

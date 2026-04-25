@@ -21,7 +21,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Repository for managing house invitations. */
 @Singleton
 class HouseInvitationRepository @Inject constructor(
     private val supabase: SupabaseClient,

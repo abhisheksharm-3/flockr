@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.IAuthRepository
 import `in`.xroden.flockr.features.auth.data.GoogleSignInHelper
+import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
 import io.github.jan.supabase.auth.status.SessionStatus
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +19,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel for authentication state management.
- * Handles sign-in, sign-up, and session state.
- */
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: IAuthRepository,
@@ -41,7 +37,7 @@ class AuthViewModel @Inject constructor(
     private val _signUpState = MutableStateFlow<SignUpUiState>(SignUpUiState.Idle)
     val signUpState: StateFlow<SignUpUiState> = _signUpState.asStateFlow()
 
-    val profile: StateFlow<`in`.xroden.flockr.features.auth.model.Profile?> =
+    val profile: StateFlow<Profile?> =
         _uiState.map { state ->
             when (state) {
                 is AuthUiState.Authenticated -> state.profile
@@ -135,11 +131,7 @@ class AuthViewModel @Inject constructor(
             _signInState.value = SignInUiState.Loading
 
             authRepository.signIn(email, password).fold(
-                onSuccess = {
-                    _signInState.value = SignInUiState.Success
-                    delay(500)
-                    _signInState.value = SignInUiState.Idle
-                },
+                onSuccess = { _signInState.value = SignInUiState.Idle },
                 onFailure = { error ->
                     _signInState.value = SignInUiState.Error(
                         message = error.message ?: "Sign in failed"
@@ -154,11 +146,7 @@ class AuthViewModel @Inject constructor(
             _signUpState.value = SignUpUiState.Loading
 
             authRepository.signUp(email, password, fullName).fold(
-                onSuccess = {
-                    _signUpState.value = SignUpUiState.Success
-                    delay(500)
-                    _signUpState.value = SignUpUiState.Idle
-                },
+                onSuccess = { _signUpState.value = SignUpUiState.Idle },
                 onFailure = { error ->
                     _signUpState.value = SignUpUiState.Error(
                         message = error.message ?: "Sign up failed"
@@ -182,11 +170,7 @@ class AuthViewModel @Inject constructor(
             googleSignInHelper.signIn(activity).fold(
                 onSuccess = { idToken ->
                     authRepository.signInWithGoogleIdToken(idToken).fold(
-                        onSuccess = {
-                            _signInState.value = SignInUiState.Success
-                            delay(500)
-                            _signInState.value = SignInUiState.Idle
-                        },
+                        onSuccess = { _signInState.value = SignInUiState.Idle },
                         onFailure = { error ->
                             _signInState.value = SignInUiState.Error(
                                 message = error.message ?: "Failed to authenticate with Supabase"

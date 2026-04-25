@@ -3,8 +3,11 @@ package `in`.xroden.flockr.features.chores.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.data.IChoreRepository
 import `in`.xroden.flockr.features.chores.ui.ChoreFilter
+import `in`.xroden.flockr.features.house.data.IHouseRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,10 +16,10 @@ import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 import kotlin.time.Clock
 
-/** ViewModel for managing household chores. */
 @HiltViewModel
 class ChoreViewModel @Inject constructor(
-    private val choreRepository: IChoreRepository
+    private val choreRepository: IChoreRepository,
+    private val houseRepository: IHouseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChoreUiState>(ChoreUiState.Loading)
@@ -29,21 +32,19 @@ class ChoreViewModel @Inject constructor(
     val filterOption: StateFlow<ChoreFilter> = _filterOption.asStateFlow()
 
     private var currentHouseId: String? = null
-    private var choreJob: kotlinx.coroutines.Job? = null
+    private var choreJob: Job? = null
 
     fun setFilter(filter: ChoreFilter) {
         _filterOption.value = filter
     }
 
     fun loadChores(houseId: String) {
-        // Skip if already loading the same house
         if (currentHouseId == houseId && choreJob?.isActive == true) return
 
         choreJob?.cancel()
         currentHouseId = houseId
 
         choreJob = viewModelScope.launch {
-            // Only show loading on first load
             if (_uiState.value !is ChoreUiState.Success) {
                 _uiState.value = ChoreUiState.Loading
             }
@@ -53,7 +54,6 @@ class ChoreViewModel @Inject constructor(
                     onSuccess = { chores ->
                         val active = chores.filter { !it.isCompleted }
                         val completed = chores.filter { it.isCompleted }
-                        
                         _uiState.value = ChoreUiState.Success(
                             allChores = chores,
                             activeChores = active,
@@ -69,17 +69,19 @@ class ChoreViewModel @Inject constructor(
                 )
             }
         }
-    }    fun createChore(
+    }
+
+    fun createChore(
         houseId: String,
         taskName: String,
         description: String?,
         dueDate: LocalDate?,
-        recurrencePattern: `in`.xroden.flockr.data.enums.ChoreRecurrence?,
+        recurrencePattern: ChoreRecurrence?,
         assignedTo: String?
     ) {
         viewModelScope.launch {
             _createState.value = CreateChoreUiState.Loading
-            
+
             choreRepository.createChore(
                 houseId = houseId,
                 taskName = taskName,
@@ -88,11 +90,7 @@ class ChoreViewModel @Inject constructor(
                 recurrencePattern = recurrencePattern,
                 assignedTo = assignedTo
             ).fold(
-                onSuccess = {
-                    _createState.value = CreateChoreUiState.Success
-                    kotlinx.coroutines.delay(1000)
-                    _createState.value = CreateChoreUiState.Idle
-                },
+                onSuccess = { _createState.value = CreateChoreUiState.Success },
                 onFailure = { error ->
                     _createState.value = CreateChoreUiState.Error(
                         message = error.message ?: "Failed to create chore"
@@ -116,30 +114,22 @@ class ChoreViewModel @Inject constructor(
                 description = description,
                 dueDate = dueDate,
                 assignedTo = assignedTo
-            ).fold(
-                onSuccess = {
-                    // Success - state updated via flow
-                },
-                onFailure = { error ->
-                    _uiState.value = ChoreUiState.Error(
-                        message = error.message ?: "Failed to update chore",
-                        cause = error
-                    )
-                }
-            )
+            ).onFailure { error ->
+                _uiState.value = ChoreUiState.Error(
+                    message = error.message ?: "Failed to update chore",
+                    cause = error
+                )
+            }
         }
     }
 
     fun completeChore(choreId: String, houseId: String, taskName: String) {
         viewModelScope.launch {
-            // Optimistic update BEFORE server call for snappier UI
             val currentState = _uiState.value
             if (currentState is ChoreUiState.Success) {
                 val now = Clock.System.now()
                 val updatedAll = currentState.allChores.map { chore ->
-                    if (chore.id == choreId) {
-                        chore.copy(isCompleted = true, completedAt = now)
-                    } else chore
+                    if (chore.id == choreId) chore.copy(isCompleted = true, completedAt = now) else chore
                 }
                 _uiState.value = currentState.copy(
                     allChores = updatedAll,
@@ -148,19 +138,13 @@ class ChoreViewModel @Inject constructor(
                 )
             }
 
-            choreRepository.completeChore(choreId, houseId).fold(
-                onSuccess = {
-                    // Server confirmed - realtime flow will sync
-                },
-                onFailure = { error ->
-                    // Revert optimistic update on failure
-                    loadChores(houseId)
-                    _uiState.value = ChoreUiState.Error(
-                        message = error.message ?: "Failed to complete chore",
-                        cause = error
-                    )
-                }
-            )
+            choreRepository.completeChore(choreId, houseId).onFailure { error ->
+                loadChores(houseId)
+                _uiState.value = ChoreUiState.Error(
+                    message = error.message ?: "Failed to complete chore",
+                    cause = error
+                )
+            }
         }
     }
 
@@ -168,7 +152,6 @@ class ChoreViewModel @Inject constructor(
         viewModelScope.launch {
             choreRepository.deleteChore(choreId, houseId).fold(
                 onSuccess = {
-                    // Optimistically update UI
                     val currentState = _uiState.value
                     if (currentState is ChoreUiState.Success) {
                         val updatedAll = currentState.allChores.filter { it.id != choreId }
@@ -191,19 +174,17 @@ class ChoreViewModel @Inject constructor(
 
     fun clearCompletedChores(houseId: String) {
         viewModelScope.launch {
-            choreRepository.clearCompletedChores(houseId).fold(
-                onSuccess = {
-                    // Success - state updated via flow
-                },
-                onFailure = { error ->
-                    _uiState.value = ChoreUiState.Error(
-                        message = error.message ?: "Failed to clear completed chores",
-                        cause = error
-                    )
-                }
-            )
+            choreRepository.clearCompletedChores(houseId).onFailure { error ->
+                _uiState.value = ChoreUiState.Error(
+                    message = error.message ?: "Failed to clear completed chores",
+                    cause = error
+                )
+            }
         }
     }
+
+    suspend fun getHouseMembers(houseId: String) =
+        houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 
     fun resetCreateState() {
         _createState.value = CreateChoreUiState.Idle

@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
-import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import kotlinx.coroutines.launch
@@ -37,25 +36,22 @@ import kotlinx.datetime.toLocalDateTime
 fun ProductivityScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    viewModel: ChoreViewModel = hiltViewModel(),
-    houseManagementViewModel: HouseManagementViewModel = hiltViewModel()
+    viewModel: ChoreViewModel = hiltViewModel()
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
     val scope = rememberCoroutineScope()
     
-    // Month selection state - using first day of month as LocalDate
     val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.month, 1)) }
 
     LaunchedEffect(houseId) {
         viewModel.loadChores(houseId)
         scope.launch {
-            members = houseManagementViewModel.getHouseMembers(houseId)
+            members = viewModel.getHouseMembers(houseId)
         }
     }
     val uiState by viewModel.uiState.collectAsState()
     
-    // Create name -> avatarUrl map
     val avatarMap = remember(members) {
         members.associate { (it.fullName ?: it.email) to it.avatarUrl }
     }

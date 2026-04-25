@@ -3,10 +3,12 @@ package `in`.xroden.flockr.features.expenses.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.data.dto.expense.DebtBreakdownItem
 import `in`.xroden.flockr.features.expenses.data.IExpenseAnalyticsRepository
 import `in`.xroden.flockr.features.expenses.data.ITransactionRepository
 import `in`.xroden.flockr.features.expenses.domain.usecase.SettleBalanceUseCase
 import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,10 +18,6 @@ import java.math.BigDecimal
 import javax.inject.Inject
 import kotlin.time.Clock
 
-/**
- * ViewModel for managing user balances and settlements.
- * Handles balance calculations and settlement transactions.
- */
 @HiltViewModel
 class BalanceViewModel @Inject constructor(
     private val analyticsRepository: IExpenseAnalyticsRepository,
@@ -31,14 +29,14 @@ class BalanceViewModel @Inject constructor(
     private val _balanceState = MutableStateFlow<BalanceUiState>(BalanceUiState.Loading)
     val balanceState: StateFlow<BalanceUiState> = _balanceState.asStateFlow()
 
-    private val _debtBreakdownState = MutableStateFlow<Map<String, List<`in`.xroden.flockr.data.dto.expense.DebtBreakdownItem>>>(emptyMap())
-    val debtBreakdownState: StateFlow<Map<String, List<`in`.xroden.flockr.data.dto.expense.DebtBreakdownItem>>> = _debtBreakdownState.asStateFlow()
+    private val _debtBreakdownState = MutableStateFlow<Map<String, List<DebtBreakdownItem>>>(emptyMap())
+    val debtBreakdownState: StateFlow<Map<String, List<DebtBreakdownItem>>> = _debtBreakdownState.asStateFlow()
 
     private val _loadingBreakdowns = MutableStateFlow<Set<String>>(emptySet())
     val loadingBreakdowns: StateFlow<Set<String>> = _loadingBreakdowns.asStateFlow()
 
-    private val _houseConfigState = MutableStateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?>(null)
-    val houseConfig: StateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?> = _houseConfigState.asStateFlow()
+    private val _houseConfigState = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfigState.asStateFlow()
 
     fun loadBalances(houseId: String) {
         viewModelScope.launch {
@@ -83,8 +81,8 @@ class BalanceViewModel @Inject constructor(
         notes: String?
     ) {
         viewModelScope.launch {
-            val houseTimezone = _houseConfigState.value?.timezone
-            val tz = houseTimezone?.let { runCatching { kotlinx.datetime.TimeZone.of(it) }.getOrNull() }
+            val tz = _houseConfigState.value?.timezone
+                ?.let { runCatching { kotlinx.datetime.TimeZone.of(it) }.getOrNull() }
                 ?: kotlinx.datetime.TimeZone.currentSystemDefault()
             val date = Clock.System.now().toLocalDateTime(tz).date
 
@@ -98,9 +96,7 @@ class BalanceViewModel @Inject constructor(
                 notes = notes,
                 date = date
             ).fold(
-                onSuccess = {
-                    loadBalances(houseId)
-                },
+                onSuccess = { loadBalances(houseId) },
                 onFailure = { error ->
                     _balanceState.value = BalanceUiState.Error(
                         message = error.message ?: "Failed to settle balance"
@@ -110,15 +106,13 @@ class BalanceViewModel @Inject constructor(
         }
     }
 
+    fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
+
     fun loadHouseConfig(houseId: String) {
         viewModelScope.launch {
             houseRepository.getHouseConfig(houseId).fold(
-                onSuccess = { config ->
-                    _houseConfigState.value = config
-                },
-                onFailure = {
-                    _houseConfigState.value = null
-                }
+                onSuccess = { config -> _houseConfigState.value = config },
+                onFailure = { _houseConfigState.value = null }
             )
         }
     }

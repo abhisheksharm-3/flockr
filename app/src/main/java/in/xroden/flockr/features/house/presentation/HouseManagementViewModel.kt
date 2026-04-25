@@ -21,7 +21,6 @@ sealed interface HouseManagementUiState {
     data class Error(val message: String) : HouseManagementUiState
 }
 
-/** ViewModel for managing house members and invitations. */
 @HiltViewModel
 class HouseManagementViewModel @Inject constructor(
     private val houseRepository: IHouseRepository,
@@ -84,10 +83,6 @@ class HouseManagementViewModel @Inject constructor(
                 }
             )
         }
-    }
-
-    fun loadHouse(houseId: String) {
-        loadHouseDetails(houseId)
     }
 
     suspend fun getPendingInvitations(houseId: String): List<InvitationWithHouse> {

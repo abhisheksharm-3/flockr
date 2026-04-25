@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Repository for chat message operations. */
 @Singleton
 class ChatRepository @Inject constructor(
     supabase: SupabaseClient,

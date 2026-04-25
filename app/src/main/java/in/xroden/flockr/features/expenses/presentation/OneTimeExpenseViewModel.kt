@@ -8,6 +8,7 @@ import `in`.xroden.flockr.features.expenses.data.IExpenseRepository
 import `in`.xroden.flockr.features.expenses.domain.usecase.CreateOneTimeExpenseUseCase
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,10 +20,6 @@ import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
 
-/**
- * ViewModel for managing one-time expenses.
- * Handles CRUD operations and reactive expense list.
- */
 @HiltViewModel
 class OneTimeExpenseViewModel @Inject constructor(
     private val expenseRepository: IExpenseRepository,
@@ -39,8 +36,8 @@ class OneTimeExpenseViewModel @Inject constructor(
     private val _createState = MutableStateFlow<CreateExpenseUiState>(CreateExpenseUiState.Idle)
     val createState: StateFlow<CreateExpenseUiState> = _createState.asStateFlow()
 
-    private val _houseConfigState = MutableStateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?>(null)
-    val houseConfig: StateFlow<`in`.xroden.flockr.features.house.model.HouseConfig?> = _houseConfigState.asStateFlow()
+    private val _houseConfigState = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfigState.asStateFlow()
 
     private val _events = Channel<OneTimeExpenseEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -51,14 +48,12 @@ class OneTimeExpenseViewModel @Inject constructor(
     fun getCurrentUserId(): String? = expenseRepository.getCurrentUserId()
 
     fun loadExpenses(houseId: String) {
-        // Skip if already loading the same house
         if (currentHouseId == houseId && expenseJob?.isActive == true) return
 
         expenseJob?.cancel()
         currentHouseId = houseId
 
         expenseJob = viewModelScope.launch {
-            // Only show loading on first load
             if (_expenseState.value !is OneTimeExpenseUiState.Success) {
                 _expenseState.value = OneTimeExpenseUiState.Loading
             }
@@ -82,12 +77,8 @@ class OneTimeExpenseViewModel @Inject constructor(
     fun loadOneTimeExpense(expenseId: String) {
         viewModelScope.launch {
             expenseRepository.getOneTimeExpense(expenseId).fold(
-                onSuccess = { expense ->
-                    _selectedExpenseState.value = expense
-                },
-                onFailure = {
-                    _selectedExpenseState.value = null
-                }
+                onSuccess = { expense -> _selectedExpenseState.value = expense },
+                onFailure = { _selectedExpenseState.value = null }
             )
         }
     }
@@ -126,7 +117,6 @@ class OneTimeExpenseViewModel @Inject constructor(
                 onSuccess = {
                     _createState.value = CreateExpenseUiState.Success
                     _events.send(OneTimeExpenseEvent.ExpenseCreated)
-                    // Realtime flow subscription handles list updates automatically
                 },
                 onFailure = { error ->
                     _createState.value = CreateExpenseUiState.Error(
@@ -156,9 +146,7 @@ class OneTimeExpenseViewModel @Inject constructor(
                 category = category,
                 notes = notes,
                 splitAmounts = splitAmounts
-            ).onSuccess {
-                // Realtime flow subscription handles list updates automatically
-            }.onFailure { error ->
+            ).onFailure { error ->
                 _expenseState.value = OneTimeExpenseUiState.Error(
                     message = error.message ?: "Failed to update expense",
                     cause = error
@@ -169,29 +157,20 @@ class OneTimeExpenseViewModel @Inject constructor(
 
     fun deleteOneTimeExpense(houseId: String, expenseId: String) {
         viewModelScope.launch {
-            expenseRepository.deleteOneTimeExpense(expenseId).fold(
-                onSuccess = {
-                    // Realtime flow subscription handles list updates automatically
-                },
-                onFailure = { error ->
-                    _expenseState.value = OneTimeExpenseUiState.Error(
-                        message = error.message ?: "Failed to delete expense",
-                        cause = error
-                    )
-                }
-            )
+            expenseRepository.deleteOneTimeExpense(expenseId).onFailure { error ->
+                _expenseState.value = OneTimeExpenseUiState.Error(
+                    message = error.message ?: "Failed to delete expense",
+                    cause = error
+                )
+            }
         }
     }
 
     fun loadHouseConfig(houseId: String) {
         viewModelScope.launch {
             houseRepository.getHouseConfig(houseId).fold(
-                onSuccess = { config ->
-                    _houseConfigState.value = config
-                },
-                onFailure = {
-                    _houseConfigState.value = null
-                }
+                onSuccess = { config -> _houseConfigState.value = config },
+                onFailure = { _houseConfigState.value = null }
             )
         }
     }
@@ -205,6 +184,5 @@ class OneTimeExpenseViewModel @Inject constructor(
 }
 
 sealed class OneTimeExpenseEvent {
-    object ExpenseCreated : OneTimeExpenseEvent()
+    data object ExpenseCreated : OneTimeExpenseEvent()
 }
-

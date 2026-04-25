@@ -18,7 +18,6 @@ import io.github.jan.supabase.storage.storage
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Repository for document storage and management operations. */
 @Singleton
 class DocumentRepository @Inject constructor(
     private val supabase: SupabaseClient,

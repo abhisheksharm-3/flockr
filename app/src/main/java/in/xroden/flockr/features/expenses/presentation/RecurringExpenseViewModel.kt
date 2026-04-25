@@ -7,6 +7,7 @@ import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.data.IRecurringExpenseRepository
 import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.expenses.model.PaymentHistory
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,6 @@ import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
 
-/** ViewModel for managing recurring expenses and bills. */
 @HiltViewModel
 class RecurringExpenseViewModel @Inject constructor(
     private val recurringExpenseRepository: IRecurringExpenseRepository,
@@ -30,8 +30,8 @@ class RecurringExpenseViewModel @Inject constructor(
     private val _createState = MutableStateFlow<CreateExpenseUiState>(CreateExpenseUiState.Idle)
     val createState: StateFlow<CreateExpenseUiState> = _createState.asStateFlow()
 
-    private val _paymentHistoryState = MutableStateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>>(emptyList())
-    val paymentHistoryState: StateFlow<List<`in`.xroden.flockr.features.expenses.model.PaymentHistory>> = _paymentHistoryState.asStateFlow()
+    private val _paymentHistoryState = MutableStateFlow<List<PaymentHistory>>(emptyList())
+    val paymentHistoryState: StateFlow<List<PaymentHistory>> = _paymentHistoryState.asStateFlow()
 
     private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
     val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
@@ -101,8 +101,6 @@ class RecurringExpenseViewModel @Inject constructor(
                 onSuccess = {
                     _createState.value = CreateExpenseUiState.Success
                     loadRecurringExpenses(houseId)
-                    kotlinx.coroutines.delay(1000)
-                    _createState.value = CreateExpenseUiState.Idle
                 },
                 onFailure = { error ->
                     _createState.value = CreateExpenseUiState.Error(

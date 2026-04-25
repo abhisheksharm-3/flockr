@@ -2,15 +2,14 @@ import os
 import re
 import sys
 import subprocess
-from typing import Tuple, Optional
+from typing import Optional
 
-# --- Constants ---
 VERSION_FILE = 'version.properties'
 CHANGELOG_FILE = 'CHANGELOG.md'
-GITHUB_ENV = os.getenv('GITHUB_ENV')
+RELEASE_NOTES_FILE = 'RELEASE_NOTES.md'
+
 
 def run_command(command: str) -> str:
-    """Run a shell command and return stdout, raising error on failure."""
     try:
         result = subprocess.run(
             command, shell=True, check=True, capture_output=True, text=True
@@ -21,109 +20,91 @@ def run_command(command: str) -> str:
         print(f"Stderr: {e.stderr}")
         raise
 
+
 def read_properties(filepath: str) -> dict:
-    """Read a .properties file into a dictionary."""
     props = {}
     if not os.path.exists(filepath):
         return props
-    
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith('#') or '=' not in line:
                 continue
-            if '=' in line:
-                key, value = line.split('=', 1)
-                # Remove quotes if present
-                value = value.strip()
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                props[key.strip()] = value
+            key, value = line.split('=', 1)
+            value = value.strip().strip('"')
+            props[key.strip()] = value
     return props
 
-def get_latest_git_tag() -> Optional[str]:
-    """Get the latest git tag, or None if no tags exist."""
+
+def read_release_notes() -> str:
+    if os.path.exists(RELEASE_NOTES_FILE):
+        with open(RELEASE_NOTES_FILE, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    return 'Minor updates and improvements.'
+
+
+def parse_semver(version_str: str) -> tuple:
+    cleaned = version_str.lstrip('v')
+    parts = cleaned.split('.')
     try:
-        # Get latest tag across all branches, sorted by version creation date (simplified)
-        # Using git describe to get exactly the closest tag
+        return tuple(int(p) for p in parts)
+    except ValueError:
+        return (0, 0, 0)
+
+
+def get_latest_git_tag() -> Optional[str]:
+    try:
         return run_command("git describe --tags --abbrev=0").strip()
     except Exception:
         return None
 
+
+def set_github_output(key: str, value: str):
+    github_output = os.getenv('GITHUB_OUTPUT')
+    if github_output:
+        with open(github_output, 'a') as f:
+            f.write(f"{key}={value}\n")
+    else:
+        print(f"WARNING: GITHUB_OUTPUT not set — output '{key}={value}' will not propagate")
+
+
 def update_changelog(version_name: str, release_notes: str, date_str: str):
-    """Prepend new release note to CHANGELOG.md."""
-    
     header = f"## [{version_name}] - {date_str}\n\n"
-    # Format release notes: ensure they look good in markdown
-    # If release notes contain literal "\n", replace with actual newlines
-    formatted_notes = release_notes.replace('\\n', '\n')
-    
-    entry = f"{header}{formatted_notes}\n\n---\n\n"
-    
+    entry = f"{header}{release_notes}\n\n---\n\n"
+
     if os.path.exists(CHANGELOG_FILE):
         with open(CHANGELOG_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
     else:
         content = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n"
-        
-    # Find insertion point (after header if it exists, otherwise at top)
-    # Heuristic: insert after the first few lines of header if present, or just after title
-    # For now, simplistic approach: Find the first "## [" line and insert before it, 
-    # or append if not found but file exists.
-    
+
     if "## [" in content:
-        # split at first occurrence
         parts = content.split("## [", 1)
         new_content = parts[0] + entry + "## [" + parts[1]
     else:
-        # Maybe just a header? Append after "Changelog" title if possible
-        if "# Changelog" in content:
-             lines = content.splitlines()
-             # Insert after header block (usually 2-5 lines)
-             insert_idx = len(lines)
-             for i, line in enumerate(lines):
-                 if line.strip() == "":
-                      # Start looking for real content
-                      pass
-             
-             # Fallback: Just insert at top if we can't be smart, but user wants "clean"
-             # Let's try: Header + \n\n + New Entry + \n + Old Content (minus Header)
-             # Actually, easiest "Safe" way is to look for the first H2 "##"
-             match = re.search(r'^##\s', content, re.MULTILINE)
-             if match:
-                 idx = match.start()
-                 new_content = content[:idx] + entry + content[idx:]
-             else:
-                 # No existing releases, just append
-                 new_content = content + "\n" + entry
+        match = re.search(r'^##\s', content, re.MULTILINE)
+        if match:
+            new_content = content[:match.start()] + entry + content[match.start():]
         else:
-            new_content = entry + content
+            new_content = content + "\n" + entry
 
     with open(CHANGELOG_FILE, 'w', encoding='utf-8') as f:
         f.write(new_content)
-    
+
     print(f"Updated {CHANGELOG_FILE} for version {version_name}")
 
-def set_github_output(key: str, value: str):
-    """Set output for GitHub Actions."""
-    if os.getenv('GITHUB_OUTPUT'):
-        with open(os.getenv('GITHUB_OUTPUT'), 'a') as f:
-            f.write(f"{key}={value}\n")
-    else:
-        print(f"::set-output name={key}::{value}") # Fallback
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: release_utils.py [check|update]")
+        print("Usage: release_utils.py [check|update|extract-body]")
         sys.exit(1)
-        
+
     command = sys.argv[1]
-    
+
     props = read_properties(VERSION_FILE)
     version_name = props.get('VERSION_NAME')
     version_code = props.get('VERSION_CODE')
-    release_notes = props.get('RELEASE_NOTES', 'Minor updates and bug fixes.')
-    
+
     if not version_name:
         print(f"Error: VERSION_NAME not found in {VERSION_FILE}")
         sys.exit(1)
@@ -131,36 +112,38 @@ def main():
     if command == "check":
         current_tag = get_latest_git_tag()
         target_tag = f"v{version_name}"
-        
+
         print(f"Current git tag: {current_tag}")
         print(f"Target tag from properties: {target_tag}")
-        
+
         if current_tag == target_tag:
-            print("Version has not changed. No release needed.")
+            print("Version unchanged. No release needed.")
             set_github_output("should_release", "false")
+        elif current_tag and parse_semver(version_name) <= parse_semver(current_tag):
+            print(f"ERROR: {version_name} is not greater than the current tag {current_tag}. Update VERSION_NAME.")
+            sys.exit(1)
         else:
-            print("New version detected!")
+            print("New version detected — release will proceed.")
             set_github_output("should_release", "true")
             set_github_output("version_name", version_name)
             set_github_output("version_code", version_code)
-            
 
     elif command == "update":
         from datetime import datetime
+        release_notes = read_release_notes()
         date_str = datetime.now().strftime("%Y-%m-%d")
         update_changelog(version_name, release_notes, date_str)
-        
+
     elif command == "extract-body":
-        # Write just the release notes to a file for GitHub Release
-        # We can format it nicely here too
-        formatted_notes = release_notes.replace('\\n', '\n')
+        release_notes = read_release_notes()
         with open('RELEASE_BODY.md', 'w', encoding='utf-8') as f:
-            f.write(formatted_notes)
-        print(f"Extracted release notes to RELEASE_BODY.md")
+            f.write(release_notes)
+        print("Extracted release notes to RELEASE_BODY.md")
 
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

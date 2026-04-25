@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** ViewModel for notification preferences management. */
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
     private val notificationRepository: INotificationRepository,

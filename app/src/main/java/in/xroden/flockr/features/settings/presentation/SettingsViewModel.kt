@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** ViewModel for managing app settings. */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: ISettingsRepository

@@ -1,22 +1,21 @@
 package `in`.xroden.flockr.features.house.presentation
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.xroden.flockr.features.house.data.IHouseRepository
-import `in`.xroden.flockr.features.settings.presentation.HouseSettingsUiState
-import `in`.xroden.flockr.features.settings.presentation.UpdateHouseSettingsUiState
+import `in`.xroden.flockr.features.house.model.House
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-import android.content.Context
-import android.net.Uri
-import dagger.hilt.android.qualifiers.ApplicationContext
-
-/** ViewModel for managing house settings. */
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
     private val houseRepository: IHouseRepository,
@@ -32,14 +31,14 @@ class HouseSettingsViewModel @Inject constructor(
     fun loadHouseSettings(houseId: String) {
         viewModelScope.launch {
             _uiState.value = HouseSettingsUiState.Loading
-            
+
             val houseResult = houseRepository.getHouseById(houseId)
             val configResult = houseRepository.getHouseConfig(houseId)
-            
+
             if (houseResult.isSuccess) {
                 val house = houseResult.getOrNull()
                 val config = configResult.getOrNull()
-                
+
                 if (house != null && config != null) {
                     _uiState.value = HouseSettingsUiState.Success(config)
                 } else {
@@ -62,13 +61,11 @@ class HouseSettingsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _updateState.value = UpdateHouseSettingsUiState.Loading
-            
+
             houseRepository.updateHouse(houseId, name, address, latitude, longitude).fold(
                 onSuccess = {
                     _updateState.value = UpdateHouseSettingsUiState.Success
                     loadHouseSettings(houseId)
-                    kotlinx.coroutines.delay(1000)
-                    _updateState.value = UpdateHouseSettingsUiState.Idle
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateHouseSettingsUiState.Error(
@@ -88,7 +85,7 @@ class HouseSettingsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _updateState.value = UpdateHouseSettingsUiState.Loading
-            
+
             houseRepository.updateHouseConfig(
                 houseId = houseId,
                 currencyCode = currencyCode,
@@ -99,8 +96,6 @@ class HouseSettingsViewModel @Inject constructor(
                 onSuccess = {
                     _updateState.value = UpdateHouseSettingsUiState.Success
                     loadHouseSettings(houseId)
-                    kotlinx.coroutines.delay(1000)
-                    _updateState.value = UpdateHouseSettingsUiState.Idle
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateHouseSettingsUiState.Error(
@@ -114,45 +109,41 @@ class HouseSettingsViewModel @Inject constructor(
     fun uploadHeaderImage(houseId: String, uri: Uri) {
         viewModelScope.launch {
             _updateState.value = UpdateHouseSettingsUiState.Loading
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bytes = inputStream?.readBytes()
-                inputStream?.close()
 
-                if (bytes != null) {
-                    houseRepository.uploadHouseHeaderImage(houseId, bytes).fold(
-                        onSuccess = {
-                            _updateState.value = UpdateHouseSettingsUiState.Success
-                            loadHouseSettings(houseId)
-                            kotlinx.coroutines.delay(1000)
-                            _updateState.value = UpdateHouseSettingsUiState.Idle
-                        },
-                        onFailure = { error ->
-                            _updateState.value = UpdateHouseSettingsUiState.Error(
-                                message = error.message ?: "Failed to upload image"
-                            )
-                        }
-                    )
-                } else {
-                    _updateState.value = UpdateHouseSettingsUiState.Error("Failed to read image")
-                }
-            } catch (e: Exception) {
-                _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Error processing image")
+            val bytes = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             }
+
+            if (bytes == null) {
+                _updateState.value = UpdateHouseSettingsUiState.Error("Failed to read image")
+                return@launch
+            }
+
+            houseRepository.uploadHouseHeaderImage(houseId, bytes).fold(
+                onSuccess = {
+                    _updateState.value = UpdateHouseSettingsUiState.Success
+                    loadHouseSettings(houseId)
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateHouseSettingsUiState.Error(
+                        message = error.message ?: "Failed to upload image"
+                    )
+                }
+            )
         }
     }
 
     suspend fun deleteHouse(houseId: String): Result<Unit> {
         _updateState.value = UpdateHouseSettingsUiState.Loading
-        
+
         val result = houseRepository.deleteHouse(houseId)
-        
+
         result.onSuccess {
             _updateState.value = UpdateHouseSettingsUiState.Success
         }.onFailure { e ->
             _updateState.value = UpdateHouseSettingsUiState.Error(message = e.message ?: "Failed to delete house")
         }
-        
+
         return result
     }
 
@@ -160,11 +151,7 @@ class HouseSettingsViewModel @Inject constructor(
         _updateState.value = UpdateHouseSettingsUiState.Idle
     }
 
-    fun getCurrentUserId(): String? {
-        return houseRepository.getCurrentUserId()
-    }
+    fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
 
-    suspend fun getHouse(houseId: String): `in`.xroden.flockr.features.house.model.House? {
-        return houseRepository.getHouseById(houseId).getOrNull()
-    }
+    suspend fun getHouse(houseId: String): House? = houseRepository.getHouseById(houseId).getOrNull()
 }
