@@ -91,21 +91,9 @@ fun ChoresScreen(
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Chores", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                actions = {
-                    IconButton(onClick = onNavigateToProductivity) {
-                        Icon(Icons.Default.Assessment, "Productivity", tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
+            ChoresTopAppBar(
+                onNavigateBack = onNavigateBack,
+                onNavigateToProductivity = onNavigateToProductivity
             )
         },
         floatingActionButton = {
@@ -134,88 +122,109 @@ fun ChoresScreen(
                 if (state.allChores.isEmpty()) {
                     EmptyChoresState(Modifier.fillMaxSize().padding(padding), onAddChore = onNavigateToAddChore)
                 } else {
-                    LazyColumn(
+                    ChoresList(
                         modifier = Modifier.fillMaxSize().padding(padding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                var selectedTab by remember { mutableIntStateOf(if (filterOption == ChoreFilter.COMPLETED) 1 else 0) }
-                                val tabs = listOf("Active", "Completed")
-
-                                LaunchedEffect(selectedTab) {
-                                    viewModel.setFilter(if (selectedTab == 0) ChoreFilter.ACTIVE else ChoreFilter.COMPLETED)
-                                }
-
-                                `in`.xroden.flockr.ui.components.inputs.PillSelector(
-                                    tabs = tabs,
-                                    selectedIndex = selectedTab,
-                                    onTabSelected = { selectedTab = it },
-                                    counts = listOf(state.activeChores.size, state.completedChores.size)
-                                )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        "${filteredChores.size} ${filterOption.label.lowercase()}",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    if (filterOption == ChoreFilter.COMPLETED && filteredChores.isNotEmpty()) {
-                                        TextButton(
-                                            onClick = { viewModel.clearCompletedChores(houseId) },
-                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
-                                            Spacer(Modifier.width(8.dp))
-                                            Text("Clear Completed")
-                                        }
-                                    }
+                        filteredChores = filteredChores,
+                        filterOption = filterOption,
+                        activeCount = state.activeChores.size,
+                        completedCount = state.completedChores.size,
+                        onFilterChanged = { viewModel.setFilter(it) },
+                        onClearCompleted = { viewModel.clearCompletedChores(houseId) },
+                        onToggleComplete = { chore ->
+                            scope.launch {
+                                if (!chore.isCompleted) {
+                                    viewModel.completeChore(chore.id, houseId, chore.taskName)
+                                    snackbarHostState.showSnackbar("Chore completed!")
                                 }
                             }
+                        },
+                        onEdit = { chore -> showEditDialog = chore },
+                        onDelete = { chore ->
+                            scope.launch {
+                                viewModel.deleteChore(chore.id, houseId)
+                                snackbarHostState.showSnackbar("Chore deleted")
+                            }
                         }
-
-                        items(items = filteredChores, key = { it.id }) { chore ->
-                            ChoreCard(
-                                chore = chore,
-                                onToggleComplete = {
-                                    scope.launch {
-                                        if (!chore.isCompleted) {
-                                            viewModel.completeChore(chore.id, houseId, chore.taskName)
-                                            snackbarHostState.showSnackbar("Chore completed!")
-                                        }
-                                    }
-                                },
-                                onEdit = { showEditDialog = chore },
-                                onDelete = {
-                                    scope.launch {
-                                        viewModel.deleteChore(chore.id, houseId)
-                                        snackbarHostState.showSnackbar("Chore deleted")
-                                    }
-                                }
-                            )
-                        }
-
-                        item { Spacer(Modifier.height(80.dp)) }
-                    }
+                    )
                 }
             }
             is ChoreUiState.Error -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                        Text("Error loading chores", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                        Button(onClick = { viewModel.loadChores(houseId) }) {
-                            Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Retry")
-                        }
-                    }
+                ChoresErrorState(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    onRetry = { viewModel.loadChores(houseId) }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChoresTopAppBar(
+    onNavigateBack: () -> Unit,
+    onNavigateToProductivity: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = { Text("Chores", style = MaterialTheme.typography.headlineSmall) },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        ),
+        actions = {
+            IconButton(onClick = onNavigateToProductivity) {
+                Icon(Icons.Default.Assessment, "Productivity", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    )
+}
+
+@Composable
+private fun ChoresFilterHeader(
+    filterOption: ChoreFilter,
+    activeCount: Int,
+    completedCount: Int,
+    filteredCount: Int,
+    onFilterChanged: (ChoreFilter) -> Unit,
+    onClearCompleted: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        var selectedTab by remember { mutableIntStateOf(if (filterOption == ChoreFilter.COMPLETED) 1 else 0) }
+        val tabs = listOf("Active", "Completed")
+
+        LaunchedEffect(selectedTab) {
+            onFilterChanged(if (selectedTab == 0) ChoreFilter.ACTIVE else ChoreFilter.COMPLETED)
+        }
+
+        `in`.xroden.flockr.ui.components.inputs.PillSelector(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onTabSelected = { selectedTab = it },
+            counts = listOf(activeCount, completedCount)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "$filteredCount ${filterOption.label.lowercase()}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (filterOption == ChoreFilter.COMPLETED && filteredCount > 0) {
+                TextButton(
+                    onClick = onClearCompleted,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Clear Completed")
                 }
             }
         }
@@ -223,7 +232,64 @@ fun ChoresScreen(
 }
 
 @Composable
-fun ChoreCard(
+private fun ChoresList(
+    modifier: Modifier,
+    filteredChores: List<Chore>,
+    filterOption: ChoreFilter,
+    activeCount: Int,
+    completedCount: Int,
+    onFilterChanged: (ChoreFilter) -> Unit,
+    onClearCompleted: () -> Unit,
+    onToggleComplete: (Chore) -> Unit,
+    onEdit: (Chore) -> Unit,
+    onDelete: (Chore) -> Unit
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            ChoresFilterHeader(
+                filterOption = filterOption,
+                activeCount = activeCount,
+                completedCount = completedCount,
+                filteredCount = filteredChores.size,
+                onFilterChanged = onFilterChanged,
+                onClearCompleted = onClearCompleted
+            )
+        }
+
+        items(items = filteredChores, key = { it.id }) { chore ->
+            ChoreCard(
+                chore = chore,
+                onToggleComplete = { onToggleComplete(chore) },
+                onEdit = { onEdit(chore) },
+                onDelete = { onDelete(chore) }
+            )
+        }
+
+        item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+private fun ChoresErrorState(modifier: Modifier, onRetry: () -> Unit) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+            Text("Error loading chores", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+            Button(onClick = onRetry) {
+                Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Retry")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoreCard(
     chore: Chore,
     onToggleComplete: () -> Unit,
     onEdit: () -> Unit,
@@ -400,7 +466,7 @@ fun ChoreCard(
 }
 
 @Composable
-fun Badge(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, containerColor: Color, contentColor: Color) {
+private fun Badge(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, containerColor: Color, contentColor: Color) {
     Surface(shape = MaterialTheme.shapes.extraSmall, color = containerColor) {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, Modifier.size(14.dp), tint = contentColor)
@@ -410,7 +476,7 @@ fun Badge(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, c
 }
 
 @Composable
-fun EmptyChoresState(modifier: Modifier = Modifier, onAddChore: () -> Unit) {
+private fun EmptyChoresState(modifier: Modifier = Modifier, onAddChore: () -> Unit) {
     Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(Modifier.size(80.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.CheckCircle, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
@@ -430,7 +496,7 @@ fun EmptyChoresState(modifier: Modifier = Modifier, onAddChore: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditChoreDialog(
+private fun EditChoreDialog(
     chore: Chore,
     onDismiss: () -> Unit,
     onSave: (String, String?, LocalDate?, String?) -> Unit

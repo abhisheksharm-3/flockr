@@ -54,175 +54,249 @@ fun RecurringExpensesScreen(
 
     // Delete confirmation dialog
     if (showDeleteDialog && selectedExpense != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Delete Recurring Bill?", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to delete '${selectedExpense?.name}'? This will also delete all payment history for this bill.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        selectedExpense?.let { expense ->
-                            viewModel.deleteRecurringExpense(houseId, expense.id)
-                            showDeleteDialog = false
-                            selectedExpense = null
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = MaterialTheme.shapes.medium
-                ) { Text("Delete", fontWeight = FontWeight.Bold) }
+        DeleteBillConfirmationDialog(
+            billName = selectedExpense?.name,
+            onConfirm = {
+                selectedExpense?.let { expense ->
+                    viewModel.deleteRecurringExpense(houseId, expense.id)
+                    showDeleteDialog = false
+                    selectedExpense = null
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }, shape = MaterialTheme.shapes.medium) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.medium
+            onDismiss = { showDeleteDialog = false }
         )
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Recurring Bills", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToAddBill,
-                icon = { Icon(Icons.Default.Add, "Add") },
-                text = { Text("Add Bill", fontWeight = FontWeight.SemiBold) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium
-            )
-        },
+        topBar = { RecurringExpensesTopBar(onNavigateBack) },
+        floatingActionButton = { AddBillFab(onNavigateToAddBill) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        when (val state = uiState) {
-            is RecurringExpenseUiState.Loading -> {
-                `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton(
-                    modifier = Modifier.padding(padding)
+        RecurringExpensesContent(
+            state = uiState,
+            padding = padding,
+            currencySymbol = currencySymbol,
+            onMarkAsPaid = { expense ->
+                val houseTimezone = houseConfig?.timezone
+                val tz = houseTimezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
+                viewModel.markAsPaid(
+                    houseId = houseId,
+                    expenseId = expense.id,
+                    amount = expense.amount,
+                    paymentDate = kotlin.time.Clock.System.todayIn(tz)
+                )
+            },
+            onEdit = onNavigateToEditBill,
+            onDeleteRequest = { expense ->
+                selectedExpense = expense
+                showDeleteDialog = true
+            },
+            onHistory = onNavigateToHistory,
+            onRetry = { viewModel.loadRecurringExpenses(houseId) }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecurringExpensesTopBar(onNavigateBack: () -> Unit) {
+    CenterAlignedTopAppBar(
+        title = { Text("Recurring Bills", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+    )
+}
+
+@Composable
+private fun AddBillFab(onClick: () -> Unit) {
+    ExtendedFloatingActionButton(
+        onClick = onClick,
+        icon = { Icon(Icons.Default.Add, "Add") },
+        text = { Text("Add Bill", fontWeight = FontWeight.SemiBold) },
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shape = MaterialTheme.shapes.medium
+    )
+}
+
+@Composable
+private fun DeleteBillConfirmationDialog(
+    billName: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
+        title = { Text("Delete Recurring Bill?", fontWeight = FontWeight.Bold) },
+        text = { Text("Are you sure you want to delete '$billName'? This will also delete all payment history for this bill.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                shape = MaterialTheme.shapes.medium
+            ) { Text("Delete", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shape = MaterialTheme.shapes.medium) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
+    )
+}
+
+@Composable
+private fun RecurringExpensesContent(
+    state: RecurringExpenseUiState,
+    padding: PaddingValues,
+    currencySymbol: String,
+    onMarkAsPaid: (RecurringExpense) -> Unit,
+    onEdit: (String) -> Unit,
+    onDeleteRequest: (RecurringExpense) -> Unit,
+    onHistory: (String, String) -> Unit,
+    onRetry: () -> Unit
+) {
+    when (state) {
+        is RecurringExpenseUiState.Loading -> {
+            `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton(
+                modifier = Modifier.padding(padding)
+            )
+        }
+        is RecurringExpenseUiState.Success -> {
+            if (state.expenses.isEmpty()) {
+                EmptyRecurringState(Modifier.fillMaxSize().padding(padding))
+            } else {
+                RecurringExpensesList(
+                    expenses = state.expenses,
+                    padding = padding,
+                    currencySymbol = currencySymbol,
+                    onMarkAsPaid = onMarkAsPaid,
+                    onEdit = onEdit,
+                    onDeleteRequest = onDeleteRequest,
+                    onHistory = onHistory
                 )
             }
-            is RecurringExpenseUiState.Success -> {
-                if (state.expenses.isEmpty()) {
-                    EmptyRecurringState(Modifier.fillMaxSize().padding(padding))
-                } else {
-                    val sortedGroups = remember(state.expenses) {
-                        val groupedExpenses = state.expenses.groupBy { it.frequency }
-                        val frequencyOrder = listOf(
-                            ExpenseFrequency.DAILY,
-                            ExpenseFrequency.WEEKLY,
-                            ExpenseFrequency.BIWEEKLY,
-                            ExpenseFrequency.MONTHLY,
-                            ExpenseFrequency.QUARTERLY,
-                            ExpenseFrequency.SEMIANNUAL,
-                            ExpenseFrequency.ANNUAL,
-                            ExpenseFrequency.CUSTOM
-                        )
-                        frequencyOrder.mapNotNull { freq -> groupedExpenses[freq]?.let { freq to it } }
-                    }
+        }
+        is RecurringExpenseUiState.Error -> {
+            RecurringExpensesErrorState(padding = padding, onRetry = onRetry)
+        }
+    }
+}
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        // Overall Header
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
-                                shape = MaterialTheme.shapes.large,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text("Recurring Bills", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                                        Text(
-                                            text = "${state.expenses.size} active bill${if (state.expenses.size != 1) "s" else ""}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.Receipt, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                                    }
-                                }
-                            }
-                        }
+@Composable
+private fun RecurringExpensesList(
+    expenses: List<RecurringExpense>,
+    padding: PaddingValues,
+    currencySymbol: String,
+    onMarkAsPaid: (RecurringExpense) -> Unit,
+    onEdit: (String) -> Unit,
+    onDeleteRequest: (RecurringExpense) -> Unit,
+    onHistory: (String, String) -> Unit
+) {
+    val sortedGroups = remember(expenses) {
+        val groupedExpenses = expenses.groupBy { it.frequency }
+        val frequencyOrder = listOf(
+            ExpenseFrequency.DAILY,
+            ExpenseFrequency.WEEKLY,
+            ExpenseFrequency.BIWEEKLY,
+            ExpenseFrequency.MONTHLY,
+            ExpenseFrequency.QUARTERLY,
+            ExpenseFrequency.SEMIANNUAL,
+            ExpenseFrequency.ANNUAL,
+            ExpenseFrequency.CUSTOM
+        )
+        frequencyOrder.mapNotNull { freq -> groupedExpenses[freq]?.let { freq to it } }
+    }
 
-                        // Grouped by frequency
-                        sortedGroups.forEach { (frequency, expenses) ->
-                            item {
-                                FrequencySection(
-                                    frequency = frequency.name,
-                                    count = expenses.size,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                )
-                            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(padding),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Overall Header
+        item {
+            RecurringExpensesSummaryHeader(count = expenses.size)
+        }
 
-                            items(
-                                items = expenses,
-                                key = { it.id }
-                            ) { expense ->
-                                RecurringExpenseCard(
-                                    expense = expense,
-                                    currencySymbol = currencySymbol,
-                                    onMarkAsPaid = {
-                                        val houseTimezone = houseConfig?.timezone
-                                        val tz = houseTimezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
-                                        viewModel.markAsPaid(
-                                            houseId = houseId,
-                                            expenseId = expense.id,
-                                            amount = expense.amount,
-                                            paymentDate = kotlin.time.Clock.System.todayIn(tz)
-                                        )
-                                    },
-                                    onEdit = { onNavigateToEditBill(expense.id) },
-                                    onDelete = {
-                                        selectedExpense = expense
-                                        showDeleteDialog = true
-                                    },
-                                    onHistory = { onNavigateToHistory(expense.id, expense.name) }
-                                )
-                            }
-                        }
-
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
-                    }
-                }
+        // Grouped by frequency
+        sortedGroups.forEach { (frequency, groupExpenses) ->
+            item {
+                FrequencySection(
+                    frequency = frequency.name,
+                    count = groupExpenses.size,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
             }
-            is RecurringExpenseUiState.Error -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                        Text("Error loading recurring expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
-                        Button(
-                            onClick = { viewModel.loadRecurringExpenses(houseId) },
-                            shape = MaterialTheme.shapes.medium,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Retry", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
+
+            items(
+                items = groupExpenses,
+                key = { it.id }
+            ) { expense ->
+                RecurringExpenseCard(
+                    expense = expense,
+                    currencySymbol = currencySymbol,
+                    onMarkAsPaid = { onMarkAsPaid(expense) },
+                    onEdit = { onEdit(expense.id) },
+                    onDelete = { onDeleteRequest(expense) },
+                    onHistory = { onHistory(expense.id, expense.name) }
+                )
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+private fun RecurringExpensesSummaryHeader(count: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Recurring Bills", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text(
+                    text = "$count active bill${if (count != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Box(
+                modifier = Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Receipt, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurringExpensesErrorState(padding: PaddingValues, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+            Text("Error loading recurring expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+            Button(
+                onClick = onRetry,
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Retry", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -257,7 +331,7 @@ private fun getCategoryIcon(category: String): ImageVector {
 }
 
 @Composable
-fun EmptyRecurringState(modifier: Modifier = Modifier) {
+private fun EmptyRecurringState(modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(
             modifier = Modifier.size(80.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
@@ -278,7 +352,7 @@ fun EmptyRecurringState(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun FrequencySection(frequency: String, count: Int, modifier: Modifier = Modifier) {
+private fun FrequencySection(frequency: String, count: Int, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = frequency.lowercase().replaceFirstChar { it.uppercase() },
@@ -300,7 +374,7 @@ fun FrequencySection(frequency: String, count: Int, modifier: Modifier = Modifie
 }
 
 @Composable
-fun RecurringExpenseCard(
+private fun RecurringExpenseCard(
     expense: RecurringExpense,
     currencySymbol: String,
     onMarkAsPaid: () -> Unit,

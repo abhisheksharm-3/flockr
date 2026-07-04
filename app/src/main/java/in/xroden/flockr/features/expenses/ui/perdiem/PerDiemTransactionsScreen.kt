@@ -91,164 +91,214 @@ fun PerDiemTransactionsScreen(
                 ListScreenSkeleton(modifier = Modifier.fillMaxSize().padding(padding))
             }
             is PerDiemEntryUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-            is PerDiemEntryUiState.Success -> {
-                val entries = state.entries
-
-                LazyColumn(
+                PerDiemErrorContent(
+                    message = state.message,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp)
-                ) {
-                    // Month selector - using unified component
-                    item {
-                        MonthSelector(
-                            selectedMonth = selectedMonth,
-                            onMonthChange = { selectedMonth = it }
-                        )
-                    }
+                )
+            }
+            is PerDiemEntryUiState.Success -> {
+                PerDiemTransactionsContent(
+                    entries = state.entries,
+                    selectedMonth = selectedMonth,
+                    onMonthChange = { selectedMonth = it },
+                    currencySymbol = currencySymbol,
+                    onDeleteEntry = { entryId -> viewModel.deletePerDiemEntry(houseId, entryId) },
+                    onUpdateEntry = { entryId, quantity, date, notes ->
+                        viewModel.updatePerDiemEntry(houseId, entryId, quantity, date, notes)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 20.dp)
+                )
+            }
+        }
+    }
+}
 
-                    // Total for the month - redesigned hero card
-                    item {
-                        val totalAmount = entries.sumOf { it.totalCost.toDouble() }
-                        val monthName = selectedMonth.month.name.lowercase()
-                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+@Composable
+private fun PerDiemErrorContent(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            ),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(48.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.Payments,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        "$monthName Spending",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        "${entries.size} transactions",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                }
-                                Text(
-                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", totalAmount)}",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1
-                                )
-                            }
+@Composable
+private fun PerDiemTransactionsContent(
+    entries: List<PerDiemEntryWithDetails>,
+    selectedMonth: LocalDate,
+    onMonthChange: (LocalDate) -> Unit,
+    currencySymbol: String,
+    onDeleteEntry: (String) -> Unit,
+    onUpdateEntry: (String, BigDecimal?, LocalDate?, String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 24.dp)
+    ) {
+        // Month selector - using unified component
+        item {
+            MonthSelector(
+                selectedMonth = selectedMonth,
+                onMonthChange = onMonthChange
+            )
+        }
+
+        // Total for the month - redesigned hero card
+        item {
+            MonthSpendingSummaryCard(
+                entries = entries,
+                selectedMonth = selectedMonth,
+                currencySymbol = currencySymbol
+            )
+        }
+
+        // Transactions list
+        if (entries.isEmpty()) {
+            item {
+                EmptyTransactionsContent()
+            }
+        } else {
+            // Group by date
+            val groupedEntries = entries.groupBy { it.date }
+                .toSortedMap(compareByDescending { it })
+
+            groupedEntries.forEach { (date, dateEntries) ->
+                item {
+                    Text(
+                        text = formatDate(date),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+
+                items(dateEntries) { entry ->
+                    PerDiemTransactionCard(
+                        entry = entry,
+                        currencySymbol = currencySymbol,
+                        onDelete = { onDeleteEntry(entry.entryId) },
+                        onUpdate = { quantity, date, notes ->
+                            onUpdateEntry(entry.entryId, quantity, date, notes)
                         }
-                    }
-
-                    // Transactions list
-                    if (entries.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Receipt,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                                    )
-                                    Text(
-                                        text = "No transactions",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "No per diem entries for this month",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Group by date
-                        val groupedEntries = entries.groupBy { it.date }
-                            .toSortedMap(compareByDescending { it })
-
-                        groupedEntries.forEach { (date, dateEntries) ->
-                            item {
-                                Text(
-                                    text = formatDate(date),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                )
-                            }
-
-                            items(dateEntries) { entry ->
-                                PerDiemTransactionCard(
-                                    entry = entry,
-                                    currencySymbol = currencySymbol,
-                                    onDelete = { viewModel.deletePerDiemEntry(houseId, entry.entryId) },
-                                    onUpdate = { quantity, date, notes ->
-                                        viewModel.updatePerDiemEntry(houseId, entry.entryId, quantity, date, notes)
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MonthSpendingSummaryCard(
+    entries: List<PerDiemEntryWithDetails>,
+    selectedMonth: LocalDate,
+    currencySymbol: String
+) {
+    val totalAmount = entries.sumOf { it.totalCost.toDouble() }
+    val monthName = selectedMonth.month.name.lowercase()
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Payments,
+                        null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    "$monthName Spending",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+                Text(
+                    "${entries.size} transactions",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", totalAmount)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyTransactionsContent() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Receipt,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+            Text(
+                text = "No transactions",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "No per diem entries for this month",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
         }
     }
 }

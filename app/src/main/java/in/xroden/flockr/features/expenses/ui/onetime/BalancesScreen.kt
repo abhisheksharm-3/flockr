@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.data.dto.expense.DebtBreakdownItem
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.presentation.BalanceViewModel
 import `in`.xroden.flockr.features.expenses.presentation.BalanceUiState
@@ -87,38 +88,11 @@ fun BalancesScreen(
                     ListScreenSkeleton(modifier = Modifier.fillMaxSize())
                 }
                 is BalanceUiState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(64.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Outlined.Warning,
-                                    null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                        Text(
-                            state.message,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Button(
-                            onClick = { viewModel.loadBalances(houseId) },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Retry", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                    BalanceErrorState(
+                        modifier = Modifier.align(Alignment.Center),
+                        message = state.message,
+                        onRetry = { viewModel.loadBalances(houseId) }
+                    )
                 }
                 is BalanceUiState.Success -> {
                     // Get current user's name from balances
@@ -193,23 +167,7 @@ fun BalancesContent(
 
         // Section Header
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "With Housemates",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    "${otherBalances.size} people",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            WithHousematesHeader(peopleCount = otherBalances.size)
         }
 
         if (otherBalances.isEmpty()) {
@@ -357,6 +315,67 @@ private fun BalanceHeroCard(
 }
 
 @Composable
+private fun BalanceErrorState(
+    modifier: Modifier = Modifier,
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(64.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Outlined.Warning,
+                    null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        Text(
+            message,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Retry", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun WithHousematesHeader(peopleCount: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "With Housemates",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            "$peopleCount people",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun AllSettledCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -461,162 +480,24 @@ fun BalancePersonCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Avatar
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = statusColor.copy(alpha = 0.15f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            balance.fullName?.firstOrNull()?.uppercase() ?: "?",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = statusColor
-                        )
-                    }
-                }
-
-                // Name and Status
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        balance.fullName ?: "User",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = statusColor.copy(alpha = 0.1f)
-                        ) {
-                            Text(
-                                statusText,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = statusColor,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Amount
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "$currencySymbol${"%.2f".format(amount)}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = statusColor
-                    )
-                    Icon(
-                        Icons.Default.ExpandMore,
-                        null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
+            BalancePersonCardHeader(
+                balance = balance,
+                currencySymbol = currencySymbol,
+                statusColor = statusColor,
+                statusText = statusText,
+                amount = amount
+            )
 
             // Expandable Section
             AnimatedVisibility(visible = expanded) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
-
-                    when {
-                        isSettled -> {
-                            Text(
-                                "All settled up!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                        isBreakdownLoading -> {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
-                        }
-                        breakdownItems.isNullOrEmpty() -> {
-                            Text(
-                                "No breakdown available",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        else -> {
-                            breakdownItems.forEach { item ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            item.expenseName,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Text(
-                                            item.date.toString(),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Text(
-                                        "$currencySymbol${"%.2f".format(item.amountOwed.toDouble().let { abs(it) })}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (item.amountOwed < BigDecimal.ZERO)
-                                            MaterialTheme.colorScheme.error
-                                        else
-                                            MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Settle Button
-                    if (iOweThem && !isSettled) {
-                        Button(
-                            onClick = { showSettleDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Icon(
-                                Icons.Outlined.Payments,
-                                null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text("Settle Up", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
+                BalancePersonCardDetails(
+                    currencySymbol = currencySymbol,
+                    isSettled = isSettled,
+                    isBreakdownLoading = isBreakdownLoading,
+                    breakdownItems = breakdownItems,
+                    showSettleButton = iOweThem && !isSettled,
+                    onSettleClick = { showSettleDialog = true }
+                )
             }
         }
     }
@@ -630,6 +511,188 @@ fun BalancePersonCard(
                 onSettle(balance, settleAmount, note ?: "Settlement")
                 showSettleDialog = false
             }
+        )
+    }
+}
+
+@Composable
+private fun BalancePersonCardHeader(
+    balance: UserBalance,
+    currencySymbol: String,
+    statusColor: Color,
+    statusText: String,
+    amount: Double
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Avatar
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = statusColor.copy(alpha = 0.15f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    balance.fullName?.firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+            }
+        }
+
+        // Name and Status
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                balance.fullName ?: "User",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = statusColor.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+
+        // Amount
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "$currencySymbol${"%.2f".format(amount)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = statusColor
+            )
+            Icon(
+                Icons.Default.ExpandMore,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BalancePersonCardDetails(
+    currencySymbol: String,
+    isSettled: Boolean,
+    isBreakdownLoading: Boolean,
+    breakdownItems: List<DebtBreakdownItem>?,
+    showSettleButton: Boolean,
+    onSettleClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+
+        when {
+            isSettled -> {
+                Text(
+                    "All settled up!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+            isBreakdownLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+            breakdownItems.isNullOrEmpty() -> {
+                Text(
+                    "No breakdown available",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            else -> {
+                breakdownItems.forEach { item ->
+                    DebtBreakdownRow(item = item, currencySymbol = currencySymbol)
+                }
+            }
+        }
+
+        // Settle Button
+        if (showSettleButton) {
+            Button(
+                onClick = onSettleClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    Icons.Outlined.Payments,
+                    null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Settle Up", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebtBreakdownRow(
+    item: DebtBreakdownItem,
+    currencySymbol: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                item.expenseName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                item.date.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            "$currencySymbol${"%.2f".format(item.amountOwed.toDouble().let { abs(it) })}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = if (item.amountOwed < BigDecimal.ZERO)
+                MaterialTheme.colorScheme.error
+            else
+                MaterialTheme.colorScheme.primary
         )
     }
 }

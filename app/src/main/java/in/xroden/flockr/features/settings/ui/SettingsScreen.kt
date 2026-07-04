@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.BuildConfig
 import `in`.xroden.flockr.features.settings.model.ThemeMode
+import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.utils.HapticFeedback
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,138 +90,22 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Profile Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.size(100.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            val avatarUrl = profile?.avatarUrl
-                            if (avatarUrl != null) {
-                                androidx.compose.foundation.Image(
-                                    painter = coil.compose.rememberAsyncImagePainter(avatarUrl),
-                                    contentDescription = "Profile Picture",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                )
-                            } else {
-                                Text(
-                                    text = (profile?.fullName?.firstOrNull()?.uppercase() ?: "U"),
-                                    style = MaterialTheme.typography.displayMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
+            ProfileHeaderCard(
+                profile = profile,
+                haptics = haptics,
+                onEditProfile = onNavigateToProfile
+            )
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = profile?.fullName ?: "Loading...",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(profile?.email ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = { haptics.performClick(); onNavigateToProfile() }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-                            Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Edit Profile", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-
-            // Sections
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingsSection(title = "Appearance") {
-                    SettingsItem(
-                        icon = if (currentTheme == ThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
-                        title = "Theme",
-                        subtitle = when (currentTheme) {
-                            ThemeMode.LIGHT -> "Light Mode"
-                            ThemeMode.DARK -> "Dark Mode"
-                            ThemeMode.SYSTEM -> "System Default"
-                        },
-                        onClick = { haptics.performClick(); showThemeDialog = true }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    SettingsToggleItem(
-                        icon = Icons.Default.Vibration,
-                        title = "Haptic Feedback",
-                        subtitle = "Vibration feedback for interactions",
-                        checked = hapticsEnabled,
-                        onCheckedChange = { haptics.performLightClick(); viewModel.setHapticsEnabled(it) }
-                    )
-                }
-
-                SettingsSection(title = "Notifications") {
-                    SettingsItem(
-                        icon = Icons.Default.Notifications,
-                        title = "Notification Preferences",
-                        subtitle = "Manage notification settings for each household",
-                        onClick = { haptics.performClick(); onNavigateToNotificationPreferences() }
-                    )
-                }
-
-                SettingsSection(title = "Security") {
-                    SettingsItem(
-                        icon = Icons.Default.Lock,
-                        title = "App Lock",
-                        subtitle = "Secure your app with biometrics",
-                        onClick = { haptics.performClick(); onNavigateToSecurity() }
-                    )
-                }
-
-                SettingsSection(title = "About") {
-                    SettingsItem(
-                        icon = Icons.Default.Info,
-                        title = "Flockr",
-                        subtitle = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                        showChevron = false
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    SettingsItem(Icons.Default.Code, "Developer", "Abhishek Sharma", showChevron = false)
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    
-                    val context = LocalContext.current
-                    SettingsItem(Icons.Default.Language, "Website", "abhisheksan.com", onClick = {
-                       haptics.performClick()
-                       context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
-                    })
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    SettingsItem(Icons.Default.Star, "GitHub Repository", "View source code & contribute", onClick = {
-                        haptics.performClick()
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/abhisheksharm-3/flockr")))
-                    })
-                }
-
-                SettingsSection(title = "Account") {
-                    SettingsItem(
-                        icon = Icons.AutoMirrored.Filled.ExitToApp,
-                        title = "Sign Out",
-                        subtitle = "Sign out of your account",
-                        onClick = { haptics.performHeavyClick(); showLogoutDialog = true },
-                        showChevron = false,
-                        iconTint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
+            SettingsSectionsList(
+                currentTheme = currentTheme,
+                hapticsEnabled = hapticsEnabled,
+                haptics = haptics,
+                onThemeClick = { showThemeDialog = true },
+                onHapticsToggle = { viewModel.setHapticsEnabled(it) },
+                onNavigateToNotificationPreferences = onNavigateToNotificationPreferences,
+                onNavigateToSecurity = onNavigateToSecurity,
+                onSignOutClick = { showLogoutDialog = true }
+            )
         }
     }
 
@@ -246,6 +132,211 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { showLogoutDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun ProfileHeaderCard(
+    profile: Profile?,
+    haptics: HapticFeedback,
+    onEditProfile: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(100.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    val avatarUrl = profile?.avatarUrl
+                    if (avatarUrl != null) {
+                        androidx.compose.foundation.Image(
+                            painter = coil.compose.rememberAsyncImagePainter(avatarUrl),
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = (profile?.fullName?.firstOrNull()?.uppercase() ?: "U"),
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = profile?.fullName ?: "Loading...",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(profile?.email ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { haptics.performClick(); onEditProfile() }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
+                    Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Edit Profile", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionsList(
+    currentTheme: ThemeMode,
+    hapticsEnabled: Boolean,
+    haptics: HapticFeedback,
+    onThemeClick: () -> Unit,
+    onHapticsToggle: (Boolean) -> Unit,
+    onNavigateToNotificationPreferences: () -> Unit,
+    onNavigateToSecurity: () -> Unit,
+    onSignOutClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        AppearanceSettingsSection(
+            currentTheme = currentTheme,
+            hapticsEnabled = hapticsEnabled,
+            haptics = haptics,
+            onThemeClick = onThemeClick,
+            onHapticsToggle = onHapticsToggle
+        )
+
+        NotificationsSettingsSection(
+            haptics = haptics,
+            onNavigateToNotificationPreferences = onNavigateToNotificationPreferences
+        )
+
+        SecuritySettingsSection(
+            haptics = haptics,
+            onNavigateToSecurity = onNavigateToSecurity
+        )
+
+        AboutSettingsSection(haptics = haptics)
+
+        AccountSettingsSection(
+            haptics = haptics,
+            onSignOutClick = onSignOutClick
+        )
+    }
+}
+
+@Composable
+private fun AppearanceSettingsSection(
+    currentTheme: ThemeMode,
+    hapticsEnabled: Boolean,
+    haptics: HapticFeedback,
+    onThemeClick: () -> Unit,
+    onHapticsToggle: (Boolean) -> Unit
+) {
+    SettingsSection(title = "Appearance") {
+        SettingsItem(
+            icon = if (currentTheme == ThemeMode.DARK) Icons.Default.DarkMode else Icons.Default.LightMode,
+            title = "Theme",
+            subtitle = when (currentTheme) {
+                ThemeMode.LIGHT -> "Light Mode"
+                ThemeMode.DARK -> "Dark Mode"
+                ThemeMode.SYSTEM -> "System Default"
+            },
+            onClick = { haptics.performClick(); onThemeClick() }
+        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        SettingsToggleItem(
+            icon = Icons.Default.Vibration,
+            title = "Haptic Feedback",
+            subtitle = "Vibration feedback for interactions",
+            checked = hapticsEnabled,
+            onCheckedChange = { haptics.performLightClick(); onHapticsToggle(it) }
+        )
+    }
+}
+
+@Composable
+private fun NotificationsSettingsSection(
+    haptics: HapticFeedback,
+    onNavigateToNotificationPreferences: () -> Unit
+) {
+    SettingsSection(title = "Notifications") {
+        SettingsItem(
+            icon = Icons.Default.Notifications,
+            title = "Notification Preferences",
+            subtitle = "Manage notification settings for each household",
+            onClick = { haptics.performClick(); onNavigateToNotificationPreferences() }
+        )
+    }
+}
+
+@Composable
+private fun SecuritySettingsSection(
+    haptics: HapticFeedback,
+    onNavigateToSecurity: () -> Unit
+) {
+    SettingsSection(title = "Security") {
+        SettingsItem(
+            icon = Icons.Default.Lock,
+            title = "App Lock",
+            subtitle = "Secure your app with biometrics",
+            onClick = { haptics.performClick(); onNavigateToSecurity() }
+        )
+    }
+}
+
+@Composable
+private fun AboutSettingsSection(haptics: HapticFeedback) {
+    SettingsSection(title = "About") {
+        SettingsItem(
+            icon = Icons.Default.Info,
+            title = "Flockr",
+            subtitle = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+            showChevron = false
+        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        SettingsItem(Icons.Default.Code, "Developer", "Abhishek Sharma", showChevron = false)
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+        val context = LocalContext.current
+        SettingsItem(Icons.Default.Language, "Website", "abhisheksan.com", onClick = {
+           haptics.performClick()
+           context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
+        })
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        SettingsItem(Icons.Default.Star, "GitHub Repository", "View source code & contribute", onClick = {
+            haptics.performClick()
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/abhisheksharm-3/flockr")))
+        })
+    }
+}
+
+@Composable
+private fun AccountSettingsSection(
+    haptics: HapticFeedback,
+    onSignOutClick: () -> Unit
+) {
+    SettingsSection(title = "Account") {
+        SettingsItem(
+            icon = Icons.AutoMirrored.Filled.ExitToApp,
+            title = "Sign Out",
+            subtitle = "Sign out of your account",
+            onClick = { haptics.performHeavyClick(); onSignOutClick() },
+            showChevron = false,
+            iconTint = MaterialTheme.colorScheme.error
         )
     }
 }
