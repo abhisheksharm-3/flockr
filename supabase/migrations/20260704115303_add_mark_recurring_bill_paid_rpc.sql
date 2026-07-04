@@ -18,14 +18,28 @@ security definer
 set search_path to 'public'
 as $function$
 declare
+    v_house_id uuid;
     v_expense_id uuid;
     v_split jsonb;
     v_split_total numeric;
 begin
-    if not auth_is_house_member(p_house_id) then
+    -- Authorize against the bill's actual house, not caller-supplied input: otherwise a
+    -- member of house A could pass their own p_house_id plus a p_recurring_id from house B
+    -- and tamper with house B's bill (SECURITY DEFINER bypasses RLS).
+    select house_id into v_house_id
+    from recurring_expenses
+    where id = p_recurring_id;
+
+    if v_house_id is null then
+        raise exception 'Recurring bill not found';
+    end if;
+    if v_house_id <> p_house_id then
+        raise exception 'Recurring bill does not belong to the given house';
+    end if;
+    if not auth_is_house_member(v_house_id) then
         raise exception 'Not a member of this house';
     end if;
-    if not is_house_member(p_house_id, p_paid_by) then
+    if not is_house_member(v_house_id, p_paid_by) then
         raise exception 'Payer must be a member of this house';
     end if;
     if p_amount is null or p_amount <= 0 then
@@ -41,7 +55,7 @@ begin
     end if;
 
     insert into one_time_expenses (house_id, paid_by, name, amount, category, date, notes)
-    values (p_house_id, p_paid_by, p_name, p_amount, p_category, p_date, p_notes)
+    values (v_house_id, p_paid_by, p_name, p_amount, p_category, p_date, p_notes)
     returning id into v_expense_id;
 
     for v_split in select * from jsonb_array_elements(coalesce(p_splits, '[]'::jsonb))
