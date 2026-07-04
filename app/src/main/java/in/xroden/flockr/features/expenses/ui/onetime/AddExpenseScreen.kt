@@ -24,6 +24,7 @@ import `in`.xroden.flockr.features.expenses.presentation.AddExpenseUiState
 import `in`.xroden.flockr.features.expenses.presentation.AddExpenseViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.LocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -39,6 +40,7 @@ fun AddExpenseScreen(
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
@@ -93,7 +95,7 @@ fun AddExpenseScreen(
             )
 
             DateCategoryCard(
-                date = formState.date?.toString() ?: "",
+                date = formState.date?.formatWithHouseConfig(houseConfig) ?: "",
                 category = formState.category,
                 isLoading = isLoading,
                 expandedCategory = expandedCategory,

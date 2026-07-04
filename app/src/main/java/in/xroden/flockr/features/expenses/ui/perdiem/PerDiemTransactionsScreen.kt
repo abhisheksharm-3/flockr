@@ -20,9 +20,10 @@ import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.utils.getCurrencySymbol
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.*
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.math.BigDecimal
 import kotlin.time.Clock
@@ -105,6 +106,7 @@ fun PerDiemTransactionsScreen(
                     selectedMonth = selectedMonth,
                     onMonthChange = { selectedMonth = it },
                     currencySymbol = currencySymbol,
+                    houseConfig = houseConfig,
                     onDeleteEntry = { entryId -> viewModel.deletePerDiemEntry(houseId, entryId) },
                     onUpdateEntry = { entryId, quantity, date, notes ->
                         viewModel.updatePerDiemEntry(houseId, entryId, quantity, date, notes)
@@ -142,6 +144,7 @@ private fun PerDiemTransactionsContent(
     selectedMonth: LocalDate,
     onMonthChange: (LocalDate) -> Unit,
     currencySymbol: String,
+    houseConfig: HouseConfig?,
     onDeleteEntry: (String) -> Unit,
     onUpdateEntry: (String, BigDecimal?, LocalDate?, String?) -> Unit,
     modifier: Modifier = Modifier
@@ -181,7 +184,7 @@ private fun PerDiemTransactionsContent(
             groupedEntries.forEach { (date, dateEntries) ->
                 item {
                     Text(
-                        text = formatDate(date),
+                        text = formatDate(date, houseConfig),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -595,11 +598,5 @@ private fun MonthSelector(
     }
 }
 
-private fun formatDate(date: LocalDate): String {
-    return try {
-        val javaDate = java.time.LocalDate.of(date.year, date.monthNumber, date.day)
-        javaDate.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy"))
-    } catch (_: Exception) {
-        "${date.day}/${date.monthNumber}/${date.year}"
-    }
-}
+private fun formatDate(date: LocalDate, houseConfig: HouseConfig?): String =
+    date.formatWithHouseConfig(houseConfig)

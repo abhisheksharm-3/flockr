@@ -112,7 +112,7 @@ fun BalancesScreen(
                                 payeeId = userBalance.userId,
                                 payerName = currentUserName,
                                 payeeName = userBalance.fullName ?: "User",
-                                amount = amount.toBigDecimal(),
+                                amount = amount,
                                 notes = notes
                             )
                         },
@@ -131,7 +131,7 @@ fun BalancesContent(
     currentUserId: String,
     currentUserName: String,
     currencySymbol: String,
-    onSettle: (UserBalance, Double, String) -> Unit,
+    onSettle: (UserBalance, BigDecimal, String) -> Unit,
     viewModel: BalanceViewModel
 ) {
     val otherBalances = remember(balances, currentUserId) {
@@ -426,7 +426,7 @@ fun BalancePersonCard(
     houseId: String,
     balance: UserBalance,
     currencySymbol: String,
-    onSettle: (UserBalance, Double, String) -> Unit,
+    onSettle: (UserBalance, BigDecimal, String) -> Unit,
     viewModel: BalanceViewModel,
     currentUserId: String
 ) {
@@ -703,11 +703,13 @@ fun SettleBalanceDialog(
     balance: UserBalance,
     currencySymbol: String,
     onDismiss: () -> Unit,
-    onSettle: (Double, String?) -> Unit
+    onSettle: (BigDecimal, String?) -> Unit
 ) {
-    var amount by remember { mutableStateOf(abs(balance.balance.toDouble()).toString()) }
+    // Keep the amount as BigDecimal end-to-end; a Double round-trip stores
+    // floating-point garbage (e.g. 33.33 -> 33.32999999999999...).
+    var amount by remember { mutableStateOf(balance.balance.abs().toPlainString()) }
     var description by remember { mutableStateOf("") }
-    val isValid = amount.toDoubleOrNull() != null
+    val isValid = amount.toBigDecimalOrNull() != null
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -786,7 +788,8 @@ fun SettleBalanceDialog(
                     }
                     Button(
                         onClick = {
-                            amount.toDoubleOrNull()?.let {
+                            amount.toBigDecimalOrNull()?.let {
+                                // parsed directly from the text field — no Double round-trip
                                 onSettle(it, description.takeIf { d -> d.isNotBlank() })
                             }
                         },

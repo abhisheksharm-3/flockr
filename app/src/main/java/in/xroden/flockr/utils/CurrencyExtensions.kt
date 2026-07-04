@@ -47,9 +47,10 @@ fun BigDecimal.formatAsCurrency(currencyCode: String): String {
         format.currency = currency
         format.format(this)
     } catch (e: IllegalArgumentException) {
-        // Fallback for unknown currency code
+        // Fallback for unknown currency code — keep 2 decimal places (dropping cents
+        // turned 10.99 into "$11").
         val symbol = getCurrencySymbol(currencyCode)
-        val scaledAmount = this.setScale(0, RoundingMode.HALF_UP).toLong()
+        val scaledAmount = this.setScale(2, RoundingMode.HALF_UP).toPlainString()
         return "$symbol$scaledAmount"
     }
 }
@@ -79,5 +80,5 @@ private fun getLocaleForCurrency(currencyCode: String): Locale {
  * Format BigDecimal amount with currency symbol prefix
  */
 fun formatAmount(amount: BigDecimal, currencySymbol: String = "$"): String {
-    return "$currencySymbol${String.format(Locale.US, "%.2f", amount.toDouble())}"
+    return "$currencySymbol${amount.setScale(2, RoundingMode.HALF_UP).toPlainString()}"
 }

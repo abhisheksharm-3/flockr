@@ -43,6 +43,10 @@ class MainActivity : FragmentActivity() {
     private lateinit var permissionManager: PermissionManager
     private val settingsViewModel: SettingsViewModel by viewModels()
 
+    // Compose-observable so a deep link delivered to onNewIntent (app already open)
+    // re-triggers invite extraction; the Activity's own `intent` field is not observable.
+    private val intentState = mutableStateOf<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,7 +56,9 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState == null) {
             appLockManager.initializeColdStartLock()
         }
-        
+
+        intentState.value = intent
+
         setContent {
             val themeMode by settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             val isAppLocked by appLockManager.isAppLocked.collectAsStateWithLifecycle()
@@ -71,8 +77,8 @@ class MainActivity : FragmentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
 
-                    LaunchedEffect(intent) {
-                        setInviteCode(IntentHandler.extractInviteCode(intent))
+                    LaunchedEffect(intentState.value) {
+                        IntentHandler.extractInviteCode(intentState.value)?.let { setInviteCode(it) }
                     }
 
                     // Pass any invite code into navigation, which routes to the join preview
@@ -99,6 +105,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        intentState.value = intent
     }
 
     override fun onStop() {

@@ -116,7 +116,7 @@ class ExpenseRepository @Inject constructor(
                     uniqueParticipants.filter { it != payerId }.forEach { participantId ->
                         add(buildJsonObject {
                             put("user_id", participantId)
-                            put("amount", splitAmount.toDouble())
+                            put("amount", splitAmount.toPlainString())
                         })
                     }
                 }
@@ -125,7 +125,7 @@ class ExpenseRepository @Inject constructor(
                         if (splitUserId != payerId) {
                             add(buildJsonObject {
                                 put("user_id", splitUserId)
-                                put("amount", splitAmount.toDouble())
+                                put("amount", splitAmount.toPlainString())
                             })
                         }
                     }

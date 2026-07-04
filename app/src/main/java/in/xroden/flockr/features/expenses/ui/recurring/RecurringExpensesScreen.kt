@@ -22,8 +22,11 @@ import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseUiState
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.utils.getCurrencySymbol
+import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
@@ -78,6 +81,7 @@ fun RecurringExpensesScreen(
             state = uiState,
             padding = padding,
             currencySymbol = currencySymbol,
+            houseConfig = houseConfig,
             onMarkAsPaid = { expense ->
                 val houseTimezone = houseConfig?.timezone
                 val tz = houseTimezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
@@ -156,6 +160,7 @@ private fun RecurringExpensesContent(
     state: RecurringExpenseUiState,
     padding: PaddingValues,
     currencySymbol: String,
+    houseConfig: HouseConfig?,
     onMarkAsPaid: (RecurringExpense) -> Unit,
     onEdit: (String) -> Unit,
     onDeleteRequest: (RecurringExpense) -> Unit,
@@ -176,6 +181,7 @@ private fun RecurringExpensesContent(
                     expenses = state.expenses,
                     padding = padding,
                     currencySymbol = currencySymbol,
+                    houseConfig = houseConfig,
                     onMarkAsPaid = onMarkAsPaid,
                     onEdit = onEdit,
                     onDeleteRequest = onDeleteRequest,
@@ -194,6 +200,7 @@ private fun RecurringExpensesList(
     expenses: List<RecurringExpense>,
     padding: PaddingValues,
     currencySymbol: String,
+    houseConfig: HouseConfig?,
     onMarkAsPaid: (RecurringExpense) -> Unit,
     onEdit: (String) -> Unit,
     onDeleteRequest: (RecurringExpense) -> Unit,
@@ -241,6 +248,7 @@ private fun RecurringExpensesList(
                 RecurringExpenseCard(
                     expense = expense,
                     currencySymbol = currencySymbol,
+                    houseConfig = houseConfig,
                     onMarkAsPaid = { onMarkAsPaid(expense) },
                     onEdit = { onEdit(expense.id) },
                     onDelete = { onDeleteRequest(expense) },
@@ -378,15 +386,14 @@ private fun FrequencySection(frequency: String, count: Int, modifier: Modifier =
 private fun RecurringExpenseCard(
     expense: RecurringExpense,
     currencySymbol: String,
+    houseConfig: HouseConfig?,
     onMarkAsPaid: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Note: RecurringExpenseCard would need houseConfig passed to use house timezone
-    // For now, using system default - caller should ensure consistency
-    val today = kotlin.time.Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val today = houseConfig.getTodayInHouseTimezone()
     
     val isPaidThisPeriod = remember(expense.lastPaidDate, expense.frequency) {
         if (expense.lastPaidDate == null) return@remember false
@@ -437,7 +444,7 @@ private fun RecurringExpenseCard(
                     Icon(Icons.Default.Event, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Due: ${nextDueDate.day} ${nextDueDate.month.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                        text = "Due: ${nextDueDate.formatWithHouseConfig(houseConfig)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

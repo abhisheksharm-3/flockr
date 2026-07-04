@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -145,7 +146,8 @@ fun EditExpenseScreen(
                 )
 
                 DateCategoryCard(
-                    date = date,
+                    // `date` stays ISO (source of truth for saving); display honors the house format.
+                    date = runCatching { LocalDate.parse(date).formatWithHouseConfig(houseConfig) }.getOrDefault(date),
                     onDateClick = { showDatePicker = true },
                     category = category,
                     categories = categories,

@@ -31,12 +31,16 @@ class AddExpenseViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddExpenseUiState>(AddExpenseUiState.Idle)
     val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
 
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
     private val _events = Channel<AddExpenseEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     fun initialize(houseId: String, initialName: String?, initialQuantity: Int?) {
         viewModelScope.launch {
             val houseConfig = houseRepository.getHouseConfig(houseId).getOrNull()
+            _houseConfig.value = houseConfig
             val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 
             val today = resolveToday(houseConfig)
