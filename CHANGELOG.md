@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0](https://github.com/abhisheksharm-3/flockr/compare/v1.9.1...v1.10.0) (2026-07-04)
+
+
+### Features
+
+* stabilize app, fix critical bugs, secure backend, modernize release ([#5](https://github.com/abhisheksharm-3/flockr/issues/5)) ([cfe80b1](https://github.com/abhisheksharm-3/flockr/commit/cfe80b1fad8430930f53f8d1efcb5fa8e07086a0))
+
 ## [1.9.1] - 2026-04-25
 
 ### What's new in 1.9.0
