@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.chores.presentation.CreateChoreUiState
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.datetime.*
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +44,7 @@ fun AddChoreScreen(
     var assignedTo by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
-    val createState by viewModel.createState.collectAsState()
+    val createState by viewModel.createState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(houseId) {

@@ -30,6 +30,7 @@ import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 import java.util.Locale
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,13 +50,13 @@ fun AddPerDiemEntryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val configsState by viewModel.configState.collectAsState()
+    val configsState by viewModel.configState.collectAsStateWithLifecycle()
     val configs = when (val state = configsState) {
         is PerDiemConfigUiState.Success -> state.configs
         else -> emptyList()
     }
     val config = configs.firstOrNull { it.id == configId }
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
 
     LaunchedEffect(houseId) {

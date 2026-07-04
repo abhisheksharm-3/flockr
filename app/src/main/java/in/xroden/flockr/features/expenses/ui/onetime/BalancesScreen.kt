@@ -35,6 +35,7 @@ import `in`.xroden.flockr.features.expenses.presentation.BalanceUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import java.math.BigDecimal
 import kotlin.math.abs
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +44,8 @@ fun BalancesScreen(
     onNavigateBack: () -> Unit,
     viewModel: BalanceViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.balanceState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val uiState by viewModel.balanceState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }
@@ -450,8 +451,8 @@ fun BalancePersonCard(
     }
 
     // Breakdown State
-    val debtBreakdowns by viewModel.debtBreakdownState.collectAsState()
-    val loadingBreakdowns by viewModel.loadingBreakdowns.collectAsState()
+    val debtBreakdowns by viewModel.debtBreakdownState.collectAsStateWithLifecycle()
+    val loadingBreakdowns by viewModel.loadingBreakdowns.collectAsStateWithLifecycle()
 
     val payerId = if (iOweThem) currentUserId else balance.userId
     val payeeId = if (iOweThem) balance.userId else currentUserId

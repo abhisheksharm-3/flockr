@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.math.BigDecimal
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Screen to view all per diem transactions
@@ -45,9 +46,9 @@ fun PerDiemTransactionsScreen(
     }
 
     // FIX: Collect the correct state flow from ViewModel
-    val entryState by viewModel.entryState.collectAsState()
+    val entryState by viewModel.entryState.collectAsStateWithLifecycle()
 
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId, selectedMonth) {
@@ -188,7 +189,7 @@ private fun PerDiemTransactionsContent(
                     )
                 }
 
-                items(dateEntries) { entry ->
+                items(dateEntries, key = { it.entryId }) { entry ->
                     PerDiemTransactionCard(
                         entry = entry,
                         currencySymbol = currencySymbol,

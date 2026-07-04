@@ -27,6 +27,7 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +39,8 @@ fun RecurringExpensesScreen(
     onNavigateToHistory: (String, String) -> Unit = { _, _ -> },
     viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }

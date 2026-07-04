@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.model.House
+import `in`.xroden.flockr.utils.BitmapUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
     private val houseRepository: IHouseRepository,
+    private val bitmapUtils: BitmapUtils,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -111,7 +113,8 @@ class HouseSettingsViewModel @Inject constructor(
             _updateState.value = UpdateHouseSettingsUiState.Loading
 
             val bytes = withContext(Dispatchers.IO) {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                raw?.let { bitmapUtils.compressImage(it) }
             }
 
             if (bytes == null) {

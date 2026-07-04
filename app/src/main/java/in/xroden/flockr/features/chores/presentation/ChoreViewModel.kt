@@ -30,7 +30,7 @@ class ChoreViewModel @Inject constructor(
     private val _createState = MutableStateFlow<CreateChoreUiState>(CreateChoreUiState.Idle)
     val createState: StateFlow<CreateChoreUiState> = _createState.asStateFlow()
 
-    private val _filterOption = MutableStateFlow(ChoreFilter.ALL)
+    private val _filterOption = MutableStateFlow(ChoreFilter.ACTIVE)
     val filterOption: StateFlow<ChoreFilter> = _filterOption.asStateFlow()
 
     private var currentHouseId: String? = null

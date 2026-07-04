@@ -33,6 +33,7 @@ import java.time.ZoneId
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import kotlin.time.ExperimentalTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +42,7 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -87,6 +88,8 @@ fun ChatScreen(
                         if (state.messages.isEmpty()) {
                             EmptyChatState(modifier = Modifier.fillMaxSize())
                         } else {
+                            val orderedMessages = remember(state.messages) { state.messages.reversed() }
+                            val currentUserId = remember { viewModel.getCurrentUserId() }
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 state = listState,
@@ -95,12 +98,12 @@ fun ChatScreen(
                                 reverseLayout = true
                             ) {
                                 items(
-                                    items = state.messages.reversed(),
+                                    items = orderedMessages,
                                     key = { it.id } // Stable key optimization
                                 ) { message ->
                                     MessageBubble(
                                         message = message,
-                                        currentUserId = viewModel.getCurrentUserId()
+                                        currentUserId = currentUserId
                                     )
                                 }
 

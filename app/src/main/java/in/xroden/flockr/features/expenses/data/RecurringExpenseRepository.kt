@@ -178,6 +178,7 @@ class RecurringExpenseRepository @Inject constructor(
             .select(Columns.ALL) {
                 filter { eq("recurring_expense_id", recurringExpenseId) }
                 order("payment_date", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<PaymentHistory>()
     }

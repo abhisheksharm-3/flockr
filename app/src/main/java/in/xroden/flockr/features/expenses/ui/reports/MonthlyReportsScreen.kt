@@ -38,6 +38,7 @@ import `in`.xroden.flockr.features.house.model.HouseConfig
 import java.math.BigDecimal
 import java.util.Locale
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,9 +53,9 @@ fun MonthlyReportsScreen(
     viewModel: MonthlySummaryViewModel = hiltViewModel(),
     perDiemViewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val summaryState by viewModel.summaryState.collectAsState()
-    val perDiemBillState by perDiemViewModel.billState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val summaryState by viewModel.summaryState.collectAsStateWithLifecycle()
+    val perDiemBillState by perDiemViewModel.billState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
 
     // Initial month based on house timezone, updated when houseConfig loads
     var selectedMonth by remember {

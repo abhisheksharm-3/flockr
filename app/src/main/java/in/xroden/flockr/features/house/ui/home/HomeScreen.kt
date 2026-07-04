@@ -44,6 +44,7 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +63,10 @@ fun HomeScreen(
         viewModel.refresh()
     }
 
-    val uiState by viewModel.uiState.collectAsState()
-    val notificationUiState by notificationViewModel.uiState.collectAsState()
-    val profileUiState by profileViewModel.uiState.collectAsState()
-    val pendingInvitations by viewModel.pendingInvitations.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val notificationUiState by notificationViewModel.uiState.collectAsStateWithLifecycle()
+    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
+    val pendingInvitations by viewModel.pendingInvitations.collectAsStateWithLifecycle()
 
     val isRefreshing = uiState is HouseListUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()

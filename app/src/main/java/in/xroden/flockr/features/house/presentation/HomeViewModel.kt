@@ -7,6 +7,9 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.data.IHouseInvitationRepository
+import `in`.xroden.flockr.utils.BitmapUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +27,8 @@ import kotlin.time.Clock
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val houseRepository: IHouseRepository,
-    private val houseInvitationRepository: IHouseInvitationRepository
+    private val houseInvitationRepository: IHouseInvitationRepository,
+    private val bitmapUtils: BitmapUtils
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HouseListUiState>(HouseListUiState.Loading)
@@ -125,7 +129,10 @@ class HomeViewModel @Inject constructor(
             ).fold(
                 onSuccess = { house ->
                     if (headerImageBytes != null) {
-                        houseRepository.uploadHouseHeaderImage(house.id, headerImageBytes)
+                        val compressed = withContext(Dispatchers.IO) {
+                            bitmapUtils.compressImage(headerImageBytes)
+                        }
+                        houseRepository.uploadHouseHeaderImage(house.id, compressed)
                     }
                     _createState.value = CreateHouseUiState.Success(house)
                 },

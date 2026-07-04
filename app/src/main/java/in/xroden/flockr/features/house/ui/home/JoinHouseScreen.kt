@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,8 +34,8 @@ fun JoinHouseScreen(
     var inviteCode by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    val joinState by viewModel.joinState.collectAsState()
-    val previewState by viewModel.previewState.collectAsState()
+    val joinState by viewModel.joinState.collectAsStateWithLifecycle()
+    val previewState by viewModel.previewState.collectAsStateWithLifecycle()
 
     LaunchedEffect(joinState) {
         when (val state = joinState) {

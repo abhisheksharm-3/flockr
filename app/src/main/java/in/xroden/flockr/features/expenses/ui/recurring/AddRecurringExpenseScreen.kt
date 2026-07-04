@@ -37,6 +37,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +78,7 @@ fun AddRecurringExpenseScreen(
         "Healthcare", "Education", "Other"
     )
 
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     val snackbarHostState = remember { SnackbarHostState() }

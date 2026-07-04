@@ -29,6 +29,7 @@ import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,8 +41,8 @@ fun SignupScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    val signUpState by viewModel.signUpState.collectAsState()
-    val signInState by viewModel.signInState.collectAsState()
+    val signUpState by viewModel.signUpState.collectAsStateWithLifecycle()
+    val signInState by viewModel.signInState.collectAsStateWithLifecycle()
     val isBusy = signUpState is SignUpUiState.Loading || signInState is SignInUiState.Loading
     val errorMessage = (signUpState as? SignUpUiState.Error)?.message
         ?: (signInState as? SignInUiState.Error)?.message

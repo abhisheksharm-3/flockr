@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.utils.HapticFeedback
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +65,7 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
     val hapticsEnabled by viewModel.hapticsEnabled.collectAsState(initial = true)
-    val profileUiState by profileViewModel.uiState.collectAsState()
+    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
     val profile = (profileUiState as? ProfileUiState.Success)?.profile
 
     Scaffold(

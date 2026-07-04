@@ -30,6 +30,7 @@ import kotlinx.datetime.*
 import java.util.Locale
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +44,8 @@ fun OneTimeExpensesScreen(
     onNavigateToEditExpense: (String) -> Unit,
     viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
-    val expenseState by viewModel.expenseState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val expenseState by viewModel.expenseState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     
     val currencySymbol = remember(houseConfig) {
         getCurrencySymbol(houseConfig?.currencyCode ?: "$")

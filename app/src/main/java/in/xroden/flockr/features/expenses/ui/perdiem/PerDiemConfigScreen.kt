@@ -24,6 +24,7 @@ import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,8 +36,8 @@ fun PerDiemConfigScreen(
     onNavigateToEditConfig: (PerDiemConfig) -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configsState by viewModel.configState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val configsState by viewModel.configState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
 
     var showDeleteDialog by remember { mutableStateOf<PerDiemConfig?>(null) }

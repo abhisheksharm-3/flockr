@@ -32,6 +32,7 @@ import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.features.house.presentation.HouseSettingsViewModel
 import `in`.xroden.flockr.features.house.presentation.HouseSettingsUiState
 import `in`.xroden.flockr.features.house.presentation.UpdateHouseSettingsUiState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +44,8 @@ fun HouseSettingsScreen(
     viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
     // UI State
-    val settingsUiState by viewModel.uiState.collectAsState()
-    val updateState by viewModel.updateState.collectAsState()
+    val settingsUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     var house by remember { mutableStateOf<House?>(null) }
     var isLoading by remember { mutableStateOf(true) }

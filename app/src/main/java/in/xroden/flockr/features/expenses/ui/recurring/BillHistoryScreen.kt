@@ -18,6 +18,7 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,8 +29,8 @@ fun BillHistoryScreen(
     onNavigateBack: () -> Unit,
     viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
-    val historyState by viewModel.paymentHistoryState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val historyState by viewModel.paymentHistoryState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     // Fetch house members to resolve names

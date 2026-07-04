@@ -37,6 +37,7 @@ class TransactionRepository @Inject constructor(
             .select(Columns.ALL) {
                 filter { eq("house_id", houseId) }
                 order("created_at", Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<Transaction>()
     }

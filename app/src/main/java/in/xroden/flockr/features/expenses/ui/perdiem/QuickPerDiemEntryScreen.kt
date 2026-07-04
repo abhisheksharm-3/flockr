@@ -26,6 +26,7 @@ import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -40,13 +41,13 @@ fun QuickPerDiemEntryScreen(
     onNavigateToTransactions: () -> Unit = {},
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
-    val configsState by viewModel.configState.collectAsState()
+    val configsState by viewModel.configState.collectAsStateWithLifecycle()
     val configs = when (val state = configsState) {
         is PerDiemConfigUiState.Success -> state.configs
         else -> emptyList()
     }
     val isLoading = configsState is PerDiemConfigUiState.Loading
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     LaunchedEffect(houseId) {

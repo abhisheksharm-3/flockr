@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
 import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Full-screen Join House Preview Screen
@@ -39,8 +40,8 @@ fun JoinHousePreviewScreen(
     onHouseJoined: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val previewState by viewModel.previewState.collectAsState()
-    val joinState by viewModel.joinState.collectAsState()
+    val previewState by viewModel.previewState.collectAsStateWithLifecycle()
+    val joinState by viewModel.joinState.collectAsStateWithLifecycle()
 
     LaunchedEffect(inviteCode) {
         viewModel.validateInviteCode(inviteCode)

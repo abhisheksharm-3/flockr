@@ -32,6 +32,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +40,8 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val updateState by viewModel.updateState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     
     var isEditing by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }

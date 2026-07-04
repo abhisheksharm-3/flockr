@@ -43,6 +43,7 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
 import javax.inject.Inject
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @HiltViewModel
 class HouseDetailsViewModel @Inject constructor(
@@ -93,9 +94,9 @@ fun HouseDetailsScreen(
     onNavigateToHouseSettings: () -> Unit,
     viewModel: HouseDetailsViewModel = hiltViewModel()
 ) {
-    val house by viewModel.house.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val currentUserRole by viewModel.currentUserRole.collectAsState()
+    val house by viewModel.house.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val currentUserRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
 
     LaunchedEffect(houseId) {
         viewModel.loadHouseDetails(houseId)

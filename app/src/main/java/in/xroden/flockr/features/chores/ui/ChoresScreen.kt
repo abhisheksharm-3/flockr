@@ -28,6 +28,7 @@ import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import kotlinx.datetime.*
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // Helper functions using pure kotlinx-datetime
 private fun isOverdue(dateString: String): Boolean {
@@ -55,8 +56,8 @@ fun ChoresScreen(
     onNavigateToProductivity: () -> Unit,
     viewModel: ChoreViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val filterOption by viewModel.filterOption.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val filterOption by viewModel.filterOption.collectAsStateWithLifecycle()
     
     var showEditDialog by remember { mutableStateOf<Chore?>(null) }
     
@@ -192,17 +193,13 @@ private fun ChoresFilterHeader(
     onClearCompleted: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        var selectedTab by remember { mutableIntStateOf(if (filterOption == ChoreFilter.COMPLETED) 1 else 0) }
+        val selectedTab = if (filterOption == ChoreFilter.COMPLETED) 1 else 0
         val tabs = listOf("Active", "Completed")
-
-        LaunchedEffect(selectedTab) {
-            onFilterChanged(if (selectedTab == 0) ChoreFilter.ACTIVE else ChoreFilter.COMPLETED)
-        }
 
         `in`.xroden.flockr.ui.components.inputs.PillSelector(
             tabs = tabs,
             selectedIndex = selectedTab,
-            onTabSelected = { selectedTab = it },
+            onTabSelected = { onFilterChanged(if (it == 0) ChoreFilter.ACTIVE else ChoreFilter.COMPLETED) },
             counts = listOf(activeCount, completedCount)
         )
 

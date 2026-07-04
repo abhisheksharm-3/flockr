@@ -25,6 +25,7 @@ import `in`.xroden.flockr.features.expenses.presentation.AddExpenseViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.datetime.LocalDate
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,8 +37,8 @@ fun AddExpenseScreen(
     onExpenseAdded: () -> Unit,
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
-    val formState by viewModel.formState.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }

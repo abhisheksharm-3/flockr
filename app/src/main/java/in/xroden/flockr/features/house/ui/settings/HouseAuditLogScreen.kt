@@ -31,6 +31,7 @@ import javax.inject.Inject
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.json.JsonPrimitive
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @HiltViewModel
 class HouseAuditLogViewModel @Inject constructor(
@@ -65,8 +66,8 @@ fun HouseAuditLogScreen(
     onNavigateBack: () -> Unit,
     viewModel: HouseAuditLogViewModel = hiltViewModel()
 ) {
-    val auditLogs by viewModel.auditLogs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val auditLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(houseId) {
         viewModel.loadAuditLogs(houseId)
@@ -135,7 +136,7 @@ fun HouseAuditLogScreen(
                                  modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp)
                              )
                          }
-                         items(logs) { log ->
+                         items(logs, key = { it.id }) { log ->
                              AuditLogCard(log)
                          }
                     }

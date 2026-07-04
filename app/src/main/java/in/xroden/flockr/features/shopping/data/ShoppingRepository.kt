@@ -49,6 +49,7 @@ class ShoppingRepository @Inject constructor(
                 filter { eq("house_id", houseId) }
                 order("is_purchased", Order.ASCENDING)
                 order("created_at", Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<ShoppingItemWithProfiles>()
             .map { it.toShoppingItem() }

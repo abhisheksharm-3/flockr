@@ -19,6 +19,8 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.animation.*
 
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val SCREEN_NAME = "CreateHouse"
 
@@ -74,21 +77,21 @@ private fun CreateHouseScreenContent(
     
     val context = LocalContext.current
     val contentResolver = context.contentResolver
-    
+    val imageReadScope = rememberCoroutineScope()
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         selectedImageUri = uri
         if (uri != null) {
-            try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    imageBytes = inputStream.readBytes()
-                }
-                } catch (_: Exception) {
-                    Logger.e(SCREEN_NAME, "Error reading image")
-                }
+            // Read the (potentially multi-MB) image off the main thread to avoid jank/ANR.
+            imageReadScope.launch(Dispatchers.IO) {
+                imageBytes = runCatching {
+                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.onFailure { Logger.e(SCREEN_NAME, "Error reading image") }.getOrNull()
             }
         }
+    }
     
     // Localization
     var currency by remember { mutableStateOf("USD") }
@@ -110,7 +113,7 @@ private fun CreateHouseScreenContent(
     
     val dateFormats = listOf("dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd")
 
-    val createState by viewModel.createState.collectAsState()
+    val createState by viewModel.createState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(createState) {

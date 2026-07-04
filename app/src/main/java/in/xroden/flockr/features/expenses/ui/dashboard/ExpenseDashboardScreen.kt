@@ -39,6 +39,7 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.TimeZone
 import java.math.BigDecimal
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -59,9 +60,9 @@ fun ExpenseDashboardScreen(
     expenseViewModel: OneTimeExpenseViewModel = hiltViewModel(),
     summaryViewModel: MonthlySummaryViewModel = hiltViewModel()
 ) {
-    val expenseState by expenseViewModel.expenseState.collectAsState()
-    val houseConfig by expenseViewModel.houseConfig.collectAsState()
-    val summaryState by summaryViewModel.summaryState.collectAsState()
+    val expenseState by expenseViewModel.expenseState.collectAsStateWithLifecycle()
+    val houseConfig by expenseViewModel.houseConfig.collectAsStateWithLifecycle()
+    val summaryState by summaryViewModel.summaryState.collectAsStateWithLifecycle()
     
     val currentUserId = expenseViewModel.getCurrentUserId()
     

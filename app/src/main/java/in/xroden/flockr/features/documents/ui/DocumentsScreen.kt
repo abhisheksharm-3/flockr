@@ -32,6 +32,7 @@ import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
 import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
 import `in`.xroden.flockr.features.documents.presentation.UploadDocumentUiState
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +45,7 @@ fun DocumentsScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = rememberHapticFeedback()
 
     LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
@@ -117,7 +118,7 @@ fun DocumentsScreen(
                 .padding(padding)
         ) {
             // Upload Progress
-            val uploadState by viewModel.uploadState.collectAsState()
+            val uploadState by viewModel.uploadState.collectAsStateWithLifecycle()
             
              when (val state = uploadState) {
                 is UploadDocumentUiState.Error -> {

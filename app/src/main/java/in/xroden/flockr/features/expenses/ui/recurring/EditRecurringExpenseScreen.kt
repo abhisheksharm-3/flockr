@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CalendarToday
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +37,7 @@ fun EditRecurringExpenseScreen(
     onNavigateBack: () -> Unit,
     viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     // Find the expense to edit
     val expense = (uiState as? RecurringExpenseUiState.Success)

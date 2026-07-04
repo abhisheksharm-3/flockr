@@ -29,6 +29,7 @@ import coil.compose.rememberAsyncImagePainter
 import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,8 +37,8 @@ fun EditProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val profileUiState by viewModel.uiState.collectAsState()
-    val updateState by viewModel.updateState.collectAsState()
+    val profileUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val profile = (profileUiState as? ProfileUiState.Success)?.profile
 

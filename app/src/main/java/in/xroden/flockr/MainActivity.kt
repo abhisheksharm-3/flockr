@@ -32,6 +32,7 @@ import android.content.Intent
 import androidx.compose.animation.fadeOut
 import androidx.compose.ui.Modifier
 import javax.inject.Inject
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -54,7 +55,7 @@ class MainActivity : FragmentActivity() {
         
         setContent {
             val themeMode by settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-            val isAppLocked by appLockManager.isAppLocked.collectAsState()
+            val isAppLocked by appLockManager.isAppLocked.collectAsStateWithLifecycle()
 
             val darkTheme = when (themeMode) {
                 ThemeMode.LIGHT -> false

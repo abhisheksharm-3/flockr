@@ -29,6 +29,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 import java.math.RoundingMode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,9 +61,9 @@ fun EditExpenseScreen(
     val categories = ExpenseCategories.DEFAULT
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val expenseState by viewModel.selectedExpense.collectAsState()
+    val expenseState by viewModel.selectedExpense.collectAsStateWithLifecycle()
 
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }
