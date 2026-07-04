@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +33,7 @@ import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
 import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
 import `in`.xroden.flockr.features.documents.presentation.UploadDocumentUiState
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,11 +42,11 @@ fun DocumentsScreen(
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Personal, 1 = House
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0 = Personal, 1 = House
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = rememberHapticFeedback()
 
     LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
@@ -117,7 +119,7 @@ fun DocumentsScreen(
                 .padding(padding)
         ) {
             // Upload Progress
-            val uploadState by viewModel.uploadState.collectAsState()
+            val uploadState by viewModel.uploadState.collectAsStateWithLifecycle()
             
              when (val state = uploadState) {
                 is UploadDocumentUiState.Error -> {

@@ -53,6 +53,7 @@ class ChoreRepository @Inject constructor(
             """.trimIndent())) {
                 filter { eq("house_id", houseId) }
                 order("due_date", Order.ASCENDING)
+                limit(count = 200)
             }
             .decodeList<ChoreWithProfiles>()
             .map { it.toChore() }

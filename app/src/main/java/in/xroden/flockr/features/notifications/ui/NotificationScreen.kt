@@ -32,6 +32,7 @@ import `in`.xroden.flockr.features.notifications.presentation.NotificationUiStat
 import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +41,7 @@ fun NotificationScreen(
     onNotificationClick: (Notification) -> Unit,
     viewModel: NotificationViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,

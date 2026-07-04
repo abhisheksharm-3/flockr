@@ -7,6 +7,7 @@ import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.domain.usecase.CreateOneTimeExpenseUseCase
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.model.HouseConfig
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,12 +32,18 @@ class AddExpenseViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddExpenseUiState>(AddExpenseUiState.Idle)
     val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
 
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
+    private var submitJob: Job? = null
+
     private val _events = Channel<AddExpenseEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     fun initialize(houseId: String, initialName: String?, initialQuantity: Int?) {
         viewModelScope.launch {
             val houseConfig = houseRepository.getHouseConfig(houseId).getOrNull()
+            _houseConfig.value = houseConfig
             val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 
             val today = resolveToday(houseConfig)
@@ -57,6 +64,8 @@ class AddExpenseViewModel @Inject constructor(
             ?: TimeZone.currentSystemDefault()
         return Clock.System.todayIn(tz)
     }
+
+    fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
 
     fun onNameChange(name: String) {
         _formState.value = _formState.value.copy(name = name)
@@ -118,7 +127,9 @@ class AddExpenseViewModel @Inject constructor(
             }.toMap()
         } else null
 
-        viewModelScope.launch {
+        // Guard a rapid double-tap from enqueuing two identical expenses.
+        if (submitJob?.isActive == true) return
+        submitJob = viewModelScope.launch {
             _uiState.value = AddExpenseUiState.Loading
 
             createExpenseUseCase(

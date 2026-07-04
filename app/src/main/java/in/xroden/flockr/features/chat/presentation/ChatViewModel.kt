@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.chat.data.IChatRepository
 import `in`.xroden.flockr.features.chat.model.Message
+import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -15,7 +19,8 @@ import kotlin.time.Clock
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: IChatRepository
+    private val chatRepository: IChatRepository,
+    private val houseRepository: IHouseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
@@ -23,6 +28,9 @@ class ChatViewModel @Inject constructor(
 
     private val _sendState = MutableStateFlow<SendMessageUiState>(SendMessageUiState.Idle)
     val sendState: StateFlow<SendMessageUiState> = _sendState.asStateFlow()
+
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
 
     private val _pendingMessages = MutableStateFlow<List<Message>>(emptyList())
 
@@ -47,12 +55,13 @@ class ChatViewModel @Inject constructor(
                         // Reconcile optimistic messages by (sender, content): once the server row
                         // exists, drop the temp. Matching on tempId never worked (server id differs),
                         // which caused duplicate bubbles and permanently-"pending" messages.
-                        val stillPending = _pendingMessages.value.filter { pendingMessage ->
-                            messages.none {
-                                it.userId == pendingMessage.userId && it.content == pendingMessage.content
+                        val stillPending = _pendingMessages.updateAndGet { current ->
+                            current.filter { pendingMessage ->
+                                messages.none {
+                                    it.userId == pendingMessage.userId && it.content == pendingMessage.content
+                                }
                             }
                         }
-                        _pendingMessages.value = stillPending
                         _uiState.value = ChatUiState.Success(messages + stillPending, currentUserId)
                     },
                     onFailure = { error ->
@@ -63,6 +72,12 @@ class ChatViewModel @Inject constructor(
                     }
                 )
             }
+        }
+    }
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            houseRepository.getHouseConfig(houseId).onSuccess { _houseConfig.value = it }
         }
     }
 
@@ -85,11 +100,13 @@ class ChatViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            _pendingMessages.value = _pendingMessages.value + tempMessage
+            _pendingMessages.update { current -> current + tempMessage }
             _sendState.value = SendMessageUiState.Sending
 
-            val currentMessages = (_uiState.value as? ChatUiState.Success)?.messages ?: emptyList()
-            _uiState.value = ChatUiState.Success(currentMessages + tempMessage, currentUserId)
+            _uiState.update { current ->
+                val currentMessages = (current as? ChatUiState.Success)?.messages ?: emptyList()
+                ChatUiState.Success(currentMessages + tempMessage, currentUserId)
+            }
 
             chatRepository.sendMessage(houseId, content).fold(
                 onSuccess = {
@@ -98,7 +115,7 @@ class ChatViewModel @Inject constructor(
                     _sendState.value = SendMessageUiState.Success
                 },
                 onFailure = { error ->
-                    _pendingMessages.value = _pendingMessages.value.filter { it.id != tempId }
+                    _pendingMessages.update { current -> current.filter { it.id != tempId } }
                     _sendState.value = SendMessageUiState.Error(
                         message = error.message ?: "Failed to send message"
                     )

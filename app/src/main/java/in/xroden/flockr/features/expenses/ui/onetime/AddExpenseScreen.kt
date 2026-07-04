@@ -23,7 +23,10 @@ import `in`.xroden.flockr.features.expenses.presentation.AddExpenseFormState
 import `in`.xroden.flockr.features.expenses.presentation.AddExpenseUiState
 import `in`.xroden.flockr.features.expenses.presentation.AddExpenseViewModel
 import `in`.xroden.flockr.features.expenses.ui.ExpenseCategories
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.LocalDate
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,8 +38,9 @@ fun AddExpenseScreen(
     onExpenseAdded: () -> Unit,
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
-    val formState by viewModel.formState.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
@@ -61,48 +65,14 @@ fun AddExpenseScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Add Expense",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
+            AddExpenseTopBar(onNavigateBack = onNavigateBack)
         },
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Button(
-                    onClick = { viewModel.submit(houseId) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                        .navigationBarsPadding()
-                        .height(56.dp),
-                    enabled = !isLoading && formState.name.isNotBlank() && formState.amount.toBigDecimalOrNull() != null && formState.date != null,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("Add Expense", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
+            AddExpenseBottomBar(
+                isLoading = isLoading,
+                enabled = !isLoading && formState.name.isNotBlank() && formState.amount.toBigDecimalOrNull() != null && formState.date != null,
+                onClick = { viewModel.submit(houseId) }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -125,7 +95,7 @@ fun AddExpenseScreen(
             )
 
             DateCategoryCard(
-                date = formState.date?.toString() ?: "",
+                date = formState.date?.formatWithHouseConfig(houseConfig) ?: "",
                 category = formState.category,
                 isLoading = isLoading,
                 expandedCategory = expandedCategory,
@@ -144,6 +114,7 @@ fun AddExpenseScreen(
             SplitBillCard(
                 formState = formState,
                 isLoading = isLoading,
+                payerId = viewModel.getCurrentUserId(),
                 onSplitEnabledChange = viewModel::onSplitEnabledChange,
                 onSplitEqualChange = viewModel::onSplitEqualChange,
                 onMemberSelectionChange = viewModel::onMemberSelectionChange,
@@ -161,6 +132,59 @@ fun AddExpenseScreen(
             },
             onDismiss = { showDatePicker = false }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddExpenseTopBar(onNavigateBack: () -> Unit) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                "Add Expense",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+    )
+}
+
+@Composable
+private fun AddExpenseBottomBar(
+    isLoading: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .navigationBarsPadding()
+                .height(56.dp),
+            enabled = enabled,
+            shape = MaterialTheme.shapes.medium
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Add Expense", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -306,6 +330,7 @@ private fun NotesCard(
 private fun SplitBillCard(
     formState: AddExpenseFormState,
     isLoading: Boolean,
+    payerId: String?,
     onSplitEnabledChange: (Boolean) -> Unit,
     onSplitEqualChange: (Boolean) -> Unit,
     onMemberSelectionChange: (String, Boolean) -> Unit,
@@ -340,78 +365,159 @@ private fun SplitBillCard(
             if (formState.isSplitEnabled) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = formState.isSplitEqual,
-                        onClick = { onSplitEqualChange(true) },
-                        label = { Text("Equal Split") },
-                        leadingIcon = if (formState.isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
-                        enabled = !isLoading
-                    )
-                    FilterChip(
-                        selected = !formState.isSplitEqual,
-                        onClick = { onSplitEqualChange(false) },
-                        label = { Text("Custom Amounts") },
-                        leadingIcon = if (!formState.isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
-                        enabled = !isLoading
-                    )
-                }
+                SplitTypeSelector(
+                    isSplitEqual = formState.isSplitEqual,
+                    isLoading = isLoading,
+                    onSplitEqualChange = onSplitEqualChange
+                )
 
-                Text("Select members:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-
-                formState.houseMembers.forEach { member ->
-                    key(member.userId) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Checkbox(
-                                    checked = formState.selectedMemberIds.contains(member.userId),
-                                    onCheckedChange = { checked -> onMemberSelectionChange(member.userId, checked) },
-                                    enabled = !isLoading
-                                )
-                                Column {
-                                    Text(member.fullName ?: "Unknown", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                    Text(member.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            if (!formState.isSplitEqual && formState.selectedMemberIds.contains(member.userId)) {
-                                OutlinedTextField(
-                                    value = formState.customSplits[member.userId] ?: "",
-                                    onValueChange = { value -> onCustomSplitChange(member.userId, value) },
-                                    label = { Text(formState.currencySymbol) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    modifier = Modifier.width(100.dp),
-                                    enabled = !isLoading,
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                            }
-                        }
-                    }
-                }
+                SplitMemberList(
+                    members = formState.houseMembers,
+                    selectedMemberIds = formState.selectedMemberIds,
+                    isSplitEqual = formState.isSplitEqual,
+                    customSplits = formState.customSplits,
+                    currencySymbol = formState.currencySymbol,
+                    isLoading = isLoading,
+                    onMemberSelectionChange = onMemberSelectionChange,
+                    onCustomSplitChange = onCustomSplitChange
+                )
 
                 if (formState.selectedMemberIds.isNotEmpty() && formState.amount.toBigDecimalOrNull() != null) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    val totalAmount = formState.amount.toDoubleOrNull() ?: 0.0
-                    val splitDisplay = if (formState.isSplitEqual) {
-                        "${"%.2f".format(totalAmount / formState.selectedMemberIds.size)} each"
-                    } else {
-                        "${"%.2f".format(formState.customSplits.values.mapNotNull { it.toDoubleOrNull() }.sum())} total"
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Split among ${formState.selectedMemberIds.size} members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${formState.currencySymbol}$splitDisplay", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    }
+                    SplitPreview(
+                        amount = formState.amount,
+                        selectedMemberIds = formState.selectedMemberIds,
+                        payerId = payerId,
+                        isSplitEqual = formState.isSplitEqual,
+                        customSplits = formState.customSplits,
+                        currencySymbol = formState.currencySymbol
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SplitTypeSelector(
+    isSplitEqual: Boolean,
+    isLoading: Boolean,
+    onSplitEqualChange: (Boolean) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = isSplitEqual,
+            onClick = { onSplitEqualChange(true) },
+            label = { Text("Equal Split") },
+            leadingIcon = if (isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
+            enabled = !isLoading
+        )
+        FilterChip(
+            selected = !isSplitEqual,
+            onClick = { onSplitEqualChange(false) },
+            label = { Text("Custom Amounts") },
+            leadingIcon = if (!isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
+            enabled = !isLoading
+        )
+    }
+}
+
+@Composable
+private fun SplitMemberList(
+    members: List<MemberWithProfile>,
+    selectedMemberIds: Set<String>,
+    isSplitEqual: Boolean,
+    customSplits: Map<String, String>,
+    currencySymbol: String,
+    isLoading: Boolean,
+    onMemberSelectionChange: (String, Boolean) -> Unit,
+    onCustomSplitChange: (String, String) -> Unit
+) {
+    Text("Select members:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+
+    members.forEach { member ->
+        key(member.userId) {
+            SplitMemberRow(
+                member = member,
+                isSelected = selectedMemberIds.contains(member.userId),
+                isSplitEqual = isSplitEqual,
+                customSplitValue = customSplits[member.userId] ?: "",
+                currencySymbol = currencySymbol,
+                isLoading = isLoading,
+                onSelectionChange = { checked -> onMemberSelectionChange(member.userId, checked) },
+                onCustomSplitChange = { value -> onCustomSplitChange(member.userId, value) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitMemberRow(
+    member: MemberWithProfile,
+    isSelected: Boolean,
+    isSplitEqual: Boolean,
+    customSplitValue: String,
+    currencySymbol: String,
+    isLoading: Boolean,
+    onSelectionChange: (Boolean) -> Unit,
+    onCustomSplitChange: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = onSelectionChange,
+                enabled = !isLoading
+            )
+            Column {
+                Text(member.fullName ?: "Unknown", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(member.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (!isSplitEqual && isSelected) {
+            OutlinedTextField(
+                value = customSplitValue,
+                onValueChange = onCustomSplitChange,
+                label = { Text(currencySymbol) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.width(100.dp),
+                enabled = !isLoading,
+                singleLine = true,
+                shape = MaterialTheme.shapes.small
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitPreview(
+    amount: String,
+    selectedMemberIds: Set<String>,
+    payerId: String?,
+    isSplitEqual: Boolean,
+    customSplits: Map<String, String>,
+    currencySymbol: String
+) {
+    val totalAmount = amount.toDoubleOrNull() ?: 0.0
+    // The backend always includes the payer in an equal split, so the preview must too —
+    // otherwise "$45 each" is shown while $30 each is actually stored.
+    val participantCount = (selectedMemberIds + listOfNotNull(payerId)).size
+    val splitDisplay = if (isSplitEqual) {
+        "${"%.2f".format(if (participantCount > 0) totalAmount / participantCount else 0.0)} each"
+    } else {
+        "${"%.2f".format(customSplits.values.mapNotNull { it.toDoubleOrNull() }.sum())} total"
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Split among $participantCount members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("$currencySymbol$splitDisplay", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
 

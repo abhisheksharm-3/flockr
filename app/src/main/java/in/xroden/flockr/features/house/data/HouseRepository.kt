@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.UUID
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 
 private const val CONFIG_CACHE_TTL_MS = 5 * 60 * 1000L
@@ -71,10 +72,13 @@ class HouseRepository @Inject constructor(
     @OptIn(FlowPreview::class)
     override fun getHousesFlow(): Flow<Result<List<House>>> {
         val userId = authenticatedUserId ?: return flowOf(Result.success(emptyList()))
-        val channelId = "houses_user_$userId"
+        // Unique channel per collection so a cancelled collector's async teardown can't
+        // tear down the channel a freshly-relaunched collector just subscribed to
+        // (opening Home collects twice: init + LaunchedEffect refresh).
+        val channelId = "houses_user_${userId}_${UUID.randomUUID()}"
 
         return callbackFlow {
-            val channel = realtimeConnectionManager.getOrCreateChannel(channelId)
+            val channel = supabase.realtime.channel(channelId)
 
             try {
                 val housesFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
@@ -98,7 +102,7 @@ class HouseRepository @Inject constructor(
 
             awaitClose {
                 // Remove on the manager's own scope; launching here would be cancelled with the flow.
-                realtimeConnectionManager.removeChannelByIdAsync(channelId)
+                realtimeConnectionManager.removeChannelAsync(channel)
             }
         }
     }
@@ -132,12 +136,13 @@ class HouseRepository @Inject constructor(
             .decodeSingle<House>()
     }
 
-    override suspend fun getHousesEnriched(month: String): Result<List<HouseEnrichedResult>> = runCatching {
+    override suspend fun getHousesEnriched(month: String): Result<List<HouseCardData>> = runCatching {
         val userId = authenticatedUserId ?: return@runCatching emptyList()
         supabase.postgrest.rpc(
             function = "get_houses_enriched",
             parameters = GetHousesEnrichedParams(userId = userId, month = month)
         ).decodeList<HouseEnrichedResult>()
+            .map { HouseCardData.fromEnriched(it) }
     }
 
     override suspend fun createHouse(

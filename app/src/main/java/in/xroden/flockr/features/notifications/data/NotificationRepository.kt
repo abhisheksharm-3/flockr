@@ -98,6 +98,7 @@ class NotificationRepository @Inject constructor(
             .select(Columns.ALL) {
                 filter { eq("user_id", userId) }
                 order("created_at", Order.DESCENDING)
+                limit(count = 200)
             }
         return lenientJson.decodeFromString(ListSerializer(NotificationSerializer), response.data)
     }

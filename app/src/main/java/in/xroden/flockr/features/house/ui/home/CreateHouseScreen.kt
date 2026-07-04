@@ -19,6 +19,8 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.animation.*
 
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val SCREEN_NAME = "CreateHouse"
 
@@ -74,21 +77,21 @@ private fun CreateHouseScreenContent(
     
     val context = LocalContext.current
     val contentResolver = context.contentResolver
-    
+    val imageReadScope = rememberCoroutineScope()
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         selectedImageUri = uri
         if (uri != null) {
-            try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    imageBytes = inputStream.readBytes()
-                }
-                } catch (_: Exception) {
-                    Logger.e(SCREEN_NAME, "Error reading image")
-                }
+            // Read the (potentially multi-MB) image off the main thread to avoid jank/ANR.
+            imageReadScope.launch(Dispatchers.IO) {
+                imageBytes = runCatching {
+                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.onFailure { Logger.e(SCREEN_NAME, "Error reading image") }.getOrNull()
             }
         }
+    }
     
     // Localization
     var currency by remember { mutableStateOf("USD") }
@@ -110,7 +113,7 @@ private fun CreateHouseScreenContent(
     
     val dateFormats = listOf("dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd")
 
-    val createState by viewModel.createState.collectAsState()
+    val createState by viewModel.createState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(createState) {
@@ -157,45 +160,28 @@ private fun CreateHouseScreenContent(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(24.dp)) {
-                // Progress
-                Row(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (0..3).forEach { step ->
-                        Box(
-                            modifier = Modifier.weight(1f).height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (step <= currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+            CreateHouseBottomBar(
+                currentStep = currentStep,
+                isCreating = isCreating,
+                onPrimaryClick = {
+                    when (currentStep) {
+                        0 -> if (houseName.isBlank()) nameError = "Required" else currentStep++
+                        1 -> currentStep++ // Address optional
+                        2 -> currentStep++ // Localization
+                        3 -> viewModel.createHouse(
+                            houseName,
+                            address.ifBlank { null },
+                            null,
+                            null,
+                            currency,
+                            dateFormat,
+                            1,
+                            timezone,
+                            headerImageBytes = imageBytes
                         )
                     }
                 }
-
-                Button(
-                    onClick = {
-                        when (currentStep) {
-                            0 -> if (houseName.isBlank()) nameError = "Required" else currentStep++
-                            1 -> currentStep++ // Address optional
-                            2 -> currentStep++ // Localization
-                            3 -> viewModel.createHouse(
-                                houseName, 
-                                address.ifBlank { null }, 
-                                null, 
-                                null, 
-                                currency, 
-                                dateFormat, 
-                                1, 
-                                timezone,
-                                headerImageBytes = imageBytes
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    enabled = !isCreating
-                ) {
-                    if (isCreating) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text(if (currentStep == 3) "Create Household" else "Continue")
-                }
-            }
+            )
         }
     ) { padding ->
         AnimatedContent(
@@ -211,300 +197,419 @@ private fun CreateHouseScreenContent(
         ) { step ->
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
                 when (step) {
-                    0 -> { // Name & Image
-                        Text("Theme & Identity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Name your household and add a cover image.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(24.dp))
-                        
-                        // Image Picker Step 0
-                         Card(
-                            onClick = { 
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth().height(180.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                             Box(Modifier.fillMaxSize()) {
-                                 if (selectedImageUri != null) {
-                                     AsyncImage(
-                                         model = selectedImageUri,
-                                         contentDescription = "Selected Cover Image",
-                                         modifier = Modifier.fillMaxSize(),
-                                         contentScale = ContentScale.Crop
-                                     )
-                                     // Overlay
-                                     Box(
-                                         modifier = Modifier
-                                             .fillMaxSize()
-                                             .background(Color.Black.copy(alpha = 0.3f)),
-                                         contentAlignment = Alignment.Center
-                                     ) {
-                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Icon(
-                                                 imageVector = Icons.Default.Edit, 
-                                                 contentDescription = null,
-                                                 tint = Color.White,
-                                                 modifier = Modifier.size(32.dp)
-                                             )
-                                             Text("Change Image", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                                         }
-                                     }
-                                 } else {
-                                     Column(
-                                         modifier = Modifier.align(Alignment.Center),
-                                         horizontalAlignment = Alignment.CenterHorizontally, 
-                                         verticalArrangement = Arrangement.Center
-                                     ) {
-                                         Icon(
-                                             imageVector = Icons.Default.AddPhotoAlternate, 
-                                             contentDescription = null,
-                                             tint = MaterialTheme.colorScheme.primary,
-                                             modifier = Modifier.size(40.dp)
-                                         )
-                                         Spacer(Modifier.height(12.dp))
-                                         Text(
-                                             "Tap to add cover image", 
-                                             style = MaterialTheme.typography.labelLarge,
-                                             color = MaterialTheme.colorScheme.primary
-                                         )
-                                     }
-                                 }
-                             }
+                    0 -> NameAndImageStep(
+                        houseName = houseName,
+                        onHouseNameChange = { houseName = it; nameError = null },
+                        nameError = nameError,
+                        selectedImageUri = selectedImageUri,
+                        onPickImage = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
                         }
-                        
-                        Spacer(Modifier.height(24.dp))
+                    )
+                    1 -> AddressStep(
+                        address = address,
+                        onAddressChange = { address = it }
+                    )
+                    2 -> LocalizationStep(
+                        currency = currency,
+                        currencies = currencies,
+                        currencyExpanded = currencyExpanded,
+                        onCurrencyExpandedChange = { currencyExpanded = !currencyExpanded },
+                        onCurrencyDismiss = { currencyExpanded = false },
+                        onCurrencySelected = { currency = it; currencyExpanded = false },
+                        dateFormat = dateFormat,
+                        dateFormats = dateFormats,
+                        dateFormatExpanded = dateFormatExpanded,
+                        onDateFormatExpandedChange = { dateFormatExpanded = !dateFormatExpanded },
+                        onDateFormatDismiss = { dateFormatExpanded = false },
+                        onDateFormatSelected = { dateFormat = it; dateFormatExpanded = false },
+                        timezone = timezone,
+                        timezoneExpanded = timezoneExpanded,
+                        onTimezoneExpandedChange = { timezoneExpanded = !timezoneExpanded },
+                        onTimezoneDismiss = { timezoneExpanded = false },
+                        onTimezoneSelected = { timezone = it; timezoneExpanded = false }
+                    )
+                    3 -> ReviewStep(
+                        houseName = houseName,
+                        address = address,
+                        currency = currency,
+                        dateFormat = dateFormat,
+                        timezone = timezone,
+                        selectedImageUri = selectedImageUri
+                    )
+                }
+            }
+        }
+    }
+}
 
-                        FlockrTextField(
-                            value = houseName,
-                            onValueChange = { houseName = it; nameError = null },
-                            label = "Household Name",
-                            placeholder = "e.g. The Smith House",
-                            isError = nameError != null,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (nameError != null) Text(nameError!!, color = MaterialTheme.colorScheme.error)
-                    }
-                    1 -> { // Address
-                        Text("Where is it located?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("(Optional) helps with location based features.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(24.dp))
-                        FlockrTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            label = "Address",
-                            placeholder = "123 Main St",
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    2 -> { // Localization
-                        Text("Regional Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(24.dp))
-                        
-                        // Currency
-                        ExposedDropdownMenuBox(
-                            expanded = currencyExpanded, 
-                            onExpandedChange = { currencyExpanded = !currencyExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = "$currency (${currencies.find { it.first == currency }?.second ?: ""})",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Currency") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                shape = MaterialTheme.shapes.medium
-                            )
-                            ExposedDropdownMenu(
-                                expanded = currencyExpanded, 
-                                onDismissRequest = { currencyExpanded = false }
-                            ) {
-                                currencies.forEach { (code, symbol) ->
-                                    DropdownMenuItem(
-                                        text = { Text("$symbol $code") }, 
-                                        onClick = { currency = code; currencyExpanded = false }
-                                    )
-                                }
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(16.dp))
-                        
-                        // Date Format
-                        ExposedDropdownMenuBox(
-                            expanded = dateFormatExpanded, 
-                            onExpandedChange = { dateFormatExpanded = !dateFormatExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = dateFormat,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Date Format") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dateFormatExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                shape = MaterialTheme.shapes.medium
-                            )
-                            ExposedDropdownMenu(
-                                expanded = dateFormatExpanded, 
-                                onDismissRequest = { dateFormatExpanded = false }
-                            ) {
-                                dateFormats.forEach { format ->
-                                    DropdownMenuItem(
-                                        text = { Text(format) }, 
-                                        onClick = { dateFormat = format; dateFormatExpanded = false }
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        
-                        // Timezone
-                        val timezones = listOf(
-                            "UTC",
-                            "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-                            "Europe/London", "Europe/Paris", "Europe/Berlin",
-                            "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Singapore",
-                            "Australia/Sydney"
-                        )
-                        
-                        ExposedDropdownMenuBox(
-                            expanded = timezoneExpanded, 
-                            onExpandedChange = { timezoneExpanded = !timezoneExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = timezone,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Timezone") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timezoneExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                shape = MaterialTheme.shapes.medium
-                            )
-                            ExposedDropdownMenu(
-                                expanded = timezoneExpanded, 
-                                onDismissRequest = { timezoneExpanded = false }
-                            ) {
-                                timezones.forEach { tz ->
-                                    DropdownMenuItem(
-                                        text = { Text(tz) }, 
-                                        onClick = { timezone = tz; timezoneExpanded = false }
-                                    )
-                                }
-                            }
-                        }
-                    }
+@Composable
+private fun CreateHouseBottomBar(
+    currentStep: Int,
+    isCreating: Boolean,
+    onPrimaryClick: () -> Unit
+) {
+    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(24.dp)) {
+        // Progress
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (0..3).forEach { step ->
+                Box(
+                    modifier = Modifier.weight(1f).height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (step <= currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                )
+            }
+        }
 
-                    3 -> { // Review
-                         Text("Review Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                         Spacer(Modifier.height(24.dp))
-                         
-                         ElevatedCard(
-                             modifier = Modifier.fillMaxWidth(),
-                             colors = CardDefaults.elevatedCardColors(),
-                             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                             shape = MaterialTheme.shapes.large
-                         ) {
-                             Column {
-                                 // Header Image PREVIEW
-                                 Box(
-                                     modifier = Modifier
-                                         .fillMaxWidth()
-                                         .height(140.dp)
-                                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                                 ) {
-                                     if (selectedImageUri != null) {
-                                         AsyncImage(
-                                             model = selectedImageUri,
-                                             contentDescription = null,
-                                             modifier = Modifier.fillMaxSize(),
-                                             contentScale = ContentScale.Crop
-                                         )
-                                         Box(
-                                            modifier = Modifier.fillMaxSize().background(
-                                                androidx.compose.ui.graphics.Brush.verticalGradient(
-                                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                                                )
-                                            ),
-                                            contentAlignment = Alignment.BottomStart
-                                         ) {
-                                             Text(
-                                                 text = houseName,
-                                                 style = MaterialTheme.typography.headlineSmall,
-                                                 color = Color.White,
-                                                 fontWeight = FontWeight.Bold,
-                                                 modifier = Modifier.padding(16.dp)
-                                             )
-                                         }
-                                     } else {
-                                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                 Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                 Text("No Header Image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                             }
-                                         }
-                                     }
-                                 }
-                                 
-                                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                     if (selectedImageUri == null) {
-                                         Text("Name: $houseName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                     }
-                                     
-                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                         Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                                         Spacer(Modifier.width(12.dp))
-                                         Text(address.ifBlank { "No address set" }, style = MaterialTheme.typography.bodyMedium)
-                                     }
-                                     
-                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                     
-                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                         Column {
-                                             Text("Currency", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                             Text(currency, style = MaterialTheme.typography.bodyLarge)
-                                         }
-                                         Column {
-                                             Text("DateFormat", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                             Text(dateFormat, style = MaterialTheme.typography.bodyLarge)
-                                         }
-                                     }
-                                     
-                                     Column {
-                                         Text("Timezone", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                         Text(timezone, style = MaterialTheme.typography.bodyLarge)
-                                     }
-                                 }
-                             }
-                         }
-                         Spacer(Modifier.height(24.dp))
-                         // Aesthetic Info Board
-                         Card(
-                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
-                             shape = MaterialTheme.shapes.medium
-                         ) {
-                             Row(
-                                 Modifier.padding(16.dp).fillMaxWidth(), 
-                                 verticalAlignment = Alignment.CenterVertically
-                             ) {
-                                 Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.secondary)
-                                 Spacer(Modifier.width(16.dp))
-                                 Text(
-                                     "You can invite members immediately after creation.",
-                                     style = MaterialTheme.typography.bodySmall,
-                                     color = MaterialTheme.colorScheme.onSecondaryContainer
-                                 )
-                             }
-                         }
+        Button(
+            onClick = onPrimaryClick,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = MaterialTheme.shapes.medium,
+            enabled = !isCreating
+        ) {
+            if (isCreating) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            else Text(if (currentStep == 3) "Create Household" else "Continue")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NameAndImageStep(
+    houseName: String,
+    onHouseNameChange: (String) -> Unit,
+    nameError: String?,
+    selectedImageUri: android.net.Uri?,
+    onPickImage: () -> Unit
+) {
+    Text("Theme & Identity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    Text("Name your household and add a cover image.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(24.dp))
+
+    CoverImagePicker(
+        selectedImageUri = selectedImageUri,
+        onPickImage = onPickImage
+    )
+
+    Spacer(Modifier.height(24.dp))
+
+    FlockrTextField(
+        value = houseName,
+        onValueChange = onHouseNameChange,
+        label = "Household Name",
+        placeholder = "e.g. The Smith House",
+        isError = nameError != null,
+        modifier = Modifier.fillMaxWidth()
+    )
+    if (nameError != null) Text(nameError, color = MaterialTheme.colorScheme.error)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CoverImagePicker(
+    selectedImageUri: android.net.Uri?,
+    onPickImage: () -> Unit
+) {
+    Card(
+        onClick = onPickImage,
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            if (selectedImageUri != null) {
+                AsyncImage(
+                    model = selectedImageUri,
+                    contentDescription = "Selected Cover Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                // Overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text("Change Image", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Tap to add cover image",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddressStep(
+    address: String,
+    onAddressChange: (String) -> Unit
+) {
+    Text("Where is it located?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text("(Optional) helps with location based features.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(24.dp))
+    FlockrTextField(
+        value = address,
+        onValueChange = onAddressChange,
+        label = "Address",
+        placeholder = "123 Main St",
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsDropdown(
+    label: String,
+    displayValue: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onDismissRequest: () -> Unit,
+    menuItems: @Composable ColumnScope.() -> Unit
+) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = onExpandedChange
+    ) {
+        OutlinedTextField(
+            value = displayValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            shape = MaterialTheme.shapes.medium
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest
+        ) {
+            menuItems()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocalizationStep(
+    currency: String,
+    currencies: List<Pair<String, String>>,
+    currencyExpanded: Boolean,
+    onCurrencyExpandedChange: (Boolean) -> Unit,
+    onCurrencyDismiss: () -> Unit,
+    onCurrencySelected: (String) -> Unit,
+    dateFormat: String,
+    dateFormats: List<String>,
+    dateFormatExpanded: Boolean,
+    onDateFormatExpandedChange: (Boolean) -> Unit,
+    onDateFormatDismiss: () -> Unit,
+    onDateFormatSelected: (String) -> Unit,
+    timezone: String,
+    timezoneExpanded: Boolean,
+    onTimezoneExpandedChange: (Boolean) -> Unit,
+    onTimezoneDismiss: () -> Unit,
+    onTimezoneSelected: (String) -> Unit
+) {
+    Text("Regional Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(24.dp))
+
+    // Currency
+    SettingsDropdown(
+        label = "Currency",
+        displayValue = "$currency (${currencies.find { it.first == currency }?.second ?: ""})",
+        expanded = currencyExpanded,
+        onExpandedChange = onCurrencyExpandedChange,
+        onDismissRequest = onCurrencyDismiss
+    ) {
+        currencies.forEach { (code, symbol) ->
+            DropdownMenuItem(
+                text = { Text("$symbol $code") },
+                onClick = { onCurrencySelected(code) }
+            )
+        }
+    }
+
+    Spacer(Modifier.height(16.dp))
+
+    // Date Format
+    SettingsDropdown(
+        label = "Date Format",
+        displayValue = dateFormat,
+        expanded = dateFormatExpanded,
+        onExpandedChange = onDateFormatExpandedChange,
+        onDismissRequest = onDateFormatDismiss
+    ) {
+        dateFormats.forEach { format ->
+            DropdownMenuItem(
+                text = { Text(format) },
+                onClick = { onDateFormatSelected(format) }
+            )
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+
+    // Timezone
+    val timezones = listOf(
+        "UTC",
+        "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+        "Europe/London", "Europe/Paris", "Europe/Berlin",
+        "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Singapore",
+        "Australia/Sydney"
+    )
+
+    SettingsDropdown(
+        label = "Timezone",
+        displayValue = timezone,
+        expanded = timezoneExpanded,
+        onExpandedChange = onTimezoneExpandedChange,
+        onDismissRequest = onTimezoneDismiss
+    ) {
+        timezones.forEach { tz ->
+            DropdownMenuItem(
+                text = { Text(tz) },
+                onClick = { onTimezoneSelected(tz) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewStep(
+    houseName: String,
+    address: String,
+    currency: String,
+    dateFormat: String,
+    timezone: String,
+    selectedImageUri: android.net.Uri?
+) {
+    Text("Review Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(24.dp))
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column {
+            // Header Image PREVIEW
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (selectedImageUri != null) {
+                    AsyncImage(
+                        model = selectedImageUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                            )
+                        ),
+                        contentAlignment = Alignment.BottomStart
+                    ) {
+                        Text(
+                            text = houseName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("No Header Image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
+
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (selectedImageUri == null) {
+                    Text("Name: $houseName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(12.dp))
+                    Text(address.ifBlank { "No address set" }, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text("Currency", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(currency, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Column {
+                        Text("DateFormat", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(dateFormat, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+
+                Column {
+                    Text("Timezone", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(timezone, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(24.dp))
+    // Aesthetic Info Board
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Row(
+            Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                "You can invite members immediately after creation.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }

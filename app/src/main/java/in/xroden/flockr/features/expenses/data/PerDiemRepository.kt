@@ -49,6 +49,7 @@ class PerDiemRepository @Inject constructor(
             .select(Columns.ALL) {
                 filter { if (configId != null) eq("config_id", configId) }
                 order("date", Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<PerDiemEntry>()
     }

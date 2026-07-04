@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
@@ -113,10 +114,10 @@ fun NotificationPreferencesScreen(
     onNavigateBack: () -> Unit,
     viewModel: NotificationPreferencesViewModel = hiltViewModel()
 ) {
-    val preferences by viewModel.preferences.collectAsState()
-    val houseNames by viewModel.houseNames.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val message by viewModel.message.collectAsState()
+    val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val houseNames by viewModel.houseNames.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {

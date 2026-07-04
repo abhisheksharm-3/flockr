@@ -26,13 +26,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.presentation.ChatUiState
 import `in`.xroden.flockr.features.chat.presentation.ChatViewModel
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.utils.getTimezone
 import `in`.xroden.flockr.utils.rememberHapticFeedback
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.Duration
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.LocalDate
 import kotlin.time.ExperimentalTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +45,8 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -49,6 +54,7 @@ fun ChatScreen(
 
     LaunchedEffect(houseId) {
         viewModel.loadMessages(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
@@ -87,6 +93,8 @@ fun ChatScreen(
                         if (state.messages.isEmpty()) {
                             EmptyChatState(modifier = Modifier.fillMaxSize())
                         } else {
+                            val orderedMessages = remember(state.messages) { state.messages.reversed() }
+                            val currentUserId = remember { viewModel.getCurrentUserId() }
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 state = listState,
@@ -95,12 +103,13 @@ fun ChatScreen(
                                 reverseLayout = true
                             ) {
                                 items(
-                                    items = state.messages.reversed(),
+                                    items = orderedMessages,
                                     key = { it.id } // Stable key optimization
                                 ) { message ->
                                     MessageBubble(
                                         message = message,
-                                        currentUserId = viewModel.getCurrentUserId()
+                                        currentUserId = currentUserId,
+                                        houseConfig = houseConfig
                                     )
                                 }
 
@@ -241,7 +250,8 @@ fun EmptyChatState(modifier: Modifier = Modifier) {
 @Composable
 fun MessageBubble(
     message: Message,
-    currentUserId: String? = null
+    currentUserId: String? = null,
+    houseConfig: HouseConfig? = null
 ) {
     val isCurrentUser = currentUserId != null && message.userId == currentUserId
     
@@ -255,8 +265,8 @@ fun MessageBubble(
     }
     
     // Remember timestamp string to avoid re-parsing on every composition
-    val timestampStr = remember(message.createdAt) {
-        formatTimestamp(message.createdAt.toString())
+    val timestampStr = remember(message.createdAt, houseConfig) {
+        formatTimestamp(message.createdAt.toString(), houseConfig)
     }
     
     Column(
@@ -327,17 +337,18 @@ fun MessageBubble(
     }
 }
 
-private fun formatTimestamp(timestamp: String): String {
+private fun formatTimestamp(timestamp: String, houseConfig: HouseConfig? = null): String {
     // Silent version: returns "Unknown" on failure without logging
     return runCatching {
         val instant = Instant.parse(timestamp)
-        val messageTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-        val now = LocalDateTime.now()
-        
+        val zoneId = ZoneId.of(houseConfig.getTimezone().id)
+        val messageTime = LocalDateTime.ofInstant(instant, zoneId)
+        val now = LocalDateTime.now(zoneId)
+
         val minutesAgo = Duration.between(messageTime, now).toMinutes()
         val hoursAgo = Duration.between(messageTime, now).toHours()
         val daysAgo = Duration.between(messageTime, now).toDays()
-        
+
         when {
             minutesAgo < 1 -> "Now"
             minutesAgo < 60 -> "${minutesAgo}m ago"
@@ -345,8 +356,8 @@ private fun formatTimestamp(timestamp: String): String {
             daysAgo == 1L -> "Yesterday"
             daysAgo < 7 -> "${daysAgo}d ago"
             else -> {
-                val formatter = DateTimeFormatter.ofPattern("MMM d")
-                messageTime.format(formatter)
+                val date = LocalDate(messageTime.year, messageTime.monthValue, messageTime.dayOfMonth)
+                date.formatWithHouseConfig(houseConfig)
             }
         }
     }.getOrDefault("Unknown")

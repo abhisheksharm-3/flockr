@@ -15,9 +15,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.utils.getCurrencySymbol
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import androidx.compose.ui.platform.LocalConfiguration
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,8 +27,8 @@ fun BillHistoryScreen(
     onNavigateBack: () -> Unit,
     viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
-    val historyState by viewModel.paymentHistoryState.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val historyState by viewModel.paymentHistoryState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
 
     // Fetch house members to resolve names
@@ -121,15 +120,7 @@ fun BillHistoryScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
-                                val Utils = LocalConfiguration.current.locales[0]
-                                val date = try {
-                                    java.time.LocalDate.parse(payment.paymentDate.toString())
-                                } catch (e: Exception) {
-                                    null
-                                }
-                                val formattedDate = date?.format(
-                                    DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
-                                ) ?: payment.paymentDate.toString()
+                                val formattedDate = payment.paymentDate.formatWithHouseConfig(houseConfig)
 
                                 Text(
                                     text = formattedDate,

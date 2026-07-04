@@ -20,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,7 @@ fun EditPerDiemConfigScreen(
 
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
     
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = houseConfig?.currencyCode?.let { getCurrencySymbol(it) } ?: "$"
 
     val scope = rememberCoroutineScope()

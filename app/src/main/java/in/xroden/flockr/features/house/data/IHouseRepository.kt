@@ -1,6 +1,5 @@
 package `in`.xroden.flockr.features.house.data
 
-import `in`.xroden.flockr.data.dto.house.HouseEnrichedResult
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.model.*
 import kotlinx.coroutines.flow.Flow
@@ -10,7 +9,7 @@ interface IHouseRepository {
     fun getUserHousesFlow(): Flow<Result<List<HouseCardData>>>
     suspend fun getHouses(): Result<List<House>>
     suspend fun getHouseById(houseId: String): Result<House>
-    suspend fun getHousesEnriched(month: String): Result<List<HouseEnrichedResult>>
+    suspend fun getHousesEnriched(month: String): Result<List<HouseCardData>>
     suspend fun createHouse(
         name: String,
         address: String?,

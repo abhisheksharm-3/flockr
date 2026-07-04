@@ -9,9 +9,11 @@ import `in`.xroden.flockr.features.expenses.data.ITransactionRepository
 import `in`.xroden.flockr.features.expenses.domain.usecase.SettleBalanceUseCase
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.model.HouseConfig
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toLocalDateTime
 import java.math.BigDecimal
@@ -38,6 +40,8 @@ class BalanceViewModel @Inject constructor(
     private val _houseConfigState = MutableStateFlow<HouseConfig?>(null)
     val houseConfig: StateFlow<HouseConfig?> = _houseConfigState.asStateFlow()
 
+    private var settleJob: Job? = null
+
     fun loadBalances(houseId: String) {
         viewModelScope.launch {
             _balanceState.value = BalanceUiState.Loading
@@ -63,15 +67,17 @@ class BalanceViewModel @Inject constructor(
     fun loadDebtBreakdown(houseId: String, payerId: String, payeeId: String) {
         viewModelScope.launch {
             val key = "${payerId}_${payeeId}"
-            _loadingBreakdowns.value = _loadingBreakdowns.value + key
+            // Atomic updates so concurrent breakdown loads (expanding several rows) don't
+            // clobber each other's map/set entries via non-atomic read-modify-write.
+            _loadingBreakdowns.update { it + key }
 
             analyticsRepository.getDebtBreakdown(houseId, payerId, payeeId).fold(
                 onSuccess = { breakdown ->
-                    _debtBreakdownState.value = _debtBreakdownState.value + (key to breakdown)
-                    _loadingBreakdowns.value = _loadingBreakdowns.value - key
+                    _debtBreakdownState.update { it + (key to breakdown) }
+                    _loadingBreakdowns.update { it - key }
                 },
                 onFailure = {
-                    _loadingBreakdowns.value = _loadingBreakdowns.value - key
+                    _loadingBreakdowns.update { it - key }
                 }
             )
         }
@@ -86,7 +92,10 @@ class BalanceViewModel @Inject constructor(
         amount: BigDecimal,
         notes: String?
     ) {
-        viewModelScope.launch {
+        // Guard against a rapid double-tap enqueuing two identical settlements before the
+        // button is disabled.
+        if (settleJob?.isActive == true) return
+        settleJob = viewModelScope.launch {
             val tz = _houseConfigState.value?.timezone
                 ?.let { runCatching { kotlinx.datetime.TimeZone.of(it) }.getOrNull() }
                 ?: kotlinx.datetime.TimeZone.currentSystemDefault()

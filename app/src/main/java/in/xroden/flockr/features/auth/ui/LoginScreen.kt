@@ -29,6 +29,7 @@ import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +40,8 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val uiState by viewModel.uiState.collectAsState()
-    val signInState by viewModel.signInState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val signInState by viewModel.signInState.collectAsStateWithLifecycle()
 
     // Get Activity context for Credential Manager
     val context = LocalContext.current

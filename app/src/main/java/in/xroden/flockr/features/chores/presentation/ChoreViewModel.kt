@@ -8,6 +8,7 @@ import `in`.xroden.flockr.features.chores.data.IChoreRepository
 import `in`.xroden.flockr.features.chores.domain.usecase.CreateChoreUseCase
 import `in`.xroden.flockr.features.chores.ui.ChoreFilter
 import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,8 +31,15 @@ class ChoreViewModel @Inject constructor(
     private val _createState = MutableStateFlow<CreateChoreUiState>(CreateChoreUiState.Idle)
     val createState: StateFlow<CreateChoreUiState> = _createState.asStateFlow()
 
-    private val _filterOption = MutableStateFlow(ChoreFilter.ALL)
+    private val _filterOption = MutableStateFlow(ChoreFilter.ACTIVE)
     val filterOption: StateFlow<ChoreFilter> = _filterOption.asStateFlow()
+
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch { houseRepository.getHouseConfig(houseId).onSuccess { _houseConfig.value = it } }
+    }
 
     private var currentHouseId: String? = null
     private var choreJob: Job? = null

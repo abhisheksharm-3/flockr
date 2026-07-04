@@ -24,6 +24,7 @@ import `in`.xroden.flockr.ui.theme.CategoryGreen
 import `in`.xroden.flockr.ui.theme.CategoryRed
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.time.format.DateTimeFormatter
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,8 +35,8 @@ fun ExpenseDetailScreen(
     onEditExpense: (String) -> Unit,
     viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
-    val expense by viewModel.selectedExpense.collectAsState()
-    val houseConfig by viewModel.houseConfig.collectAsState()
+    val expense by viewModel.selectedExpense.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = remember(houseConfig) {
         houseConfig?.getCurrencySymbol() ?: "$"
     }

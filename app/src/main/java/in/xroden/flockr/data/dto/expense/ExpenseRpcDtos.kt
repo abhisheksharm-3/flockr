@@ -22,6 +22,42 @@ data class CreateExpenseParams(
     @SerialName("p_splits") val splits: JsonElement
 )
 
+/**
+ * Parameters for updating an expense via RPC. Null fields are left unchanged; a non-null
+ * `splits` (including an empty array) atomically replaces the split rows in one transaction.
+ */
+@Serializable
+data class UpdateExpenseParams(
+    @SerialName("p_expense_id") val expenseId: String,
+    @SerialName("p_name") val name: String?,
+    @SerialName("p_amount")
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal?,
+    @SerialName("p_category") val category: String?,
+    @SerialName("p_date") val date: LocalDate?,
+    @SerialName("p_notes") val notes: String?,
+    @SerialName("p_splits") val splits: JsonElement?
+)
+
+/**
+ * Parameters for marking a recurring bill paid via RPC — inserts the one-time expense,
+ * its splits, the payment-history row, and updates last_paid_date in one transaction.
+ */
+@Serializable
+data class MarkRecurringBillPaidParams(
+    @SerialName("p_recurring_id") val recurringId: String,
+    @SerialName("p_house_id") val houseId: String,
+    @SerialName("p_paid_by") val paidBy: String,
+    @SerialName("p_name") val name: String,
+    @SerialName("p_amount")
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
+    @SerialName("p_category") val category: String,
+    @SerialName("p_date") val date: LocalDate,
+    @SerialName("p_notes") val notes: String?,
+    @SerialName("p_splits") val splits: JsonElement
+)
+
 /** Parameters for getting recurring expenses. */
 @Serializable
 data class GetRecurringExpensesParams(

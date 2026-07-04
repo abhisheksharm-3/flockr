@@ -26,6 +26,7 @@ class HouseAuditRepository @Inject constructor(
                 .select(Columns.ALL) {
                     filter { eq("house_id", houseId) }
                     order(column = "created_at", order = Order.DESCENDING)
+                    limit(count = 200)
                 }
                 .decodeList<HouseAuditLog>()
         } catch (e: Exception) {

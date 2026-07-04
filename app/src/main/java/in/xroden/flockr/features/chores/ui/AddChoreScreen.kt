@@ -25,8 +25,10 @@ import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import `in`.xroden.flockr.features.chores.presentation.CreateChoreUiState
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.*
 import kotlin.time.Clock
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +45,13 @@ fun AddChoreScreen(
     var assignedTo by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
-    val createState by viewModel.createState.collectAsState()
+    val createState by viewModel.createState.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(houseId) {
         members = viewModel.getHouseMembers(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     LaunchedEffect(createState) {
@@ -307,11 +311,7 @@ fun AddChoreScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                dueDate?.let {
-                                    val month = it.month.name.take(3).lowercase()
-                                        .replaceFirstChar { char -> char.uppercase() }
-                                    "$month ${it.day}, ${it.year}"
-                                } ?: "Not set",
+                                dueDate?.let { it.formatWithHouseConfig(houseConfig) } ?: "Not set",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (dueDate != null) 
                                     MaterialTheme.colorScheme.tertiary 

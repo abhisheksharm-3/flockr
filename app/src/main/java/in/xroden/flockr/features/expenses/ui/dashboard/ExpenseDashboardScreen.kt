@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import `in`.xroden.flockr.features.expenses.model.MonthlySummary
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryViewModel
@@ -37,6 +39,7 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.TimeZone
 import java.math.BigDecimal
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -57,9 +60,9 @@ fun ExpenseDashboardScreen(
     expenseViewModel: OneTimeExpenseViewModel = hiltViewModel(),
     summaryViewModel: MonthlySummaryViewModel = hiltViewModel()
 ) {
-    val expenseState by expenseViewModel.expenseState.collectAsState()
-    val houseConfig by expenseViewModel.houseConfig.collectAsState()
-    val summaryState by summaryViewModel.summaryState.collectAsState()
+    val expenseState by expenseViewModel.expenseState.collectAsStateWithLifecycle()
+    val houseConfig by expenseViewModel.houseConfig.collectAsStateWithLifecycle()
+    val summaryState by summaryViewModel.summaryState.collectAsStateWithLifecycle()
     
     val currentUserId = expenseViewModel.getCurrentUserId()
     
@@ -114,206 +117,275 @@ fun ExpenseDashboardScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Header Section
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Finance Hub",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Manage expenses, split bills, and track spending",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            dashboardHeaderSection()
 
-            // Quick Stats Row
-            item {
-                val (monthlySummary, spendByMember) = summaryData
-                val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
-                val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: BigDecimal.ZERO
+            quickStatsSection(
+                summaryData = summaryData,
+                currentUserId = currentUserId,
+                currencySymbol = currencySymbol
+            )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FinanceStatCard(
-                        label = "THIS MONTH",
-                        value = "$currencySymbol${"%.2f".format(totalThisMonth)}",
-                        modifier = Modifier.weight(1f),
-                        accentColor = MaterialTheme.colorScheme.primary
-                    )
-                    FinanceStatCard(
-                        label = "YOUR EXPENSE",
-                        value = "$currencySymbol${"%.2f".format(userSpending)}",
-                        modifier = Modifier.weight(1f),
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        isPositive = true
-                    )
-                }
-            }
+            manageFeaturesSection(
+                onNavigateToOneTimeExpenses = onNavigateToOneTimeExpenses,
+                onNavigateToRecurringExpenses = onNavigateToRecurringExpenses,
+                onNavigateToBalances = onNavigateToBalances,
+                onNavigateToQuickPerDiem = onNavigateToQuickPerDiem,
+                onNavigateToPerDiem = onNavigateToPerDiem
+            )
 
-            // Feature Navigation Title
-            item {
-                Text(
-                    text = "Manage",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+            reportsSection(onNavigateToReports = onNavigateToReports)
 
-            // Feature Cards
-            item {
-                FinanceFeatureCard(
-                    title = "One-Time Expenses",
-                    subtitle = "Add and track individual expenses",
-                    icon = Icons.Default.ShoppingCart,
-                    accentColor = CategoryBlue,
-                    onClick = onNavigateToOneTimeExpenses
-                )
-            }
-
-            item {
-                FinanceFeatureCard(
-                    title = "Recurring Expenses",
-                    subtitle = "Manage monthly bills and subscriptions",
-                    icon = Icons.Default.Refresh,
-                    accentColor = CategoryPurple,
-                    onClick = onNavigateToRecurringExpenses
-                )
-            }
-
-            item {
-                FinanceFeatureCard(
-                    title = "Balances & IOUs",
-                    subtitle = "See who owes what and settle up",
-                    icon = Icons.Default.AccountBalance,
-                    accentColor = CategoryOrange,
-                    onClick = onNavigateToBalances
-                )
-            }
-
-            item {
-                FinanceFeatureCard(
-                    title = "Add Per Diem Entry",
-                    subtitle = "Quick log daily usage items",
-                    icon = Icons.Default.Add,
-                    accentColor = CategoryGreen,
-                    onClick = onNavigateToQuickPerDiem
-                )
-            }
-
-            item {
-                FinanceFeatureCard(
-                    title = "Per-Diem Configuration",
-                    subtitle = "Manage per-diem items and rates",
-                    icon = Icons.Default.Settings,
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                    onClick = onNavigateToPerDiem
-                )
-            }
-
-            // Reports Title
-            item {
-                Text(
-                    text = "Reports",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            item {
-                FinanceFeatureCard(
-                    title = "Monthly Reports",
-                    subtitle = "View spending breakdown and summaries",
-                    icon = Icons.Default.Assessment,
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToReports
-                )
-            }
-
-            // Recent Expenses Section
-            item {
-                Text(
-                    text = "Recent Expenses",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            when (val state = expenseState) {
-                is OneTimeExpenseUiState.Loading -> {
-                    items(3) {
-                        `in`.xroden.flockr.ui.components.loading.SkeletonExpenseCard()
-                    }
-                }
-                is OneTimeExpenseUiState.Error -> {
-                    item {
-                        // Error fallback UI without logs
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
-                            ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                                Text(
-                                    text = "Could not load recent expenses",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                }
-                is OneTimeExpenseUiState.Success -> {
-                    val recentExpenses = state.expenses.take(5)
-                    if (recentExpenses.isEmpty()) {
-                        item {
-                            EmptyRecentExpensesCard()
-                        }
-                    } else {
-                        items(
-                            items = recentExpenses,
-                            key = { it.id } // Stable key
-                        ) { expense ->
-                            RecentExpenseCard(
-                                expense = expense,
-                                currencySymbol = currencySymbol,
-                                onClick = { onNavigateToExpenseDetail(expense.id) }
-                            )
-                        }
-
-                        item {
-                            ViewAllExpensesButton(onClick = onNavigateToOneTimeExpenses)
-                        }
-                    }
-                }
-            }
+            recentExpensesSection(
+                expenseState = expenseState,
+                currencySymbol = currencySymbol,
+                onNavigateToExpenseDetail = onNavigateToExpenseDetail,
+                onNavigateToOneTimeExpenses = onNavigateToOneTimeExpenses
+            )
 
             item {
                 Spacer(modifier = Modifier.height(40.dp))
             }
+        }
+    }
+}
+
+/**
+ * Renders the "Finance Hub" title and subtitle at the top of the dashboard.
+ */
+private fun LazyListScope.dashboardHeaderSection() {
+    item {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Finance Hub",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Manage expenses, split bills, and track spending",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Renders the "This Month" / "Your Expense" stat card row derived from the
+ * current monthly summary state.
+ */
+private fun LazyListScope.quickStatsSection(
+    summaryData: Pair<MonthlySummary?, List<SpendByMember>>,
+    currentUserId: String?,
+    currencySymbol: String
+) {
+    item {
+        val (monthlySummary, spendByMember) = summaryData
+        val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
+        val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: BigDecimal.ZERO
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FinanceStatCard(
+                label = "THIS MONTH",
+                value = "$currencySymbol${"%.2f".format(totalThisMonth)}",
+                modifier = Modifier.weight(1f),
+                accentColor = MaterialTheme.colorScheme.primary
+            )
+            FinanceStatCard(
+                label = "YOUR EXPENSE",
+                value = "$currencySymbol${"%.2f".format(userSpending)}",
+                modifier = Modifier.weight(1f),
+                accentColor = MaterialTheme.colorScheme.tertiary,
+                isPositive = true
+            )
+        }
+    }
+}
+
+/**
+ * Renders the "Manage" section title plus the navigation cards for
+ * one-time expenses, recurring expenses, balances, and per-diem features.
+ */
+private fun LazyListScope.manageFeaturesSection(
+    onNavigateToOneTimeExpenses: () -> Unit,
+    onNavigateToRecurringExpenses: () -> Unit,
+    onNavigateToBalances: () -> Unit,
+    onNavigateToQuickPerDiem: () -> Unit,
+    onNavigateToPerDiem: () -> Unit
+) {
+    item {
+        Text(
+            text = "Manage",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "One-Time Expenses",
+            subtitle = "Add and track individual expenses",
+            icon = Icons.Default.ShoppingCart,
+            accentColor = CategoryBlue,
+            onClick = onNavigateToOneTimeExpenses
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "Recurring Expenses",
+            subtitle = "Manage monthly bills and subscriptions",
+            icon = Icons.Default.Refresh,
+            accentColor = CategoryPurple,
+            onClick = onNavigateToRecurringExpenses
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "Balances & IOUs",
+            subtitle = "See who owes what and settle up",
+            icon = Icons.Default.AccountBalance,
+            accentColor = CategoryOrange,
+            onClick = onNavigateToBalances
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "Add Per Diem Entry",
+            subtitle = "Quick log daily usage items",
+            icon = Icons.Default.Add,
+            accentColor = CategoryGreen,
+            onClick = onNavigateToQuickPerDiem
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "Per-Diem Configuration",
+            subtitle = "Manage per-diem items and rates",
+            icon = Icons.Default.Settings,
+            accentColor = MaterialTheme.colorScheme.tertiary,
+            onClick = onNavigateToPerDiem
+        )
+    }
+}
+
+/**
+ * Renders the "Reports" section title plus the monthly reports navigation card.
+ */
+private fun LazyListScope.reportsSection(
+    onNavigateToReports: () -> Unit
+) {
+    item {
+        Text(
+            text = "Reports",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+
+    item {
+        FinanceFeatureCard(
+            title = "Monthly Reports",
+            subtitle = "View spending breakdown and summaries",
+            icon = Icons.Default.Assessment,
+            accentColor = MaterialTheme.colorScheme.primary,
+            onClick = onNavigateToReports
+        )
+    }
+}
+
+/**
+ * Renders the "Recent Expenses" section title plus loading/error/empty/list
+ * states derived from [expenseState].
+ */
+private fun LazyListScope.recentExpensesSection(
+    expenseState: OneTimeExpenseUiState,
+    currencySymbol: String,
+    onNavigateToExpenseDetail: (String) -> Unit,
+    onNavigateToOneTimeExpenses: () -> Unit
+) {
+    item {
+        Text(
+            text = "Recent Expenses",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+
+    when (val state = expenseState) {
+        is OneTimeExpenseUiState.Loading -> {
+            items(3) {
+                `in`.xroden.flockr.ui.components.loading.SkeletonExpenseCard()
+            }
+        }
+        is OneTimeExpenseUiState.Error -> {
+            item {
+                RecentExpensesErrorCard()
+            }
+        }
+        is OneTimeExpenseUiState.Success -> {
+            val recentExpenses = state.expenses.take(5)
+            if (recentExpenses.isEmpty()) {
+                item {
+                    EmptyRecentExpensesCard()
+                }
+            } else {
+                items(
+                    items = recentExpenses,
+                    key = { it.id } // Stable key
+                ) { expense ->
+                    RecentExpenseCard(
+                        expense = expense,
+                        currencySymbol = currencySymbol,
+                        onClick = { onNavigateToExpenseDetail(expense.id) }
+                    )
+                }
+
+                item {
+                    ViewAllExpensesButton(onClick = onNavigateToOneTimeExpenses)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentExpensesErrorCard() {
+    // Error fallback UI without logs
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = "Could not load recent expenses",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }

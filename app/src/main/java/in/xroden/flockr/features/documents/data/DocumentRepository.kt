@@ -40,6 +40,7 @@ class DocumentRepository @Inject constructor(
                     filter("house_id", FilterOperator.IS, null)
                 }
                 order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<Document>()
     }
@@ -51,6 +52,7 @@ class DocumentRepository @Inject constructor(
             .select(Columns.ALL) {
                 filter { eq("house_id", houseId) }
                 order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                limit(count = 200)
             }
             .decodeList<Document>()
     }

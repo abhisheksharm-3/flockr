@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
 import `in`.xroden.flockr.features.shopping.presentation.ShoppingUiState
 import `in`.xroden.flockr.utils.rememberHapticFeedback
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +38,7 @@ fun ShoppingListScreen(
     onNavigateToAddExpenseWithData: (String, Int) -> Unit = { _, _ -> },
     viewModel: ShoppingViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var showConvertDialog by remember { mutableStateOf<ShoppingItem?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) }
