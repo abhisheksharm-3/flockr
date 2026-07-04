@@ -137,37 +137,16 @@ fun ProductivityScreen(
             
             // Monthly Hero Card
             item(key = "podium") {
-                if (monthlyTopPerformer != null) {
-                    TopPerformerCard(
-                        name = monthlyTopPerformer.first, 
-                        count = monthlyTopPerformer.second, 
-                        avatarUrl = avatarMap[monthlyTopPerformer.first],
-                        title = "${selectedMonth.month.name.lowercase().replaceFirstChar { it.uppercase() }} Champion"
-                    )
-                } else {
-                    EmptyProductivityCard()
-                }
+                MonthlyHeroSection(
+                    topPerformer = monthlyTopPerformer,
+                    avatarMap = avatarMap,
+                    monthName = selectedMonth.month.name.lowercase().replaceFirstChar { it.uppercase() }
+                )
             }
 
             // Monthly Leaderboard Header
             item(key = "leaderboard_header") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Monthly Leaderboard",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        "${monthlyStats.size} people",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                MonthlyLeaderboardHeader(peopleCount = monthlyStats.size)
             }
 
             // Monthly Leaderboard Items
@@ -177,62 +156,126 @@ fun ProductivityScreen(
 
             if (monthlyStats.isEmpty()) {
                 item(key = "empty_monthly") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.Assignment,
-                                null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                "No completed chores this month",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    EmptyMonthlyStateCard()
                 }
             }
-            
+
             // Yearly Top 3 Section
             if (yearlyStats.isNotEmpty()) {
                 item(key = "yearly_header") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            "${selectedMonth.year} Top Performers",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+                    YearlyTopPerformersHeader(year = selectedMonth.year)
                 }
-                
+
                 item(key = "yearly_top3") {
                     YearlyTop3Card(yearlyStats, avatarMap)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MonthlyHeroSection(
+    topPerformer: Pair<String, Int>?,
+    avatarMap: Map<String, String?>,
+    monthName: String
+) {
+    if (topPerformer != null) {
+        TopPerformerCard(
+            name = topPerformer.first,
+            count = topPerformer.second,
+            avatarUrl = avatarMap[topPerformer.first],
+            title = "$monthName Champion"
+        )
+    } else {
+        EmptyProductivityCard()
+    }
+}
+
+@Composable
+private fun MonthlyLeaderboardHeader(peopleCount: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Monthly Leaderboard",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            "$peopleCount people",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EmptyMonthlyStateCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.AutoMirrored.Outlined.Assignment,
+                null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "No completed chores this month",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun YearlyTopPerformersHeader(year: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            Icons.Filled.Star,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            "$year Top Performers",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Composable
+private fun CircleAvatarImage(avatarUrl: String, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Image(
+        painter = coil.compose.rememberAsyncImagePainter(
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(avatarUrl)
+                .crossfade(true)
+                .build()
+        ),
+        contentDescription = "Avatar",
+        modifier = modifier.clip(CircleShape),
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+    )
 }
 
 @Composable
@@ -260,19 +303,7 @@ private fun TopPerformerCard(name: String, count: Int, avatarUrl: String? = null
                 
                 // Avatar or initial
                 if (!avatarUrl.isNullOrBlank()) {
-                    androidx.compose.foundation.Image(
-                        painter = coil.compose.rememberAsyncImagePainter(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build()
-                        ),
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
+                    CircleAvatarImage(avatarUrl, modifier = Modifier.size(72.dp))
                 } else {
                     Surface(
                         modifier = Modifier.size(72.dp),
@@ -418,19 +449,7 @@ private fun LeaderboardCard(rank: Int, name: String, count: Int, avatarUrl: Stri
             // Avatar or Rank Badge
             if (!avatarUrl.isNullOrBlank()) {
                 Box(modifier = Modifier.size(40.dp)) {
-                    androidx.compose.foundation.Image(
-                        painter = coil.compose.rememberAsyncImagePainter(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build()
-                        ),
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
+                    CircleAvatarImage(avatarUrl, modifier = Modifier.fillMaxSize())
                     // Medal badge overlay for top 3
                     if (isTopThree) {
                         Surface(
@@ -540,19 +559,7 @@ private fun YearlyTop3Card(yearlyStats: List<Pair<String, Int>>, avatarMap: Map<
                     // Avatar
                     val avatar = avatarMap[name]
                     if (!avatar.isNullOrBlank()) {
-                        androidx.compose.foundation.Image(
-                            painter = coil.compose.rememberAsyncImagePainter(
-                                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                    .data(avatar)
-                                    .crossfade(true)
-                                    .build()
-                            ),
-                            contentDescription = "Avatar",
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
+                        CircleAvatarImage(avatar, modifier = Modifier.size(36.dp))
                     } else {
                         Surface(
                             modifier = Modifier.size(36.dp),

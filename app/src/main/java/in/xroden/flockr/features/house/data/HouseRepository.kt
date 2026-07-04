@@ -132,12 +132,13 @@ class HouseRepository @Inject constructor(
             .decodeSingle<House>()
     }
 
-    override suspend fun getHousesEnriched(month: String): Result<List<HouseEnrichedResult>> = runCatching {
+    override suspend fun getHousesEnriched(month: String): Result<List<HouseCardData>> = runCatching {
         val userId = authenticatedUserId ?: return@runCatching emptyList()
         supabase.postgrest.rpc(
             function = "get_houses_enriched",
             parameters = GetHousesEnrichedParams(userId = userId, month = month)
         ).decodeList<HouseEnrichedResult>()
+            .map { HouseCardData.fromEnriched(it) }
     }
 
     override suspend fun createHouse(

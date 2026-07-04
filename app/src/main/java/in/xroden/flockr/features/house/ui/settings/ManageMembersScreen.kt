@@ -75,62 +75,7 @@ fun ManageMembersScreen(
 
     // If not authorized, show message and return
     if (!isLoading && !canManageMembers) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "Manage Members",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Back",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Text(
-                        text = "Access Denied",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Only house owners and admins can manage members.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
+        AccessDeniedScreen(onNavigateBack = onNavigateBack)
         return
     }
 
@@ -187,37 +132,9 @@ fun ManageMembersScreen(
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Manage Members",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
+        topBar = { ManageMembersTopBar(onNavigateBack = onNavigateBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showInviteDialog = true },
-                icon = { Icon(Icons.Default.Add, "Invite") },
-                text = { Text("Invite Member", fontWeight = FontWeight.Bold) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(8.dp)
-            )
+            InviteMemberFab(onClick = { showInviteDialog = true })
         },
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -243,124 +160,40 @@ fun ManageMembersScreen(
             ) {
                 // Member count label
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Members",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "${members.size} member${if (members.size != 1) "s" else ""}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    MembersCountHeader(memberCount = members.size)
                 }
 
                 // Pending Invitations - Collapsible Card
                 if (pendingInvitations.isNotEmpty()) {
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                            ),
-                            shape = MaterialTheme.shapes.medium,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
-                        ) {
-                            Column {
-                                // Header - Always visible
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { expandedInvitations = !expandedInvitations }
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(MaterialTheme.shapes.medium)
-                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Email,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.secondary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                text = "Pending Invitations",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                            Text(
-                                                text = "${pendingInvitations.size} invitation${if (pendingInvitations.size != 1) "s" else ""} sent",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                        PendingInvitationsCard(
+                            invitations = pendingInvitations,
+                            expanded = expandedInvitations,
+                            onToggleExpanded = { expandedInvitations = !expandedInvitations },
+                            onCancelInvitation = { invitation ->
+                                scope.launch {
+                                    val result = viewModel.cancelInvitation(houseId, invitation.inviteeEmail)
+                                    if (result.isSuccess) {
+                                        pendingInvitations = viewModel.getPendingInvitations(houseId)
+                                        snackbarHostState.showSnackbar("Invitation cancelled")
+                                    } else {
+                                        snackbarHostState.showSnackbar("Failed to cancel invitation")
                                     }
-                                    Icon(
-                                        imageVector = if (expandedInvitations) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = if (expandedInvitations) "Collapse" else "Expand",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
                                 }
-
-                                // Expandable content
-                                if (expandedInvitations) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        pendingInvitations.forEach { invitation ->
-                                            PendingInvitationItem(
-                                                invitation = invitation,
-                                                onCancel = {
-                                                    scope.launch {
-                                                        val result = viewModel.cancelInvitation(houseId, invitation.inviteeEmail)
-                                                        if (result.isSuccess) {
-                                                            pendingInvitations = viewModel.getPendingInvitations(houseId)
-                                                            snackbarHostState.showSnackbar("Invitation cancelled")
-                                                        } else {
-                                                            snackbarHostState.showSnackbar("Failed to cancel invitation")
-                                                        }
-                                                    }
-                                                },
-                                                onResend = {
-                                                    scope.launch {
-                                                        val result = viewModel.resendInvitationNotification(houseId, invitation.inviteeEmail)
-                                                        if (result.isSuccess) {
-                                                            snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
-                                                        } else {
-                                                            snackbarHostState.showSnackbar(
-                                                                result.exceptionOrNull()?.message ?: "Failed to resend notification"
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        }
+                            },
+                            onResendInvitation = { invitation ->
+                                scope.launch {
+                                    val result = viewModel.resendInvitationNotification(houseId, invitation.inviteeEmail)
+                                    if (result.isSuccess) {
+                                        snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
+                                    } else {
+                                        snackbarHostState.showSnackbar(
+                                            result.exceptionOrNull()?.message ?: "Failed to resend notification"
+                                        )
                                     }
-                                    Spacer(modifier = Modifier.height(16.dp))
                                 }
                             }
-                        }
+                        )
                     }
                 }
 
@@ -403,6 +236,189 @@ fun ManageMembersScreen(
                 item {
                     Spacer(modifier = Modifier.height(80.dp))
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ManageMembersTopBar(onNavigateBack: () -> Unit) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                "Manage Members",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    "Back",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
+
+@Composable
+private fun InviteMemberFab(onClick: () -> Unit) {
+    ExtendedFloatingActionButton(
+        onClick = onClick,
+        icon = { Icon(Icons.Default.Add, "Invite") },
+        text = { Text("Invite Member", fontWeight = FontWeight.Bold) },
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        elevation = FloatingActionButtonDefaults.elevation(8.dp)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccessDeniedScreen(onNavigateBack: () -> Unit) {
+    Scaffold(
+        topBar = { ManageMembersTopBar(onNavigateBack = onNavigateBack) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = "Access Denied",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Only house owners and admins can manage members.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MembersCountHeader(memberCount: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Members",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "$memberCount member${if (memberCount != 1) "s" else ""}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PendingInvitationsCard(
+    invitations: List<InvitationWithHouse>,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onCancelInvitation: (InvitationWithHouse) -> Unit,
+    onResendInvitation: (InvitationWithHouse) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+        ),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
+    ) {
+        Column {
+            // Header - Always visible
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpanded() }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Pending Invitations",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            text = "${invitations.size} invitation${if (invitations.size != 1) "s" else ""} sent",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Expandable content
+            if (expanded) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    invitations.forEach { invitation ->
+                        PendingInvitationItem(
+                            invitation = invitation,
+                            onCancel = { onCancelInvitation(invitation) },
+                            onResend = { onResendInvitation(invitation) }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

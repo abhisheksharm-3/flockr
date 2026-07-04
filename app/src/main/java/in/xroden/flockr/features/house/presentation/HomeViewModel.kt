@@ -85,8 +85,7 @@ class HomeViewModel @Inject constructor(
             val currentMonth = "${now.year}-${now.month.number.toString().padStart(2, '0')}-01"
 
             houseRepository.getHousesEnriched(currentMonth)
-                .onSuccess { enrichedResults ->
-                    val cardData = enrichedResults.map { HouseCardData.fromEnriched(it) }
+                .onSuccess { cardData ->
                     _uiState.value = HouseListUiState.Success(cardData)
                 }
         }
