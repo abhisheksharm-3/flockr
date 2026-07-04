@@ -46,6 +46,13 @@ data class GetUserBalancesParams(
     @SerialName("p_house_id") val houseId: String
 )
 
+/** Parameters for pairwise balances relative to a specific user. */
+@Serializable
+data class GetPairwiseBalancesParams(
+    @SerialName("p_house_id") val houseId: String,
+    @SerialName("p_user_id") val userId: String
+)
+
 /** Parameters for getting debt breakdown between users. */
 @Serializable
 data class GetDebtBreakdownParams(

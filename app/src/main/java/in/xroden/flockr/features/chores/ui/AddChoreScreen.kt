@@ -57,7 +57,7 @@ fun AddChoreScreen(
                 viewModel.resetCreateState()
             }
             is CreateChoreUiState.Error -> {
-                snackbarHostState.showSnackbar("Error adding chore")
+                snackbarHostState.showSnackbar((createState as CreateChoreUiState.Error).message)
                 viewModel.resetCreateState()
             }
             else -> {}

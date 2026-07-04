@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.documents.data.IDocumentRepository
+import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
 import `in`.xroden.flockr.features.documents.model.Document
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -25,7 +26,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
-    private val documentRepository: IDocumentRepository
+    private val documentRepository: IDocumentRepository,
+    private val uploadDocumentUseCase: UploadDocumentUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
@@ -124,7 +126,8 @@ class DocumentViewModel @Inject constructor(
                 return@launch
             }
 
-            documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
+            // Route through the use case so document-count and image-size limits are enforced.
+            uploadDocumentUseCase(houseId, fileName, fileData, mimeType).fold(
                 onSuccess = {
                     _uploadState.value = UploadDocumentUiState.Success
                     _events.send(DocumentEvent.DocumentUploaded)

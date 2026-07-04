@@ -11,6 +11,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.ui.graphics.vector.ImageVector
+import `in`.xroden.flockr.data.enums.NotificationType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -188,7 +197,7 @@ private fun NotificationItem(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Default.Notifications, // Could be dynamic based on type
+                iconForNotificationType(notification.type),
                 null,
                 tint = if (notification.isRead) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(20.dp)
@@ -230,6 +239,17 @@ private fun NotificationItem(
             )
         }
     }
+}
+
+private fun iconForNotificationType(type: NotificationType): ImageVector = when (type) {
+    NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT, NotificationType.SETTLEMENT -> Icons.Default.Payments
+    NotificationType.PER_DIEM -> Icons.Default.Today
+    NotificationType.CHORE, NotificationType.CHORE_ASSIGNED -> Icons.Default.TaskAlt
+    NotificationType.SHOPPING, NotificationType.SHOPPING_ITEM -> Icons.Default.ShoppingCart
+    NotificationType.MESSAGE, NotificationType.MESSAGE_SENT -> Icons.AutoMirrored.Filled.Message
+    NotificationType.DOCUMENT -> Icons.Default.Description
+    NotificationType.HOUSE_INVITE, NotificationType.MEMBER_JOINED -> Icons.Default.People
+    NotificationType.GENERAL -> Icons.Default.Notifications
 }
 
 private fun formatTimestamp(timestamp: String): String {

@@ -164,9 +164,13 @@ fun BalancesContent(
     }
 
     val (totalYouOwe, totalYouAreOwed) = remember(balances, currentUserId) {
-        val myBalance = balances.find { it.userId == currentUserId }?.balance?.toDouble() ?: 0.0
-        val owe = if (myBalance < 0) abs(myBalance) else 0.0
-        val owed = if (myBalance > 0) abs(myBalance) else 0.0
+        // balances are pairwise relative to me: positive = they owe me, negative = I owe them.
+        var owe = 0.0
+        var owed = 0.0
+        balances.forEach { b ->
+            val v = b.balance.toDouble()
+            if (v < 0) owe += -v else owed += v
+        }
         owe to owed
     }
 
@@ -409,7 +413,8 @@ fun BalancePersonCard(
     var expanded by remember { mutableStateOf(false) }
     var showSettleDialog by remember { mutableStateOf(false) }
 
-    val iOweThem = balance.balance > BigDecimal.ZERO
+    // Pairwise: balance > 0 means they owe me; balance < 0 means I owe them.
+    val iOweThem = balance.balance < BigDecimal.ZERO
     val isSettled = balance.balance.compareTo(BigDecimal.ZERO) == 0
     val amount = balance.balance.abs().toDouble()
 
