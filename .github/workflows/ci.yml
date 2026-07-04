@@ -1,11 +1,11 @@
 name: CI
 
-# Validate every PR into main (and pushes to non-main branches) before release.
+# Validate every PR into main before release. Only the pull_request trigger is used so a
+# push to a PR branch runs CI once (a push trigger here would double every run).
 on:
   pull_request:
     branches: [ "main" ]
-  push:
-    branches-ignore: [ "main" ]
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
