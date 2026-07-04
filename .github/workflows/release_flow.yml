@@ -1,37 +1,43 @@
 name: Build & Upload Release Artifacts
 
-# Runs when release-please publishes a GitHub release (or manually). Builds the signed
-# APK + AAB and attaches them to the release. Versioning/changelog/tagging are handled by
-# release-please (see release_please.yml) — this workflow only builds and uploads.
+# Builds the signed APK + AAB and attaches them to a GitHub Release.
+# - Fires automatically when a release is published (release-please must create the release with a
+#   PAT — see release_please.yml — because releases created by GITHUB_TOKEN don't trigger workflows).
+# - Can also be run manually against an existing tag to (re)build/backfill its artifacts.
 on:
   release:
     types: [ published ]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build and attach artifacts to (e.g. v1.10.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-release-${{ github.ref }}
+  group: build-release-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Resolve version name
-        id: version
+      - name: Resolve tag + version
+        id: v
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          if [ -n "$TAG" ]; then
-            NAME="${TAG#v}"
-          else
-            NAME=$(grep '^VERSION_NAME' version.properties | cut -d'=' -f2 | cut -d'#' -f1 | tr -d '[:space:]')
-          fi
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          TAG="${EVENT_TAG:-$INPUT_TAG}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.v.outputs.tag }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -75,27 +81,17 @@ jobs:
 
       - name: Rename artifacts
         env:
-          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_NAME: ${{ steps.v.outputs.name }}
         run: |
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/flockr-${VERSION_NAME}-release.apk"
           mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/flockr-${VERSION_NAME}-release.aab"
 
-      - name: Upload artifacts to release
-        if: github.event_name == 'release'
+      - name: Attach artifacts to the release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.v.outputs.tag }}
           files: |
-            app/build/outputs/apk/release/flockr-${{ steps.version.outputs.name }}-release.apk
-            app/build/outputs/bundle/release/flockr-${{ steps.version.outputs.name }}-release.aab
+            app/build/outputs/apk/release/flockr-${{ steps.v.outputs.name }}-release.apk
+            app/build/outputs/bundle/release/flockr-${{ steps.v.outputs.name }}-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts (manual runs)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: flockr-release-${{ steps.version.outputs.name }}
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
