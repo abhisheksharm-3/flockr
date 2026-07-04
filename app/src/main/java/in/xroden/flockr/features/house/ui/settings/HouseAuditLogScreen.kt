@@ -20,12 +20,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.HouseAuditLog
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.data.HouseAuditRepository
+import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.utils.getTimezone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import kotlinx.datetime.toLocalDateTime
 import java.util.*
 import javax.inject.Inject
 import androidx.compose.ui.graphics.Color
@@ -35,7 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @HiltViewModel
 class HouseAuditLogViewModel @Inject constructor(
-    private val houseAuditRepository: HouseAuditRepository
+    private val houseAuditRepository: HouseAuditRepository,
+    private val houseRepository: IHouseRepository
 ) : ViewModel() {
 
     private val _auditLogs = MutableStateFlow<List<HouseAuditLog>>(emptyList())
@@ -43,6 +48,15 @@ class HouseAuditLogViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
+    fun loadHouseConfig(houseId: String) {
+        viewModelScope.launch {
+            houseRepository.getHouseConfig(houseId).onSuccess { _houseConfig.value = it }
+        }
+    }
 
     fun loadAuditLogs(houseId: String) {
         viewModelScope.launch {
@@ -68,9 +82,11 @@ fun HouseAuditLogScreen(
 ) {
     val auditLogs by viewModel.auditLogs.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
 
     LaunchedEffect(houseId) {
         viewModel.loadAuditLogs(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     Scaffold(
@@ -120,10 +136,10 @@ fun HouseAuditLogScreen(
                         EmptyAuditLogState()
                     }
                 } else {
-                    // Group logs by date
-                    val groupedLogs = auditLogs.groupBy { 
-                       val date = Date(it.createdAt.toEpochMilliseconds())
-                       SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date)
+                    // Group logs by date (in the house's timezone + date format)
+                    val groupedLogs = auditLogs.groupBy {
+                       it.createdAt.toLocalDateTime(houseConfig.getTimezone()).date
+                           .formatWithHouseConfig(houseConfig)
                     }
 
                     groupedLogs.forEach { (dateHeader, logs) ->
@@ -137,7 +153,7 @@ fun HouseAuditLogScreen(
                              )
                          }
                          items(logs, key = { it.id }) { log ->
-                             AuditLogCard(log)
+                             AuditLogCard(log, houseConfig)
                          }
                     }
                     item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -184,10 +200,16 @@ fun EmptyAuditLogState() {
 }
 
 @Composable
-private fun AuditLogCard(log: HouseAuditLog) {
-    val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
-    val time = remember(log.createdAt) {
-        timeFormat.format(Date(log.createdAt.toEpochMilliseconds()))
+private fun AuditLogCard(log: HouseAuditLog, houseConfig: HouseConfig?) {
+    val time = remember(log.createdAt, houseConfig) {
+        val dateTime = log.createdAt.toLocalDateTime(houseConfig.getTimezone())
+        val hour12 = when {
+            dateTime.hour == 0 -> 12
+            dateTime.hour > 12 -> dateTime.hour - 12
+            else -> dateTime.hour
+        }
+        val amPm = if (dateTime.hour < 12) "AM" else "PM"
+        "${hour12.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')} $amPm"
     }
 
     Card(

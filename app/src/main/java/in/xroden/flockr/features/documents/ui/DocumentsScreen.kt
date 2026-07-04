@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +42,7 @@ fun DocumentsScreen(
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Personal, 1 = House
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0 = Personal, 1 = House
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }

@@ -26,25 +26,20 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 import kotlinx.datetime.*
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // Helper functions using pure kotlinx-datetime
-private fun isOverdue(dateString: String): Boolean {
+private fun isOverdue(dateString: String, houseConfig: HouseConfig?): Boolean {
     return runCatching {
         val date = LocalDate.parse(dateString)
-        val today = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val today = houseConfig.getTodayInHouseTimezone()
         date < today
     }.getOrDefault(false)
-}
-
-private fun formatDate(dateString: String): String {
-    return runCatching {
-        val date = LocalDate.parse(dateString)
-        val month = date.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-        "$month ${date.day}"
-    }.getOrDefault(dateString)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,20 +53,23 @@ fun ChoresScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filterOption by viewModel.filterOption.collectAsStateWithLifecycle()
-    
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
+
     var showEditDialog by remember { mutableStateOf<Chore?>(null) }
-    
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(houseId) {
         viewModel.loadChores(houseId)
+        viewModel.loadHouseConfig(houseId)
     }
 
     // Edit Chore Dialog
     showEditDialog?.let { chore ->
         EditChoreDialog(
             chore = chore,
+            houseConfig = houseConfig,
             onDismiss = { showEditDialog = null },
             onSave = { taskName, description, dueDate, assignedTo ->
                 viewModel.updateChore(
@@ -126,6 +124,7 @@ fun ChoresScreen(
                     ChoresList(
                         modifier = Modifier.fillMaxSize().padding(padding),
                         filteredChores = filteredChores,
+                        houseConfig = houseConfig,
                         filterOption = filterOption,
                         activeCount = state.activeChores.size,
                         completedCount = state.completedChores.size,
@@ -232,6 +231,7 @@ private fun ChoresFilterHeader(
 private fun ChoresList(
     modifier: Modifier,
     filteredChores: List<Chore>,
+    houseConfig: HouseConfig?,
     filterOption: ChoreFilter,
     activeCount: Int,
     completedCount: Int,
@@ -260,6 +260,7 @@ private fun ChoresList(
         items(items = filteredChores, key = { it.id }) { chore ->
             ChoreCard(
                 chore = chore,
+                houseConfig = houseConfig,
                 onToggleComplete = { onToggleComplete(chore) },
                 onEdit = { onEdit(chore) },
                 onDelete = { onDelete(chore) }
@@ -288,12 +289,13 @@ private fun ChoresErrorState(modifier: Modifier, onRetry: () -> Unit) {
 @Composable
 private fun ChoreCard(
     chore: Chore,
+    houseConfig: HouseConfig?,
     onToggleComplete: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val isOverdueChore = chore.dueDate?.let { isOverdue(it.toString()) && !chore.isCompleted } ?: false
+    val isOverdueChore = chore.dueDate?.let { isOverdue(it.toString(), houseConfig) && !chore.isCompleted } ?: false
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -415,7 +417,7 @@ private fun ChoreCard(
                 chore.dueDate?.let { date ->
                     Badge(
                         icon = Icons.Default.CalendarToday,
-                        text = formatDate(date.toString()),
+                        text = date.formatWithHouseConfig(houseConfig),
                         containerColor = if (isOverdueChore) 
                             MaterialTheme.colorScheme.errorContainer 
                         else if (chore.isCompleted) 
@@ -495,6 +497,7 @@ private fun EmptyChoresState(modifier: Modifier = Modifier, onAddChore: () -> Un
 @Composable
 private fun EditChoreDialog(
     chore: Chore,
+    houseConfig: HouseConfig?,
     onDismiss: () -> Unit,
     onSave: (String, String?, LocalDate?, String?) -> Unit
 ) {
@@ -541,7 +544,7 @@ private fun EditChoreDialog(
                 )
                 Box(Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
                     OutlinedTextField(
-                        value = dueDate?.let { formatDate(it.toString()) } ?: "",
+                        value = dueDate?.let { it.formatWithHouseConfig(houseConfig) } ?: "",
                         onValueChange = {},
                         label = { Text("Due Date") },
                         placeholder = { Text("Select date") },

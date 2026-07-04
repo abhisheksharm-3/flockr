@@ -114,6 +114,7 @@ fun AddExpenseScreen(
             SplitBillCard(
                 formState = formState,
                 isLoading = isLoading,
+                payerId = viewModel.getCurrentUserId(),
                 onSplitEnabledChange = viewModel::onSplitEnabledChange,
                 onSplitEqualChange = viewModel::onSplitEqualChange,
                 onMemberSelectionChange = viewModel::onMemberSelectionChange,
@@ -329,6 +330,7 @@ private fun NotesCard(
 private fun SplitBillCard(
     formState: AddExpenseFormState,
     isLoading: Boolean,
+    payerId: String?,
     onSplitEnabledChange: (Boolean) -> Unit,
     onSplitEqualChange: (Boolean) -> Unit,
     onMemberSelectionChange: (String, Boolean) -> Unit,
@@ -385,6 +387,7 @@ private fun SplitBillCard(
                     SplitPreview(
                         amount = formState.amount,
                         selectedMemberIds = formState.selectedMemberIds,
+                        payerId = payerId,
                         isSplitEqual = formState.isSplitEqual,
                         customSplits = formState.customSplits,
                         currencySymbol = formState.currencySymbol
@@ -498,18 +501,22 @@ private fun SplitMemberRow(
 private fun SplitPreview(
     amount: String,
     selectedMemberIds: Set<String>,
+    payerId: String?,
     isSplitEqual: Boolean,
     customSplits: Map<String, String>,
     currencySymbol: String
 ) {
     val totalAmount = amount.toDoubleOrNull() ?: 0.0
+    // The backend always includes the payer in an equal split, so the preview must too —
+    // otherwise "$45 each" is shown while $30 each is actually stored.
+    val participantCount = (selectedMemberIds + listOfNotNull(payerId)).size
     val splitDisplay = if (isSplitEqual) {
-        "${"%.2f".format(totalAmount / selectedMemberIds.size)} each"
+        "${"%.2f".format(if (participantCount > 0) totalAmount / participantCount else 0.0)} each"
     } else {
         "${"%.2f".format(customSplits.values.mapNotNull { it.toDoubleOrNull() }.sum())} total"
     }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Split among ${selectedMemberIds.size} members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Split among $participantCount members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("$currencySymbol$splitDisplay", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }

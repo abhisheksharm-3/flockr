@@ -3,10 +3,10 @@ package `in`.xroden.flockr.features.expenses.data
 import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.PaymentHistoryInsert
 import `in`.xroden.flockr.data.dto.RecurringExpenseInsert
 import `in`.xroden.flockr.data.dto.RecurringExpenseUpdate
 import `in`.xroden.flockr.data.dto.expense.GetRecurringExpensesParams
+import `in`.xroden.flockr.data.dto.expense.MarkRecurringBillPaidParams
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.model.PaymentHistory
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
@@ -24,8 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class RecurringExpenseRepository @Inject constructor(
     supabase: SupabaseClient,
-    connectionManager: RealtimeConnectionManager,
-    private val expenseRepository: ExpenseRepository
+    connectionManager: RealtimeConnectionManager
 ) : BaseRealtimeRepository(supabase, connectionManager), IRecurringExpenseRepository {
 
     override fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>> =
@@ -146,31 +145,31 @@ class RecurringExpenseRepository @Inject constructor(
             .decodeSingleOrNull<RecurringExpense>()
             ?: throw IllegalStateException("Recurring expense not found")
 
-        supabase.from("payment_history")
-            .insert(PaymentHistoryInsert(
-                recurringExpenseId = expenseId,
-                paidBy = currentUserId,
-                amount = amount,
-                paymentDate = paymentDate
-            ))
-
-        expenseRepository.createOneTimeExpense(
-            houseId = recurringExpense.houseId,
-            name = recurringExpense.name,
+        val splitsJson = buildExpenseSplitsJson(
             amount = amount,
-            category = recurringExpense.category,
-            paidBy = currentUserId,
-            date = paymentDate,
-            notes = "Recurring Payment",
+            payerId = currentUserId,
             splitWith = recurringExpense.splitWith,
             splitType = recurringExpense.splitType,
-            customAmounts = recurringExpense.splitAmounts
-        ).getOrThrow()
+            splitAmounts = recurringExpense.splitAmounts
+        )
 
-        supabase.from("recurring_expenses")
-            .update(RecurringExpenseUpdate(lastPaidDate = paymentDate)) {
-                filter { eq("id", expenseId) }
-            }
+        // One RPC does the expense insert, splits, payment-history row, and last_paid_date
+        // update in a single transaction — previously three separate calls could half-apply
+        // (orphan history row + a retry double-inserting).
+        supabase.postgrest.rpc(
+            function = "mark_recurring_bill_paid",
+            parameters = MarkRecurringBillPaidParams(
+                recurringId = expenseId,
+                houseId = recurringExpense.houseId,
+                paidBy = currentUserId,
+                name = recurringExpense.name,
+                amount = amount,
+                category = recurringExpense.category,
+                date = paymentDate,
+                notes = "Recurring Payment",
+                splits = splitsJson
+            )
+        )
     }
 
     override suspend fun getPaymentHistory(recurringExpenseId: String): Result<List<PaymentHistory>> = runCatching {

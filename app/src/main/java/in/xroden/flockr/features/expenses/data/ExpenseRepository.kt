@@ -4,9 +4,8 @@ import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.ExpenseSplitInsert
-import `in`.xroden.flockr.data.dto.OneTimeExpenseUpdate
 import `in`.xroden.flockr.data.dto.expense.CreateExpenseParams
+import `in`.xroden.flockr.data.dto.expense.UpdateExpenseParams
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import io.github.jan.supabase.SupabaseClient
@@ -16,13 +15,11 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.math.BigDecimal
-import java.math.RoundingMode
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -107,33 +104,7 @@ class ExpenseRepository @Inject constructor(
         splitWith: List<String>?,
         splitType: ExpenseSplitType?,
         splitAmounts: Map<String, BigDecimal>?
-    ) = buildJsonArray {
-        if (!splitWith.isNullOrEmpty()) {
-            when (splitType) {
-                ExpenseSplitType.EQUAL -> {
-                    val uniqueParticipants = (splitWith + payerId).distinct()
-                    val splitAmount = amount.divide(BigDecimal(uniqueParticipants.size), 2, RoundingMode.HALF_UP)
-                    uniqueParticipants.filter { it != payerId }.forEach { participantId ->
-                        add(buildJsonObject {
-                            put("user_id", participantId)
-                            put("amount", splitAmount.toPlainString())
-                        })
-                    }
-                }
-                ExpenseSplitType.AMOUNT -> {
-                    splitAmounts?.forEach { (splitUserId, splitAmount) ->
-                        if (splitUserId != payerId) {
-                            add(buildJsonObject {
-                                put("user_id", splitUserId)
-                                put("amount", splitAmount.toPlainString())
-                            })
-                        }
-                    }
-                }
-                else -> { }
-            }
-        }
-    }
+    ) = buildExpenseSplitsJson(amount, payerId, splitWith, splitType, splitAmounts)
 
     override suspend fun updateOneTimeExpense(
         expenseId: String,
@@ -147,46 +118,38 @@ class ExpenseRepository @Inject constructor(
         val sanitizedName = name?.let { InputSanitizer.sanitizeText(it) }
         val sanitizedCategory = category?.let { InputSanitizer.sanitizeText(it) }
         val sanitizedNotes = notes?.let { InputSanitizer.sanitizeText(it) }
-        
-        supabase.from("one_time_expenses")
-            .update(OneTimeExpenseUpdate(
-                name = sanitizedName,
-                amount = amount,
-                date = date,
-                category = sanitizedCategory,
-                notes = sanitizedNotes
-            )) {
-                filter { eq("id", expenseId) }
-            }
 
-        if (splitAmounts != null) {
-            // The payer holds no split row. Exclude the expense's actual payer, not the
-            // caller — an editor who isn't the payer must not corrupt the split set.
-            val payerId = runCatching {
-                supabase.from("one_time_expenses")
-                    .select(Columns.list("paid_by")) { filter { eq("id", expenseId) } }
-                    .decodeSingle<PaidByRow>().paidBy
-            }.getOrNull() ?: authenticatedUserId
-
-            supabase.from("expense_splits").delete { filter { eq("expense_id", expenseId) } }
-
-            val validSplits = splitAmounts.filter { (splitUserId, _) ->
-                splitUserId != payerId
-            }.map { (splitUserId, amountOwed) ->
-                ExpenseSplitInsert(expenseId = expenseId, userId = splitUserId, amountOwed = amountOwed)
-            }
-
-            if (validSplits.isNotEmpty()) {
-                supabase.from("expense_splits").insert(validSplits)
+        // Build the split set (payer excluded server-side); null means "leave splits as-is".
+        val splitsJson: JsonElement? = splitAmounts?.let { amounts ->
+            buildJsonArray {
+                amounts.forEach { (splitUserId, amountOwed) ->
+                    add(buildJsonObject {
+                        put("user_id", splitUserId)
+                        put("amount", amountOwed.toPlainString())
+                    })
+                }
             }
         }
+
+        // Single RPC updates the expense and replaces splits in one transaction, so a
+        // partial failure can no longer wipe every split row (the old delete-then-insert
+        // pair was non-transactional).
+        supabase.postgrest.rpc(
+            function = "update_one_time_expense",
+            parameters = UpdateExpenseParams(
+                expenseId = expenseId,
+                name = sanitizedName,
+                amount = amount,
+                category = sanitizedCategory,
+                date = date,
+                notes = sanitizedNotes,
+                splits = splitsJson
+            )
+        )
     }
 
     override suspend fun deleteOneTimeExpense(expenseId: String): Result<Unit> = runCatching {
         supabase.from("expense_splits").delete { filter { eq("expense_id", expenseId) } }
         supabase.from("one_time_expenses").delete { filter { eq("id", expenseId) } }
     }
-
-    @Serializable
-    private data class PaidByRow(@SerialName("paid_by") val paidBy: String)
 }

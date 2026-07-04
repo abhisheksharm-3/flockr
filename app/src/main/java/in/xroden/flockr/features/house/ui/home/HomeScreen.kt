@@ -21,6 +21,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -93,7 +94,7 @@ fun HomeScreen(
         profile?.fullName?.split(" ")?.firstOrNull() ?: "there"
     }
     
-    var showJoinDialog by remember { mutableStateOf(false) }
+    var showJoinDialog by rememberSaveable { mutableStateOf(false) }
     var manualInviteCode by remember { mutableStateOf<String?>(null) }
 
     Scaffold(

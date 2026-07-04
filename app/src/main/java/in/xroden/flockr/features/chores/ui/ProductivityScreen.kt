@@ -26,9 +26,9 @@ import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
+import `in`.xroden.flockr.utils.getTimezone
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -41,12 +41,14 @@ fun ProductivityScreen(
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
     val scope = rememberCoroutineScope()
-    
-    val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
+
+    val now = kotlin.time.Clock.System.now().toLocalDateTime(houseConfig.getTimezone())
     var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.month, 1)) }
 
     LaunchedEffect(houseId) {
         viewModel.loadChores(houseId)
+        viewModel.loadHouseConfig(houseId)
         scope.launch {
             members = viewModel.getHouseMembers(houseId)
         }
@@ -61,11 +63,11 @@ fun ProductivityScreen(
     val completedChores = remember(chores) { chores.filter { it.isCompleted && it.completedByName != null && it.completedAt != null } }
 
     // Monthly stats - filter by selected month
-    val monthlyStats = remember(completedChores, selectedMonth) {
+    val monthlyStats = remember(completedChores, selectedMonth, houseConfig) {
         completedChores
             .filter { chore ->
                 chore.completedAt?.let { completedAt ->
-                    val completedDate = completedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+                    val completedDate = completedAt.toLocalDateTime(houseConfig.getTimezone())
                     completedDate.year == selectedMonth.year && completedDate.month == selectedMonth.month
                 } ?: false
             }
@@ -77,11 +79,11 @@ fun ProductivityScreen(
     }
     
     // Yearly stats - all chores completed this year
-    val yearlyStats = remember(completedChores, selectedMonth) {
+    val yearlyStats = remember(completedChores, selectedMonth, houseConfig) {
         completedChores
             .filter { chore ->
                 chore.completedAt?.let { completedAt ->
-                    val completedDate = completedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+                    val completedDate = completedAt.toLocalDateTime(houseConfig.getTimezone())
                     completedDate.year == selectedMonth.year
                 } ?: false
             }
