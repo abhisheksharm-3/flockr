@@ -23,3 +23,6 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # Use a PAT so the created release/tag triggers downstream workflows
+          # (releases created via the default GITHUB_TOKEN do not trigger other workflows).
+          token: ${{ secrets.FLOCKR_TOKEN }}
