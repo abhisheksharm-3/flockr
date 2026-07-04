@@ -30,8 +30,14 @@ class HapticsManager @Inject constructor(
     private val settingsRepository: ISettingsRepository
 ) {
     private val vibrator: Vibrator by lazy {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        vibratorManager.defaultVibrator
+        // VibratorManager is API 31+; minSdk is 29, so fall back to the deprecated getter below it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
     }
 
     // Cached preference so click handlers never block the main thread on a DataStore read.
