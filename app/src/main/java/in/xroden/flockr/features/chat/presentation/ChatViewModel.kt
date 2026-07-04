@@ -44,10 +44,16 @@ class ChatViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { messages ->
                         val currentUserId = chatRepository.getCurrentUserId()
-                        val pending = _pendingMessages.value
-                        val pendingIds = pending.map { it.id }.toSet()
-                        val deduplicated = messages.filterNot { it.id in pendingIds }
-                        _uiState.value = ChatUiState.Success(deduplicated + pending, currentUserId)
+                        // Reconcile optimistic messages by (sender, content): once the server row
+                        // exists, drop the temp. Matching on tempId never worked (server id differs),
+                        // which caused duplicate bubbles and permanently-"pending" messages.
+                        val stillPending = _pendingMessages.value.filter { pendingMessage ->
+                            messages.none {
+                                it.userId == pendingMessage.userId && it.content == pendingMessage.content
+                            }
+                        }
+                        _pendingMessages.value = stillPending
+                        _uiState.value = ChatUiState.Success(messages + stillPending, currentUserId)
                     },
                     onFailure = { error ->
                         _uiState.value = ChatUiState.Error(
@@ -87,7 +93,8 @@ class ChatViewModel @Inject constructor(
 
             chatRepository.sendMessage(houseId, content).fold(
                 onSuccess = {
-                    _pendingMessages.value = _pendingMessages.value.filter { it.id != tempId }
+                    // Keep the optimistic message until the realtime echo arrives; the collector
+                    // above reconciles it away by (sender, content), avoiding a flicker/disappear.
                     _sendState.value = SendMessageUiState.Success
                 },
                 onFailure = { error ->

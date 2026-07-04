@@ -68,7 +68,7 @@ fun AddRecurringExpenseScreen(
 
     var selectedMembers by remember { mutableStateOf<List<String>>(emptyList()) }
     var splitType by remember { mutableStateOf("equal") }
-    var customAmounts by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var customAmounts by remember { mutableStateOf<Map<String, java.math.BigDecimal>>(emptyMap()) }
     var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
     val categories = listOf(
@@ -398,7 +398,7 @@ fun AddRecurringExpenseScreen(
                                     OutlinedTextField(
                                         value = customAmounts[memberId]?.toString() ?: "",
                                         onValueChange = {
-                                            val amt = it.toDoubleOrNull()
+                                            val amt = it.toBigDecimalOrNull()
                                             if (amt != null) customAmounts = customAmounts + (memberId to amt)
                                             else if (it.isEmpty()) customAmounts = customAmounts - memberId
                                         },
@@ -439,9 +439,11 @@ fun AddRecurringExpenseScreen(
                     val reminderDays = if (reminderEnabled) reminderDaysBefore.toIntOrNull() ?: 3 else 3
 
                     if (splitType == "custom" && selectedMembers.isNotEmpty()) {
-                        val totalCustom = customAmounts.values.sum()
-                        if (totalCustom > (amount.toDoubleOrNull() ?: 0.0)) {
-                            scope.launch { snackbarHostState.showSnackbar("Custom amounts exceed total bill amount") }
+                        val totalCustom = customAmounts.values.fold(java.math.BigDecimal.ZERO) { acc, v -> acc + v }
+                        // Must equal the total, else the split is invalid and mark-as-paid will
+                        // later reject it (the one-time expense use case enforces sum == amount).
+                        if (totalCustom.compareTo(amt) != 0) {
+                            scope.launch { snackbarHostState.showSnackbar("Custom amounts must add up to the total bill amount") }
                             return@Button
                         }
                     }
@@ -461,7 +463,7 @@ fun AddRecurringExpenseScreen(
                         notes = notes.ifBlank { null },
                         splitWith = if (selectedMembers.isNotEmpty()) selectedMembers else null,
                         splitType = if (selectedMembers.isNotEmpty()) ExpenseSplitType.valueOf(splitType.uppercase()) else null,
-                        splitAmounts = if (splitType == "custom" && selectedMembers.isNotEmpty()) customAmounts.mapValues { it.value.toBigDecimal() } else null,
+                        splitAmounts = if (splitType == "custom" && selectedMembers.isNotEmpty()) customAmounts else null,
                         prepayEnabled = prepayEnabled,
                         firstPaymentDate = firstPaymentDate
                     )

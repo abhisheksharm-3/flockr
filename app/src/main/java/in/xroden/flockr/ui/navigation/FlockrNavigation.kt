@@ -33,6 +33,8 @@ import org.json.JSONObject
 
 @Composable
 fun FlockrNavigation(
+    initialInviteCode: String? = null,
+    onInviteConsumed: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -46,6 +48,16 @@ fun FlockrNavigation(
             hasAuthenticatedSession.value = true
         } else if (authUiState is AuthNavigationState.Unauthenticated || authUiState is AuthNavigationState.NeedsOnboarding) {
             hasAuthenticatedSession.value = false
+        }
+    }
+
+    // Invite deep link: once authenticated, jump straight into the join preview with the code.
+    // If the link arrives while signed out, this waits until auth completes.
+    LaunchedEffect(authUiState, initialInviteCode) {
+        val code = initialInviteCode
+        if (code != null && authUiState is AuthNavigationState.Authenticated) {
+            navController.navigateToJoinHousePreview(code)
+            onInviteConsumed()
         }
     }
 
@@ -113,23 +125,21 @@ fun FlockrNavigation(
                                                 navController.navigateToHome(clearBackStack = true)
                                             }
                                         }
-                                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT -> {
+                                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT,
+                                        NotificationType.SETTLEMENT, NotificationType.PER_DIEM -> {
                                             navController.navigateToExpenseDashboard(houseId)
                                         }
-                                        NotificationType.SHOPPING -> {
+                                        NotificationType.SHOPPING, NotificationType.SHOPPING_ITEM -> {
                                             navController.navigateToShoppingList(houseId)
                                         }
-                                        NotificationType.CHORE -> {
+                                        NotificationType.CHORE, NotificationType.CHORE_ASSIGNED -> {
                                             navController.navigateToChores(houseId)
                                         }
-                                        NotificationType.MESSAGE -> {
+                                        NotificationType.MESSAGE, NotificationType.MESSAGE_SENT -> {
                                             navController.navigateToChat(houseId)
                                         }
-                                        NotificationType.GENERAL -> {
+                                        NotificationType.DOCUMENT -> {
                                             navController.navigateToDocuments(houseId)
-                                        }
-                                        NotificationType.PER_DIEM -> {
-                                            navController.navigateToExpenseDashboard(houseId)
                                         }
                                         else -> {
                                             navController.navigateToHouseDetails(houseId)

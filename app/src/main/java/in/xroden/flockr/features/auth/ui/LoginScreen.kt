@@ -173,12 +173,14 @@ fun LoginScreen(
                 }
             }
 
+            val isSigningIn = signInState is SignInUiState.Loading
+
             FlockrPrimaryButton(
-                text = if (uiState is AuthUiState.Loading) "Signing In..." else "Sign In",
+                text = if (isSigningIn) "Signing In..." else "Sign In",
                 onClick = { haptics.performClick(); viewModel.signIn(email, password) },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uiState !is AuthUiState.Loading && email.isNotBlank() && password.isNotBlank(),
-                isLoading = uiState is AuthUiState.Loading
+                enabled = !isSigningIn && email.isNotBlank() && password.isNotBlank(),
+                isLoading = isSigningIn
             )
 
             // Divider with text
@@ -196,9 +198,6 @@ fun LoginScreen(
                 )
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
-
-            // Google Sign In Button - Premium Design
-            val isSigningIn = signInState is SignInUiState.Loading
 
             // Show sign-in errors
             if (signInState is SignInUiState.Error) {
@@ -224,7 +223,7 @@ fun LoginScreen(
             }
 
             Button(
-                onClick = { },
+                onClick = { haptics.performClick(); activity?.let { viewModel.signInWithGoogle(it) } },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -240,25 +239,28 @@ fun LoginScreen(
                     pressedElevation = 4.dp,
                     disabledElevation = 0.dp
                 ),
-                enabled = false
+                enabled = !isSigningIn && activity != null
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_google),
-                        contentDescription = "Google",
-                        modifier = Modifier.size(24.dp),
-                        alpha = 0.6f
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = "Google Sign In is in works",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (isSigningIn) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_google),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "Continue with Google",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 

@@ -155,15 +155,7 @@ fun ProfileScreen(
                                 contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
                                 onResult = { uri ->
                                     if (uri != null) {
-                                        // Read text from URI and convert to byte array
-                                        // Use captured context
-                                        val inputStream = context.contentResolver.openInputStream(uri)
-                                        val bytes = inputStream?.readBytes()
-                                        inputStream?.close()
-                                        
-                                        if (bytes != null) {
-                                           viewModel.uploadProfilePicture(bytes)
-                                        }
+                                        viewModel.uploadProfilePicture(uri, context)
                                     }
                                 }
                             )

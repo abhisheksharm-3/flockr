@@ -38,13 +38,21 @@ class ChatRepository @Inject constructor(
         )
 
     private suspend fun getMessages(houseId: String): Result<List<Message>> = runCatching {
+        // Fetch only the most recent page (newest first), then reverse to chronological order.
+        // Avoids re-downloading the entire history on every realtime change.
         supabase.from("messages")
             .select(Columns.raw("*, profiles!messages_user_id_fkey(full_name)")) {
                 filter { eq("house_id", houseId) }
-                order("created_at", Order.ASCENDING)
+                order("created_at", Order.DESCENDING)
+                limit(MESSAGE_PAGE_SIZE)
             }
             .decodeList<MessageWithProfile>()
             .map { it.toMessage() }
+            .reversed()
+    }
+
+    private companion object {
+        const val MESSAGE_PAGE_SIZE = 100L
     }
 
     override suspend fun sendMessage(houseId: String, content: String): Result<Unit> =

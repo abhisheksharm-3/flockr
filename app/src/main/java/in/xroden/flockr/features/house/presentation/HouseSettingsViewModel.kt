@@ -133,6 +133,43 @@ class HouseSettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Saves house details and config together, awaiting both so a navigation-on-success can't
+     * cancel the second write (the previous fire-and-forget pair silently dropped config edits).
+     */
+    suspend fun saveSettings(
+        houseId: String,
+        name: String?,
+        address: String?,
+        currencyCode: String? = null,
+        dateFormat: String? = null,
+        firstDayOfWeek: Int? = null,
+        timezone: String? = null
+    ): Result<Unit> {
+        _updateState.value = UpdateHouseSettingsUiState.Loading
+
+        houseRepository.updateHouse(houseId, name, address, null, null).onFailure { e ->
+            _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to update house")
+            return Result.failure(e)
+        }
+        houseRepository.updateHouseConfig(houseId, currencyCode, dateFormat, firstDayOfWeek, timezone).onFailure { e ->
+            _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to update settings")
+            return Result.failure(e)
+        }
+        _updateState.value = UpdateHouseSettingsUiState.Success
+        loadHouseSettings(houseId)
+        return Result.success(Unit)
+    }
+
+    suspend fun leaveHouse(houseId: String): Result<Unit> {
+        _updateState.value = UpdateHouseSettingsUiState.Loading
+        return houseRepository.leaveHouse(houseId)
+            .onSuccess { _updateState.value = UpdateHouseSettingsUiState.Success }
+            .onFailure { e ->
+                _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to leave house")
+            }
+    }
+
     suspend fun deleteHouse(houseId: String): Result<Unit> {
         _updateState.value = UpdateHouseSettingsUiState.Loading
 

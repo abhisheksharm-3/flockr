@@ -138,25 +138,24 @@ fun NavGraphBuilder.houseGraph(navController: NavController) {
                                 }
                             }
                         }
-                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT -> {
+                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT,
+                        NotificationType.SETTLEMENT, NotificationType.PER_DIEM -> {
                             navController.navigate(ExpenseDashboardRoute(houseId))
                         }
-                        NotificationType.SHOPPING -> {
+                        NotificationType.SHOPPING, NotificationType.SHOPPING_ITEM -> {
                             navController.navigate(ShoppingListRoute(houseId))
                         }
-                        NotificationType.CHORE -> {
+                        NotificationType.CHORE, NotificationType.CHORE_ASSIGNED -> {
                             navController.navigate(ChoresRoute(houseId))
                         }
-                        NotificationType.MESSAGE -> {
+                        NotificationType.MESSAGE, NotificationType.MESSAGE_SENT -> {
                             navController.navigate(ChatRoute(houseId))
                         }
-                        NotificationType.GENERAL -> {
+                        NotificationType.DOCUMENT -> {
                             navController.navigate(DocumentsRoute(houseId))
                         }
-                        NotificationType.PER_DIEM -> {
-                            navController.navigate(ExpenseDashboardRoute(houseId))
-                        }
                         else -> {
+                            // GENERAL, MEMBER_JOINED, and any future type land on the house home.
                             navController.navigate(HouseDetailsRoute(houseId))
                         }
                     }

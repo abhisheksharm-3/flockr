@@ -44,7 +44,8 @@ class CreateOneTimeExpenseUseCase @Inject constructor(
         // Validation: If custom split, ensure amounts are provided and sum correctly
         if (splitType == ExpenseSplitType.CUSTOM && customAmounts != null) {
             val totalCustom = customAmounts.values.fold(BigDecimal.ZERO) { acc, value -> acc + value }
-            if (totalCustom != amount) {
+            // compareTo, not !=, so scale differences (100.0 vs 100.00) don't reject a valid split.
+            if (totalCustom.compareTo(amount) != 0) {
                 return Result.failure(IllegalArgumentException("Custom split amounts must sum to total amount"))
             }
         }

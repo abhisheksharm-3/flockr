@@ -121,15 +121,15 @@ fun AddPerDiemEntryScreen(
             ) {
                 Button(
                     onClick = {
-                        val quantityDouble = quantity.toDoubleOrNull()
-                        if (quantityDouble != null && quantityDouble > 0 && config != null) {
+                        val quantityBd = quantity.toBigDecimalOrNull()
+                        if (quantityBd != null && quantityBd > BigDecimal.ZERO && config != null) {
                             isLoading = true
                             scope.launch {
                                 try {
                                     viewModel.createPerDiemEntry(
                                         houseId = houseId,
                                         configId = configId,
-                                        quantity = BigDecimal(quantityDouble),
+                                        quantity = quantityBd,
                                         date = LocalDate.parse(date),
                                         itemName = config.itemName,
                                         notes = notes.takeIf { it.isNotBlank() }

@@ -30,9 +30,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import android.content.Intent
 import androidx.compose.animation.fadeOut
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import javax.inject.Inject
 
@@ -71,26 +68,18 @@ class MainActivity : FragmentActivity() {
 
             FlockrTheme(darkTheme = darkTheme) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    FlockrNavigation()
-                    
                     val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
-                    
+
                     LaunchedEffect(intent) {
-                        IntentHandler.extractInviteCode(intent)?.let { setInviteCode(it) }
+                        setInviteCode(IntentHandler.extractInviteCode(intent))
                     }
 
-                    if (inviteCode != null) {
-                        AlertDialog(
-                            onDismissRequest = { setInviteCode(null) },
-                            title = { Text("Invite Code Received") },
-                            text = { Text("Open the app and use code: $inviteCode to join the household.") },
-                            confirmButton = {
-                                TextButton(onClick = { setInviteCode(null) }) {
-                                    Text("Got it")
-                                }
-                            }
-                        )
-                    }
+                    // Pass any invite code into navigation, which routes to the join preview
+                    // once the user is authenticated (or right away if already signed in).
+                    FlockrNavigation(
+                        initialInviteCode = inviteCode,
+                        onInviteConsumed = { setInviteCode(null) }
+                    )
 
                     AnimatedVisibility(
                         visible = isAppLocked,

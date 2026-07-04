@@ -21,13 +21,13 @@ object BigDecimalSerializer : KSerializer<BigDecimal> {
     }
 
     override fun deserialize(decoder: Decoder): BigDecimal {
-        if (decoder is kotlinx.serialization.json.JsonDecoder) {
-            val element = decoder.decodeJsonElement()
-            if (element is kotlinx.serialization.json.JsonPrimitive) {
-                return BigDecimal(element.content)
-            }
+        val raw = if (decoder is kotlinx.serialization.json.JsonDecoder) {
+            (decoder.decodeJsonElement() as? kotlinx.serialization.json.JsonPrimitive)?.content
+        } else {
+            decoder.decodeString()
         }
-        return BigDecimal(decoder.decodeString())
+        // A malformed/empty/null money value must not crash decoding of the whole row.
+        return raw?.toBigDecimalOrNull() ?: BigDecimal.ZERO
     }
 }
 

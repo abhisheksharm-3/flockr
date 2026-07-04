@@ -41,7 +41,13 @@ class BalanceViewModel @Inject constructor(
     fun loadBalances(houseId: String) {
         viewModelScope.launch {
             _balanceState.value = BalanceUiState.Loading
-            analyticsRepository.getUserBalances(houseId).fold(
+            val userId = houseRepository.getCurrentUserId()
+            if (userId == null) {
+                _balanceState.value = BalanceUiState.Error("You are not signed in")
+                return@launch
+            }
+            // Pairwise balances relative to the current user — correct for houses of any size.
+            analyticsRepository.getPairwiseBalances(houseId, userId).fold(
                 onSuccess = { balances ->
                     _balanceState.value = BalanceUiState.Success(balances)
                 },

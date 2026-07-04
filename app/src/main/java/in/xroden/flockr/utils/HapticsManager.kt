@@ -13,8 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.xroden.flockr.features.settings.data.ISettingsRepository
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,8 +30,24 @@ class HapticsManager @Inject constructor(
     private val settingsRepository: ISettingsRepository
 ) {
     private val vibrator: Vibrator by lazy {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        vibratorManager.defaultVibrator
+        // VibratorManager is API 31+; minSdk is 29, so fall back to the deprecated getter below it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
+    // Cached preference so click handlers never block the main thread on a DataStore read.
+    @Volatile
+    private var hapticsEnabledCache: Boolean = true
+
+    init {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            settingsRepository.hapticsEnabled.collect { hapticsEnabledCache = it }
+        }
     }
 
     /**
@@ -84,9 +102,7 @@ class HapticsManager @Inject constructor(
      * Perform haptic on a view using system constants (more efficient)
      */
     fun performHapticFeedback(view: View, type: HapticType = HapticType.LIGHT) {
-        runBlocking {
-            if (!isEnabled()) return@runBlocking
-        }
+        if (!isEnabled()) return
 
         val feedbackConstant = when (type) {
             HapticType.LIGHT -> HapticFeedbackConstants.CLOCK_TICK
@@ -100,16 +116,13 @@ class HapticsManager @Inject constructor(
         view.performHapticFeedback(feedbackConstant)
     }
 
-    private suspend fun isEnabled(): Boolean {
-        return settingsRepository.hapticsEnabled.first()
-    }
+    private fun isEnabled(): Boolean = hapticsEnabledCache
 
     /**
-     * Check if haptics are currently enabled (public access for HapticFeedback helper)
+     * Current haptics preference (cached; safe to read from the main thread).
      */
-    suspend fun isHapticsEnabled(): Boolean {
-        return settingsRepository.hapticsEnabled.first()
-    }
+    val isHapticsEnabled: Boolean
+        get() = hapticsEnabledCache
 
     @SuppressLint("MissingPermission")
     private fun vibrate(type: HapticType) {
@@ -165,9 +178,7 @@ class HapticFeedback(private val view: View, private val hapticsManager: Haptics
 
     private fun isEnabled(): Boolean {
         // If no manager available, allow haptics by default
-        return hapticsManager?.let {
-            runBlocking { it.isHapticsEnabled() }
-        } ?: true
+        return hapticsManager?.isHapticsEnabled ?: true
     }
 
     fun performClick() {

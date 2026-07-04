@@ -324,7 +324,8 @@ fun RecurringExpenseCard(
     }
 
     val nextDueDate = getNextDueDate(expense.dueDay, today)
-    val daysUntilDue = nextDueDate.dayOfYear - today.dayOfYear
+    // Use epoch-day difference so year boundaries (Dec -> Jan) don't yield a negative "Overdue".
+    val daysUntilDue = (nextDueDate.toEpochDays() - today.toEpochDays()).toInt()
 
     Card(
         modifier = modifier.fillMaxWidth(),

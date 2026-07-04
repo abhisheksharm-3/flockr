@@ -5,6 +5,7 @@ import `in`.xroden.flockr.data.dto.expense.GetDebtBreakdownParams
 import `in`.xroden.flockr.data.dto.expense.GetMonthlySummaryParams
 import `in`.xroden.flockr.data.dto.expense.GetSpendByCategoryParams
 import `in`.xroden.flockr.data.dto.expense.GetSpendByMemberParams
+import `in`.xroden.flockr.data.dto.expense.GetPairwiseBalancesParams
 import `in`.xroden.flockr.data.dto.expense.GetUserBalancesParams
 import `in`.xroden.flockr.features.expenses.model.MonthlySummary
 import `in`.xroden.flockr.features.expenses.model.SpendByCategory
@@ -25,6 +26,13 @@ class ExpenseAnalyticsRepository @Inject constructor(
         supabase.postgrest.rpc(
             function = "get_user_balances",
             parameters = GetUserBalancesParams(houseId = houseId)
+        ).decodeList<UserBalance>()
+    }
+
+    override suspend fun getPairwiseBalances(houseId: String, userId: String): Result<List<UserBalance>> = runCatching {
+        supabase.postgrest.rpc(
+            function = "get_pairwise_balances",
+            parameters = GetPairwiseBalancesParams(houseId = houseId, userId = userId)
         ).decodeList<UserBalance>()
     }
 

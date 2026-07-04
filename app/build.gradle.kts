@@ -13,24 +13,30 @@ plugins {
 // Read version from properties file
 val versionFile = file("$rootDir/version.properties")
 
-fun readVersionProps(): Pair<String, Int> {
+fun readVersionName(): String {
     if (versionFile.exists()) {
         val props = versionFile.readText()
             .lines()
             .filter { it.isNotBlank() && !it.trim().startsWith("#") && it.contains("=") }
             .associate {
                 val (key, value) = it.split("=", limit = 2)
-                key.trim() to value.trim()
+                // Strip any trailing inline comment (e.g. the release-please annotation).
+                key.trim() to value.substringBefore("#").trim()
             }
-        return Pair(
-            props["VERSION_NAME"] ?: "1.0.0",
-            props["VERSION_CODE"]?.toIntOrNull() ?: 1
-        )
+        return props["VERSION_NAME"] ?: "1.0.0"
     }
-    return Pair("1.0.0", 1)
+    return "1.0.0"
 }
 
-val (appVersionName, appVersionCode) = readVersionProps()
+// versionCode is derived from the semantic version so it always increases monotonically
+// and VERSION_NAME stays the single source of truth (managed by release-please).
+fun versionNameToCode(name: String): Int {
+    val parts = name.split(".").map { it.toIntOrNull() ?: 0 }
+    return parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
+}
+
+val appVersionName = readVersionName()
+val appVersionCode = versionNameToCode(appVersionName)
 
 android {
     namespace = "in.xroden.flockr"

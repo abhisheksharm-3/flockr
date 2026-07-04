@@ -22,12 +22,15 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
@@ -43,6 +46,11 @@ class NotificationRepository @Inject constructor(
 
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
+
+    // App-lifetime scope for channel teardown that must outlive a cancelled flow collector.
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val lenientJson = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     override fun getNotificationsFlow(): Flow<Result<List<Notification>>> {
         val currentUserId = userId ?: return flowOf(Result.success(emptyList()))
@@ -80,7 +88,7 @@ class NotificationRepository @Inject constructor(
             }
 
             awaitClose {
-                launch { runCatching { supabase.realtime.removeChannel(channel) } }
+                cleanupScope.launch { runCatching { supabase.realtime.removeChannel(channel) } }
             }
         }
     }
@@ -91,7 +99,7 @@ class NotificationRepository @Inject constructor(
                 filter { eq("user_id", userId) }
                 order("created_at", Order.DESCENDING)
             }
-        return Json.decodeFromString(ListSerializer(NotificationSerializer), response.data)
+        return lenientJson.decodeFromString(ListSerializer(NotificationSerializer), response.data)
     }
 
     private suspend fun handleNewNotification(action: PostgresAction.Insert) {

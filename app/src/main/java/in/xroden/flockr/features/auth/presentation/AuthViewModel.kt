@@ -37,6 +37,11 @@ class AuthViewModel @Inject constructor(
     private val _signUpState = MutableStateFlow<SignUpUiState>(SignUpUiState.Idle)
     val signUpState: StateFlow<SignUpUiState> = _signUpState.asStateFlow()
 
+    // Non-fatal errors from profile actions (e.g. a failed profile update). Surfaced to the
+    // UI as a message; must NOT flip the user to the unauthenticated shell.
+    private val _actionError = MutableStateFlow<String?>(null)
+    val actionError: StateFlow<String?> = _actionError.asStateFlow()
+
     val profile: StateFlow<Profile?> =
         _uiState.map { state ->
             when (state) {
@@ -91,6 +96,11 @@ class AuthViewModel @Inject constructor(
                     }
                     is SessionStatus.Authenticated -> {
                         _sessionState.value = status
+                        // Show a loader (not the login screen) while the profile loads after a
+                        // fresh sign-in; don't flash on token refresh when already authenticated.
+                        if (_uiState.value !is AuthUiState.Authenticated) {
+                            _uiState.value = AuthUiState.Loading
+                        }
                         loadProfile()
                     }
                     is SessionStatus.NotAuthenticated -> {
@@ -117,10 +127,16 @@ class AuthViewModel @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    _uiState.value = AuthUiState.Error(
-                        message = error.message ?: "Failed to load profile",
-                        cause = error
-                    )
+                    // A transient load failure must not evict an already-authenticated user to
+                    // the login screen; keep the last-good profile and surface a message.
+                    if (_uiState.value is AuthUiState.Authenticated) {
+                        _actionError.value = error.message ?: "Failed to refresh profile"
+                    } else {
+                        _uiState.value = AuthUiState.Error(
+                            message = error.message ?: "Failed to load profile",
+                            cause = error
+                        )
+                    }
                 }
             )
         }
@@ -196,13 +212,15 @@ class AuthViewModel @Inject constructor(
             ).fold(
                 onSuccess = { loadProfile() },
                 onFailure = { error ->
-                    _uiState.value = AuthUiState.Error(
-                        message = error.message ?: "Failed to update profile",
-                        cause = error
-                    )
+                    // Keep the user in the app; a failed update is recoverable, not a logout.
+                    _actionError.value = error.message ?: "Failed to update profile"
                 }
             )
         }
+    }
+
+    fun clearActionError() {
+        _actionError.value = null
     }
 
     fun resetSignInState() {

@@ -37,3 +37,6 @@ out/
 
 # Local export files
 supabase.txt
+
+# MCP server config (may contain access tokens)
+.mcp.json

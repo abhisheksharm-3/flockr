@@ -18,7 +18,14 @@ interface IExpenseAnalyticsRepository {
      * @return List of user balances showing who owes whom.
      */
     suspend fun getUserBalances(houseId: String): Result<List<UserBalance>>
-    
+
+    /**
+     * Gets the net balance between [userId] and every OTHER member of the house.
+     * A positive balance means that member owes [userId]; negative means [userId] owes them.
+     * Correct for houses of any size (unlike [getUserBalances], which is a house-wide net).
+     */
+    suspend fun getPairwiseBalances(houseId: String, userId: String): Result<List<UserBalance>>
+
     /**
      * Gets a breakdown of individual expenses between two members.
      * @param houseId The house context.

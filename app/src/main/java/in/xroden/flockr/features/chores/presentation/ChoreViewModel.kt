@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.data.IChoreRepository
+import `in`.xroden.flockr.features.chores.domain.usecase.CreateChoreUseCase
 import `in`.xroden.flockr.features.chores.ui.ChoreFilter
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import kotlinx.coroutines.Job
@@ -19,7 +20,8 @@ import kotlin.time.Clock
 @HiltViewModel
 class ChoreViewModel @Inject constructor(
     private val choreRepository: IChoreRepository,
-    private val houseRepository: IHouseRepository
+    private val houseRepository: IHouseRepository,
+    private val createChoreUseCase: CreateChoreUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChoreUiState>(ChoreUiState.Loading)
@@ -82,7 +84,7 @@ class ChoreViewModel @Inject constructor(
         viewModelScope.launch {
             _createState.value = CreateChoreUiState.Loading
 
-            choreRepository.createChore(
+            createChoreUseCase(
                 houseId = houseId,
                 taskName = taskName,
                 description = description,

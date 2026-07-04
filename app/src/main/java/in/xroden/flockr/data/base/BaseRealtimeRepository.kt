@@ -11,12 +11,12 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.postgrest.query.filter.FilterOperation
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.launch
 import java.util.UUID
 
 /** Base repository for Supabase realtime data operations. */
@@ -55,12 +55,17 @@ abstract class BaseRealtimeRepository(
                 val updatedResult = retryPolicy.execute { fetchData().getOrThrow() }
                 send(updatedResult)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             send(Result.failure(e))
+            // Complete the flow so the collector's job ends; without this the producer
+            // suspends in awaitClose and a Retry that guards on job.isActive is a no-op.
+            close()
         }
 
         awaitClose {
-            launch { runCatching { supabase.realtime.removeChannel(channel) } }
+            connectionManager.removeChannelAsync(channel)
         }
     }
 }
