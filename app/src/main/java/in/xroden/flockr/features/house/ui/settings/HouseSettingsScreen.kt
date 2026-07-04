@@ -49,6 +49,7 @@ fun HouseSettingsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showLeaveDialog by remember { mutableStateOf(false) }
     var currentUserId by remember { mutableStateOf<String?>(null) }
     
     // Image Picker
@@ -168,25 +169,23 @@ fun HouseSettingsScreen(
                             scope.launch {
                                 val nameChanged = houseName != house?.name
                                 val addressChanged = address != (house?.address ?: "")
-
-                                if (nameChanged || addressChanged) {
-                                    viewModel.updateHouse(
-                                        houseId = houseId,
-                                        name = if (nameChanged) houseName else null,
-                                        address = if (addressChanged) address.takeIf { it.isNotBlank() } else null
-                                    )
-                                }
-
-                                viewModel.updateHouseConfig(
+                                // Single awaited save so house + config both persist; navigation on
+                                // success (LaunchedEffect below) can no longer cancel a pending write.
+                                val result = viewModel.saveSettings(
                                     houseId = houseId,
+                                    name = if (nameChanged) houseName else null,
+                                    address = if (addressChanged) address.takeIf { it.isNotBlank() } else null,
                                     currencyCode = currency,
                                     dateFormat = dateFormat,
                                     firstDayOfWeek = firstDayOfWeek,
                                     timezone = timezone
                                 )
-
                                 isSaving = false
-                                snackbarHostState.showSnackbar("Settings saved")
+                                if (result.isFailure) {
+                                    snackbarHostState.showSnackbar(
+                                        result.exceptionOrNull()?.message ?: "Failed to save settings"
+                                    )
+                                }
                             }
                         },
                         enabled = !isSaving && nameError == null && houseName.isNotBlank()
@@ -652,9 +651,99 @@ fun HouseSettingsScreen(
                             modifier = Modifier.padding(horizontal = 4.dp)
                         )
                     }
+                } else if (currentUserId != null) {
+                    // Leave House Section (non-owners)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = { showLeaveDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Leave House", fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(
+                            text = "You will lose access to this house until you're invited again",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
                 }
             }
         }
+    }
+
+    // Leave Confirmation Dialog
+    if (showLeaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveDialog = false },
+            icon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Leave House?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
+            text = {
+                Text(
+                    "Are you sure you want to leave \"${house?.name}\"? You'll need a new invite to rejoin.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isSaving = true
+                            val result = viewModel.leaveHouse(houseId)
+                            isSaving = false
+                            showLeaveDialog = false
+                            if (result.isSuccess) {
+                                onDeleteHouse()
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    result.exceptionOrNull()?.message ?: "Failed to leave house"
+                                )
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    enabled = !isSaving,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onError,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Leave", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveDialog = false }) {
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
     }
 
     // Delete Confirmation Dialog

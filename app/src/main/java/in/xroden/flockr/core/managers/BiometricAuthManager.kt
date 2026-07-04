@@ -1,6 +1,7 @@
 package `in`.xroden.flockr.core.managers
 
 import android.content.Context
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -18,7 +19,7 @@ class BiometricAuthManager @Inject constructor(
 
     /** Returns true if biometric or device credential authentication is available. */
     fun canAuthenticate(): Boolean =
-        biometricManager.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
+        biometricManager.canAuthenticate(allowedAuthenticators()) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**
      * Shows biometric authentication prompt.
@@ -53,18 +54,28 @@ class BiometricAuthManager @Inject constructor(
             }
         }
 
+        val authenticators = allowedAuthenticators()
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(AUTHENTICATORS)
+            .setAllowedAuthenticators(authenticators)
+            .apply {
+                // Below API 30 the STRONG|DEVICE_CREDENTIAL combination is unsupported and a
+                // device-credential prompt has no negative button, so build() would throw.
+                if (authenticators and BiometricManager.Authenticators.DEVICE_CREDENTIAL == 0) {
+                    setNegativeButtonText("Cancel")
+                }
+            }
             .build()
 
         BiometricPrompt(activity, executor, callback).authenticate(promptInfo)
     }
 
-    companion object {
-        private const val AUTHENTICATORS =
+    private fun allowedAuthenticators(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             BiometricManager.Authenticators.BIOMETRIC_STRONG or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    }
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        } else {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        }
 }

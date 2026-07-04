@@ -18,8 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Person
+import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import `in`.xroden.flockr.features.chores.presentation.CreateChoreUiState
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.datetime.*
 import kotlin.time.Clock
 
@@ -34,9 +39,16 @@ fun AddChoreScreen(
     var description by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    
+    var recurrence by remember { mutableStateOf<ChoreRecurrence?>(null) }
+    var assignedTo by remember { mutableStateOf<String?>(null) }
+    var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
+
     val createState by viewModel.createState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(houseId) {
+        members = viewModel.getHouseMembers(houseId)
+    }
 
     LaunchedEffect(createState) {
         when (createState) {
@@ -111,8 +123,8 @@ fun AddChoreScreen(
                             taskName = taskName,
                             description = description.takeIf { it.isNotBlank() },
                             dueDate = dueDate,
-                            recurrencePattern = null,
-                            assignedTo = null
+                            recurrencePattern = recurrence,
+                            assignedTo = assignedTo
                         )
                     },
                     enabled = taskName.isNotBlank() && createState !is CreateChoreUiState.Loading,
@@ -312,6 +324,100 @@ fun AddChoreScreen(
                     if (dueDate != null) {
                         TextButton(onClick = { dueDate = null }) {
                             Text("Clear")
+                        }
+                    }
+                }
+            }
+
+            // Repeats Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Autorenew, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        Text("Repeats", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val options: List<Pair<String, ChoreRecurrence?>> = listOf(
+                            "Never" to null,
+                            "Daily" to ChoreRecurrence.DAILY,
+                            "Weekly" to ChoreRecurrence.WEEKLY,
+                            "Monthly" to ChoreRecurrence.MONTHLY,
+                            "Yearly" to ChoreRecurrence.YEARLY
+                        )
+                        options.forEach { (label, value) ->
+                            FilterChip(
+                                selected = recurrence == value,
+                                onClick = { recurrence = value },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Assign To Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Person, null, tint = MaterialTheme.colorScheme.secondary)
+                            }
+                        }
+                        Text("Assign To", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = assignedTo == null,
+                            onClick = { assignedTo = null },
+                            label = { Text("Anyone") }
+                        )
+                        members.forEach { member ->
+                            FilterChip(
+                                selected = assignedTo == member.userId,
+                                onClick = { assignedTo = member.userId },
+                                label = { Text(member.fullName ?: member.email) }
+                            )
                         }
                     }
                 }

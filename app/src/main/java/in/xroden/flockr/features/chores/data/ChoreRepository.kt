@@ -15,8 +15,11 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import `in`.xroden.flockr.data.enums.ChoreRecurrence
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Clock
@@ -123,6 +126,29 @@ class ChoreRepository @Inject constructor(
             .update(ChoreUpdate(isCompleted = true, completedBy = userId, completedAt = Clock.System.now())) {
                 filter { eq("id", choreId) }
             }
+
+        // Recurring chore: schedule the next occurrence from the current due date.
+        val pattern = chore?.recurrencePattern
+        val currentDue = chore?.dueDate
+        if (chore != null && pattern != null && currentDue != null) {
+            val nextDue = when (pattern) {
+                ChoreRecurrence.DAILY -> currentDue.plus(DatePeriod(days = 1))
+                ChoreRecurrence.WEEKLY -> currentDue.plus(DatePeriod(days = 7))
+                ChoreRecurrence.MONTHLY -> currentDue.plus(DatePeriod(months = 1))
+                ChoreRecurrence.YEARLY -> currentDue.plus(DatePeriod(years = 1))
+            }
+            supabase.from("chores").insert(
+                ChoreInsert(
+                    houseId = houseId,
+                    taskName = chore.taskName,
+                    description = chore.description,
+                    dueDate = nextDue,
+                    recurrencePattern = pattern,
+                    assignedTo = chore.assignedTo,
+                    createdBy = chore.createdBy ?: userId
+                )
+            )
+        }
 
         notificationService.sendChoreCompleted(houseId, choreId, taskName, userId)
     }

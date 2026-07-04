@@ -111,5 +111,17 @@ class HouseManagementViewModel @Inject constructor(
         return houseInvitationRepository.resendInvitationNotification(houseId, email)
     }
 
+    suspend fun updateMemberRole(
+        houseId: String,
+        userId: String,
+        role: `in`.xroden.flockr.data.enums.HouseMemberRole
+    ): Result<Unit> {
+        return houseRepository.updateMemberRole(houseId, userId, role).onSuccess {
+            loadHouseDetails(houseId)
+        }
+    }
+
+    suspend fun leaveHouse(houseId: String): Result<Unit> = houseRepository.leaveHouse(houseId)
+
     suspend fun getHouseMembers(houseId: String) = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
 }

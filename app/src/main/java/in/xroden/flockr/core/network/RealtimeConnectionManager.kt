@@ -61,6 +61,20 @@ class RealtimeConnectionManager @Inject constructor(
         }
     }
 
+    /**
+     * Fire-and-forget channel removal that runs on the manager's own scope, so it
+     * completes even when the caller's coroutine (e.g. a callbackFlow producer) is
+     * already being cancelled.
+     */
+    fun removeChannelAsync(channel: RealtimeChannel) {
+        scope.launch { runCatching { supabase.realtime.removeChannel(channel) } }
+    }
+
+    /** By-id variant of [removeChannelAsync]; also drops the channel from the registry. */
+    fun removeChannelByIdAsync(channelId: String) {
+        scope.launch { runCatching { removeChannel(channelId) } }
+    }
+
     /** Cleans up all channels. Call on app termination. */
     fun cleanup() {
         scope.launch {

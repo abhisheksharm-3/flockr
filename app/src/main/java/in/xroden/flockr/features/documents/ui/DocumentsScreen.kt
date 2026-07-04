@@ -49,6 +49,26 @@ fun DocumentsScreen(
 
     LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
 
+    LaunchedEffect(Unit) {
+        viewModel.downloadEvent.collect { request ->
+            val safeName = request.fileName.substringAfterLast('/').ifBlank { "document" }
+            val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            val dmRequest = android.app.DownloadManager.Request(android.net.Uri.parse(request.url))
+                .setTitle(safeName)
+                .setDescription("Downloading document")
+                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, safeName)
+            request.mimeType?.let { dmRequest.setMimeType(it) }
+            runCatching { downloadManager.enqueue(dmRequest) }
+                .onSuccess { snackbarHostState.showSnackbar("Downloading $safeName") }
+                .onFailure { snackbarHostState.showSnackbar("Could not start download") }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.messageEvent.collect { snackbarHostState.showSnackbar(it) }
+    }
+
      val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->

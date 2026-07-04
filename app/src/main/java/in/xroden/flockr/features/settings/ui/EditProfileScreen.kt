@@ -50,13 +50,7 @@ fun EditProfileScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            runCatching {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val imageData = inputStream?.readBytes() ?: return@runCatching
-                viewModel.uploadProfilePicture(imageData)
-            }.onFailure {
-                errorMessage = "Failed to load image: ${it.message}"
-            }
+            viewModel.uploadProfilePicture(it, context)
         }
     }
 

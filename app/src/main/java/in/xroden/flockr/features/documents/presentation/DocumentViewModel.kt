@@ -2,6 +2,7 @@ package `in`.xroden.flockr.features.documents.presentation
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +39,12 @@ class DocumentViewModel @Inject constructor(
 
     private val _viewDocumentEvent = MutableSharedFlow<String>()
     val viewDocumentEvent = _viewDocumentEvent.asSharedFlow()
+
+    private val _downloadEvent = MutableSharedFlow<DownloadRequest>()
+    val downloadEvent = _downloadEvent.asSharedFlow()
+
+    private val _messageEvent = MutableSharedFlow<String>()
+    val messageEvent = _messageEvent.asSharedFlow()
 
     private var currentHouseId: String? = null
 
@@ -98,16 +105,24 @@ class DocumentViewModel @Inject constructor(
         viewModelScope.launch {
             _uploadState.value = UploadDocumentUiState.Uploading
 
-            val fileData = withContext(Dispatchers.IO) {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val readResult = withContext(Dispatchers.IO) {
+                runCatching {
+                    // Check the declared size BEFORE reading, so a huge pick can't OOM the app.
+                    val size = queryFileSize(context, uri)
+                    if (size != null && size > MAX_UPLOAD_SIZE_BYTES) {
+                        throw IllegalArgumentException("File is too large (max 10 MB)")
+                    }
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw java.io.IOException("Could not read file")
+                    val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                    bytes to mimeType
+                }
             }
 
-            if (fileData == null) {
-                _uploadState.value = UploadDocumentUiState.Error("Could not read file")
+            val (fileData, mimeType) = readResult.getOrElse { error ->
+                _uploadState.value = UploadDocumentUiState.Error(error.message ?: "Could not read file")
                 return@launch
             }
-
-            val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
 
             documentRepository.uploadDocument(houseId, fileName, fileData, mimeType).fold(
                 onSuccess = {
@@ -200,10 +215,32 @@ class DocumentViewModel @Inject constructor(
     }
 
     fun downloadDocument(document: Document) {
-        viewDocument(document)
+        viewModelScope.launch {
+            documentRepository.getDocumentUrl(document.storagePath, document.houseId).fold(
+                onSuccess = { url ->
+                    _downloadEvent.emit(DownloadRequest(url, document.fileName, document.mimeType))
+                },
+                onFailure = { error ->
+                    _messageEvent.emit(error.message ?: "Could not download file")
+                }
+            )
+        }
+    }
+
+    private fun queryFileSize(context: Context, uri: Uri): Long? =
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) cursor.getLong(index) else null
+        }
+
+    companion object {
+        // Keep in sync with the repository's authoritative size limit.
+        private const val MAX_UPLOAD_SIZE_BYTES = 10L * 1024 * 1024
     }
 }
 
 sealed class DocumentEvent {
     data object DocumentUploaded : DocumentEvent()
 }
+
+data class DownloadRequest(val url: String, val fileName: String, val mimeType: String?)

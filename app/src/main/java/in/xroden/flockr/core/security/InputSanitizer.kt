@@ -3,13 +3,14 @@ package `in`.xroden.flockr.core.security
 /** Input sanitization utilities for preventing injection attacks. */
 object InputSanitizer {
 
-    /** Sanitizes text input to prevent XSS attacks by escaping HTML special characters. */
+    /**
+     * Normalizes free-text input for storage. This is a native app persisting to
+     * PostgREST (parameterized) and rendering with Compose Text (no HTML sink), so
+     * HTML-escaping would only corrupt data (e.g. "Mom's" -> "Mom&#39;s"). We only
+     * trim and strip control characters here; injection safety is the SDK's job.
+     */
     fun sanitizeText(input: String): String = input
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&#39;")
+        .filter { it == '\n' || it == '\t' || it.code >= 32 }
         .trim()
 
     /** Sanitizes JSON strings by escaping control characters. */

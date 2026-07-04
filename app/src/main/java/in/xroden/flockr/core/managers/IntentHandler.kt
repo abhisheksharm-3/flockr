@@ -28,11 +28,18 @@ object IntentHandler {
     private fun extractFromDeepLink(data: Uri?): String? {
         data ?: return null
 
-        if (data.scheme != "flockr" && data.host != "flockr.app") return null
+        // Manifest-registered custom scheme: flockr://invite/<code> (host = "invite").
+        if (data.scheme == "flockr" && data.host == "invite") {
+            data.getQueryParameter("code")?.let { return validateInviteCode(it) }
+            return data.pathSegments.firstOrNull()?.let { validateInviteCode(it) }
+        }
 
-        val pathSegments = data.pathSegments
-        if (pathSegments.size >= 2 && pathSegments[0] == "invite") {
-            return validateInviteCode(pathSegments[1])
+        // Optional web link form: https://flockr.app/invite/<code>.
+        if (data.host == "flockr.app") {
+            val segments = data.pathSegments
+            if (segments.size >= 2 && segments[0] == "invite") {
+                return validateInviteCode(segments[1])
+            }
         }
 
         return null

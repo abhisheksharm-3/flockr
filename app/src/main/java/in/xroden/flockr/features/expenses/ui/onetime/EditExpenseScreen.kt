@@ -432,8 +432,8 @@ fun EditExpenseScreen(
                 // Save Button
                 Button(
                     onClick = {
-                        val amt = amount.toDoubleOrNull()
-                        if (amt == null) {
+                        val amt = amount.toBigDecimalOrNull()
+                        if (amt == null || amt <= BigDecimal.ZERO) {
                             scope.launch { snackbarHostState.showSnackbar("Please enter a valid amount") }
                             return@Button
                         }
@@ -448,7 +448,9 @@ fun EditExpenseScreen(
                         }
                         val splitAmounts = if (enableSplitting && selectedMembers.isNotEmpty()) {
                             if (splitEqually) {
-                                val splitAmount = BigDecimal.valueOf(amt).divide(BigDecimal(selectedMembers.size), 2, RoundingMode.HALF_UP)
+                                // Divisor must include the payer (who has no split row), matching
+                                // create semantics; dividing by selectedMembers.size alone overcharges.
+                                val splitAmount = amt.divide(BigDecimal(selectedMembers.size + 1), 2, RoundingMode.HALF_UP)
                                 selectedMembers.associateWith { splitAmount }
                             } else {
                                 selectedMembers.mapNotNull { userId ->
@@ -457,13 +459,13 @@ fun EditExpenseScreen(
                             }
                         } else null
                         viewModel.updateOneTimeExpense(
-                            houseId = houseId, expenseId = expenseId, name = name, amount = BigDecimal.valueOf(amt),
+                            houseId = houseId, expenseId = expenseId, name = name, amount = amt,
                             category = category, date = parsedDate, notes = notes.takeIf { it.isNotBlank() }, splitAmounts = splitAmounts
                         )
                         onNavigateBack()
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = !isSaving && name.isNotBlank() && amount.toDoubleOrNull() != null && date.isNotBlank(),
+                    enabled = !isSaving && name.isNotBlank() && amount.toBigDecimalOrNull() != null && date.isNotBlank(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {

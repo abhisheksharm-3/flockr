@@ -23,8 +23,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.R
-import `in`.xroden.flockr.features.auth.presentation.AuthUiState
 import `in`.xroden.flockr.features.auth.presentation.SignInUiState
+import `in`.xroden.flockr.features.auth.presentation.SignUpUiState
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
@@ -40,8 +40,11 @@ fun SignupScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    val uiState by viewModel.uiState.collectAsState()
+    val signUpState by viewModel.signUpState.collectAsState()
     val signInState by viewModel.signInState.collectAsState()
+    val isBusy = signUpState is SignUpUiState.Loading || signInState is SignInUiState.Loading
+    val errorMessage = (signUpState as? SignUpUiState.Error)?.message
+        ?: (signInState as? SignInUiState.Error)?.message
 
     // Get Activity context for Credential Manager
     val context = LocalContext.current
@@ -219,7 +222,7 @@ fun SignupScreen(
                 }
             }
 
-            if (uiState is AuthUiState.Error) {
+            if (errorMessage != null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -227,9 +230,8 @@ fun SignupScreen(
                     ),
                     shape = MaterialTheme.shapes.medium
                 ) {
-                    val error = (uiState as? AuthUiState.Error)?.message ?: "Unknown error"
                     Text(
-                        text = error,
+                        text = errorMessage,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(16.dp)
@@ -238,7 +240,7 @@ fun SignupScreen(
             }
 
             FlockrPrimaryButton(
-                text = if (uiState is AuthUiState.Loading) "Creating Account..." else "Create Account",
+                text = if (signUpState is SignUpUiState.Loading) "Creating Account..." else "Create Account",
                 onClick = {
                     haptics.performClick()
                     if (password == confirmPassword) {
@@ -246,13 +248,13 @@ fun SignupScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uiState !is AuthUiState.Loading &&
+                enabled = !isBusy &&
                         fullName.isNotBlank() &&
                         email.isNotBlank() &&
                         password.isNotBlank() &&
                         confirmPassword.isNotBlank() &&
                         password == confirmPassword,
-                isLoading = uiState is AuthUiState.Loading
+                isLoading = signUpState is SignUpUiState.Loading
             )
 
             // Divider with text
@@ -271,11 +273,9 @@ fun SignupScreen(
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
-            // Google Sign In Button - Premium Design
-            val isSigningIn = signInState is SignInUiState.Loading
-
+            // Google Sign In Button
             Button(
-                onClick = { },
+                onClick = { haptics.performClick(); activity?.let { viewModel.signInWithGoogle(it) } },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -291,25 +291,28 @@ fun SignupScreen(
                     pressedElevation = 4.dp,
                     disabledElevation = 0.dp
                 ),
-                enabled = false
+                enabled = !isBusy && activity != null
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_google),
-                        contentDescription = "Google",
-                        modifier = Modifier.size(24.dp),
-                        alpha = 0.6f
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = "Google Sign In is in works",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (signInState is SignInUiState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_google),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "Continue with Google",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 

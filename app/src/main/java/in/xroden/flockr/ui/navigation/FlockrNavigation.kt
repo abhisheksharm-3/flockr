@@ -113,23 +113,21 @@ fun FlockrNavigation(
                                                 navController.navigateToHome(clearBackStack = true)
                                             }
                                         }
-                                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT -> {
+                                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT,
+                                        NotificationType.SETTLEMENT, NotificationType.PER_DIEM -> {
                                             navController.navigateToExpenseDashboard(houseId)
                                         }
-                                        NotificationType.SHOPPING -> {
+                                        NotificationType.SHOPPING, NotificationType.SHOPPING_ITEM -> {
                                             navController.navigateToShoppingList(houseId)
                                         }
-                                        NotificationType.CHORE -> {
+                                        NotificationType.CHORE, NotificationType.CHORE_ASSIGNED -> {
                                             navController.navigateToChores(houseId)
                                         }
-                                        NotificationType.MESSAGE -> {
+                                        NotificationType.MESSAGE, NotificationType.MESSAGE_SENT -> {
                                             navController.navigateToChat(houseId)
                                         }
-                                        NotificationType.GENERAL -> {
+                                        NotificationType.DOCUMENT -> {
                                             navController.navigateToDocuments(houseId)
-                                        }
-                                        NotificationType.PER_DIEM -> {
-                                            navController.navigateToExpenseDashboard(houseId)
                                         }
                                         else -> {
                                             navController.navigateToHouseDetails(houseId)

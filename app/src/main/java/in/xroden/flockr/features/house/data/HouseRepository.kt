@@ -97,7 +97,8 @@ class HouseRepository @Inject constructor(
             }
 
             awaitClose {
-                launch { realtimeConnectionManager.removeChannel(channelId) }
+                // Remove on the manager's own scope; launching here would be cancelled with the flow.
+                realtimeConnectionManager.removeChannelByIdAsync(channelId)
             }
         }
     }

@@ -131,7 +131,7 @@ fun NotificationScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(state.notifications) { notification ->
+                        items(state.notifications, key = { it.id }) { notification ->
                             NotificationItem(
                                 notification = notification,
                                 onClick = {

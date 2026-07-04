@@ -16,6 +16,8 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -157,10 +159,18 @@ class ExpenseRepository @Inject constructor(
             }
 
         if (splitAmounts != null) {
+            // The payer holds no split row. Exclude the expense's actual payer, not the
+            // caller — an editor who isn't the payer must not corrupt the split set.
+            val payerId = runCatching {
+                supabase.from("one_time_expenses")
+                    .select(Columns.list("paid_by")) { filter { eq("id", expenseId) } }
+                    .decodeSingle<PaidByRow>().paidBy
+            }.getOrNull() ?: authenticatedUserId
+
             supabase.from("expense_splits").delete { filter { eq("expense_id", expenseId) } }
 
             val validSplits = splitAmounts.filter { (splitUserId, _) ->
-                splitUserId != authenticatedUserId
+                splitUserId != payerId
             }.map { (splitUserId, amountOwed) ->
                 ExpenseSplitInsert(expenseId = expenseId, userId = splitUserId, amountOwed = amountOwed)
             }
@@ -175,4 +185,7 @@ class ExpenseRepository @Inject constructor(
         supabase.from("expense_splits").delete { filter { eq("expense_id", expenseId) } }
         supabase.from("one_time_expenses").delete { filter { eq("id", expenseId) } }
     }
+
+    @Serializable
+    private data class PaidByRow(@SerialName("paid_by") val paidBy: String)
 }

@@ -385,6 +385,16 @@ fun ManageMembersScreen(
                             } else {
                                 showRemoveDialog = member
                             }
+                        },
+                        onChangeRole = { newRole ->
+                            scope.launch {
+                                val result = viewModel.updateMemberRole(houseId, member.userId, newRole)
+                                members = viewModel.getHouseMembers(houseId)
+                                snackbarHostState.showSnackbar(
+                                    if (result.isSuccess) "Updated ${member.fullName ?: member.email}'s role"
+                                    else result.exceptionOrNull()?.message ?: "Failed to update role"
+                                )
+                            }
                         }
                     )
                 }
@@ -403,8 +413,12 @@ fun MemberListItem(
     member: MemberWithProfile,
     currentUserRole: String?,
     isOwner: Boolean,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onChangeRole: (HouseMemberRole) -> Unit = {}
 ) {
+    // Only the owner can promote/demote, and never the owner's own row.
+    val canChangeRole = currentUserRole == HouseMemberRole.OWNER.name &&
+        member.role != HouseMemberRole.OWNER
     val canDelete = when {
         member.role == HouseMemberRole.OWNER -> false
         member.role == HouseMemberRole.ADMIN && currentUserRole != HouseMemberRole.OWNER.name -> false
@@ -506,6 +520,33 @@ fun MemberListItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Role menu (owner only): promote to Admin / demote to Member.
+            if (canChangeRole) {
+                var roleMenuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { roleMenuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Change role")
+                    }
+                    DropdownMenu(
+                        expanded = roleMenuExpanded,
+                        onDismissRequest = { roleMenuExpanded = false }
+                    ) {
+                        if (member.role != HouseMemberRole.ADMIN) {
+                            DropdownMenuItem(
+                                text = { Text("Make admin") },
+                                onClick = { roleMenuExpanded = false; onChangeRole(HouseMemberRole.ADMIN) }
+                            )
+                        }
+                        if (member.role != HouseMemberRole.MEMBER) {
+                            DropdownMenuItem(
+                                text = { Text("Make member") },
+                                onClick = { roleMenuExpanded = false; onChangeRole(HouseMemberRole.MEMBER) }
+                            )
+                        }
+                    }
+                }
             }
 
             // Delete Button (only shown if user has permission)

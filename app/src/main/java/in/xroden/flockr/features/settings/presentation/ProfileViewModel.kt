@@ -1,15 +1,19 @@
 package `in`.xroden.flockr.features.settings.presentation
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.IAuthRepository
 import `in`.xroden.flockr.core.storage.IStorageRepository
 import `in`.xroden.flockr.utils.BitmapUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -77,10 +81,11 @@ class ProfileViewModel @Inject constructor(
         _updateState.value = UpdateProfileUiState.Idle
     }
 
-    fun uploadProfilePicture(imageData: ByteArray) {
+    /** Reads, compresses and uploads the picked image entirely off the main thread. */
+    fun uploadProfilePicture(uri: Uri, context: Context) {
         viewModelScope.launch {
             _updateState.value = UpdateProfileUiState.Loading
-            
+
             val currentUser = authRepository.currentUser
             if (currentUser == null) {
                 _updateState.value = UpdateProfileUiState.Error("User not logged in")
@@ -88,7 +93,47 @@ class ProfileViewModel @Inject constructor(
             }
 
             runCatching {
-                val compressedBytes = bitmapUtils.compressImage(imageData)
+                val compressedBytes = withContext(Dispatchers.IO) {
+                    val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw IllegalStateException("Could not read image")
+                    bitmapUtils.compressImage(raw)
+                }
+                val fileName = "${currentUser.id}/avatar_${System.currentTimeMillis()}.jpg"
+                val publicUrl = storageRepository.uploadFile("avatars", fileName, compressedBytes)
+                    .getOrThrow()
+                authRepository.updateProfile(
+                    fullName = null,
+                    hasCompletedOnboarding = null,
+                    avatarUrl = publicUrl
+                ).getOrThrow()
+            }.fold(
+                onSuccess = {
+                    _updateState.value = UpdateProfileUiState.Success
+                    _uiState.value = ProfileUiState.Loading
+                    loadProfile()
+                },
+                onFailure = { error ->
+                    _updateState.value = UpdateProfileUiState.Error(
+                        message = error.message ?: "Failed to upload profile picture"
+                    )
+                }
+            )
+        }
+    }
+
+    fun uploadProfilePicture(imageData: ByteArray) {
+        viewModelScope.launch {
+            _updateState.value = UpdateProfileUiState.Loading
+
+            val currentUser = authRepository.currentUser
+            if (currentUser == null) {
+                _updateState.value = UpdateProfileUiState.Error("User not logged in")
+                return@launch
+            }
+
+            runCatching {
+                // Bitmap decode/compress is CPU-heavy; keep it off the main thread.
+                val compressedBytes = withContext(Dispatchers.IO) { bitmapUtils.compressImage(imageData) }
                 val fileName = "${currentUser.id}/avatar_${System.currentTimeMillis()}.jpg"
                 val publicUrl = storageRepository.uploadFile("avatars", fileName, compressedBytes)
                     .getOrThrow()
