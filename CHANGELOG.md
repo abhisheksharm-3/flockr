@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1](https://github.com/abhisheksharm-3/flockr/compare/v1.10.0...v1.10.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* atomic expense-update & recurring-payment RPCs, scoped to their house ([#9](https://github.com/abhisheksharm-3/flockr/issues/9)) ([388d09a](https://github.com/abhisheksharm-3/flockr/commit/388d09ad119e52067377f7afe5d8009a31b4c4de))
+
 ## [1.10.0](https://github.com/abhisheksharm-3/flockr/compare/v1.9.1...v1.10.0) (2026-07-04)
 
 
