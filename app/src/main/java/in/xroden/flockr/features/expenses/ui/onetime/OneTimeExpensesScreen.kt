@@ -31,6 +31,7 @@ import java.util.Locale
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,7 @@ fun OneTimeExpensesScreen(
     onNavigateToEditExpense: (String) -> Unit,
     viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val expenseState by viewModel.expenseState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     
@@ -129,7 +131,7 @@ fun OneTimeExpensesScreen(
                 } else {
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
-                        onRefresh = { viewModel.loadExpenses(houseId) },
+                        onRefresh = { haptics.gestureThreshold(); viewModel.loadExpenses(houseId) },
                         state = pullToRefreshState,
                         modifier = Modifier.fillMaxSize().padding(padding)
                     ) {
@@ -161,7 +163,7 @@ fun OneTimeExpensesScreen(
                                             item {
                                                 FilterChip(
                                                     selected = selectedCategory == null,
-                                                    onClick = { selectedCategory = null },
+                                                    onClick = { haptics.select(); selectedCategory = null },
                                                     label = { Text("All") }
                                                 )
                                             }
@@ -169,7 +171,7 @@ fun OneTimeExpensesScreen(
                                                 val cat = categories[index]
                                                 FilterChip(
                                                     selected = selectedCategory == cat,
-                                                    onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
+                                                    onClick = { haptics.select(); selectedCategory = if (selectedCategory == cat) null else cat },
                                                     label = { Text(cat) }
                                                 )
                                             }
@@ -183,7 +185,7 @@ fun OneTimeExpensesScreen(
                                         ) {
                                             FilterChip(
                                                 selected = true,
-                                                onClick = { selectedUserId = null },
+                                                onClick = { haptics.select(); selectedUserId = null },
                                                 label = { Text("User Filter Active") },
                                                 trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(16.dp)) }
                                             )
@@ -232,7 +234,7 @@ fun OneTimeExpensesScreen(
                         Text("Error loading expenses", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                         // Fallback message, avoiding raw error dump if possible, or keeping it but styled
                         Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Button(onClick = { viewModel.loadExpenses(houseId) }) {
+                        Button(onClick = { haptics.tap(); viewModel.loadExpenses(houseId) }) {
                             Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Retry")
@@ -255,6 +257,7 @@ fun ModernExpenseCard(
     modifier: Modifier = Modifier,
     viewModel: OneTimeExpenseViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -269,6 +272,7 @@ fun ModernExpenseCard(
             confirmButton = {
                 Button(
                     onClick = {
+                        haptics.error()
                         showDeleteDialog = false
                         viewModel.deleteOneTimeExpense(houseId, expense.id)
                         scope.launch { snackbarHostState.showSnackbar("Expense deleted") }
@@ -361,6 +365,7 @@ fun ModernExpenseCard(
 
 @Composable
 fun EmptyExpensesState(modifier: Modifier = Modifier, onAddExpense: () -> Unit) {
+    val haptics = rememberHaptics()
     Column(modifier = modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(
             modifier = Modifier.size(80.dp).clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
@@ -373,7 +378,7 @@ fun EmptyExpensesState(modifier: Modifier = Modifier, onAddExpense: () -> Unit) 
         Spacer(Modifier.height(8.dp))
         Text("Start tracking your household expenses by adding your first one", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Spacer(Modifier.height(32.dp))
-        Button(onClick = onAddExpense, shape = MaterialTheme.shapes.medium, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+        Button(onClick = { haptics.tap(); onAddExpense() }, shape = MaterialTheme.shapes.medium, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
             Icon(Icons.Default.Add, null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text("Add First Expense", fontWeight = FontWeight.SemiBold)

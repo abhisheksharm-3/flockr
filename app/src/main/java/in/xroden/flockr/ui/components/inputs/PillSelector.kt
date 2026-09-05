@@ -16,7 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Standardized pill selector for tab-like switching.
@@ -29,7 +29,7 @@ fun PillSelector(
     modifier: Modifier = Modifier,
     counts: List<Int>? = null
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     Row(
         modifier = modifier
@@ -58,7 +58,7 @@ fun PillSelector(
                     .clip(CircleShape)
                     .background(backgroundColor)
                     .clickable {
-                        haptics.performSelection()
+                        haptics.select()
                         onTabSelected(index)
                     }
                     .padding(vertical = Spacing.md),
@@ -107,7 +107,7 @@ fun FilterChipRow(
     onOptionToggled: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -118,7 +118,7 @@ fun FilterChipRow(
             FilterChip(
                 selected = isSelected,
                 onClick = {
-                    haptics.performSelection()
+                    haptics.select()
                     onOptionToggled(index)
                 },
                 label = {

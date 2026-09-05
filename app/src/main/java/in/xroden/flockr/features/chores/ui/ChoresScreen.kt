@@ -32,6 +32,7 @@ import `in`.xroden.flockr.utils.getTodayInHouseTimezone
 import kotlinx.datetime.*
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 // Helper functions using pure kotlinx-datetime
 private fun isOverdue(dateString: String, houseConfig: HouseConfig?): Boolean {
@@ -191,6 +192,7 @@ private fun ChoresFilterHeader(
     onFilterChanged: (ChoreFilter) -> Unit,
     onClearCompleted: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         val selectedTab = if (filterOption == ChoreFilter.COMPLETED) 1 else 0
         val tabs = listOf("Active", "Completed")
@@ -215,7 +217,7 @@ private fun ChoresFilterHeader(
 
             if (filterOption == ChoreFilter.COMPLETED && filteredCount > 0) {
                 TextButton(
-                    onClick = onClearCompleted,
+                    onClick = { haptics.error(); onClearCompleted() },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
@@ -294,6 +296,7 @@ private fun ChoreCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     var showMenu by remember { mutableStateOf(false) }
     val isOverdueChore = chore.dueDate?.let { isOverdue(it.toString(), houseConfig) && !chore.isCompleted } ?: false
 
@@ -321,7 +324,7 @@ private fun ChoreCard(
             ) {
                 // Modern Checkbox
                 Surface(
-                    onClick = onToggleComplete,
+                    onClick = { haptics.toggle(!chore.isCompleted); onToggleComplete() },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     color = if (chore.isCompleted) 
                         MaterialTheme.colorScheme.primary 
@@ -395,7 +398,7 @@ private fun ChoreCard(
                         }
                         DropdownMenuItem(
                             text = { Text("Delete") },
-                            onClick = { showMenu = false; onDelete() },
+                            onClick = { showMenu = false; haptics.error(); onDelete() },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Delete,
@@ -501,6 +504,7 @@ private fun EditChoreDialog(
     onDismiss: () -> Unit,
     onSave: (String, String?, LocalDate?, String?) -> Unit
 ) {
+    val haptics = rememberHaptics()
     var taskName by remember { mutableStateOf(chore.taskName) }
     var description by remember { mutableStateOf(chore.description ?: "") }
     var dueDate by remember { mutableStateOf<LocalDate?>(chore.dueDate) }
@@ -562,7 +566,7 @@ private fun EditChoreDialog(
                    TextButton(onClick = onDismiss) { Text("Cancel") }
                    Spacer(Modifier.width(8.dp))
                    Button(
-                       onClick = { onSave(taskName, description.takeIf { it.isNotBlank() }, dueDate, null) },
+                       onClick = { haptics.tap(); onSave(taskName, description.takeIf { it.isNotBlank() }, dueDate, null) },
                        enabled = taskName.isNotBlank()
                    ) { Text("Save") }
                 }

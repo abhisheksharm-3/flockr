@@ -33,6 +33,7 @@ import `in`.xroden.flockr.features.house.presentation.HouseSettingsViewModel
 import `in`.xroden.flockr.features.house.presentation.HouseSettingsUiState
 import `in`.xroden.flockr.features.house.presentation.UpdateHouseSettingsUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +44,7 @@ fun HouseSettingsScreen(
     onDeleteHouse: () -> Unit = {},
     viewModel: HouseSettingsViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     // UI State
     val settingsUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
@@ -112,12 +114,14 @@ fun HouseSettingsScreen(
         when (val state = updateState) {
             is UpdateHouseSettingsUiState.Success -> {
                 isSaving = false
+                haptics.success()
                 viewModel.resetUpdateState()
                 snackbarHostState.showSnackbar("Settings saved successfully")
                 onNavigateBack()
             }
             is UpdateHouseSettingsUiState.Error -> {
                 isSaving = false
+                haptics.error()
                 viewModel.resetUpdateState()
                 snackbarHostState.showSnackbar(state.message)
             }
@@ -289,6 +293,7 @@ private fun HouseSettingsTopBar(
     onNavigateBack: () -> Unit,
     onSave: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -309,7 +314,7 @@ private fun HouseSettingsTopBar(
         },
         actions = {
             TextButton(
-                onClick = onSave,
+                onClick = { haptics.tap(); onSave() },
                 enabled = saveEnabled
             ) {
                 if (isSaving) {
@@ -752,6 +757,7 @@ private fun ActivityLogSection(onNavigateToAuditLog: () -> Unit) {
 
 @Composable
 private fun DangerZoneSection(onDeleteClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Spacer(modifier = Modifier.height(24.dp))
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     Spacer(modifier = Modifier.height(24.dp))
@@ -766,7 +772,7 @@ private fun DangerZoneSection(onDeleteClick: () -> Unit) {
         )
 
         OutlinedButton(
-            onClick = onDeleteClick,
+            onClick = { haptics.tap(); onDeleteClick() },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = MaterialTheme.colorScheme.error
@@ -794,13 +800,14 @@ private fun DangerZoneSection(onDeleteClick: () -> Unit) {
 
 @Composable
 private fun LeaveHouseSection(onLeaveClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Spacer(modifier = Modifier.height(24.dp))
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     Spacer(modifier = Modifier.height(24.dp))
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedButton(
-            onClick = onLeaveClick,
+            onClick = { haptics.tap(); onLeaveClick() },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = MaterialTheme.colorScheme.error
@@ -832,6 +839,7 @@ private fun LeaveHouseDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -851,7 +859,7 @@ private fun LeaveHouseDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { haptics.error(); onConfirm() },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 enabled = !isSaving,
                 shape = MaterialTheme.shapes.medium
@@ -882,6 +890,7 @@ private fun DeleteHouseDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -914,7 +923,7 @@ private fun DeleteHouseDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { haptics.error(); onConfirm() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),

@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
 import `in`.xroden.flockr.features.shopping.presentation.ShoppingUiState
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,7 +46,7 @@ fun ShoppingListScreen(
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     LaunchedEffect(houseId) {
         viewModel.loadShoppingItems(houseId)
@@ -92,7 +92,7 @@ fun ShoppingListScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Shopping List", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
@@ -166,7 +166,7 @@ fun ShoppingListScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         TextButton(
-                                            onClick = { haptics.performHeavyClick(); viewModel.clearPurchasedItems(houseId) },
+                                            onClick = { haptics.error(); viewModel.clearPurchasedItems(houseId) },
                                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                                         ) {
                                             Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
@@ -182,16 +182,16 @@ fun ShoppingListScreen(
                                     item = item,
                                     onChecked = {
                                         if (!item.isPurchased) {
-                                            haptics.performSuccess()
+                                            haptics.toggleOn()
                                             scope.launch {
                                                 viewModel.markAsPurchased(item.id, houseId, item.itemName)
                                                 showConvertDialog = item
                                             }
                                         }
                                     },
-                                    onEdit = { haptics.performClick(); showEditDialog = item },
+                                    onEdit = { showEditDialog = item },
                                     onDelete = {
-                                        haptics.performHeavyClick()
+                                        haptics.error()
                                         scope.launch {
                                             viewModel.deleteItem(item.id, houseId)
                                             snackbarHostState.showSnackbar("Item removed")
@@ -209,7 +209,7 @@ fun ShoppingListScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
                             Text("Error loading shopping list", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                            Button(onClick = { haptics.performClick(); viewModel.loadShoppingItems(houseId) }) {
+                            Button(onClick = { haptics.tap(); viewModel.loadShoppingItems(houseId) }) {
                                 Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Retry")

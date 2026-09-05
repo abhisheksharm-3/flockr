@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.datetime.*
 import java.util.Locale
 import kotlin.time.Clock
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Unified Month Selector component for consistent styling across all screens.
@@ -33,6 +34,7 @@ fun MonthSelector(
     subtitle: String? = null,
     timezone: String? = null
 ) {
+    val haptics = rememberHaptics()
     val currentMonthStart = remember(timezone) {
         val tz = timezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
         val now = Clock.System.now().toLocalDateTime(tz).date
@@ -65,7 +67,7 @@ fun MonthSelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilledTonalIconButton(
-                    onClick = { onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH)) },
+                    onClick = { haptics.select(); onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH)) },
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     )
@@ -97,7 +99,7 @@ fun MonthSelector(
                 }
 
                 FilledTonalIconButton(
-                    onClick = { if (!isFutureDisabled) onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH)) },
+                    onClick = { if (!isFutureDisabled) { haptics.select(); onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH)) } },
                     enabled = !isFutureDisabled,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -116,7 +118,7 @@ fun MonthSelector(
 
             if (showClearButton && onClearFilter != null) {
                 OutlinedButton(
-                    onClick = onClearFilter,
+                    onClick = { haptics.select(); onClearFilter() },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)

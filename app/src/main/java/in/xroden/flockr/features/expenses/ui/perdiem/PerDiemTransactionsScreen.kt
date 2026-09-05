@@ -28,6 +28,7 @@ import java.util.Locale
 import java.math.BigDecimal
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Screen to view all per diem transactions
@@ -40,6 +41,7 @@ fun PerDiemTransactionsScreen(
     onNavigateBack: () -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     // State for month selection (default to 1st of current month)
     var selectedMonth by remember {
         val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -314,6 +316,7 @@ private fun PerDiemTransactionCard(
     onDelete: () -> Unit,
     onUpdate: (BigDecimal?, LocalDate?, String?) -> Unit
 ) {
+    val haptics = rememberHaptics()
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -459,6 +462,7 @@ private fun PerDiemTransactionCard(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        haptics.error()
                         onDelete()
                         showDeleteDialog = false
                     },
@@ -493,6 +497,7 @@ fun EditTransactionDialog(
     onDismiss: () -> Unit,
     onConfirm: (BigDecimal, String?) -> Unit
 ) {
+    val haptics = rememberHaptics()
     var quantityStr by remember { mutableStateOf(entry.quantity.toString()) }
     var notes by remember { mutableStateOf(entry.notes ?: "") }
     
@@ -522,6 +527,7 @@ fun EditTransactionDialog(
                 onClick = {
                     val quantity = quantityStr.toBigDecimalOrNull()
                     if (quantity != null) {
+                        haptics.tap()
                         onConfirm(quantity, notes.ifBlank { null })
                     }
                 }

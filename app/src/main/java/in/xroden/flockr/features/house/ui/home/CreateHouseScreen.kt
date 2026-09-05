@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 private const val SCREEN_NAME = "CreateHouse"
 
@@ -251,6 +252,7 @@ private fun CreateHouseBottomBar(
     isCreating: Boolean,
     onPrimaryClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Column(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(24.dp)) {
         // Progress
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -264,7 +266,7 @@ private fun CreateHouseBottomBar(
         }
 
         Button(
-            onClick = onPrimaryClick,
+            onClick = { haptics.tap(); onPrimaryClick() },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = MaterialTheme.shapes.medium,
             enabled = !isCreating
@@ -396,6 +398,7 @@ private fun SettingsDropdown(
     onDismissRequest: () -> Unit,
     menuItems: @Composable ColumnScope.() -> Unit
 ) {
+    val haptics = rememberHaptics()
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = onExpandedChange
@@ -440,6 +443,7 @@ private fun LocalizationStep(
     onTimezoneDismiss: () -> Unit,
     onTimezoneSelected: (String) -> Unit
 ) {
+    val haptics = rememberHaptics()
     Text("Regional Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     Spacer(Modifier.height(24.dp))
 
@@ -454,7 +458,7 @@ private fun LocalizationStep(
         currencies.forEach { (code, symbol) ->
             DropdownMenuItem(
                 text = { Text("$symbol $code") },
-                onClick = { onCurrencySelected(code) }
+                onClick = { haptics.select(); onCurrencySelected(code) }
             )
         }
     }
@@ -472,7 +476,7 @@ private fun LocalizationStep(
         dateFormats.forEach { format ->
             DropdownMenuItem(
                 text = { Text(format) },
-                onClick = { onDateFormatSelected(format) }
+                onClick = { haptics.select(); onDateFormatSelected(format) }
             )
         }
     }
@@ -497,7 +501,7 @@ private fun LocalizationStep(
         timezones.forEach { tz ->
             DropdownMenuItem(
                 text = { Text(tz) },
-                onClick = { onTimezoneSelected(tz) }
+                onClick = { haptics.select(); onTimezoneSelected(tz) }
             )
         }
     }

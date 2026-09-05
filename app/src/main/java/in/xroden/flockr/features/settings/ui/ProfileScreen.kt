@@ -33,6 +33,7 @@ import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +41,7 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     
@@ -76,6 +78,7 @@ fun ProfileScreen(
 
                     FilledIconButton(
                         onClick = {
+                            haptics.tap()
                             if (isEditing) {
                                 viewModel.updateProfile(editedName)
                                 isEditing = false
@@ -142,7 +145,7 @@ fun ProfileScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(state.message, color = MaterialTheme.colorScheme.error)
-                            Button(onClick = { viewModel.loadProfile() }) { Text("Retry") }
+                            Button(onClick = { haptics.tap(); viewModel.loadProfile() }) { Text("Retry") }
                         }
                     }
                     is ProfileUiState.Success -> {

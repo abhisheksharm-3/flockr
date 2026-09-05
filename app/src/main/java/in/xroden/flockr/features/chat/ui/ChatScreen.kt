@@ -29,7 +29,7 @@ import `in`.xroden.flockr.features.chat.presentation.ChatViewModel
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.utils.getTimezone
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -50,7 +50,7 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     LaunchedEffect(houseId) {
         viewModel.loadMessages(houseId)
@@ -64,7 +64,7 @@ fun ChatScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Chat", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -185,7 +185,7 @@ fun ChatScreen(
                     FilledIconButton(
                         onClick = {
                             if (isEnabled) {
-                                haptics.performClick()
+                                haptics.tap()
                                 viewModel.sendMessage(houseId, messageText)
                                 messageText = ""
                             }

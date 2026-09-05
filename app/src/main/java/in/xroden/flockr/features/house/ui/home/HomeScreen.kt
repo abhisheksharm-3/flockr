@@ -44,7 +44,7 @@ import androidx.compose.ui.draw.clip
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +60,7 @@ fun HomeScreen(
     notificationViewModel: NotificationViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     LaunchedEffect(Unit) {
         viewModel.refresh()
     }
@@ -124,7 +125,7 @@ fun HomeScreen(
                     pendingInvitations = pendingInvitations,
                     isRefreshing = isRefreshing,
                     pullToRefreshState = pullToRefreshState,
-                    onRefresh = { viewModel.refresh() },
+                    onRefresh = { haptics.gestureThreshold(); viewModel.refresh() },
                     onHouseClick = onHouseClick,
                     onCreateHouseClick = onCreateHouseClick,
                     onAcceptInvitation = { viewModel.acceptInvitation(it) },
@@ -424,6 +425,7 @@ fun EnterInviteCodeDialog(
     onDismiss: () -> Unit,
     onJoinHouse: (String) -> Unit
 ) {
+    val haptics = rememberHaptics()
     var code by remember { mutableStateOf("") }
     
     AlertDialog(
@@ -449,7 +451,7 @@ fun EnterInviteCodeDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onJoinHouse(code) },
+                onClick = { haptics.tap(); onJoinHouse(code) },
                 enabled = code.isNotBlank(),
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -520,16 +522,13 @@ fun HouseCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(180.dp)
-            .clickable {
-                haptics.performClick()
-                onClick()
-            },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -653,7 +652,7 @@ fun InvitationCard(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
     
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -679,7 +678,7 @@ fun InvitationCard(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = {
-                        haptics.performSuccess()
+                        haptics.tap()
                         onAccept()
                     },
                     modifier = Modifier.weight(1f),
@@ -689,7 +688,7 @@ fun InvitationCard(
                 }
                 OutlinedButton(
                     onClick = {
-                        haptics.performClick()
+                        haptics.error()
                         onDecline()
                     },
                     modifier = Modifier.weight(1f),

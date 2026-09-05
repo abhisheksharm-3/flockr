@@ -27,6 +27,7 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.LocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +39,7 @@ fun AddExpenseScreen(
     onExpenseAdded: () -> Unit,
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val formState by viewModel.formState.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
@@ -55,6 +57,7 @@ fun AddExpenseScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is AddExpenseUiState.Error) {
+            haptics.error()
             snackbarHostState.showSnackbar("Error: ${(uiState as AddExpenseUiState.Error).message}")
             viewModel.resetUiState()
         }
@@ -161,12 +164,13 @@ private fun AddExpenseBottomBar(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
     ) {
         Button(
-            onClick = onClick,
+            onClick = { haptics.tap(); onClick() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
@@ -336,6 +340,7 @@ private fun SplitBillCard(
     onMemberSelectionChange: (String, Boolean) -> Unit,
     onCustomSplitChange: (String, String) -> Unit
 ) {
+    val haptics = rememberHaptics()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -359,7 +364,7 @@ private fun SplitBillCard(
                         )
                     }
                 }
-                Switch(checked = formState.isSplitEnabled, onCheckedChange = onSplitEnabledChange, enabled = !isLoading)
+                Switch(checked = formState.isSplitEnabled, onCheckedChange = { haptics.toggle(it); onSplitEnabledChange(it) }, enabled = !isLoading)
             }
 
             if (formState.isSplitEnabled) {
@@ -404,17 +409,18 @@ private fun SplitTypeSelector(
     isLoading: Boolean,
     onSplitEqualChange: (Boolean) -> Unit
 ) {
+    val haptics = rememberHaptics()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = isSplitEqual,
-            onClick = { onSplitEqualChange(true) },
+            onClick = { haptics.select(); onSplitEqualChange(true) },
             label = { Text("Equal Split") },
             leadingIcon = if (isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
             enabled = !isLoading
         )
         FilterChip(
             selected = !isSplitEqual,
-            onClick = { onSplitEqualChange(false) },
+            onClick = { haptics.select(); onSplitEqualChange(false) },
             label = { Text("Custom Amounts") },
             leadingIcon = if (!isSplitEqual) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
             enabled = !isLoading
@@ -462,6 +468,7 @@ private fun SplitMemberRow(
     onSelectionChange: (Boolean) -> Unit,
     onCustomSplitChange: (String) -> Unit
 ) {
+    val haptics = rememberHaptics()
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -474,7 +481,7 @@ private fun SplitMemberRow(
         ) {
             Checkbox(
                 checked = isSelected,
-                onCheckedChange = onSelectionChange,
+                onCheckedChange = { haptics.toggle(it); onSelectionChange(it) },
                 enabled = !isLoading
             )
             Column {

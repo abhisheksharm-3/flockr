@@ -36,6 +36,7 @@ import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import java.math.BigDecimal
 import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -321,6 +322,7 @@ private fun BalanceErrorState(
     message: String,
     onRetry: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Column(
         modifier = modifier.padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -347,7 +349,7 @@ private fun BalanceErrorState(
             style = MaterialTheme.typography.bodyLarge
         )
         Button(
-            onClick = onRetry,
+            onClick = { haptics.tap(); onRetry() },
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Retry", fontWeight = FontWeight.SemiBold)
@@ -599,6 +601,7 @@ private fun BalancePersonCardDetails(
     showSettleButton: Boolean,
     onSettleClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -643,7 +646,7 @@ private fun BalancePersonCardDetails(
         // Settle Button
         if (showSettleButton) {
             Button(
-                onClick = onSettleClick,
+                onClick = { haptics.tap(); onSettleClick() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -705,6 +708,7 @@ fun SettleBalanceDialog(
     onDismiss: () -> Unit,
     onSettle: (BigDecimal, String?) -> Unit
 ) {
+    val haptics = rememberHaptics()
     // Keep the amount as BigDecimal end-to-end; a Double round-trip stores
     // floating-point garbage (e.g. 33.33 -> 33.32999999999999...).
     var amount by remember { mutableStateOf(balance.balance.abs().toPlainString()) }
@@ -788,6 +792,7 @@ fun SettleBalanceDialog(
                     }
                     Button(
                         onClick = {
+                            haptics.success()
                             amount.toBigDecimalOrNull()?.let {
                                 // parsed directly from the text field — no Double round-trip
                                 onSettle(it, description.takeIf { d -> d.isNotBlank() })

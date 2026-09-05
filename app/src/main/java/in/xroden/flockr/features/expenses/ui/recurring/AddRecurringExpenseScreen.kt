@@ -38,6 +38,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,13 +427,14 @@ private fun ReminderSettingsSection(
     onReminderDaysBeforeChange: (String) -> Unit,
     isLoading: Boolean
 ) {
+    val haptics = rememberHaptics()
     FormSectionCard(icon = Icons.Default.Notifications, title = "Reminder Settings", iconTint = MaterialTheme.colorScheme.tertiary) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Enable Reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text("Get notified before bill is due", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = reminderEnabled, onCheckedChange = onReminderEnabledChange, enabled = !isLoading)
+            Switch(checked = reminderEnabled, onCheckedChange = { haptics.toggle(it); onReminderEnabledChange(it) }, enabled = !isLoading)
         }
 
         if (reminderEnabled) {
@@ -491,13 +493,14 @@ private fun PaymentOptionsSection(
     onShowDatePicker: () -> Unit,
     isLoading: Boolean
 ) {
+    val haptics = rememberHaptics()
     FormSectionCard(icon = Icons.Default.CalendarToday, title = "Payment Options", iconTint = MaterialTheme.colorScheme.primary) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Allow Prepayment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text("Enable paying this bill before due date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = prepayEnabled, onCheckedChange = onPrepayEnabledChange, enabled = !isLoading)
+            Switch(checked = prepayEnabled, onCheckedChange = { haptics.toggle(it); onPrepayEnabledChange(it) }, enabled = !isLoading)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -535,6 +538,7 @@ private fun SplitBillSection(
     currencySymbol: String,
     isLoading: Boolean
 ) {
+    val haptics = rememberHaptics()
     FormSectionCard(icon = Icons.Default.Repeat, title = "Split Bill", iconTint = MaterialTheme.colorScheme.primary) {
         Text("Select members to split this bill with", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
@@ -548,6 +552,7 @@ private fun SplitBillSection(
                 FilterChip(
                     selected = selectedMembers.contains(member.userId),
                     onClick = {
+                        haptics.toggle(!selectedMembers.contains(member.userId))
                         onSelectedMembersChange(
                             if (selectedMembers.contains(member.userId)) selectedMembers - member.userId else selectedMembers + member.userId
                         )
@@ -567,7 +572,7 @@ private fun SplitBillSection(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FilterChip(
                     selected = splitType == "equal",
-                    onClick = { onSplitTypeChange("equal") },
+                    onClick = { haptics.select(); onSplitTypeChange("equal") },
                     label = { Text("Equal Split") },
                     enabled = !isLoading,
                     modifier = Modifier.weight(1f),
@@ -575,7 +580,7 @@ private fun SplitBillSection(
                 )
                 FilterChip(
                     selected = splitType == "custom",
-                    onClick = { onSplitTypeChange("custom") },
+                    onClick = { haptics.select(); onSplitTypeChange("custom") },
                     label = { Text("Custom Amounts") },
                     enabled = !isLoading,
                     modifier = Modifier.weight(1f),
@@ -621,8 +626,9 @@ private fun SubmitButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Button(
-        onClick = onClick,
+        onClick = { haptics.tap(); onClick() },
         modifier = Modifier.fillMaxWidth().height(56.dp),
         enabled = enabled,
         shape = RoundedCornerShape(16.dp),

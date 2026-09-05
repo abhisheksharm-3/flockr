@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @Composable
 fun FlockrPrimaryButton(
@@ -24,6 +25,7 @@ fun FlockrPrimaryButton(
     icon: ImageVector? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
 ) {
+    val haptics = rememberHaptics()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
@@ -37,7 +39,7 @@ fun FlockrPrimaryButton(
     )
     
     Button(
-        onClick = onClick,
+        onClick = { haptics.tap(); onClick() },
         modifier = modifier.scale(scale),
         enabled = enabled && !isLoading,
         interactionSource = interactionSource,

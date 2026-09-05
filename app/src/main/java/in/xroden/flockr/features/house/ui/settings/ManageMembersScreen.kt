@@ -33,6 +33,7 @@ import `in`.xroden.flockr.features.house.model.InvitationWithHouse
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -268,8 +269,9 @@ private fun ManageMembersTopBar(onNavigateBack: () -> Unit) {
 
 @Composable
 private fun InviteMemberFab(onClick: () -> Unit) {
+    val haptics = rememberHaptics()
     ExtendedFloatingActionButton(
-        onClick = onClick,
+        onClick = { haptics.tap(); onClick() },
         icon = { Icon(Icons.Default.Add, "Invite") },
         text = { Text("Invite Member", fontWeight = FontWeight.Bold) },
         containerColor = MaterialTheme.colorScheme.primary,
@@ -592,6 +594,7 @@ fun FullScreenInviteMemberDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     val isValid = email.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(email).matches()
     
     Dialog(
@@ -609,7 +612,7 @@ fun FullScreenInviteMemberDialog(
                     },
                     actions = {
                         TextButton(
-                            onClick = onConfirm,
+                            onClick = { haptics.tap(); onConfirm() },
                             enabled = !isLoading && isValid
                         ) {
                             if (isLoading) {
@@ -724,6 +727,7 @@ fun RemoveMemberDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -746,7 +750,7 @@ fun RemoveMemberDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { haptics.error(); onConfirm() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),

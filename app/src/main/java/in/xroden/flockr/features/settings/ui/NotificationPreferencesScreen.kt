@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @HiltViewModel
 class NotificationPreferencesViewModel @Inject constructor(
@@ -337,6 +338,7 @@ private fun NotificationToggleRow(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
+    val haptics = rememberHaptics()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -360,7 +362,7 @@ private fun NotificationToggleRow(
         }
         Switch(
             checked = enabled,
-            onCheckedChange = onToggle,
+            onCheckedChange = { haptics.toggle(it); onToggle(it) },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                 checkedTrackColor = MaterialTheme.colorScheme.primaryContainer

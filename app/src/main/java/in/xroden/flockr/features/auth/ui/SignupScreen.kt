@@ -28,7 +28,7 @@ import `in`.xroden.flockr.features.auth.presentation.SignUpUiState
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +50,7 @@ fun SignupScreen(
     // Get Activity context for Credential Manager
     val context = LocalContext.current
     val activity = context as? Activity
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     Scaffold(
         topBar = {
@@ -63,7 +63,7 @@ fun SignupScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateToLogin() }) {
+                    IconButton(onClick = onNavigateToLogin) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
@@ -243,7 +243,6 @@ fun SignupScreen(
             FlockrPrimaryButton(
                 text = if (signUpState is SignUpUiState.Loading) "Creating Account..." else "Create Account",
                 onClick = {
-                    haptics.performClick()
                     if (password == confirmPassword) {
                         viewModel.signUp(email, password, fullName)
                     }
@@ -276,7 +275,7 @@ fun SignupScreen(
 
             // Google Sign In Button
             Button(
-                onClick = { haptics.performClick(); activity?.let { viewModel.signInWithGoogle(it) } },
+                onClick = { haptics.tap(); activity?.let { viewModel.signInWithGoogle(it) } },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -319,7 +318,7 @@ fun SignupScreen(
 
             // Sign in prompt
             OutlinedButton(
-                onClick = { haptics.performClick(); onNavigateToLogin() },
+                onClick = { haptics.tap(); onNavigateToLogin() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {

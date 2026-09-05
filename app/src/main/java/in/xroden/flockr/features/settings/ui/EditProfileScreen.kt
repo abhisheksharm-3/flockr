@@ -30,6 +30,7 @@ import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,7 @@ fun EditProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val profileUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
@@ -64,8 +66,10 @@ fun EditProfileScreen(
     // Handle update success to navigate back or show success
     LaunchedEffect(updateState) {
         if (updateState is UpdateProfileUiState.Success) {
+            haptics.success()
             onNavigateBack()
         } else if (updateState is UpdateProfileUiState.Error) {
+            haptics.error()
             errorMessage = (updateState as UpdateProfileUiState.Error).message
         }
     }
@@ -171,7 +175,7 @@ fun EditProfileScreen(
             Spacer(Modifier.height(32.dp))
 
             Button(
-                onClick = { viewModel.updateProfile(fullName) },
+                onClick = { haptics.tap(); viewModel.updateProfile(fullName) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = fullName.isNotBlank() && !isLoading,
                 shape = MaterialTheme.shapes.medium,

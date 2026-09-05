@@ -13,7 +13,6 @@ import `in`.xroden.flockr.ui.navigation.FlockrNavigation
 import `in`.xroden.flockr.ui.theme.FlockrTheme
 import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
 import `in`.xroden.flockr.utils.PermissionManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -33,6 +32,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.ui.Modifier
 import javax.inject.Inject
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.CompositionLocalProvider
+import `in`.xroden.flockr.utils.LocalHapticsEnabled
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -62,6 +63,8 @@ class MainActivity : FragmentActivity() {
         setContent {
             val themeMode by settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             val isAppLocked by appLockManager.isAppLocked.collectAsStateWithLifecycle()
+            // Held as State, not read here, so toggling haptics recomposes nothing.
+            val hapticsEnabled = settingsViewModel.hapticsEnabled.collectAsState(initial = true)
 
             val darkTheme = when (themeMode) {
                 ThemeMode.LIGHT -> false
@@ -73,29 +76,31 @@ class MainActivity : FragmentActivity() {
                 requestNotificationPermissionIfNeeded()
             }
 
-            FlockrTheme(darkTheme = darkTheme) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
+            CompositionLocalProvider(LocalHapticsEnabled provides hapticsEnabled) {
+                FlockrTheme(darkTheme = darkTheme) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
 
-                    LaunchedEffect(intentState.value) {
-                        IntentHandler.extractInviteCode(intentState.value)?.let { setInviteCode(it) }
-                    }
+                        LaunchedEffect(intentState.value) {
+                            IntentHandler.extractInviteCode(intentState.value)?.let { setInviteCode(it) }
+                        }
 
-                    // Pass any invite code into navigation, which routes to the join preview
-                    // once the user is authenticated (or right away if already signed in).
-                    FlockrNavigation(
-                        initialInviteCode = inviteCode,
-                        onInviteConsumed = { setInviteCode(null) }
-                    )
-
-                    AnimatedVisibility(
-                        visible = isAppLocked,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        LockScreenOverlay(
-                            onUnlockClick = { appLockManager.authenticate(this@MainActivity) }
+                        // Pass any invite code into navigation, which routes to the join preview
+                        // once the user is authenticated (or right away if already signed in).
+                        FlockrNavigation(
+                            initialInviteCode = inviteCode,
+                            onInviteConsumed = { setInviteCode(null) }
                         )
+
+                        AnimatedVisibility(
+                            visible = isAppLocked,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            LockScreenOverlay(
+                                onUnlockClick = { appLockManager.authenticate(this@MainActivity) }
+                            )
+                        }
                     }
                 }
             }
@@ -125,15 +130,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val hasPermission = ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.POST_NOTIFICATIONS
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasPermission = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.POST_NOTIFICATIONS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
-            if (!hasPermission) {
-                permissionManager.requestNotificationPermission { }
-            }
+        if (!hasPermission) {
+            permissionManager.requestNotificationPermission { }
         }
     }
 }

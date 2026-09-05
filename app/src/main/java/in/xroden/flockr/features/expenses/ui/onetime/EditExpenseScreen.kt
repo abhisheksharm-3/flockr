@@ -31,6 +31,7 @@ import `in`.xroden.flockr.utils.formatWithHouseConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -431,6 +432,7 @@ private fun SplitBillCard(
     currencySymbol: String,
     isSaving: Boolean
 ) {
+    val haptics = rememberHaptics()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -468,7 +470,7 @@ private fun SplitBillCard(
                         )
                     }
                 }
-                Switch(checked = enableSplitting, onCheckedChange = onEnableSplittingChange, enabled = !isSaving)
+                Switch(checked = enableSplitting, onCheckedChange = { haptics.toggle(it); onEnableSplittingChange(it) }, enabled = !isSaving)
             }
 
             if (enableSplitting) {
@@ -477,7 +479,7 @@ private fun SplitBillCard(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = splitEqually,
-                        onClick = { onSplitEquallyChange(true) },
+                        onClick = { haptics.select(); onSplitEquallyChange(true) },
                         label = { Text("Equal Split") },
                         leadingIcon = if (splitEqually) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
                         enabled = !isSaving,
@@ -485,7 +487,7 @@ private fun SplitBillCard(
                     )
                     FilterChip(
                         selected = !splitEqually,
-                        onClick = { onSplitEquallyChange(false) },
+                        onClick = { haptics.select(); onSplitEquallyChange(false) },
                         label = { Text("Custom Amounts") },
                         leadingIcon = if (!splitEqually) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
                         enabled = !isSaving,
@@ -510,6 +512,7 @@ private fun SplitBillCard(
                                 Checkbox(
                                     checked = selectedMembers.contains(member.userId),
                                     onCheckedChange = { checked ->
+                                        haptics.toggle(checked)
                                         onSelectedMembersChange(if (checked) selectedMembers + member.userId else selectedMembers - member.userId)
                                     },
                                     enabled = !isSaving
@@ -559,8 +562,9 @@ private fun SaveButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Button(
-        onClick = onClick,
+        onClick = { haptics.tap(); onClick() },
         modifier = Modifier.fillMaxWidth().height(56.dp),
         enabled = enabled,
         shape = RoundedCornerShape(16.dp),

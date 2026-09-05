@@ -31,6 +31,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,6 +136,7 @@ private fun DeleteBillConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
@@ -142,7 +144,7 @@ private fun DeleteBillConfirmationDialog(
         text = { Text("Are you sure you want to delete '$billName'? This will also delete all payment history for this bill.") },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { haptics.error(); onConfirm() },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 shape = MaterialTheme.shapes.medium
             ) { Text("Delete", fontWeight = FontWeight.Bold) }

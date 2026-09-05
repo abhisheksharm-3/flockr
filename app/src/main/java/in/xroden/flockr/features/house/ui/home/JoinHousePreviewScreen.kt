@@ -28,6 +28,7 @@ import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
 import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Full-screen Join House Preview Screen
@@ -40,6 +41,7 @@ fun JoinHousePreviewScreen(
     onHouseJoined: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val previewState by viewModel.previewState.collectAsStateWithLifecycle()
     val joinState by viewModel.joinState.collectAsStateWithLifecycle()
 
@@ -49,6 +51,7 @@ fun JoinHousePreviewScreen(
     
     LaunchedEffect(joinState) {
         if (joinState is JoinHouseUiState.Success) {
+            haptics.success()
             onHouseJoined()
         }
     }
@@ -324,8 +327,9 @@ private fun MembersInfoCard(memberCount: Long?, modifier: Modifier = Modifier) {
 
 @Composable
 private fun JoinHouseButton(onJoin: () -> Unit, isLoading: Boolean) {
+    val haptics = rememberHaptics()
     Button(
-        onClick = onJoin,
+        onClick = { haptics.tap(); onJoin() },
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
@@ -474,6 +478,7 @@ private fun JoinHouseDialogButtons(
     onJoin: () -> Unit,
     isLoading: Boolean
 ) {
+    val haptics = rememberHaptics()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -486,7 +491,7 @@ private fun JoinHouseDialogButtons(
             Text("Cancel")
         }
         Button(
-            onClick = onJoin,
+            onClick = { haptics.tap(); onJoin() },
             modifier = Modifier.weight(1f),
             enabled = !isLoading,
             shape = RoundedCornerShape(12.dp)

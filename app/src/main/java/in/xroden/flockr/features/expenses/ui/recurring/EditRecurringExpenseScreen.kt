@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CalendarToday
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,7 @@ fun EditRecurringExpenseScreen(
     onNavigateBack: () -> Unit,
     viewModel: RecurringExpenseViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     // Find the expense to edit
@@ -95,6 +97,7 @@ fun EditRecurringExpenseScreen(
             ) {
                 Button(
                     onClick = {
+                        haptics.tap()
                         val newAmount = amount.toBigDecimalOrNull() ?: expense.amount
                         viewModel.updateRecurringExpense(
                             houseId = houseId,
@@ -278,7 +281,7 @@ fun EditRecurringExpenseScreen(
                     }
                     Switch(
                         checked = reminderEnabled,
-                        onCheckedChange = { reminderEnabled = it },
+                        onCheckedChange = { haptics.toggle(it); reminderEnabled = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.primary,
                             checkedTrackColor = MaterialTheme.colorScheme.primaryContainer

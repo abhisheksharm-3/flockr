@@ -28,7 +28,7 @@ import `in`.xroden.flockr.features.auth.presentation.SignInUiState
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
 import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,7 +46,15 @@ fun LoginScreen(
     // Get Activity context for Credential Manager
     val context = LocalContext.current
     val activity = context as? Activity
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
+
+    LaunchedEffect(signInState) {
+        when (signInState) {
+            is SignInUiState.Success -> haptics.success()
+            is SignInUiState.Error -> haptics.error()
+            else -> Unit
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -54,7 +62,7 @@ fun LoginScreen(
                 CenterAlignedTopAppBar(
                     title = { },
                     navigationIcon = {
-                        IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                        IconButton(onClick = onNavigateBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 "Back",
@@ -178,7 +186,7 @@ fun LoginScreen(
 
             FlockrPrimaryButton(
                 text = if (isSigningIn) "Signing In..." else "Sign In",
-                onClick = { haptics.performClick(); viewModel.signIn(email, password) },
+                onClick = { viewModel.signIn(email, password) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isSigningIn && email.isNotBlank() && password.isNotBlank(),
                 isLoading = isSigningIn
@@ -224,7 +232,7 @@ fun LoginScreen(
             }
 
             Button(
-                onClick = { haptics.performClick(); activity?.let { viewModel.signInWithGoogle(it) } },
+                onClick = { haptics.tap(); activity?.let { viewModel.signInWithGoogle(it) } },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -267,7 +275,7 @@ fun LoginScreen(
 
             // Sign up prompt
             OutlinedButton(
-                onClick = { haptics.performClick(); onNavigateToSignup() },
+                onClick = { haptics.tap(); onNavigateToSignup() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {

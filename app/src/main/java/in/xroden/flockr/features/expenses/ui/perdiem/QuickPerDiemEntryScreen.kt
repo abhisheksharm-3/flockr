@@ -27,6 +27,7 @@ import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -341,6 +342,7 @@ private fun EmptyPerDiemConfigState(
     modifier: Modifier = Modifier,
     onSetupConfig: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Column(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -383,7 +385,7 @@ private fun EmptyPerDiemConfigState(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = onSetupConfig,
+            onClick = { haptics.tap(); onSetupConfig() },
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.height(48.dp)
         ) {

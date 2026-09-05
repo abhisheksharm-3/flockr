@@ -31,6 +31,7 @@ import java.math.BigDecimal
 import java.util.Locale
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +41,7 @@ fun AddPerDiemEntryScreen(
     onNavigateBack: () -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     var quantity by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var date by remember { 
@@ -122,6 +124,7 @@ fun AddPerDiemEntryScreen(
             ) {
                 Button(
                     onClick = {
+                        haptics.tap()
                         val quantityBd = quantity.toBigDecimalOrNull()
                         if (quantityBd != null && quantityBd > BigDecimal.ZERO && config != null) {
                             isLoading = true

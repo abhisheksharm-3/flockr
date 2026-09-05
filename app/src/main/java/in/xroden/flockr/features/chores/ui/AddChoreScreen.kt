@@ -29,6 +29,7 @@ import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.*
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,7 @@ fun AddChoreScreen(
     onNavigateBack: () -> Unit,
     viewModel: ChoreViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     var taskName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -57,10 +59,12 @@ fun AddChoreScreen(
     LaunchedEffect(createState) {
         when (createState) {
             is CreateChoreUiState.Success -> {
+                haptics.success()
                 onNavigateBack()
                 viewModel.resetCreateState()
             }
             is CreateChoreUiState.Error -> {
+                haptics.error()
                 snackbarHostState.showSnackbar((createState as CreateChoreUiState.Error).message)
                 viewModel.resetCreateState()
             }
@@ -122,6 +126,7 @@ fun AddChoreScreen(
             ) {
                 Button(
                     onClick = {
+                        haptics.tap()
                         viewModel.createChore(
                             houseId = houseId,
                             taskName = taskName,
@@ -369,7 +374,7 @@ fun AddChoreScreen(
                         options.forEach { (label, value) ->
                             FilterChip(
                                 selected = recurrence == value,
-                                onClick = { recurrence = value },
+                                onClick = { haptics.select(); recurrence = value },
                                 label = { Text(label) }
                             )
                         }
@@ -409,13 +414,13 @@ fun AddChoreScreen(
                     ) {
                         FilterChip(
                             selected = assignedTo == null,
-                            onClick = { assignedTo = null },
+                            onClick = { haptics.select(); assignedTo = null },
                             label = { Text("Anyone") }
                         )
                         members.forEach { member ->
                             FilterChip(
                                 selected = assignedTo == member.userId,
-                                onClick = { assignedTo = member.userId },
+                                onClick = { haptics.select(); assignedTo = member.userId },
                                 label = { Text(member.fullName ?: member.email) }
                             )
                         }

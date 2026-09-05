@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Standardized Extended FAB for list screens.
@@ -19,12 +19,12 @@ fun FlockrExtendedFab(
     modifier: Modifier = Modifier,
     expanded: Boolean = true
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     if (expanded) {
         ExtendedFloatingActionButton(
             onClick = {
-                haptics.performClick()
+                haptics.tap()
                 onClick()
             },
             icon = { Icon(icon, contentDescription = null) },
@@ -40,7 +40,7 @@ fun FlockrExtendedFab(
     } else {
         FloatingActionButton(
             onClick = {
-                haptics.performClick()
+                haptics.tap()
                 onClick()
             },
             modifier = modifier,
@@ -66,11 +66,11 @@ fun FlockrSmallFab(
     modifier: Modifier = Modifier,
     contentDescription: String? = null
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     SmallFloatingActionButton(
         onClick = {
-            haptics.performClick()
+            haptics.tap()
             onClick()
         },
         modifier = modifier,

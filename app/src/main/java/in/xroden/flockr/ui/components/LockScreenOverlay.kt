@@ -18,9 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @Composable
 fun LockScreenOverlay(onUnlockClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -49,7 +51,7 @@ fun LockScreenOverlay(onUnlockClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(32.dp))
-            Button(onClick = onUnlockClick) {
+            Button(onClick = { haptics.tap(); onUnlockClick() }) {
                 Text("Unlock")
             }
         }

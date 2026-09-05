@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.ui.theme.*
+import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
  * Standardized empty state component for consistent UX across all screens.
@@ -26,6 +27,7 @@ fun EmptyState(
     actionText: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
+    val haptics = rememberHaptics()
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -71,7 +73,7 @@ fun EmptyState(
             if (actionText != null && onActionClick != null) {
                 Spacer(modifier = Modifier.height(Spacing.lg))
                 Button(
-                    onClick = onActionClick,
+                    onClick = { haptics.tap(); onActionClick() },
                     shape = RoundedCornerShape(CornerRadius.md),
                     contentPadding = PaddingValues(horizontal = Spacing.xxl, vertical = Spacing.md)
                 ) {
@@ -95,6 +97,7 @@ fun ErrorState(
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null
 ) {
+    val haptics = rememberHaptics()
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -131,7 +134,7 @@ fun ErrorState(
             if (onRetry != null) {
                 Spacer(modifier = Modifier.height(Spacing.md))
                 OutlinedButton(
-                    onClick = onRetry,
+                    onClick = { haptics.tap(); onRetry() },
                     shape = RoundedCornerShape(CornerRadius.md),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.primary

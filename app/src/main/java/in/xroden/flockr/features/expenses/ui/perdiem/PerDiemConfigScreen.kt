@@ -25,6 +25,7 @@ import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +37,7 @@ fun PerDiemConfigScreen(
     onNavigateToEditConfig: (PerDiemConfig) -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val configsState by viewModel.configState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
@@ -91,7 +93,7 @@ fun PerDiemConfigScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToAddConfig,
+                onClick = { haptics.tap(); onNavigateToAddConfig() },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
@@ -185,6 +187,7 @@ private fun PerDiemConfigCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -260,7 +263,7 @@ private fun PerDiemConfigCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = onAddEntry,
+                    onClick = { haptics.tap(); onAddEntry() },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -299,6 +302,7 @@ private fun EmptyPerDiemState(
     modifier: Modifier = Modifier,
     onAddItem: () -> Unit
 ) {
+    val haptics = rememberHaptics()
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -337,7 +341,7 @@ private fun EmptyPerDiemState(
             )
 
             Button(
-                onClick = onAddItem,
+                onClick = { haptics.tap(); onAddItem() },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.padding(top = 8.dp)
             ) {
@@ -373,6 +377,7 @@ private fun DeletePerDiemConfigDialog(
     onDismiss: () -> Unit,
     onConfirm: (deleteUsage: Boolean) -> Unit
 ) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -397,13 +402,13 @@ private fun DeletePerDiemConfigDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(false) }) {
+            TextButton(onClick = { haptics.error(); onConfirm(false) }) {
                 Text("Keep Usage", fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(
-                onClick = { onConfirm(true) },
+                onClick = { haptics.error(); onConfirm(true) },
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 )

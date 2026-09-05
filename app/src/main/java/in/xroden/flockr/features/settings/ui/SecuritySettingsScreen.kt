@@ -22,6 +22,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.EntryPointAccessors
 import `in`.xroden.flockr.di.BiometricEntryPoint
 import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +30,7 @@ fun SecuritySettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val lockEnabled by viewModel.appLockEnabled.collectAsState(initial = false)
     val context = LocalContext.current
     var showBiometricError by remember { mutableStateOf<String?>(null) }
@@ -172,19 +174,24 @@ fun SecuritySettingsScreen(
                                         biometricManager.authenticate(
                                             activity = activity,
                                             onSuccess = {
+                                                haptics.success()
                                                 viewModel.setAppLockEnabled(true)
                                             },
                                             onError = {
+                                                haptics.error()
                                                 showBiometricError = it
                                             }
                                         )
                                     } else {
+                                        haptics.error()
                                         showBiometricError = "Activity context required"
                                     }
                                 } else {
+                                    haptics.error()
                                     showBiometricError = "Biometrics not available"
                                 }
                             } else {
+                                haptics.toggleOff()
                                 viewModel.setAppLockEnabled(false)
                             }
                         },

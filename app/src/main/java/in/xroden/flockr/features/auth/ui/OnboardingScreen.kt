@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import kotlinx.coroutines.launch
 
 data class OnboardingPage(
@@ -49,7 +49,7 @@ fun OnboardingScreen(
 fun OnboardingCarousel(
     onComplete: () -> Unit
 ) {
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
     val pages = listOf(
         OnboardingPage(
             icon = Icons.Outlined.Home,
@@ -92,7 +92,7 @@ fun OnboardingCarousel(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = { haptics.performClick(); onComplete() }) {
+                TextButton(onClick = onComplete) {
                     Text(
                         "Skip",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -142,7 +142,7 @@ fun OnboardingCarousel(
                 // Navigation button
                 Button(
                     onClick = {
-                        haptics.performClick()
+                        haptics.tap()
                         if (pagerState.currentPage < pages.size - 1) {
                             scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -170,7 +170,6 @@ fun OnboardingCarousel(
                 if (pagerState.currentPage > 0) {
                     TextButton(
                         onClick = {
-                            haptics.performClick()
                             scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage - 1)
                             }

@@ -24,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @Composable
 fun WelcomeScreen(
@@ -31,6 +32,7 @@ fun WelcomeScreen(
     onSignIn: () -> Unit,
     backgroundImageUrl: String? = null
 ) {
+    val haptics = rememberHaptics()
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
 
@@ -138,7 +140,7 @@ fun WelcomeScreen(
 
             // CTA Buttons
             Button(
-                onClick = onGetStarted,
+                onClick = { haptics.tap(); onGetStarted() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -149,7 +151,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
-                onClick = onSignIn,
+                onClick = { haptics.tap(); onSignIn() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(

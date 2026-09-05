@@ -3,7 +3,6 @@ package `in`.xroden.flockr.utils
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -34,12 +33,8 @@ class PermissionManager(private val activity: ComponentActivity) {
     }
 
     fun requestNotificationPermission(onResult: (Boolean) -> Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            onNotificationPermissionResult = onResult
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            onResult(true)
-        }
+        onNotificationPermissionResult = onResult
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     fun requestLocationPermission(onResult: (Boolean) -> Unit) {
@@ -59,14 +54,10 @@ class PermissionManager(private val activity: ComponentActivity) {
 
     companion object {
         fun hasNotificationPermission(context: Context): Boolean {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-            } else {
-                true
-            }
+            return ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
         }
 
         fun hasStoragePermission(context: Context): Boolean {

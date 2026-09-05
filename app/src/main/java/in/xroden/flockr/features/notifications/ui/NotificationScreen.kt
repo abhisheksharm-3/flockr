@@ -33,6 +33,7 @@ import `in`.xroden.flockr.features.notifications.presentation.NotificationViewMo
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +42,7 @@ fun NotificationScreen(
     onNotificationClick: (Notification) -> Unit,
     viewModel: NotificationViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -64,14 +66,14 @@ fun NotificationScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.markAllAsRead() }) {
+                    IconButton(onClick = { haptics.tap(); viewModel.markAllAsRead() }) {
                         Icon(
                             Icons.Default.DoneAll,
                             "Mark all read",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    IconButton(onClick = { viewModel.clearAllNotifications() }) {
+                    IconButton(onClick = { haptics.error(); viewModel.clearAllNotifications() }) {
                         Icon(
                             Icons.Default.DeleteSweep,
                             "Clear all",

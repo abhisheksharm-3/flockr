@@ -43,8 +43,8 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
 import androidx.hilt.navigation.compose.hiltViewModel
-import `in`.xroden.flockr.utils.HapticFeedback
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.Haptics
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +60,7 @@ fun SettingsScreen(
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val currentTheme by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
@@ -74,7 +74,7 @@ fun SettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
@@ -140,7 +140,7 @@ fun SettingsScreen(
 @Composable
 private fun ProfileHeaderCard(
     profile: Profile?,
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onEditProfile: () -> Unit
 ) {
     Card(
@@ -190,7 +190,7 @@ private fun ProfileHeaderCard(
                 )
                 Text(profile?.email ?: "", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = { haptics.performClick(); onEditProfile() }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
+                Button(onClick = { haptics.tap(); onEditProfile() }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
                     Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Edit Profile", fontWeight = FontWeight.SemiBold)
@@ -204,7 +204,7 @@ private fun ProfileHeaderCard(
 private fun SettingsSectionsList(
     currentTheme: ThemeMode,
     hapticsEnabled: Boolean,
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onThemeClick: () -> Unit,
     onHapticsToggle: (Boolean) -> Unit,
     onNavigateToNotificationPreferences: () -> Unit,
@@ -230,7 +230,7 @@ private fun SettingsSectionsList(
             onNavigateToSecurity = onNavigateToSecurity
         )
 
-        AboutSettingsSection(haptics = haptics)
+        AboutSettingsSection()
 
         AccountSettingsSection(
             haptics = haptics,
@@ -243,7 +243,7 @@ private fun SettingsSectionsList(
 private fun AppearanceSettingsSection(
     currentTheme: ThemeMode,
     hapticsEnabled: Boolean,
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onThemeClick: () -> Unit,
     onHapticsToggle: (Boolean) -> Unit
 ) {
@@ -256,7 +256,7 @@ private fun AppearanceSettingsSection(
                 ThemeMode.DARK -> "Dark Mode"
                 ThemeMode.SYSTEM -> "System Default"
             },
-            onClick = { haptics.performClick(); onThemeClick() }
+            onClick = onThemeClick
         )
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         SettingsToggleItem(
@@ -264,14 +264,14 @@ private fun AppearanceSettingsSection(
             title = "Haptic Feedback",
             subtitle = "Vibration feedback for interactions",
             checked = hapticsEnabled,
-            onCheckedChange = { haptics.performLightClick(); onHapticsToggle(it) }
+            onCheckedChange = onHapticsToggle
         )
     }
 }
 
 @Composable
 private fun NotificationsSettingsSection(
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onNavigateToNotificationPreferences: () -> Unit
 ) {
     SettingsSection(title = "Notifications") {
@@ -279,14 +279,14 @@ private fun NotificationsSettingsSection(
             icon = Icons.Default.Notifications,
             title = "Notification Preferences",
             subtitle = "Manage notification settings for each household",
-            onClick = { haptics.performClick(); onNavigateToNotificationPreferences() }
+            onClick = onNavigateToNotificationPreferences
         )
     }
 }
 
 @Composable
 private fun SecuritySettingsSection(
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onNavigateToSecurity: () -> Unit
 ) {
     SettingsSection(title = "Security") {
@@ -294,13 +294,13 @@ private fun SecuritySettingsSection(
             icon = Icons.Default.Lock,
             title = "App Lock",
             subtitle = "Secure your app with biometrics",
-            onClick = { haptics.performClick(); onNavigateToSecurity() }
+            onClick = onNavigateToSecurity
         )
     }
 }
 
 @Composable
-private fun AboutSettingsSection(haptics: HapticFeedback) {
+private fun AboutSettingsSection() {
     SettingsSection(title = "About") {
         SettingsItem(
             icon = Icons.Default.Info,
@@ -314,12 +314,10 @@ private fun AboutSettingsSection(haptics: HapticFeedback) {
 
         val context = LocalContext.current
         SettingsItem(Icons.Default.Language, "Website", "abhisheksan.com", onClick = {
-           haptics.performClick()
-           context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://abhisheksan.com")))
         })
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         SettingsItem(Icons.Default.Star, "GitHub Repository", "View source code & contribute", onClick = {
-            haptics.performClick()
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/abhisheksharm-3/flockr")))
         })
     }
@@ -327,7 +325,7 @@ private fun AboutSettingsSection(haptics: HapticFeedback) {
 
 @Composable
 private fun AccountSettingsSection(
-    haptics: HapticFeedback,
+    haptics: Haptics,
     onSignOutClick: () -> Unit
 ) {
     SettingsSection(title = "Account") {
@@ -335,7 +333,7 @@ private fun AccountSettingsSection(
             icon = Icons.AutoMirrored.Filled.ExitToApp,
             title = "Sign Out",
             subtitle = "Sign out of your account",
-            onClick = { haptics.performHeavyClick(); onSignOutClick() },
+            onClick = { haptics.error(); onSignOutClick() },
             showChevron = false,
             iconTint = MaterialTheme.colorScheme.error
         )
@@ -420,13 +418,14 @@ private fun ThemeDialog(
 
 @Composable
 private fun LogoutDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val haptics = rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.error) },
         title = { Text("Sign Out?", fontWeight = FontWeight.SemiBold) },
         text = { Text("Are you sure you want to sign out of your account?") },
         confirmButton = {
-            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+            Button(onClick = { haptics.error(); onConfirm() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
                 Text("Sign Out", fontWeight = FontWeight.SemiBold)
             }
         },
@@ -497,8 +496,9 @@ private fun SettingsToggleItem(
     onCheckedChange: (Boolean) -> Unit,
     iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
+    val haptics = rememberHaptics()
     Surface(
-        onClick = { onCheckedChange(!checked) },
+        onClick = { haptics.toggle(!checked); onCheckedChange(!checked) },
         modifier = Modifier.fillMaxWidth(),
         color = Color.Transparent
     ) {
@@ -533,7 +533,7 @@ private fun SettingsToggleItem(
             }
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = { haptics.toggle(it); onCheckedChange(it) },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                     checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,

@@ -21,6 +21,7 @@ import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.utils.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun EditPerDiemConfigScreen(
     onNavigateBack: () -> Unit,
     viewModel: PerDiemViewModel = hiltViewModel()
 ) {
+    val haptics = rememberHaptics()
     var itemName by remember { mutableStateOf(initialItemName) }
     var rate by remember { mutableStateOf(initialRate) }
     var category by remember { mutableStateOf(initialCategory) }
@@ -83,6 +85,7 @@ fun EditPerDiemConfigScreen(
             ) {
                 Button(
                     onClick = {
+                        haptics.tap()
                         val rateValue = rate.toBigDecimalOrNull()
                         if (rateValue != null && itemName.isNotBlank() && unit.isNotBlank()) {
                             isLoading = true

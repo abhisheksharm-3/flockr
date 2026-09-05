@@ -32,7 +32,7 @@ import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
 import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
 import `in`.xroden.flockr.features.documents.presentation.UploadDocumentUiState
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +47,7 @@ fun DocumentsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
 
@@ -90,7 +90,7 @@ fun DocumentsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Documents", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
@@ -103,7 +103,7 @@ fun DocumentsScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { haptics.performClick(); filePickerLauncher.launch("*/*") },
+                onClick = { haptics.tap(); filePickerLauncher.launch("*/*") },
                 text = { Text("Upload File", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.CloudUpload, null) },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -150,8 +150,8 @@ fun DocumentsScreen(
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                TabButton("Personal", selectedTab == 0) { haptics.performSelection(); selectedTab = 0 }
-                TabButton("House", selectedTab == 1) { haptics.performSelection(); selectedTab = 1 }
+                TabButton("Personal", selectedTab == 0) { haptics.select(); selectedTab = 0 }
+                TabButton("House", selectedTab == 1) { haptics.select(); selectedTab = 1 }
             }
             
             // Content
@@ -252,6 +252,7 @@ fun RowScope.TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
+    val haptics = rememberHaptics()
     var showMenu by remember { mutableStateOf(false) }
     
     ListItem(
@@ -286,7 +287,7 @@ fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
                     )
                     DropdownMenuItem(
                         text = { Text("Delete") },
-                        onClick = { showMenu = false; onDelete() },
+                        onClick = { showMenu = false; haptics.error(); onDelete() },
                         leadingIcon = { Icon(Icons.Default.Delete, null) }
                     )
                 }

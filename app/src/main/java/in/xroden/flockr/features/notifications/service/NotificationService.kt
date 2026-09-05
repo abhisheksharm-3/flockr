@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.Manifest
-import android.os.Build
 import `in`.xroden.flockr.core.logging.Logger
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -47,90 +46,88 @@ class NotificationService @Inject constructor(
     
     /**
      * Create all notification channels
-     * Must be called before showing any notifications on Android O+
      */
     private fun createNotificationChannels() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val channels = listOf(
+            NotificationChannel(
+                CHANNEL_EXPENSES,
+                "Expenses",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for expense additions and settlements"
+                enableVibration(true)
+            },
             
-            val channels = listOf(
-                NotificationChannel(
-                    CHANNEL_EXPENSES,
-                    "Expenses",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Notifications for expense additions and settlements"
-                    enableVibration(true)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_CHORES,
-                    "Chores",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Notifications for chore assignments and completions"
-                    enableVibration(true)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_SHOPPING,
-                    "Shopping",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Notifications for shopping list updates"
-                    enableVibration(false)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_BILLS,
-                    "Bills",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Notifications for recurring bills and payments"
-                    enableVibration(true)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_MEMBERS,
-                    "Members",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "Notifications for member joins and leaves"
-                    enableVibration(false)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_DOCUMENTS,
-                    "Documents",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "Notifications for document uploads"
-                    enableVibration(false)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_CHAT,
-                    "Messages",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Notifications for new messages"
-                    enableVibration(true)
-                },
-                
-                NotificationChannel(
-                    CHANNEL_GENERAL,
-                    "General",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "General notifications"
-                    enableVibration(false)
-                }
-            )
+            NotificationChannel(
+                CHANNEL_CHORES,
+                "Chores",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for chore assignments and completions"
+                enableVibration(true)
+            },
             
-            channels.forEach { channel ->
-                notificationManager.createNotificationChannel(channel)
+            NotificationChannel(
+                CHANNEL_SHOPPING,
+                "Shopping",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for shopping list updates"
+                enableVibration(false)
+            },
+            
+            NotificationChannel(
+                CHANNEL_BILLS,
+                "Bills",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for recurring bills and payments"
+                enableVibration(true)
+            },
+            
+            NotificationChannel(
+                CHANNEL_MEMBERS,
+                "Members",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notifications for member joins and leaves"
+                enableVibration(false)
+            },
+            
+            NotificationChannel(
+                CHANNEL_DOCUMENTS,
+                "Documents",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notifications for document uploads"
+                enableVibration(false)
+            },
+            
+            NotificationChannel(
+                CHANNEL_CHAT,
+                "Messages",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for new messages"
+                enableVibration(true)
+            },
+            
+            NotificationChannel(
+                CHANNEL_GENERAL,
+                "General",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "General notifications"
+                enableVibration(false)
             }
+        )
+        
+        channels.forEach { channel ->
+            notificationManager.createNotificationChannel(channel)
         }
+    
     }
     
     /**
@@ -156,12 +153,9 @@ class NotificationService @Inject constructor(
             return
         }
 
-        // Check for runtime permission on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                 Logger.w(TAG, "Notification permission not granted, skipping notification: $title")
-                 return
-             }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            Logger.w(TAG, "Notification permission not granted, skipping notification: $title")
+            return
         }
         
         try {
@@ -274,11 +268,8 @@ class NotificationService @Inject constructor(
      * Check if a specific channel is enabled
      */
     fun isChannelEnabled(channelId: String): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = notificationManager.getNotificationChannel(channelId)
-            return channel?.importance != NotificationManager.IMPORTANCE_NONE
-        }
-        return areNotificationsEnabled()
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = notificationManager.getNotificationChannel(channelId)
+        return channel?.importance != NotificationManager.IMPORTANCE_NONE
     }
 }

@@ -52,7 +52,7 @@ android {
 
     defaultConfig {
         applicationId = "in.xroden.flockr"
-        minSdk = 29
+        minSdk = 34
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName

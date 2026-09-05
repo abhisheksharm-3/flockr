@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
-import `in`.xroden.flockr.utils.rememberHapticFeedback
+import `in`.xroden.flockr.utils.rememberHaptics
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,7 +33,7 @@ fun AddShoppingItemScreen(
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val haptics = rememberHapticFeedback()
+    val haptics = rememberHaptics()
 
     Scaffold(
         topBar = {
@@ -46,7 +46,7 @@ fun AddShoppingItemScreen(
                     ) 
                 },
                 navigationIcon = {
-                    IconButton(onClick = { haptics.performClick(); onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, 
                             contentDescription = "Back",
@@ -66,10 +66,11 @@ fun AddShoppingItemScreen(
             ) {
                 Button(
                     onClick = {
-                        haptics.performSuccess()
+                        haptics.tap()
                         isLoading = true
                         scope.launch {
                             viewModel.addItem(houseId, itemName, quantity.takeIf { it.isNotBlank() })
+                            haptics.success()
                             onNavigateBack()
                         }
                     },
