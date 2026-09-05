@@ -1,25 +1,30 @@
 package `in`.xroden.flockr.ui.components.inputs
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ButtonGroupMenuState
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import `in`.xroden.flockr.ui.theme.*
 import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
- * Standardized pill selector for tab-like switching.
+ * Tab-like switching between mutually exclusive views, built on the Expressive [ButtonGroup].
+ *
+ * The group owns the connected-shape treatment: outer corners stay round, inner corners square
+ * off, and pressing one button squeezes its neighbours aside. Wrapping the result in extra
+ * padding or a background swallows that squeeze, so callers should pass layout modifiers only.
+ *
+ * Tabs that do not fit collapse into an overflow menu rather than shrinking past legibility.
  */
 @Composable
 fun PillSelector(
@@ -31,109 +36,63 @@ fun PillSelector(
 ) {
     val haptics = rememberHaptics()
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-        horizontalArrangement = Arrangement.SpaceEvenly
+    ButtonGroup(
+        overflowIndicator = { menuState -> OverflowIndicator(menuState) },
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     ) {
         tabs.forEachIndexed { index, title ->
-            val isSelected = selectedIndex == index
-            val backgroundColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                animationSpec = tween(AnimationDuration.fast),
-                label = "pill_bg"
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(AnimationDuration.fast),
-                label = "pill_content"
-            )
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(Spacing.xs)
-                    .clip(CircleShape)
-                    .background(backgroundColor)
-                    .clickable {
+            val selected = selectedIndex == index
+            toggleableItem(
+                checked = selected,
+                label = counts?.getOrNull(index)?.let { "$title  $it" } ?: title,
+                onCheckedChange = {
+                    if (!selected) {
                         haptics.select()
                         onTabSelected(index)
                     }
-                    .padding(vertical = Spacing.md),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
-                    if (counts != null && index < counts.size && counts[index] > 0) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
-                            else
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                        ) {
-                            Text(
-                                text = counts[index].toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = contentColor,
-                                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
-                            )
-                        }
-                    }
-                }
-            }
+                },
+                weight = 1f
+            )
         }
     }
 }
 
+@Composable
+private fun OverflowIndicator(menuState: ButtonGroupMenuState) {
+    val haptics = rememberHaptics()
+    FilledIconButton(
+        onClick = {
+            haptics.tap()
+            if (menuState.isShowing) menuState.dismiss() else menuState.show()
+        }
+    ) {
+        Icon(Icons.Default.MoreVert, contentDescription = "More tabs")
+    }
+}
+
 /**
- * Filter chip row for multiple filter options.
+ * A standalone on/off filter pill, for a toggle that is not one of a mutually exclusive set.
  */
 @Composable
-fun FilterChipRow(
-    options: List<String>,
-    selectedOptions: Set<Int>,
-    onOptionToggled: (Int) -> Unit,
-    modifier: Modifier = Modifier
+fun TogglePill(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val haptics = rememberHaptics()
 
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ToggleButton(
+        checked = checked,
+        onCheckedChange = {
+            haptics.toggle(it)
+            onCheckedChange(it)
+        },
+        modifier = modifier,
+        enabled = enabled
     ) {
-        options.forEachIndexed { index, option ->
-            val isSelected = index in selectedOptions
-            FilterChip(
-                selected = isSelected,
-                onClick = {
-                    haptics.select()
-                    onOptionToggled(index)
-                },
-                label = {
-                    Text(
-                        text = option,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                shape = RoundedCornerShape(CornerRadius.lg)
-            )
-        }
+        Text(label, style = MaterialTheme.typography.labelLargeEmphasized)
     }
 }

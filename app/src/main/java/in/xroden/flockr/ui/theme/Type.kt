@@ -31,7 +31,7 @@ val PlusJakartaSansFontFamily = FontFamily(
     Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Bold)
 )
 
-val AppTypography = Typography(
+private val base = Typography(
     displayLarge = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
         fontWeight = FontWeight.Bold,
@@ -137,4 +137,29 @@ val AppTypography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp
     )
+)
+
+/**
+ * Material 3 Expressive pairs every type slot with an "emphasized" variant. The size and metrics
+ * stay identical so a swap never reflows the layout; only the weight changes. Components reach
+ * for these when something needs to carry more weight than its neighbours.
+ */
+private fun TextStyle.emphasized(weight: FontWeight = FontWeight.ExtraBold) = copy(fontWeight = weight)
+
+val AppTypography = base.copy(
+    displayLargeEmphasized = base.displayLarge.emphasized(),
+    displayMediumEmphasized = base.displayMedium.emphasized(),
+    displaySmallEmphasized = base.displaySmall.emphasized(),
+    headlineLargeEmphasized = base.headlineLarge.emphasized(),
+    headlineMediumEmphasized = base.headlineMedium.emphasized(),
+    headlineSmallEmphasized = base.headlineSmall.emphasized(),
+    titleLargeEmphasized = base.titleLarge.emphasized(),
+    titleMediumEmphasized = base.titleMedium.emphasized(),
+    titleSmallEmphasized = base.titleSmall.emphasized(),
+    bodyLargeEmphasized = base.bodyLarge.emphasized(FontWeight.SemiBold),
+    bodyMediumEmphasized = base.bodyMedium.emphasized(FontWeight.SemiBold),
+    bodySmallEmphasized = base.bodySmall.emphasized(FontWeight.SemiBold),
+    labelLargeEmphasized = base.labelLarge.emphasized(),
+    labelMediumEmphasized = base.labelMedium.emphasized(),
+    labelSmallEmphasized = base.labelSmall.emphasized(FontWeight.Bold),
 )

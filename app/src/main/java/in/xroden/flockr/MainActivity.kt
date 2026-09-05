@@ -63,7 +63,6 @@ class MainActivity : FragmentActivity() {
         setContent {
             val themeMode by settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             val isAppLocked by appLockManager.isAppLocked.collectAsStateWithLifecycle()
-            // Held as State, not read here, so toggling haptics recomposes nothing.
             val hapticsEnabled = settingsViewModel.hapticsEnabled.collectAsState(initial = true)
 
             val darkTheme = when (themeMode) {
