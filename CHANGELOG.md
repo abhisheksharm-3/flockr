@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0](https://github.com/abhisheksharm-3/flockr/compare/v1.10.1...v1.11.0) (2026-09-05)
+
+
+### Features
+
+* **haptics:** connect the haptics system and wire it across every screen ([479094c](https://github.com/abhisheksharm-3/flockr/commit/479094c9d16cdcc114530ff363553fe154e4f0ae))
+
 ## [1.10.1](https://github.com/abhisheksharm-3/flockr/compare/v1.10.0...v1.10.1) (2026-07-04)
 
 
