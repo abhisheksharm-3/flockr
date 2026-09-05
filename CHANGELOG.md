@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0](https://github.com/abhisheksharm-3/flockr/compare/v1.10.1...v1.11.0) (2026-09-05)
+
+
+### Features
+
+* **haptics:** connect the haptics system and wire it across every screen ([479094c](https://github.com/abhisheksharm-3/flockr/commit/479094c))
+* **theme:** rebuild the design system on Material 3 Expressive ([fb7078c](https://github.com/abhisheksharm-3/flockr/commit/fb7078c))
+
+
+### Build System
+
+* move to AGP 9, Kotlin 2.4 and Material 3 Expressive ([03af71d](https://github.com/abhisheksharm-3/flockr/commit/03af71d))
+
+
+### Notes
+
+The haptics setting previously had no effect: the composition local that carried it was never
+provided, so every call fell through to an enabled default. It is connected now, and haptic
+coverage went from 11 files to 41.
+
+minSdk moves from 29 to 34. Devices on Android 10 through 13 will no longer receive updates.
+
 ## [1.10.1](https://github.com/abhisheksharm-3/flockr/compare/v1.10.0...v1.10.1) (2026-07-04)
 
 
