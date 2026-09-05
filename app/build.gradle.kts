@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
@@ -40,7 +39,7 @@ val appVersionCode = versionNameToCode(appVersionName)
 
 android {
     namespace = "in.xroden.flockr"
-    compileSdk = 36
+    compileSdk = 37
 
     // Read Google Client ID from local.properties
     val localProperties = Properties()
@@ -78,14 +77,16 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlin {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             freeCompilerArgs.addAll(
-                "-opt-in=kotlin.time.ExperimentalTime"
+                "-opt-in=kotlin.time.ExperimentalTime",
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
             )
         }
     }
@@ -106,6 +107,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.material3.adaptive.navigation.suite)
+    implementation(libs.androidx.graphics.shapes)
 
     // Hilt
     implementation(libs.hilt.android)
