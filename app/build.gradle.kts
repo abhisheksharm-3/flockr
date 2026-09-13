@@ -94,6 +94,15 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        resources {
+            // Supabase publishes .kotlin_module entries whose names contain a colon, which the
+            // AGP 9 bundle task rejects as an invalid path. They are compile-time metadata for
+            // resolving top-level declarations, so dropping them from the artifact is safe; the
+            // project does not depend on kotlin-reflect.
+            excludes += "META-INF/*.kotlin_module"
+        }
+    }
 }
 
 dependencies {

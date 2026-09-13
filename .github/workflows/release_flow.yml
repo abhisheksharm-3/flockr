@@ -66,13 +66,32 @@ jobs:
           mkdir -p "$HOME/keystore"
           echo "$KEYSTORE_BASE64" | base64 --decode > "$HOME/keystore/release.jks"
 
-      - name: Build signed APK + AAB
+      - name: Build signed APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          ./gradlew assembleRelease bundleRelease \
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$HOME/keystore/release.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
+            --build-cache --stacktrace
+
+      # Supabase 3.8.0 publishes six .kotlin_module entries whose names contain a colon, and R8
+      # re-adds them after mergeJavaResource has excluded them. The AGP 9 bundle task rejects those
+      # as invalid archive paths, so this step fails while the APK above builds cleanly. It is kept
+      # non-fatal so a broken AAB cannot also withhold the APK from the release.
+      - name: Build signed AAB
+        id: aab
+        continue-on-error: true
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file="$HOME/keystore/release.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
@@ -84,7 +103,11 @@ jobs:
           VERSION_NAME: ${{ steps.v.outputs.name }}
         run: |
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/flockr-${VERSION_NAME}-release.apk"
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/flockr-${VERSION_NAME}-release.aab"
+          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+            mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/flockr-${VERSION_NAME}-release.aab"
+          else
+            echo "::warning::AAB was not produced; publishing the APK only."
+          fi
 
       - name: Attach artifacts to the release
         uses: softprops/action-gh-release@v2
