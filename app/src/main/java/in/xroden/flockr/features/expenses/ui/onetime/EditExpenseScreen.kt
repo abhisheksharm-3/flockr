@@ -29,9 +29,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import java.math.BigDecimal
-import java.math.RoundingMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.expenses.data.equalShares
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,10 +200,7 @@ fun EditExpenseScreen(
                         }
                         val splitAmounts = if (enableSplitting && selectedMembers.isNotEmpty()) {
                             if (splitEqually) {
-                                // Divisor must include the payer (who has no split row), matching
-                                // create semantics; dividing by selectedMembers.size alone overcharges.
-                                val splitAmount = amt.divide(BigDecimal(selectedMembers.size + 1), 2, RoundingMode.HALF_UP)
-                                selectedMembers.associateWith { splitAmount }
+                                equalShares(amt, expenseState?.paidBy.orEmpty(), selectedMembers).rows
                             } else {
                                 selectedMembers.mapNotNull { userId ->
                                     customSplits[userId]?.toBigDecimalOrNull()?.let { userId to it }

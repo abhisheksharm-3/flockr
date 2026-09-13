@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import java.math.BigDecimal
+import java.math.RoundingMode
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.AddExpenseFormState
 import `in`.xroden.flockr.features.expenses.presentation.AddExpenseUiState
@@ -28,6 +30,7 @@ import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.LocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.expenses.data.equalShares
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -513,14 +516,23 @@ private fun SplitPreview(
     customSplits: Map<String, String>,
     currencySymbol: String
 ) {
-    val totalAmount = amount.toDoubleOrNull() ?: 0.0
-    // The backend always includes the payer in an equal split, so the preview must too —
-    // otherwise "$45 each" is shown while $30 each is actually stored.
+    val shares = equalShares(
+        amount = amount.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+        payerId = payerId.orEmpty(),
+        splitWith = selectedMemberIds
+    )
     val participantCount = (selectedMemberIds + listOfNotNull(payerId)).size
     val splitDisplay = if (isSplitEqual) {
-        "${"%.2f".format(if (participantCount > 0) totalAmount / participantCount else 0.0)} each"
+        val owed = shares.rows.values.distinct()
+        if (owed.size == 1 && owed.single() == shares.payerShare) {
+            "${shares.payerShare.toPlainString()} each"
+        } else {
+            "${shares.payerShare.toPlainString()} for you"
+        }
     } else {
-        "${"%.2f".format(customSplits.values.mapNotNull { it.toDoubleOrNull() }.sum())} total"
+        val total = customSplits.values.mapNotNull { it.toBigDecimalOrNull() }
+            .fold(BigDecimal.ZERO, BigDecimal::add)
+        "${total.setScale(2, RoundingMode.HALF_UP).toPlainString()} total"
     }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text("Split among $participantCount members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
