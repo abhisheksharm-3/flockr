@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1](https://github.com/abhisheksharm-3/flockr/compare/v1.11.0...v1.11.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **release:** publish the APK when the AAB cannot be built ([a9059a0](https://github.com/abhisheksharm-3/flockr/commit/a9059a0))
+
+
+### Features
+
+* **ui:** rebuild the shared components on Material 3 Expressive ([6b5d8ce](https://github.com/abhisheksharm-3/flockr/commit/6b5d8ce))
+
+
+### Known Issues
+
+The Android App Bundle is not produced. Supabase 3.8.0 publishes six .kotlin_module
+entries whose names contain a colon, which AGP 9 rejects as invalid archive paths.
+The APK is unaffected. Play Store uploads are blocked until this is fixed upstream.
+
 ## [1.11.0](https://github.com/abhisheksharm-3/flockr/compare/v1.10.1...v1.11.0) (2026-09-05)
 
 
