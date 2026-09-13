@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.2](https://github.com/abhisheksharm-3/flockr/compare/v1.11.1...v1.11.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **expenses:** allocate equal splits in cents from one shared function ([a8532d8](https://github.com/abhisheksharm-3/flockr/commit/a8532d8ff5030b29db3f70f9a49e26968cb4e9c6))
+* **supabase:** authorize the SECURITY DEFINER RPCs and check in the schema ([c42a563](https://github.com/abhisheksharm-3/flockr/commit/c42a563920ff7fac03377ce51a894b1251fcd514))
+
 ## [1.11.1](https://github.com/abhisheksharm-3/flockr/compare/v1.11.0...v1.11.1) (2026-09-13)
 
 
