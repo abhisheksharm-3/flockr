@@ -1,12 +1,19 @@
 package `in`.xroden.flockr.ui.components.inputs
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 
+/**
+ * The app's text field, so every form shares one shape and one label treatment.
+ *
+ * The label takes the emphasized weight from the type scale rather than a whole emphasized style,
+ * because the field animates the label's size as it floats and a fixed style would freeze that.
+ *
+ * Text entry fires no haptics: the IME supplies its own.
+ */
 @Composable
 fun FlockrTextField(
     value: String,
@@ -29,21 +36,16 @@ fun FlockrTextField(
         modifier = modifier,
         enabled = enabled,
         readOnly = readOnly,
-        label = label?.let { { Text(it) } },
-        placeholder = placeholder?.let { { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) } },
+        label = label?.let {
+            { Text(it, fontWeight = MaterialTheme.typography.labelLargeEmphasized.fontWeight) }
+        },
+        placeholder = placeholder?.let { { Text(it) } },
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         isError = isError,
         supportingText = supportingText?.let { { Text(it) } },
         singleLine = singleLine,
         maxLines = maxLines,
-        shape = MaterialTheme.shapes.medium,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-            errorBorderColor = MaterialTheme.colorScheme.error
-        ),
-        textStyle = MaterialTheme.typography.bodyLarge
+        shape = MaterialTheme.shapes.large
     )
 }
-

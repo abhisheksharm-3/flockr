@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,18 +81,6 @@ fun MonthlyReportsScreen(
         perDiemViewModel.loadPerDiemReports(houseId, monthStr)
     }
 
-    // Chart colors from theme
-    val chartColors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.error,
-        Color(0xFF10B981), // Emerald
-        Color(0xFFF59E0B), // Amber
-        Color(0xFF8B5CF6), // Violet
-        Color(0xFFEC4899)  // Pink
-    )
-
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         topBar = {
@@ -143,7 +130,6 @@ fun MonthlyReportsScreen(
                 SpendingByCategorySection(
                     summaryState = summaryState,
                     perDiemBillState = perDiemBillState,
-                    chartColors = chartColors,
                     houseConfig = houseConfig,
                     onNavigateToCategory = onNavigateToCategory
                 )
@@ -382,7 +368,6 @@ private fun SpendingByMemberSection(
                 SimpleBarChart(
                     data = memberData,
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.primary,
                     currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
                     onItemClick = { name ->
                         val user = spendByMember.find { it.fullName == name }
@@ -398,7 +383,6 @@ private fun SpendingByMemberSection(
 private fun SpendingByCategorySection(
     summaryState: MonthlySummaryUiState,
     perDiemBillState: PerDiemBillUiState,
-    chartColors: List<Color>,
     houseConfig: HouseConfig?,
     onNavigateToCategory: (String) -> Unit
 ) {
@@ -427,7 +411,6 @@ private fun SpendingByCategorySection(
 
                 SimplePieChart(
                     data = categoryData,
-                    colors = chartColors,
                     modifier = Modifier.fillMaxWidth(),
                     currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
                     onItemClick = { category ->

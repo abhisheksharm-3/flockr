@@ -1,28 +1,49 @@
 package `in`.xroden.flockr.ui.components.inputs
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import `in`.xroden.flockr.ui.theme.Motion
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.theme.spatialSpec
+import `in`.xroden.flockr.utils.rememberHaptics
 import kotlinx.datetime.*
 import java.util.Locale
 import kotlin.time.Clock
-import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
- * Unified Month Selector component for consistent styling across all screens.
- * Supports both filter mode (with clear button) and navigation mode.
- * 
- * @param timezone Optional timezone ID (e.g., "America/New_York"). If null, uses system default.
+ * Steps through months one at a time, never past the current one, with an optional action that
+ * clears the month filter entirely.
+ *
+ * @param timezone IANA zone id deciding which month counts as current; falls back to the system
+ * zone when null or unparseable.
  */
 @Composable
 fun MonthSelector(
@@ -36,30 +57,22 @@ fun MonthSelector(
 ) {
     val haptics = rememberHaptics()
     val currentMonthStart = remember(timezone) {
-        val tz = timezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
-        val now = Clock.System.now().toLocalDateTime(tz).date
-        LocalDate(now.year, now.month, 1)
+        val zone = timezone?.let { runCatching { TimeZone.of(it) }.getOrNull() }
+            ?: TimeZone.currentSystemDefault()
+        val today = Clock.System.now().toLocalDateTime(zone).date
+        LocalDate(today.year, today.month, 1)
     }
-
-    val monthName = remember(selectedMonth) {
-        selectedMonth.month.name.lowercase()
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-    }
-
-    val isFutureDisabled = selectedMonth.plus(1, DateTimeUnit.MONTH) > currentMonthStart
+    val hasReachedCurrentMonth = selectedMonth.plus(1, DateTimeUnit.MONTH) > currentMonthStart
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        shape = MaterialTheme.shapes.largeIncreased
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -67,67 +80,80 @@ fun MonthSelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilledTonalIconButton(
-                    onClick = { haptics.select(); onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH)) },
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
+                    onClick = {
+                        haptics.select()
+                        onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH))
+                    }
                 ) {
-                    Icon(
-                        Icons.Default.ChevronLeft,
-                        "Previous month",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(Icons.Default.ChevronLeft, "Previous month")
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "$monthName ${selectedMonth.year}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    subtitle?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                MonthLabel(month = selectedMonth, subtitle = subtitle)
 
                 FilledTonalIconButton(
-                    onClick = { if (!isFutureDisabled) { haptics.select(); onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH)) } },
-                    enabled = !isFutureDisabled,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
+                    onClick = {
+                        haptics.select()
+                        onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH))
+                    },
+                    enabled = !hasReachedCurrentMonth
                 ) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        "Next month",
-                        tint = if (!isFutureDisabled) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
+                    Icon(Icons.Default.ChevronRight, "Next month")
                 }
             }
 
-            if (showClearButton && onClearFilter != null) {
-                OutlinedButton(
-                    onClick = { haptics.select(); onClearFilter() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            onClearFilter?.let { clearFilter ->
+                AnimatedVisibility(
+                    visible = showClearButton,
+                    enter = fadeIn(Motion.effects) + expandVertically(spatialSpec()),
+                    exit = fadeOut(Motion.effects) + shrinkVertically(spatialSpec())
                 ) {
-                    Icon(Icons.Default.Close, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Show All", fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = {
+                            haptics.select()
+                            clearFilter()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Close, null, Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Show All", style = MaterialTheme.typography.labelLargeEmphasized)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MonthLabel(month: LocalDate, subtitle: String?) {
+    val label = remember(month) {
+        val name = month.month.name.lowercase()
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        "$name ${month.year}"
+    }
+    val fade = Motion.effects
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xxs)
+    ) {
+        AnimatedContent(
+            targetState = label,
+            transitionSpec = { fadeIn(fade) togetherWith fadeOut(fade) },
+            contentAlignment = Alignment.Center
+        ) { animatedLabel ->
+            Text(
+                text = animatedLabel,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        subtitle?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
