@@ -1,16 +1,16 @@
 package `in`.xroden.flockr.features.chat.data
 
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RateLimiter
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.core.notification.NotificationService
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.base.BaseRealtimeRepository
 import `in`.xroden.flockr.data.dto.MessageInsert
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.model.MessageWithProfile
+import `in`.xroden.flockr.data.realtime.TableWatch
+import `in`.xroden.flockr.data.realtime.liveQuery
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
@@ -20,24 +20,17 @@ import javax.inject.Singleton
 
 @Singleton
 class ChatRepository @Inject constructor(
-    supabase: SupabaseClient,
-    connectionManager: RealtimeConnectionManager,
-    private val notificationService: NotificationService,
-    private val rateLimiter: RateLimiter
-) : BaseRealtimeRepository(supabase, connectionManager), IChatRepository {
+    private val supabase: SupabaseClient,
+    private val connectionManager: RealtimeConnectionManager,
+) {
 
-    override fun getCurrentUserId(): String? = authenticatedUserId
+    fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    override fun getMessagesFlow(houseId: String): Flow<Result<List<Message>>> =
-        createRealtimeFlow(
-            channelId = "messages_$houseId",
-            table = "messages",
-            filterColumn = "house_id",
-            filterValue = houseId,
-            fetchData = { getMessages(houseId) }
-        )
+    /** ponytail: re-reads the latest page on every change; append from the change payload if houses get chatty. */
+    fun getMessagesFlow(houseId: String): Flow<Result<List<Message>>> =
+        supabase.liveQuery(connectionManager, listOf(TableWatch("messages", "house_id", houseId))) { getMessages(houseId) }
 
-    private suspend fun getMessages(houseId: String): Result<List<Message>> = runCatching {
+    private suspend fun getMessages(houseId: String): List<Message> =
         // Fetch only the most recent page (newest first), then reverse to chronological order.
         // Avoids re-downloading the entire history on every realtime change.
         supabase.from("messages")
@@ -49,29 +42,14 @@ class ChatRepository @Inject constructor(
             .decodeList<MessageWithProfile>()
             .map { it.toMessage() }
             .reversed()
-    }
 
     private companion object {
         const val MESSAGE_PAGE_SIZE = 100L
     }
 
-    override suspend fun sendMessage(houseId: String, content: String): Result<Unit> =
-        rateLimiter.throttle("send_message_$houseId", maxRequestsPerMinute = 60) {
-            runCatching {
-                val userId = requireAuthenticated(authenticatedUserId)
-                val validatedContent = Validators.validateMessageContent(content).getOrThrow()
-                val sanitizedContent = InputSanitizer.sanitizeText(validatedContent)
-
-                supabase.from("messages")
-                    .insert(
-                        MessageInsert(
-                            houseId = houseId,
-                            userId = userId,
-                            content = sanitizedContent
-                        )
-                    )
-
-                notificationService.sendMessageNotification(houseId, sanitizedContent, userId)
-            }
-        }
+    suspend fun sendMessage(houseId: String, content: String): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val text = InputSanitizer.sanitizeText(Validators.validateMessageContent(content).getOrThrow())
+        supabase.from("messages").insert(MessageInsert(houseId = houseId, userId = userId, content = text))
+    }
 }

@@ -1,5 +1,7 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
+import coil3.request.crossfade
+import `in`.xroden.flockr.core.network.userMessage
 import android.util.Patterns
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -29,7 +31,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.presentation.HouseManagementViewModel
-import `in`.xroden.flockr.features.house.model.InvitationWithHouse
+import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import kotlinx.coroutines.launch
 import kotlin.collections.isNotEmpty
@@ -43,7 +45,7 @@ fun ManageMembersScreen(
     viewModel: HouseManagementViewModel = hiltViewModel()
 ) {
     var members by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
-    var pendingInvitations by remember { mutableStateOf<List<InvitationWithHouse>>(emptyList()) }
+    var pendingInvitations by remember { mutableStateOf<List<HouseInvitation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showInviteDialog by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf<MemberWithProfile?>(null) }
@@ -65,7 +67,7 @@ fun ManageMembersScreen(
             currentUserRole = members.find { it.userId == currentUserId }?.role?.name
             // Only load invitations if user is owner or admin
             if (currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name) {
-                pendingInvitations = viewModel.getPendingInvitations(houseId)
+                pendingInvitations = viewModel.getSentInvitations(houseId)
             }
             isLoading = false
         }
@@ -99,11 +101,11 @@ fun ManageMembersScreen(
                         showInviteDialog = false
                         inviteEmail = ""
                         // Reload pending invitations
-                        pendingInvitations = viewModel.getPendingInvitations(houseId)
+                        pendingInvitations = viewModel.getSentInvitations(houseId)
                         snackbarHostState.showSnackbar("Invitation sent to $emailToInvite")
                     } else {
                         snackbarHostState.showSnackbar(
-                            result.exceptionOrNull()?.message ?: "Failed to send invitation"
+                            result.exceptionOrNull()?.userMessage() ?: "Failed to send invitation"
                         )
                     }
                     isInviting = false
@@ -115,7 +117,7 @@ fun ManageMembersScreen(
     // Remove Confirmation Dialog
     showRemoveDialog?.let { memberToRemove ->
         RemoveMemberDialog(
-            memberName = memberToRemove.fullName ?: memberToRemove.email,
+            memberName = memberToRemove.displayName,
             onDismiss = { showRemoveDialog = null },
             onConfirm = {
                 scope.launch {
@@ -173,24 +175,12 @@ fun ManageMembersScreen(
                             onToggleExpanded = { expandedInvitations = !expandedInvitations },
                             onCancelInvitation = { invitation ->
                                 scope.launch {
-                                    val result = viewModel.cancelInvitation(houseId, invitation.inviteeEmail)
+                                    val result = viewModel.cancelInvitation(houseId, invitation.id)
                                     if (result.isSuccess) {
-                                        pendingInvitations = viewModel.getPendingInvitations(houseId)
+                                        pendingInvitations = viewModel.getSentInvitations(houseId)
                                         snackbarHostState.showSnackbar("Invitation cancelled")
                                     } else {
                                         snackbarHostState.showSnackbar("Failed to cancel invitation")
-                                    }
-                                }
-                            },
-                            onResendInvitation = { invitation ->
-                                scope.launch {
-                                    val result = viewModel.resendInvitationNotification(houseId, invitation.inviteeEmail)
-                                    if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("Notification resent to ${invitation.inviteeEmail}")
-                                    } else {
-                                        snackbarHostState.showSnackbar(
-                                            result.exceptionOrNull()?.message ?: "Failed to resend notification"
-                                        )
                                     }
                                 }
                             }
@@ -225,7 +215,7 @@ fun ManageMembersScreen(
                                 val result = viewModel.updateMemberRole(houseId, member.userId, newRole)
                                 members = viewModel.getHouseMembers(houseId)
                                 snackbarHostState.showSnackbar(
-                                    if (result.isSuccess) "Updated ${member.fullName ?: member.email}'s role"
+                                    if (result.isSuccess) "Updated ${member.displayName}'s role"
                                     else result.exceptionOrNull()?.message ?: "Failed to update role"
                                 )
                             }
@@ -343,11 +333,10 @@ private fun MembersCountHeader(memberCount: Int) {
 
 @Composable
 private fun PendingInvitationsCard(
-    invitations: List<InvitationWithHouse>,
+    invitations: List<HouseInvitation>,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
-    onCancelInvitation: (InvitationWithHouse) -> Unit,
-    onResendInvitation: (InvitationWithHouse) -> Unit
+    onCancelInvitation: (HouseInvitation) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -415,8 +404,7 @@ private fun PendingInvitationsCard(
                     invitations.forEach { invitation ->
                         PendingInvitationItem(
                             invitation = invitation,
-                            onCancel = { onCancelInvitation(invitation) },
-                            onResend = { onResendInvitation(invitation) }
+                            onCancel = { onCancelInvitation(invitation) }
                         )
                     }
                 }
@@ -462,8 +450,8 @@ fun MemberListItem(
             // Avatar or Icon
             if (!member.avatarUrl.isNullOrBlank()) {
                 androidx.compose.foundation.Image(
-                    painter = coil.compose.rememberAsyncImagePainter(
-                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    painter = coil3.compose.rememberAsyncImagePainter(
+                        model = coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                             .data(member.avatarUrl)
                             .crossfade(true)
                             .build()
@@ -501,7 +489,7 @@ fun MemberListItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = member.fullName ?: "Unknown User",
+                        text = member.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -774,9 +762,8 @@ fun RemoveMemberDialog(
 
 @Composable
 fun PendingInvitationItem(
-    invitation: InvitationWithHouse,
-    onCancel: () -> Unit,
-    onResend: () -> Unit
+    invitation: HouseInvitation,
+    onCancel: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -839,19 +826,6 @@ fun PendingInvitationItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-
-            // Resend Button
-            IconButton(
-                onClick = onResend,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Resend notification",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
             }
 
             // Cancel Button

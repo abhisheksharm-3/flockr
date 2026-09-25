@@ -159,6 +159,8 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.work.runtime)
 
     // Google Maps
     implementation(libs.play.services.maps)

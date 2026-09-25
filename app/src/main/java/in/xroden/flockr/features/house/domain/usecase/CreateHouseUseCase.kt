@@ -1,12 +1,12 @@
 package `in`.xroden.flockr.features.house.domain.usecase
 
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.House
 import javax.inject.Inject
 
 /** Use case for creating a house with validation and configuration. */
 class CreateHouseUseCase @Inject constructor(
-    private val houseRepository: IHouseRepository
+    private val houseRepository: HouseRepository
 ) {
     suspend operator fun invoke(
         name: String,

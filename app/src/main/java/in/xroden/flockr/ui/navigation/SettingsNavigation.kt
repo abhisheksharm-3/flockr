@@ -4,7 +4,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import `in`.xroden.flockr.features.settings.ui.EditProfileScreen
-import `in`.xroden.flockr.features.settings.ui.NotificationPreferencesScreen
+import `in`.xroden.flockr.features.notifications.ui.NotificationPreferencesScreen
 import `in`.xroden.flockr.features.settings.ui.SecuritySettingsScreen
 import `in`.xroden.flockr.features.settings.ui.SettingsScreen
 

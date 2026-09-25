@@ -7,7 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
 import `in`.xroden.flockr.features.expenses.model.SettleUpPayment
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.house.model.currency
@@ -58,7 +58,7 @@ data class SettleUpFormState(
 @HiltViewModel
 class SettleUpViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _form = MutableStateFlow(SettleUpFormState())

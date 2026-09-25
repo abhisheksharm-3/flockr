@@ -58,8 +58,3 @@ class RetryPolicy(
         }
     }
 }
-
-suspend fun <T> retryWithExponentialBackoff(
-    maxAttempts: Int = AppConstants.RETRY_MAX_ATTEMPTS,
-    block: suspend () -> T
-): Result<T> = RetryPolicy(maxAttempts = maxAttempts).execute(block)

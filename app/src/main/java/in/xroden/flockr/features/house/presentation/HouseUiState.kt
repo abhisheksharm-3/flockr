@@ -4,7 +4,7 @@ import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.HousePreview
-import `in`.xroden.flockr.features.house.model.InvitationWithHouse
+import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 
 sealed interface HouseListUiState {
@@ -35,7 +35,7 @@ sealed interface JoinHouseUiState {
 
 sealed interface InvitationsUiState {
     data object Loading : InvitationsUiState
-    data class Success(val invitations: List<InvitationWithHouse>) : InvitationsUiState
+    data class Success(val invitations: List<HouseInvitation>) : InvitationsUiState
     data class Error(val message: String) : InvitationsUiState
 }
 

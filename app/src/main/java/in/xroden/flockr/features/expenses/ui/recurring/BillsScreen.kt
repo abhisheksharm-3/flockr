@@ -52,7 +52,7 @@ import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.presentation.BillsUiState
 import `in`.xroden.flockr.features.expenses.presentation.BillsViewModel
 import `in`.xroden.flockr.features.expenses.ui.categoryIcon
-import `in`.xroden.flockr.features.expenses.ui.ledger.nameOf
+import `in`.xroden.flockr.features.house.model.nameOf
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.today
 import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig

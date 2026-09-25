@@ -1,3 +1,4 @@
+/** A house chore: who does it, when, how often, and whose turn is next. */
 package `in`.xroden.flockr.features.chores.model
 
 import androidx.compose.runtime.Immutable
@@ -9,6 +10,11 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * [rotation] is the order members take turns in when [recurrencePattern] repeats the chore;
+ * completing it schedules the next occurrence for the next current member in it. [effortPoints],
+ * from 1 to 10, is how much the chore counts on the leaderboard.
+ */
 @Immutable
 @Serializable
 data class Chore(
@@ -18,13 +24,16 @@ data class Chore(
     @SerialName("task_name")
     val taskName: String,
     val description: String? = null,
-    @SerialName("assigned_to")
-    val assignedTo: String? = null,
-    @SerialName("assigned_to_name")
-    val assignedToName: String? = null,
     @SerialName("due_date")
     @Serializable(with = LocalDateSerializer::class)
     val dueDate: LocalDate? = null,
+    @SerialName("recurrence_pattern")
+    val recurrencePattern: ChoreRecurrence? = null,
+    val rotation: List<String> = emptyList(),
+    @SerialName("effort_points")
+    val effortPoints: Int = 1,
+    @SerialName("assigned_to")
+    val assignedTo: String? = null,
     @SerialName("is_completed")
     val isCompleted: Boolean = false,
     @SerialName("completed_at")
@@ -32,14 +41,8 @@ data class Chore(
     val completedAt: Instant? = null,
     @SerialName("completed_by")
     val completedBy: String? = null,
-    @SerialName("completed_by_name")
-    val completedByName: String? = null,
-    @SerialName("recurrence_pattern")
-    val recurrencePattern: ChoreRecurrence? = null,
     @SerialName("created_by")
-    val createdBy: String? = null,
-    @SerialName("created_by_name")
-    val createdByName: String? = null,
+    val createdBy: String,
     @SerialName("created_at")
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant

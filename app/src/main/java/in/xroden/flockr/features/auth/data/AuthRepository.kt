@@ -18,14 +18,14 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val supabase: SupabaseClient
-) : IAuthRepository {
+) {
 
-    override val sessionFlow: Flow<SessionStatus> = supabase.auth.sessionStatus
+    val sessionFlow: Flow<SessionStatus> = supabase.auth.sessionStatus
 
-    override val currentUser: UserInfo?
+    val currentUser: UserInfo?
         get() = supabase.auth.currentUserOrNull()
 
-    override suspend fun signUp(email: String, password: String, fullName: String): Result<Unit> = runCatching {
+    suspend fun signUp(email: String, password: String, fullName: String): Result<Unit> = runCatching {
         supabase.auth.signUpWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
@@ -45,7 +45,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    override suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+    suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
         supabase.auth.signInWith(io.github.jan.supabase.auth.providers.builtin.Email) {
             this.email = email
             this.password = password
@@ -56,18 +56,18 @@ class AuthRepository @Inject constructor(
      * Sign in with a Google ID token obtained from Credential Manager.
      * Uses Supabase's IDToken provider for native authentication.
      */
-    override suspend fun signInWithGoogleIdToken(idToken: String): Result<Unit> = runCatching {
+    suspend fun signInWithGoogleIdToken(idToken: String): Result<Unit> = runCatching {
         supabase.auth.signInWith(IDToken) {
             this.provider = Google
             this.idToken = idToken
         }
     }
 
-    override suspend fun signOut(): Result<Unit> = runCatching {
+    suspend fun signOut(): Result<Unit> = runCatching {
         supabase.auth.signOut()
     }
 
-    override suspend fun getProfile(): Result<Profile?> = runCatching {
+    suspend fun getProfile(): Result<Profile?> = runCatching {
         val userId = currentUser?.id ?: return@runCatching null
 
         supabase.from("profiles")
@@ -79,7 +79,7 @@ class AuthRepository @Inject constructor(
             .decodeSingle<Profile>()
     }
 
-    override suspend fun updateProfile(fullName: String?, avatarUrl: String?, hasCompletedOnboarding: Boolean?): Result<Unit> = runCatching {
+    suspend fun updateProfile(fullName: String? = null, avatarUrl: String? = null, hasCompletedOnboarding: Boolean? = null): Result<Unit> = runCatching {
         val userId = currentUser?.id ?: throw IllegalStateException("No user logged in")
 
         if (fullName == null && hasCompletedOnboarding == null && avatarUrl == null) {
@@ -98,9 +98,9 @@ class AuthRepository @Inject constructor(
             }
     }
 
-    override suspend fun getCurrentProfile(): Result<Profile?> = getProfile()
+    suspend fun getCurrentProfile(): Result<Profile?> = getProfile()
 
-    override suspend fun isUserAuthenticated(): Boolean = currentUser != null
+    suspend fun isUserAuthenticated(): Boolean = currentUser != null
 
-    override fun getCurrentUserId(): String? = currentUser?.id
+    fun getCurrentUserId(): String? = currentUser?.id
 }

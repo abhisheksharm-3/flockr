@@ -3,7 +3,7 @@ package `in`.xroden.flockr.features.house.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +17,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class HouseViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository
+    private val houseRepository: HouseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HouseDetailUiState>(HouseDetailUiState.Loading)

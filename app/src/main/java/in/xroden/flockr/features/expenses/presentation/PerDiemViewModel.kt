@@ -9,7 +9,7 @@ import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import `in`.xroden.flockr.features.expenses.model.PerDiemMonth
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.today
 import java.math.BigDecimal
 import javax.inject.Inject
@@ -32,7 +32,7 @@ sealed interface PerDiemUiState {
 @HiltViewModel
 class PerDiemViewModel @Inject constructor(
     private val perDiemRepository: PerDiemRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<PerDiemUiState>(PerDiemUiState.Loading)

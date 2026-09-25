@@ -3,10 +3,10 @@ package `in`.xroden.flockr.features.house.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.house.data.IHouseRepository
-import `in`.xroden.flockr.features.house.data.IHouseInvitationRepository
-import `in`.xroden.flockr.features.house.model.InvitationWithHouse
-import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.data.enums.HouseMemberRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,8 +23,8 @@ sealed interface HouseManagementUiState {
 
 @HiltViewModel
 class HouseManagementViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository,
-    private val houseInvitationRepository: IHouseInvitationRepository
+    private val houseRepository: HouseRepository,
+    private val houseInvitationRepository: HouseInvitationRepository
 ) : ViewModel() {
 
     private val _detailState = MutableStateFlow<HouseDetailUiState>(HouseDetailUiState.Loading)
@@ -59,7 +59,7 @@ class HouseManagementViewModel @Inject constructor(
                 }
             } else {
                 _detailState.value = HouseDetailUiState.Error(
-                    message = houseResult.exceptionOrNull()?.message ?: "Failed to load house",
+                    message = houseResult.exceptionOrNull()?.userMessage() ?: "Failed to load house",
                     cause = houseResult.exceptionOrNull()
                 )
             }
@@ -69,25 +69,15 @@ class HouseManagementViewModel @Inject constructor(
     fun loadInvitations(houseId: String) {
         viewModelScope.launch {
             _invitationsState.value = InvitationsUiState.Loading
-            
-            houseInvitationRepository.getPendingInvitations().fold(
-                onSuccess = { invitations ->
-                    // Filter by houseId since API returns all invitations
-                    val filtered = invitations.filter { invitation -> invitation.houseId == houseId }
-                    _invitationsState.value = InvitationsUiState.Success(filtered)
-                },
-                onFailure = { error ->
-                    _invitationsState.value = InvitationsUiState.Error(
-                        message = error.message ?: "Failed to load invitations"
-                    )
-                }
+            _invitationsState.value = houseInvitationRepository.getSentInvitations(houseId).fold(
+                onSuccess = { InvitationsUiState.Success(it) },
+                onFailure = { InvitationsUiState.Error(it.userMessage()) }
             )
         }
     }
 
-    suspend fun getPendingInvitations(houseId: String): List<InvitationWithHouse> {
-        return houseInvitationRepository.getPendingInvitations().getOrElse { emptyList() }.filter { it.houseId == houseId }
-    }
+    suspend fun getSentInvitations(houseId: String): List<HouseInvitation> =
+        houseInvitationRepository.getSentInvitations(houseId).getOrElse { emptyList() }
 
     suspend fun removeMember(houseId: String, userId: String): Result<Unit> {
         return houseRepository.removeMember(houseId, userId).onSuccess {
@@ -101,20 +91,16 @@ class HouseManagementViewModel @Inject constructor(
         }
     }
 
-    suspend fun cancelInvitation(houseId: String, email: String): Result<Unit> {
-        return houseInvitationRepository.cancelInvitation(houseId, email).onSuccess {
+    suspend fun cancelInvitation(houseId: String, invitationId: String): Result<Unit> {
+        return houseInvitationRepository.cancelInvitation(invitationId).onSuccess {
             loadInvitations(houseId)
         }
-    }
-
-    suspend fun resendInvitationNotification(houseId: String, email: String): Result<Unit> {
-        return houseInvitationRepository.resendInvitationNotification(houseId, email)
     }
 
     suspend fun updateMemberRole(
         houseId: String,
         userId: String,
-        role: `in`.xroden.flockr.data.enums.HouseMemberRole
+        role: HouseMemberRole
     ): Result<Unit> {
         return houseRepository.updateMemberRole(houseId, userId, role).onSuccess {
             loadHouseDetails(houseId)

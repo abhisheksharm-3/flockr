@@ -3,7 +3,7 @@ package `in`.xroden.flockr.features.settings.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.settings.data.ISettingsRepository
+import `in`.xroden.flockr.features.settings.data.SettingsRepository
 import `in`.xroden.flockr.features.settings.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: ISettingsRepository
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     val themeMode: Flow<ThemeMode> = settingsRepository.themeMode

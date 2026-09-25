@@ -1,164 +1,107 @@
+/** A house's chores. Scheduling the next turn of a repeating chore and notifying people happen in the database. */
 package `in`.xroden.flockr.features.chores.data
 
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RateLimiter
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.core.notification.NotificationService
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.ChoreInsert
-import `in`.xroden.flockr.data.dto.ChoreUpdate
-import `in`.xroden.flockr.features.chores.model.Chore
-import `in`.xroden.flockr.features.chores.model.ChoreWithProfiles
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Order
 import `in`.xroden.flockr.data.enums.ChoreRecurrence
-import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.DatePeriod
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.plus
+import `in`.xroden.flockr.data.realtime.TableWatch
+import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import `in`.xroden.flockr.features.chores.model.Chore
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/** The chore fields a member writes when adding or editing one. */
+@Serializable
+data class ChoreDraft(
+    @SerialName("task_name") val taskName: String,
+    val description: String?,
+    @SerialName("due_date") @Serializable(with = LocalDateSerializer::class) val dueDate: LocalDate?,
+    @SerialName("recurrence_pattern") val recurrencePattern: ChoreRecurrence?,
+    val rotation: List<String>,
+    @SerialName("effort_points") val effortPoints: Int,
+    @SerialName("assigned_to") val assignedTo: String?,
+)
+
+@Serializable
+private data class ChoreInsert(
+    @SerialName("house_id") val houseId: String,
+    @SerialName("created_by") val createdBy: String,
+    @SerialName("task_name") val taskName: String,
+    val description: String?,
+    @SerialName("due_date") @Serializable(with = LocalDateSerializer::class) val dueDate: LocalDate?,
+    @SerialName("recurrence_pattern") val recurrencePattern: ChoreRecurrence?,
+    val rotation: List<String>,
+    @SerialName("effort_points") val effortPoints: Int,
+    @SerialName("assigned_to") val assignedTo: String?,
+)
+
+@Serializable
+private data class ChoreCompletion(
+    @SerialName("is_completed") val isCompleted: Boolean,
+    @SerialName("completed_at") @Serializable(with = InstantSerializer::class) val completedAt: Instant?,
+    @SerialName("completed_by") val completedBy: String?,
+)
 
 @Singleton
 class ChoreRepository @Inject constructor(
-    supabase: SupabaseClient,
-    connectionManager: RealtimeConnectionManager,
-    private val rateLimiter: RateLimiter,
-    private val notificationService: NotificationService
-) : BaseRealtimeRepository(supabase, connectionManager), IChoreRepository {
+    private val supabase: SupabaseClient,
+    private val connectionManager: RealtimeConnectionManager,
+) {
+    fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    override fun getCurrentUserId(): String? = authenticatedUserId
-
-    override fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> =
-        createRealtimeFlow(
-            channelId = "chores_$houseId",
-            table = "chores",
-            filterColumn = "house_id",
-            filterValue = houseId,
-            fetchData = { getChores(houseId) }
-        )
-
-    private suspend fun getChores(houseId: String): Result<List<Chore>> = runCatching {
-        supabase.from("chores")
-            .select(Columns.raw("""
-                *,
-                assigned_to_profile:profiles!chores_assigned_to_fkey(full_name),
-                completed_by_profile:profiles!chores_completed_by_fkey(full_name),
-                created_by_profile:profiles!chores_created_by_fkey(full_name)
-            """.trimIndent())) {
+    /** Every chore in the house, open ones soonest due first, kept current. */
+    fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> =
+        supabase.liveQuery(connectionManager, listOf(TableWatch("chores", "house_id", houseId))) {
+            supabase.from("chores").select {
                 filter { eq("house_id", houseId) }
-                order("due_date", Order.ASCENDING)
-                limit(count = 200)
-            }
-            .decodeList<ChoreWithProfiles>()
-            .map { it.toChore() }
-    }
-
-    override suspend fun createChore(
-        houseId: String,
-        taskName: String,
-        description: String?,
-        dueDate: LocalDate?,
-        recurrencePattern: `in`.xroden.flockr.data.enums.ChoreRecurrence?,
-        assignedTo: String?
-    ): Result<Unit> = rateLimiter.throttle("create_chore", maxRequestsPerMinute = 30) {
-        runCatching {
-            val userId = requireAuthenticated(authenticatedUserId)
-            val validatedTaskName = Validators.validateChoreTask(taskName).getOrThrow()
-            val sanitizedTaskName = InputSanitizer.sanitizeText(validatedTaskName)
-            val sanitizedDescription = description?.trim()?.takeIf { it.isNotBlank() }
-                ?.let { InputSanitizer.sanitizeText(it) }
-
-            supabase.from("chores")
-                .insert(
-                    ChoreInsert(
-                        houseId = houseId,
-                        taskName = sanitizedTaskName,
-                        description = sanitizedDescription,
-                        dueDate = dueDate,
-                        recurrencePattern = recurrencePattern,
-                        assignedTo = assignedTo,
-                        createdBy = userId
-                    )
-                )
-
-            if (assignedTo != null && assignedTo != userId) {
-                notificationService.sendChoreAssigned(houseId, assignedTo, sanitizedTaskName, userId)
-            } else {
-                notificationService.sendChoreCreated(houseId, sanitizedTaskName, userId)
-            }
-        }
-    }
-
-    override suspend fun updateChore(
-        choreId: String,
-        taskName: String?,
-        description: String?,
-        dueDate: LocalDate?,
-        assignedTo: String?
-    ): Result<Unit> = runCatching {
-        val sanitizedTaskName = taskName?.let { InputSanitizer.sanitizeText(it) }
-        val sanitizedDescription = description?.let { InputSanitizer.sanitizeText(it) }
-
-        supabase.from("chores")
-            .update(ChoreUpdate(
-                taskName = sanitizedTaskName,
-                description = sanitizedDescription,
-                dueDate = dueDate,
-                assignedTo = assignedTo
-            )) {
-                filter { eq("id", choreId) }
-            }
-    }
-
-    override suspend fun completeChore(choreId: String, houseId: String): Result<Unit> = runCatching {
-        val userId = requireAuthenticated(authenticatedUserId)
-        val chore = supabase.from("chores")
-            .select { filter { eq("id", choreId) } }
-            .decodeSingleOrNull<Chore>()
-        val taskName = chore?.taskName ?: "Chore"
-
-        supabase.from("chores")
-            .update(ChoreUpdate(isCompleted = true, completedBy = userId, completedAt = Clock.System.now())) {
-                filter { eq("id", choreId) }
-            }
-
-        // Recurring chore: schedule the next occurrence from the current due date.
-        val pattern = chore?.recurrencePattern
-        val currentDue = chore?.dueDate
-        if (chore != null && pattern != null && currentDue != null) {
-            val nextDue = when (pattern) {
-                ChoreRecurrence.DAILY -> currentDue.plus(DatePeriod(days = 1))
-                ChoreRecurrence.WEEKLY -> currentDue.plus(DatePeriod(days = 7))
-                ChoreRecurrence.MONTHLY -> currentDue.plus(DatePeriod(months = 1))
-                ChoreRecurrence.YEARLY -> currentDue.plus(DatePeriod(years = 1))
-            }
-            supabase.from("chores").insert(
-                ChoreInsert(
-                    houseId = houseId,
-                    taskName = chore.taskName,
-                    description = chore.description,
-                    dueDate = nextDue,
-                    recurrencePattern = pattern,
-                    assignedTo = chore.assignedTo,
-                    createdBy = chore.createdBy ?: userId
-                )
-            )
+                order("is_completed", Order.ASCENDING)
+                order("due_date", Order.ASCENDING, nullsFirst = false)
+                limit(300)
+            }.decodeList<Chore>()
         }
 
-        notificationService.sendChoreCompleted(houseId, choreId, taskName, userId)
+    suspend fun getChore(choreId: String): Result<Chore> = runCatching {
+        supabase.from("chores").select { filter { eq("id", choreId) } }.decodeSingle<Chore>()
     }
 
-    override suspend fun deleteChore(choreId: String, houseId: String): Result<Unit> = runCatching {
+    suspend fun createChore(houseId: String, draft: ChoreDraft): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val clean = draft.sanitized()
+        supabase.from("chores").insert(
+            ChoreInsert(houseId, userId, clean.taskName, clean.description, clean.dueDate, clean.recurrencePattern, clean.rotation, clean.effortPoints, clean.assignedTo)
+        )
+    }
+
+    suspend fun updateChore(choreId: String, draft: ChoreDraft): Result<Unit> = runCatching {
+        supabase.from("chores").update(draft.sanitized()) { filter { eq("id", choreId) } }
+    }
+
+    /** Ticks the chore off, or back on; a repeating chore's next turn is scheduled once, on the first tick. */
+    suspend fun setCompleted(choreId: String, isCompleted: Boolean): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val completion = if (isCompleted) ChoreCompletion(true, Clock.System.now(), userId) else ChoreCompletion(false, null, null)
+        supabase.from("chores").update(completion) { filter { eq("id", choreId) } }
+    }
+
+    suspend fun deleteChore(choreId: String): Result<Unit> = runCatching {
         supabase.from("chores").delete { filter { eq("id", choreId) } }
     }
 
-    override suspend fun clearCompletedChores(houseId: String): Result<Unit> = runCatching {
+    suspend fun clearCompletedChores(houseId: String): Result<Unit> = runCatching {
         supabase.from("chores").delete {
             filter {
                 eq("house_id", houseId)
@@ -166,4 +109,10 @@ class ChoreRepository @Inject constructor(
             }
         }
     }
+
+    private fun ChoreDraft.sanitized() = copy(
+        taskName = InputSanitizer.sanitizeText(Validators.validateChoreTask(taskName).getOrThrow()),
+        description = description?.let(InputSanitizer::sanitizeText)?.ifBlank { null },
+        rotation = if (recurrencePattern == null) emptyList() else rotation,
+    )
 }

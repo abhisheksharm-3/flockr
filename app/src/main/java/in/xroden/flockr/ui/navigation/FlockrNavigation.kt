@@ -14,30 +14,29 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import `in`.xroden.flockr.data.enums.NotificationType
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.house.ui.home.HomeScreen
+import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
 import `in`.xroden.flockr.features.notifications.ui.NotificationScreen
 import `in`.xroden.flockr.ui.components.loading.FlockrSplashLoader
 import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.runtime.key
-import androidx.compose.ui.platform.LocalContext
-import org.json.JSONObject
 
 /**
- * Navigation component for Flockr app with authentication state management.
- * Uses modular navigation graphs for different features with type-safe routes.
+ * The app's navigation, switching between the signed-out and signed-in graphs. [initialInviteCode]
+ * and [pendingNotificationId] are deep links held until the user is signed in; each consumed
+ * callback clears one once it has been followed.
  */
-
 @Composable
 fun FlockrNavigation(
     initialInviteCode: String? = null,
     onInviteConsumed: () -> Unit = {},
+    pendingNotificationId: String? = null,
+    onNotificationConsumed: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
+    val notificationViewModel: NotificationViewModel = hiltViewModel()
     val authUiState by authViewModel.authNavigationState.collectAsState(initial = AuthNavigationState.Loading)
 
     // State to track if we have successfully loaded the authenticated graph at least once
@@ -51,12 +50,20 @@ fun FlockrNavigation(
         }
     }
 
+    // A tapped system notification: once signed in, mark it read and open what it is about.
+    LaunchedEffect(authUiState, pendingNotificationId) {
+        val id = pendingNotificationId ?: return@LaunchedEffect
+        if (authUiState !is AuthNavigationState.Authenticated) return@LaunchedEffect
+        notificationViewModel.openById(id)?.let { navController.navigate(it.destination()) }
+        onNotificationConsumed()
+    }
+
     // Invite deep link: once authenticated, jump straight into the join preview with the code.
     // If the link arrives while signed out, this waits until auth completes.
     LaunchedEffect(authUiState, initialInviteCode) {
         val code = initialInviteCode
         if (code != null && authUiState is AuthNavigationState.Authenticated) {
-            navController.navigateToJoinHousePreview(code)
+            navController.navigate(JoinHousePreviewRoute(code))
             onInviteConsumed()
         }
     }
@@ -73,80 +80,30 @@ fun FlockrNavigation(
                     composable<HomeRoute> {
                         HomeScreen(
                             onHouseClick = { houseId ->
-                                navController.navigateToHouseDetails(houseId)
+                                navController.navigate(HouseDetailsRoute(houseId))
                             },
                             onNotificationsClick = {
-                                navController.navigateToNotifications()
+                                navController.navigate(NotificationsRoute)
                             },
                             onSettingsClick = {
-                                navController.navigateToSettings()
+                                navController.navigate(SettingsRoute)
                             },
                             onCreateHouseClick = {
-                                navController.navigateToCreateHouse()
+                                navController.navigate(CreateHouseRoute)
                             },
                             onJoinHouseClick = {
-                                navController.navigateToJoinHouse()
+                                navController.navigate(JoinHouseRoute)
                             },
                             onNavigateToJoinPreview = { inviteCode ->
-                                navController.navigateToJoinHousePreview(inviteCode)
+                                navController.navigate(JoinHousePreviewRoute(inviteCode))
                             }
                         )
                     }
 
                     composable<NotificationsRoute> {
-                        val context = LocalContext.current
                         NotificationScreen(
                             onNavigateBack = { navController.popBackStack() },
-                            onNotificationClick = { notification ->
-                                val houseId = notification.houseId
-                                if (houseId != null) {
-                                    when (notification.type) {
-                                        NotificationType.HOUSE_INVITE -> {
-                                            val inviteCode = try {
-                                                val data = notification.data
-                                                if (!data.isNullOrEmpty()) {
-                                                    val json = JSONObject(data)
-                                                    json.optString("invite_code").takeIf { it.isNotEmpty() }
-                                                        ?: json.optString("code").takeIf { it.isNotEmpty() }
-                                                } else null
-                                            } catch (_: Exception) {
-                                                null
-                                            }
-
-                                            if (!inviteCode.isNullOrEmpty()) {
-                                                val intent = Intent(
-                                                    Intent.ACTION_VIEW,
-                                                    Uri.parse("flockr://invite/$inviteCode")
-                                                )
-                                                intent.setPackage(context.packageName)
-                                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                context.startActivity(intent)
-                                            } else {
-                                                navController.navigateToHome(clearBackStack = true)
-                                            }
-                                        }
-                                        NotificationType.EXPENSE, NotificationType.EXPENSE_SPLIT,
-                                        NotificationType.SETTLEMENT, NotificationType.PER_DIEM -> {
-                                            navController.navigateToExpenseDashboard(houseId)
-                                        }
-                                        NotificationType.SHOPPING, NotificationType.SHOPPING_ITEM -> {
-                                            navController.navigateToShoppingList(houseId)
-                                        }
-                                        NotificationType.CHORE, NotificationType.CHORE_ASSIGNED -> {
-                                            navController.navigateToChores(houseId)
-                                        }
-                                        NotificationType.MESSAGE, NotificationType.MESSAGE_SENT -> {
-                                            navController.navigateToChat(houseId)
-                                        }
-                                        NotificationType.DOCUMENT -> {
-                                            navController.navigateToDocuments(houseId)
-                                        }
-                                        else -> {
-                                            navController.navigateToHouseDetails(houseId)
-                                        }
-                                    }
-                                }
-                            }
+                            onOpen = { navController.navigate(it.destination()) },
                         )
                     }
 

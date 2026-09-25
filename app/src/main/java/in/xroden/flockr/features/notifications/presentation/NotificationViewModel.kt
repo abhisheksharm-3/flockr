@@ -1,153 +1,85 @@
+/** The inbox: the member's notifications, kept current, with reading and clearing them. */
 package `in`.xroden.flockr.features.notifications.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.features.notifications.data.NotificationRepository
+import `in`.xroden.flockr.features.notifications.model.Notification
+import `in`.xroden.flockr.features.notifications.system.NotificationPoster
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+
+sealed interface NotificationUiState {
+    data object Loading : NotificationUiState
+    data class Error(val message: String) : NotificationUiState
+    data class Ready(val notifications: List<Notification>) : NotificationUiState {
+        val unreadCount: Int get() = notifications.count { !it.isRead }
+    }
+}
 
 @HiltViewModel
 class NotificationViewModel @Inject constructor(
-    private val notificationRepository: NotificationRepository
+    private val repository: NotificationRepository,
+    private val poster: NotificationPoster,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<NotificationUiState>(NotificationUiState.Loading)
-    val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow<NotificationUiState>(NotificationUiState.Loading)
+    val state: StateFlow<NotificationUiState> = _state.asStateFlow()
 
-    private var notificationJob: kotlinx.coroutines.Job? = null
-    private var isFirstLoad = true
+    private var loadJob: Job? = null
 
     init {
-        loadNotifications()
+        load()
     }
 
-    private fun loadNotifications() {
-        notificationJob?.cancel()
-        notificationJob = viewModelScope.launch {
-            // Only show loading on first load
-            if (isFirstLoad) {
-                _uiState.value = NotificationUiState.Loading
-                isFirstLoad = false
-            }
-
-            notificationRepository.getNotificationsFlow().collect { result ->
-                result.fold(
-                    onSuccess = { notifications ->
-                        val unreadCount = notifications.count { !it.isRead }
-                        _uiState.value = NotificationUiState.Success(
-                            notifications = notifications,
-                            unreadCount = unreadCount
-                        )
-                    },
-                    onFailure = { error ->
-                        _uiState.value = NotificationUiState.Error(
-                            message = error.message ?: "Failed to load notifications",
-                            cause = error
-                        )
-                    }
+    fun load() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            repository.getNotificationsFlow().collect { result ->
+                _state.value = result.fold(
+                    onSuccess = { NotificationUiState.Ready(it) },
+                    onFailure = { NotificationUiState.Error(it.userMessage()) },
                 )
             }
         }
     }
 
-    fun markAsRead(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.markAsRead(notificationId).fold(
-                onSuccess = {
-                    // Optimistically update UI
-                    val currentState = _uiState.value
-                    if (currentState is NotificationUiState.Success) {
-                        val updated = currentState.notifications.map { 
-                            if (it.id == notificationId) it.copy(isRead = true) else it 
-                        }
-                        _uiState.value = currentState.copy(
-                            notifications = updated,
-                            unreadCount = updated.count { !it.isRead }
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.value = NotificationUiState.Error(
-                        message = error.message ?: "Failed to mark as read",
-                        cause = error
-                    )
-                }
-            )
-        }
+    /** Marks [notification] read and removes it from the shade; the live query confirms it. */
+    fun open(notification: Notification) {
+        poster.cancel(notification.id)
+        if (notification.isRead) return
+        optimistically { list -> list.map { if (it.id == notification.id) it.copy(isRead = true) else it } }
+        viewModelScope.launch { repository.markRead(listOf(notification.id)) }
     }
 
-    fun markAllAsRead() {
-        viewModelScope.launch {
-            notificationRepository.markAllAsRead().fold(
-                onSuccess = {
-                    // Optimistically update UI
-                    val currentState = _uiState.value
-                    if (currentState is NotificationUiState.Success) {
-                        val updated = currentState.notifications.map { it.copy(isRead = true) }
-                        _uiState.value = currentState.copy(
-                            notifications = updated,
-                            unreadCount = 0
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.value = NotificationUiState.Error(
-                        message = error.message ?: "Failed to mark all as read",
-                        cause = error
-                    )
-                }
-            )
-        }
+    /** Finds the notification a system notification tap named, marks it read, and returns it to navigate by. */
+    suspend fun openById(id: String): Notification? =
+        repository.getNotification(id).getOrNull()?.also(::open)
+
+    fun markAllRead() {
+        optimistically { list -> list.map { it.copy(isRead = true) } }
+        viewModelScope.launch { repository.markRead(null) }
     }
 
-    fun deleteNotification(notificationId: String) {
-        viewModelScope.launch {
-            notificationRepository.deleteNotification(notificationId).fold(
-                onSuccess = {
-                    // Optimistically update UI
-                    val currentState = _uiState.value
-                    if (currentState is NotificationUiState.Success) {
-                        val updated = currentState.notifications.filter { it.id != notificationId }
-                        _uiState.value = currentState.copy(
-                            notifications = updated,
-                            unreadCount = updated.count { !it.isRead }
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.value = NotificationUiState.Error(
-                        message = error.message ?: "Failed to delete notification",
-                        cause = error
-                    )
-                }
-            )
-        }
+    fun delete(notification: Notification) {
+        poster.cancel(notification.id)
+        optimistically { list -> list.filterNot { it.id == notification.id } }
+        viewModelScope.launch { repository.delete(notification.id) }
     }
 
-    fun clearAllNotifications() {
-        viewModelScope.launch {
-            notificationRepository.deleteAllNotifications().fold(
-                onSuccess = {
-                    // Optimistically update UI
-                    val currentState = _uiState.value
-                    if (currentState is NotificationUiState.Success) {
-                        _uiState.value = currentState.copy(
-                            notifications = emptyList(),
-                            unreadCount = 0
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.value = NotificationUiState.Error(
-                        message = error.message ?: "Failed to clear notifications",
-                        cause = error
-                    )
-                }
-            )
-        }
+    fun clearRead() {
+        optimistically { list -> list.filterNot { it.isRead } }
+        viewModelScope.launch { repository.deleteRead() }
+    }
+
+    private fun optimistically(change: (List<Notification>) -> List<Notification>) = _state.update { state ->
+        (state as? NotificationUiState.Ready)?.let { NotificationUiState.Ready(change(it.notifications)) } ?: state
     }
 }

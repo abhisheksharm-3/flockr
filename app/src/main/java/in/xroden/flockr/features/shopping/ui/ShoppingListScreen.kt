@@ -1,427 +1,232 @@
+/** The house shopping list: add in one line, grouped by aisle, tick off, and turn what was bought into an expense. */
 package `in`.xroden.flockr.features.shopping.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import kotlinx.coroutines.launch
-import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
-import `in`.xroden.flockr.features.shopping.presentation.ShoppingUiState
-import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.shopping.model.SHOPPING_CATEGORIES
+import `in`.xroden.flockr.features.shopping.model.ShoppingItem
+import `in`.xroden.flockr.features.shopping.presentation.ShoppingUiState
+import `in`.xroden.flockr.features.shopping.presentation.ShoppingViewModel
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.ui.components.states.EmptyState
+import `in`.xroden.flockr.ui.components.states.ErrorState
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.utils.rememberHaptics
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingListScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
-    onNavigateToAddItem: () -> Unit,
-    onNavigateToAddExpenseWithData: (String, Int) -> Unit = { _, _ -> },
-    viewModel: ShoppingViewModel = hiltViewModel()
+    onRecordExpense: (itemName: String) -> Unit,
+    viewModel: ShoppingViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showEditDialog by remember { mutableStateOf<ShoppingItem?>(null) }
-    var showConvertDialog by remember { mutableStateOf<ShoppingItem?>(null) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = remember { listOf("To Buy", "Purchased") }
-    
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var editing by remember { mutableStateOf<ShoppingItem?>(null) }
 
-    LaunchedEffect(houseId) {
-        viewModel.loadShoppingItems(houseId)
-    }
-
-    // Edit Item Dialog
-    showEditDialog?.let { item ->
-        EditShoppingItemDialog(
-            item = item,
-            onDismiss = { showEditDialog = null },
-            onSave = { itemName, quantity ->
-                viewModel.updateItem(
-                    itemId = item.id,
-                    itemName = itemName,
-                    quantity = quantity
-                )
-                showEditDialog = null
-                scope.launch {
-                    snackbarHostState.showSnackbar("Item updated")
-                }
-            }
-        )
-    }
-
-    // Convert to Expense Dialog
-    showConvertDialog?.let { item ->
-        ConvertToExpenseDialog(
-            item = item,
-            onDismiss = { showConvertDialog = null },
-            onConvert = {
-                val itemToConvert = item
-                showConvertDialog = null
-                val qty = itemToConvert.quantity?.toIntOrNull() ?: 1
-                onNavigateToAddExpenseWithData(itemToConvert.itemName, qty)
-            },
-            onSkip = { showConvertDialog = null }
-        )
+    LaunchedEffect(houseId) { viewModel.load(houseId) }
+    LaunchedEffect(Unit) {
+        viewModel.notices.collect { notice ->
+            haptics.error()
+            snackbarHostState.showSnackbar(notice.message)
+        }
     }
 
     Scaffold(
-        contentWindowInsets = WindowInsets.systemBars,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Shopping List", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
-        floatingActionButton = {
-            if (selectedTab == 0) {
-                `in`.xroden.flockr.ui.components.buttons.FlockrExtendedFab(
-                    text = "Add Item",
-                    icon = Icons.Default.Add,
-                    onClick = onNavigateToAddItem
-                )
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        topBar = { FlockrTopAppBar(title = "Shopping list", onNavigateBack = onNavigateBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Standardized Pill Selector
-            `in`.xroden.flockr.ui.components.inputs.PillSelector(
-                tabs = tabs,
-                selectedIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
-                modifier = Modifier.padding(16.dp),
-                counts = remember(uiState) {
-                    val state = uiState
-                    if (state is ShoppingUiState.Success) {
-                        listOf(
-                            state.items.count { !it.isPurchased },
-                            state.items.count { it.isPurchased }
-                        )
-                    } else null
-                }
-            )
-
-            when (val state = uiState) {
-                is ShoppingUiState.Loading -> {
-                    `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton()
-                }
-                is ShoppingUiState.Success -> {
-                    val items = state.items
-                    // Optimize filtering with remember
-                    val pendingItems = remember(items) { items.filter { !it.isPurchased } }
-                    val purchasedItems = remember(items) { items.filter { it.isPurchased } }
-                    val currentItems = if (selectedTab == 0) pendingItems else purchasedItems
-
-                    if (currentItems.isEmpty()) {
-                        EmptyShoppingState(
-                            modifier = Modifier.fillMaxSize(),
-                            onAddItem = onNavigateToAddItem,
-                            isPurchasedTab = selectedTab == 1
-                        )
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            QuickAdd(onAdd = { name, category -> viewModel.add(houseId, name, null, category) })
+            Box(Modifier.fillMaxSize()) {
+                when (val current = state) {
+                    ShoppingUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
+                    is ShoppingUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
+                    is ShoppingUiState.Ready -> if (current.toBuy.isEmpty() && current.bought.isEmpty()) {
+                        EmptyState(icon = Icons.Rounded.ShoppingCart, title = "The list is empty", subtitle = "Add what the house needs above. Everyone sees it as it changes.")
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Header for Purchased Tab
-                            if (selectedTab == 1) {
-                                item(key = "header_purchased") {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "${purchasedItems.size} items purchased",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        TextButton(
-                                            onClick = { haptics.error(); viewModel.clearPurchasedItems(houseId) },
-                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Icon(Icons.Default.DeleteSweep, null, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Clear All")
-                                        }
-                                    }
-                                }
-                            }
+                        ShoppingContent(
+                            state = current,
+                            onToggle = { item, bought -> viewModel.setPurchased(item, bought) },
+                            onEdit = { editing = it },
+                            onClearBought = { viewModel.clearBought(houseId) },
+                            onRecordExpense = { onRecordExpense(current.bought.joinToString { it.itemName }) },
+                        )
+                    }
+                }
+            }
+        }
+    }
 
-                            items(items = currentItems, key = { it.id }) { item ->
-                                ShoppingItemCard(
-                                    item = item,
-                                    onChecked = {
-                                        if (!item.isPurchased) {
-                                            haptics.toggleOn()
-                                            scope.launch {
-                                                viewModel.markAsPurchased(item.id, houseId, item.itemName)
-                                                showConvertDialog = item
-                                            }
-                                        }
-                                    },
-                                    onEdit = { showEditDialog = item },
-                                    onDelete = {
-                                        haptics.error()
-                                        scope.launch {
-                                            viewModel.deleteItem(item.id, houseId)
-                                            snackbarHostState.showSnackbar("Item removed")
-                                        }
-                                    },
-                                    isPurchasedTab = selectedTab == 1
-                                )
-                            }
-                            item(key = "spacer_bottom") { Spacer(modifier = Modifier.height(80.dp)) }
-                        }
-                    }
-                }
-                is ShoppingUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Icon(Icons.Default.Error, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                            Text("Error loading shopping list", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                            Button(onClick = { haptics.tap(); viewModel.loadShoppingItems(houseId) }) {
-                                Icon(Icons.Default.Refresh, null, Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Retry")
-                            }
-                        }
-                    }
-                }
+    editing?.let { item ->
+        EditItemDialog(
+            item = item,
+            onSave = { name, quantity, category ->
+                editing = null
+                viewModel.update(item, name, quantity, category)
+            },
+            onDelete = {
+                editing = null
+                viewModel.delete(item)
+            },
+            onDismiss = { editing = null },
+        )
+    }
+}
+
+/** One line to add an item, with the aisle it goes in. The aisle stays chosen for the next item. */
+@Composable
+private fun QuickAdd(onAdd: (String, String?) -> Unit) {
+    val haptics = rememberHaptics()
+    var name by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
+    val submit = {
+        if (name.isNotBlank()) {
+            haptics.tap()
+            onAdd(name, category)
+            name = ""
+        }
+    }
+    Column(Modifier.padding(horizontal = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            placeholder = { Text("Add an item") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+            trailingIcon = { IconButton(onClick = submit, enabled = name.isNotBlank()) { Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Add") } },
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            items(SHOPPING_CATEGORIES) { aisle ->
+                FilterChip(selected = category == aisle, onClick = { haptics.select(); category = if (category == aisle) null else aisle }, label = { Text(aisle) })
             }
         }
     }
 }
 
 @Composable
-fun ShoppingItemCard(
-    item: ShoppingItem,
-    onChecked: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    isPurchasedTab: Boolean
+private fun ShoppingContent(
+    state: ShoppingUiState.Ready,
+    onToggle: (ShoppingItem, Boolean) -> Unit,
+    onEdit: (ShoppingItem) -> Unit,
+    onClearBought: () -> Unit,
+    onRecordExpense: () -> Unit,
 ) {
-    var isChecked by remember { mutableStateOf(item.isPurchased) }
-    var showMenu by remember { mutableStateOf(false) }
+    LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxxxl)) {
+        state.toBuy.forEach { (aisle, items) ->
+            item(key = "aisle_$aisle") { Heading(aisle) }
+            items(items, key = { it.id }) { item -> ItemRow(item, state, onToggle = { onToggle(item, it) }, onClick = { onEdit(item) }, modifier = Modifier.animateItem()) }
+        }
+        if (state.bought.isNotEmpty()) {
+            item(key = "bought_heading") {
+                Row(Modifier.fillMaxWidth().padding(end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { Heading("Bought") }
+                    TextButton(onClick = onRecordExpense) { Text("Record as expense") }
+                    TextButton(onClick = onClearBought) { Text("Clear") }
+                }
+            }
+            items(state.bought, key = { it.id }) { item -> ItemRow(item, state, onToggle = { onToggle(item, it) }, onClick = { onEdit(item) }, modifier = Modifier.animateItem()) }
+        }
+    }
+}
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+@Composable
+private fun Heading(text: String) {
+    Text(text, style = MaterialTheme.typography.titleSmallEmphasized, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = Spacing.lg, top = Spacing.lg, bottom = Spacing.xs))
+}
+
+@Composable
+private fun ItemRow(item: ShoppingItem, state: ShoppingUiState.Ready, onToggle: (Boolean) -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = rememberHaptics()
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Modern Checkbox
-            if (!isPurchasedTab) {
-                Surface(
-                    onClick = { isChecked = true; onChecked() },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                    modifier = Modifier.size(32.dp),
-                    border = BorderStroke(
-                        1.5.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                    )
-                ) {}
-            } else {
-                Surface(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Check,
-                            null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = item.itemName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (!isPurchasedTab) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isPurchasedTab)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else
-                        MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (isPurchasedTab) TextDecoration.LineThrough else null
-                )
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    item.quantity?.let { qty ->
-                        Surface(
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                qty,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    Text(
-                        if (isPurchasedTab)
-                            "Purchased by ${item.purchasedByName ?: "Unknown"}"
-                        else
-                            "Added by ${item.addedByName ?: "Unknown"}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Box {
-                IconButton(
-                    onClick = { showMenu = !showMenu },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        "Options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    if (!isPurchasedTab) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            onClick = { showMenu = false; onEdit() },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) }
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        onClick = { showMenu = false; onDelete() },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Outlined.Delete,
-                                null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    )
-                }
-            }
+        Checkbox(checked = item.isPurchased, onCheckedChange = { haptics.toggle(it); onToggle(it) })
+        Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
+            Text(
+                listOfNotNull(item.itemName, item.quantity?.let { "· $it" }).joinToString(" "),
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (item.isPurchased) TextDecoration.LineThrough else null,
+            )
+            val who = if (item.isPurchased) item.purchasedBy?.let { "bought by ${state.members.nameInSentence(it, state.viewerId)}" } else "added by ${state.members.nameInSentence(item.addedBy, state.viewerId)}"
+            who?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
 
 @Composable
-fun EditShoppingItemDialog(
-    item: ShoppingItem,
-    onDismiss: () -> Unit,
-    onSave: (String, String?) -> Unit
-) {
-    var itemName by remember { mutableStateOf(item.itemName) }
-    var quantity by remember { mutableStateOf(item.quantity ?: "") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Edit Item", style = MaterialTheme.typography.headlineSmall)
-                OutlinedTextField(value = itemName, onValueChange = { itemName = it }, label = { Text("Item Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity (Optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = { onSave(itemName, quantity.takeIf { it.isNotBlank() }) }, enabled = itemName.isNotBlank()) { Text("Save") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ConvertToExpenseDialog(
-    item: ShoppingItem,
-    onDismiss: () -> Unit,
-    onConvert: () -> Unit,
-    onSkip: () -> Unit
-) {
+private fun EditItemDialog(item: ShoppingItem, onSave: (String, String?, String?) -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(item.itemName) }
+    var quantity by rememberSaveable { mutableStateOf(item.quantity.orEmpty()) }
+    var category by rememberSaveable { mutableStateOf(item.category) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.ShoppingCart, null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Item Purchased!", style = MaterialTheme.typography.headlineSmall) },
-        text = { Text("Convert \"${item.itemName}\" to an expense?", style = MaterialTheme.typography.bodyLarge) },
-        confirmButton = { Button(onClick = onConvert) { Text("Convert") } },
-        dismissButton = { TextButton(onClick = onSkip) { Text("Skip") } }
-    )
-}
-
-@Composable
-fun EmptyShoppingState(modifier: Modifier = Modifier, onAddItem: () -> Unit, isPurchasedTab: Boolean) {
-    Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(96.dp)) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(if (isPurchasedTab) Icons.Default.ShoppingBag else Icons.Default.ShoppingCart, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        title = { Text("Edit item") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                FlockrTextField(value = name, onValueChange = { name = it }, label = "Item", modifier = Modifier.fillMaxWidth())
+                FlockrTextField(value = quantity, onValueChange = { quantity = it }, label = "Quantity", placeholder = "2 kg, a dozen…", modifier = Modifier.fillMaxWidth())
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    items(SHOPPING_CATEGORIES) { aisle ->
+                        FilterChip(selected = category == aisle, onClick = { category = if (category == aisle) null else aisle }, label = { Text(aisle) })
+                    }
+                }
             }
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(if (isPurchasedTab) "No purchased items" else "Shopping list empty", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-        if (!isPurchasedTab) {
-            Spacer(Modifier.height(8.dp))
-            Text("Add items you need to buy", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(32.dp))
-            Button(onClick = onAddItem, contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)) { Text("Add Item") }
-        }
-    }
+        },
+        confirmButton = { TextButton(onClick = { onSave(name, quantity, category) }, enabled = name.isNotBlank()) { Text("Save") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }

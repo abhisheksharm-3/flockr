@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.ui.home
 
+import `in`.xroden.flockr.core.validation.INVITE_CODE_LENGTH
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -57,7 +58,7 @@ fun JoinHouseScreen(
     }
 
     LaunchedEffect(inviteCode) {
-        if (inviteCode.length == 6) {
+        if (inviteCode.length == INVITE_CODE_LENGTH) {
             viewModel.validateInviteCode(inviteCode)
         } else {
             viewModel.resetPreviewState()
@@ -189,7 +190,7 @@ fun JoinHouseScreen(
                     OutlinedTextField(
                         value = inviteCode,
                         onValueChange = {
-                            inviteCode = it.uppercase().take(6)
+                            inviteCode = it.uppercase().take(INVITE_CODE_LENGTH)
                             errorMessage = null
                         },
                         placeholder = { Text("Enter 6-digit code") },
@@ -203,7 +204,7 @@ fun JoinHouseScreen(
                             if (errorMessage != null) {
                                 Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
                             } else {
-                                Text("${inviteCode.length}/6 characters")
+                                Text("${inviteCode.length}/$INVITE_CODE_LENGTH characters")
                             }
                         },
                         trailingIcon = {

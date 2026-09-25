@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.auth.data.IAuthRepository
-import `in`.xroden.flockr.core.storage.IStorageRepository
+import `in`.xroden.flockr.features.auth.data.AuthRepository
+import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.utils.BitmapUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val authRepository: IAuthRepository,
-    private val storageRepository: IStorageRepository,
+    private val authRepository: AuthRepository,
+    private val storageRepository: StorageRepository,
     private val bitmapUtils: BitmapUtils
 ) : ViewModel() {
 

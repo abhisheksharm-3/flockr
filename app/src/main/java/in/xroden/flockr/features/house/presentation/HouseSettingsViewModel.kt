@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.utils.BitmapUtils
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
     private val bitmapUtils: BitmapUtils,
     @ApplicationContext private val context: Context
 ) : ViewModel() {

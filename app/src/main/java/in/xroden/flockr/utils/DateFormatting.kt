@@ -11,3 +11,11 @@ import java.util.Locale
 /** This date in the house's chosen layout, such as 30/12/2025 for day-month-year. */
 fun LocalDate.formatWithHouseConfig(config: HouseConfig?): String =
     toJavaLocalDate().format(DateTimeFormatter.ofPattern(config.dateLayout().pattern, Locale.getDefault()))
+
+/** The month and year, such as "September 2026", that a month of activity is grouped under. */
+fun LocalDate.monthYearLabel(): String =
+    toJavaLocalDate().format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+
+/** The short month name, such as "Sep". */
+fun LocalDate.shortMonthLabel(): String =
+    toJavaLocalDate().format(DateTimeFormatter.ofPattern("LLL", Locale.getDefault()))

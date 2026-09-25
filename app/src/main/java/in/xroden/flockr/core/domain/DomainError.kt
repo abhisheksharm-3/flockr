@@ -34,6 +34,9 @@ sealed class DomainError(override val message: String, override val cause: Throw
         data class InvalidEmail(val email: String) : ValidationError("Invalid email format: $email")
         data class InvalidLength(val fieldName: String, val min: Int, val max: Int) : ValidationError("$fieldName must be between $min and $max characters")
         data class InvalidFormat(val fieldName: String, val expectedFormat: String) : ValidationError("$fieldName has invalid format. Expected: $expectedFormat")
+
+        /** A rule the input breaks, stated as the sentence to show the user. */
+        data class Rule(override val message: String) : ValidationError(message)
     }
 
     sealed class NetworkError(override val message: String, override val cause: Throwable? = null) : DomainError(message, cause) {

@@ -1,46 +1,33 @@
+/** How often a recurring bill falls due. */
 package `in`.xroden.flockr.data.enums
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/** Monthly and longer cadences keep the first due date's day of month, clamped to shorter months. */
 @Serializable
-enum class ExpenseFrequency {
+enum class ExpenseFrequency(val label: String) {
     @SerialName("daily")
-    DAILY,
-    
+    DAILY("Daily"),
+
     @SerialName("weekly")
-    WEEKLY,
-    
+    WEEKLY("Weekly"),
+
     @SerialName("biweekly")
-    BIWEEKLY,
-    
+    BIWEEKLY("Every two weeks"),
+
     @SerialName("monthly")
-    MONTHLY,
-    
+    MONTHLY("Monthly"),
+
     @SerialName("quarterly")
-    QUARTERLY,
-    
+    QUARTERLY("Quarterly"),
+
     @SerialName("semiannual")
-    SEMIANNUAL,
-    
-    @SerialName("annual")
-    ANNUAL,
-    
+    SEMIANNUAL("Every six months"),
+
+    @SerialName("yearly")
+    YEARLY("Yearly"),
+
     @SerialName("custom")
-    CUSTOM;
-
-    fun toDisplayName(): String {
-        return when (this) {
-            DAILY -> "Daily"
-            WEEKLY -> "Weekly"
-            BIWEEKLY -> "Bi-weekly"
-            MONTHLY -> "Monthly"
-            QUARTERLY -> "Quarterly"
-            SEMIANNUAL -> "Semi-annual"
-            ANNUAL -> "Annual"
-            CUSTOM -> "Custom"
-        }
-    }
+    CUSTOM("Custom")
 }
-
-

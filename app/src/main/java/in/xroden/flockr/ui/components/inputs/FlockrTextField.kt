@@ -32,6 +32,7 @@ fun FlockrTextField(
     isError: Boolean = false,
     supportingText: String? = null,
     prefix: String? = null,
+    suffix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     OutlinedTextField(
@@ -49,6 +50,7 @@ fun FlockrTextField(
         isError = isError,
         supportingText = supportingText?.let { { Text(it) } },
         prefix = prefix?.let { { Text(it) } },
+        suffix = suffix?.let { { Text(it) } },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = singleLine,
         maxLines = maxLines,

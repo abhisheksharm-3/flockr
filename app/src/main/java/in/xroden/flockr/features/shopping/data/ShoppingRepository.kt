@@ -1,142 +1,93 @@
+/** The house shopping list. Telling the house about new items happens in the database. */
 package `in`.xroden.flockr.features.shopping.data
 
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RateLimiter
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.core.notification.NotificationService
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.ShoppingItemInsert
-import `in`.xroden.flockr.data.dto.ShoppingItemUpdate
+import `in`.xroden.flockr.data.realtime.TableWatch
+import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
-import `in`.xroden.flockr.features.shopping.model.ShoppingItemWithProfiles
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class ShoppingItemInsert(
+    @SerialName("house_id") val houseId: String,
+    @SerialName("item_name") val itemName: String,
+    val quantity: String?,
+    val category: String?,
+    @SerialName("added_by") val addedBy: String,
+)
+
+@Serializable
+private data class ShoppingItemDetails(
+    @SerialName("item_name") val itemName: String,
+    val quantity: String?,
+    val category: String?,
+)
+
+@Serializable
+private data class ShoppingItemPurchase(
+    @SerialName("is_purchased") val isPurchased: Boolean,
+    @SerialName("purchased_by") val purchasedBy: String?,
+    @SerialName("purchased_at") @Serializable(with = InstantSerializer::class) val purchasedAt: Instant?,
+)
 
 @Singleton
 class ShoppingRepository @Inject constructor(
-    supabase: SupabaseClient,
-    connectionManager: RealtimeConnectionManager,
-    private val notificationService: NotificationService,
-    private val rateLimiter: RateLimiter
-) : BaseRealtimeRepository(supabase, connectionManager), IShoppingRepository {
+    private val supabase: SupabaseClient,
+    private val connectionManager: RealtimeConnectionManager,
+) {
+    fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    override fun getCurrentUserId(): String? = authenticatedUserId
-
-    override fun getShoppingItemsFlow(houseId: String): Flow<Result<List<ShoppingItem>>> =
-        createRealtimeFlow(
-            channelId = "shopping_items_$houseId",
-            table = "shopping_items",
-            filterColumn = "house_id",
-            filterValue = houseId,
-            fetchData = { getShoppingItems(houseId) }
-        )
-
-    override suspend fun getShoppingItems(houseId: String): Result<List<ShoppingItem>> = runCatching {
-        supabase.from("shopping_items")
-            .select(Columns.raw("""
-                *,
-                added_by_profile:profiles!shopping_items_added_by_fkey(full_name),
-                purchased_by_profile:profiles!shopping_items_purchased_by_fkey(full_name)
-            """.trimIndent())) {
+    fun getShoppingItemsFlow(houseId: String): Flow<Result<List<ShoppingItem>>> =
+        supabase.liveQuery(connectionManager, listOf(TableWatch("shopping_items", "house_id", houseId))) {
+            supabase.from("shopping_items").select {
                 filter { eq("house_id", houseId) }
-                order("is_purchased", Order.ASCENDING)
-                order("created_at", Order.DESCENDING)
-                limit(count = 200)
-            }
-            .decodeList<ShoppingItemWithProfiles>()
-            .map { it.toShoppingItem() }
-    }
-
-    override suspend fun clearPurchasedItems(houseId: String): Result<Unit> = runCatching {
-        supabase.from("shopping_items")
-            .delete {
-                filter {
-                    eq("house_id", houseId)
-                    eq("is_purchased", true)
-                }
-            }
-    }
-
-    override suspend fun addShoppingItem(
-        houseId: String,
-        itemName: String,
-        quantity: String?
-    ): Result<Unit> = rateLimiter.throttle("add_shopping_item_$houseId", maxRequestsPerMinute = 60) {
-        runCatching {
-            val userId = requireAuthenticated(authenticatedUserId)
-            val validatedItemName = Validators.validateItemName(itemName).getOrThrow()
-            val sanitizedItemName = InputSanitizer.sanitizeText(validatedItemName)
-            val sanitizedQuantity = quantity?.trim()?.takeIf { it.isNotBlank() }
-                ?.let { InputSanitizer.sanitizeText(it) }
-
-            supabase.from("shopping_items")
-                .insert(
-                    ShoppingItemInsert(
-                        houseId = houseId,
-                        itemName = sanitizedItemName,
-                        quantity = sanitizedQuantity,
-                        addedBy = userId
-                    )
-                )
-
-            notificationService.sendShoppingItemAdded(houseId, sanitizedItemName, userId)
+                order("created_at", Order.ASCENDING)
+            }.decodeList<ShoppingItem>()
         }
+
+    suspend fun addItem(houseId: String, itemName: String, quantity: String?, category: String?): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val name = InputSanitizer.sanitizeText(Validators.validateItemName(itemName).getOrThrow())
+        supabase.from("shopping_items").insert(ShoppingItemInsert(houseId, name, quantity.cleaned(), category, userId))
     }
 
-    override suspend fun updateShoppingItem(
-        itemId: String,
-        itemName: String?,
-        quantity: String?
-    ): Result<Unit> = runCatching {
-        val sanitizedItemName = itemName?.let { InputSanitizer.sanitizeText(it) }
-        val sanitizedQuantity = quantity?.let { InputSanitizer.sanitizeText(it) }
-
-        supabase.from("shopping_items")
-            .update(ShoppingItemUpdate(itemName = sanitizedItemName, quantity = sanitizedQuantity)) {
-                filter { eq("id", itemId) }
-            }
+    suspend fun updateItem(itemId: String, itemName: String, quantity: String?, category: String?): Result<Unit> = runCatching {
+        val name = InputSanitizer.sanitizeText(Validators.validateItemName(itemName).getOrThrow())
+        supabase.from("shopping_items").update(ShoppingItemDetails(name, quantity.cleaned(), category)) { filter { eq("id", itemId) } }
     }
 
-    override suspend fun markAsPurchased(itemId: String, houseId: String, itemName: String): Result<Unit> = runCatching {
-        val userId = requireAuthenticated(authenticatedUserId)
-
-        supabase.from("shopping_items")
-            .update(ShoppingItemUpdate(isPurchased = true, purchasedBy = userId)) {
-                filter { eq("id", itemId) }
-            }
-
-        notificationService.sendShoppingItemPurchased(houseId, itemId, itemName, userId)
+    suspend fun setPurchased(itemId: String, isPurchased: Boolean): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val purchase = if (isPurchased) ShoppingItemPurchase(true, userId, Clock.System.now()) else ShoppingItemPurchase(false, null, null)
+        supabase.from("shopping_items").update(purchase) { filter { eq("id", itemId) } }
     }
 
-    override suspend fun deleteShoppingItem(itemId: String, houseId: String): Result<Unit> = runCatching {
+    suspend fun deleteItem(itemId: String): Result<Unit> = runCatching {
         supabase.from("shopping_items").delete { filter { eq("id", itemId) } }
     }
 
-    override suspend fun togglePurchased(itemId: String, houseId: String): Result<Unit> = runCatching {
-        val userId = requireAuthenticated(authenticatedUserId)
-
-        val item = supabase.from("shopping_items")
-            .select(Columns.raw("is_purchased")) { filter { eq("id", itemId) } }
-            .decodeSingleOrNull<JsonObject>()
-
-        val isPurchased = item?.get("is_purchased")?.toString()?.toBooleanStrictOrNull() ?: false
-
-        supabase.from("shopping_items")
-            .update(
-                ShoppingItemUpdate(
-                    isPurchased = !isPurchased,
-                    purchasedBy = if (!isPurchased) userId else null
-                )
-            ) {
-                filter { eq("id", itemId) }
+    suspend fun clearPurchased(houseId: String): Result<Unit> = runCatching {
+        supabase.from("shopping_items").delete {
+            filter {
+                eq("house_id", houseId)
+                eq("is_purchased", true)
             }
+        }
     }
+
+    private fun String?.cleaned(): String? = this?.let(InputSanitizer::sanitizeText)?.ifBlank { null }
 }

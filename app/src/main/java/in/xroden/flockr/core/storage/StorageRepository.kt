@@ -12,14 +12,14 @@ import kotlinx.coroutines.withContext
 @Singleton
 class StorageRepository @Inject constructor(
     private val supabase: SupabaseClient
-) : IStorageRepository {
+) {
 
-    override suspend fun uploadFile(bucket: String, path: String, data: ByteArray): Result<String> = 
+    suspend fun uploadFile(bucket: String, path: String, data: ByteArray): Result<String> = 
         runCatching {
             val maxSize = if (bucket.contains("image") || bucket.contains("header")) {
-                IStorageRepository.MAX_IMAGE_SIZE_BYTES
+                StorageRepository.MAX_IMAGE_SIZE_BYTES
             } else {
-                IStorageRepository.MAX_FILE_SIZE_BYTES
+                StorageRepository.MAX_FILE_SIZE_BYTES
             }
 
             require(data.size <= maxSize) {
@@ -33,10 +33,15 @@ class StorageRepository @Inject constructor(
             }
         }
 
-    override suspend fun deleteFile(bucket: String, path: String): Result<Unit> = 
+    suspend fun deleteFile(bucket: String, path: String): Result<Unit> = 
         runCatching {
             withContext(Dispatchers.IO) {
                 supabase.storage.from(bucket).delete(path)
             }
         }
+
+    companion object {
+        const val MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024L
+        const val MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024L
+    }
 }

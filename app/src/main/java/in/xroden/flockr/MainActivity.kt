@@ -1,5 +1,6 @@
 package `in`.xroden.flockr
 
+import `in`.xroden.flockr.features.notifications.system.EXTRA_NOTIFICATION_ID
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -79,16 +80,20 @@ class MainActivity : FragmentActivity() {
                 FlockrTheme(darkTheme = darkTheme) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val (inviteCode, setInviteCode) = remember { mutableStateOf<String?>(null) }
+                        val (notificationId, setNotificationId) = remember { mutableStateOf<String?>(null) }
 
                         LaunchedEffect(intentState.value) {
                             IntentHandler.extractInviteCode(intentState.value)?.let { setInviteCode(it) }
+                            intentState.value?.getStringExtra(EXTRA_NOTIFICATION_ID)?.let { setNotificationId(it) }
                         }
 
                         // Pass any invite code into navigation, which routes to the join preview
                         // once the user is authenticated (or right away if already signed in).
                         FlockrNavigation(
                             initialInviteCode = inviteCode,
-                            onInviteConsumed = { setInviteCode(null) }
+                            onInviteConsumed = { setInviteCode(null) },
+                            pendingNotificationId = notificationId,
+                            onNotificationConsumed = { setNotificationId(null) }
                         )
 
                         AnimatedVisibility(

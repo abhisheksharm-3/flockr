@@ -5,8 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.data.enums.SplitMethod
-import `in`.xroden.flockr.features.expenses.data.IExpenseRepository
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.expenses.data.ExpenseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.currency
 import `in`.xroden.flockr.features.house.model.today
@@ -27,8 +27,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ExpenseFormViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository,
-    private val expenseRepository: IExpenseRepository,
+    private val houseRepository: HouseRepository,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(ExpenseFormState())

@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import `in`.xroden.flockr.features.house.model.HousePreview
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
@@ -234,7 +234,7 @@ private fun HouseHeaderImageCard(imageUrl: String?) {
 }
 
 @Composable
-private fun HouseInfoCardsRow(ownerName: String?, memberCount: Long?) {
+private fun HouseInfoCardsRow(ownerName: String?, memberCount: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -286,7 +286,7 @@ private fun OwnerInfoCard(ownerName: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MembersInfoCard(memberCount: Long?, modifier: Modifier = Modifier) {
+private fun MembersInfoCard(memberCount: Int, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -317,7 +317,7 @@ private fun MembersInfoCard(memberCount: Long?, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                "${memberCount ?: 0}",
+                "$memberCount",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -438,7 +438,7 @@ private fun JoinHouseDialogHeaderImage(imageUrl: String?) {
 }
 
 @Composable
-private fun JoinHouseDialogInfoRow(ownerName: String?, memberCount: Long?) {
+private fun JoinHouseDialogInfoRow(ownerName: String?, memberCount: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
@@ -467,7 +467,7 @@ private fun JoinHouseDialogInfoRow(ownerName: String?, memberCount: Long?) {
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Text("${memberCount ?: 0} members", style = MaterialTheme.typography.labelMedium)
+            Text("$memberCount members", style = MaterialTheme.typography.labelMedium)
         }
     }
 }

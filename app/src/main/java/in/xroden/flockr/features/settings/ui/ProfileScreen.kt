@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.settings.ui
 
+import coil3.request.crossfade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -174,8 +175,8 @@ fun ProfileScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     if (!profile.avatarUrl.isNullOrEmpty()) {
-                                        coil.compose.AsyncImage(
-                                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                        coil3.compose.AsyncImage(
+                                            model = coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                                 .data(profile.avatarUrl)
                                                 .crossfade(true)
                                                 .build(),

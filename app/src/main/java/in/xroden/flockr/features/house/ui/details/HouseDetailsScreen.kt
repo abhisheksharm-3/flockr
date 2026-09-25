@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.R
 import `in`.xroden.flockr.data.enums.HouseMemberRole
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
@@ -47,7 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @HiltViewModel
 class HouseDetailsViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository
+    private val houseRepository: HouseRepository
 ) : ViewModel() {
     
     private val _house = MutableStateFlow<House?>(null)

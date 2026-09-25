@@ -5,12 +5,17 @@ import `in`.xroden.flockr.core.domain.flatMap
 
 typealias ValidationResult<T> = Result<T>
 
+/** The length of a house invite code. Matches `generate_invite_code` in the schema. */
+const val INVITE_CODE_LENGTH = 8
+
+/** The characters an invite code is drawn from: capitals and digits without the look-alikes I, O, 0 and 1. */
+private const val INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
 /** Centralized validation utilities for input validation. */
 object Validators {
 
     private val UUID_REGEX = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$".toRegex()
     private val EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-    private val INVITE_CODE_REGEX = "^[A-Z0-9]{6}$".toRegex()
 
     private val ALLOWED_DOCUMENT_MIME_TYPES = setOf(
         "application/pdf",
@@ -95,10 +100,10 @@ object Validators {
 
     fun validateInviteCode(code: String): ValidationResult<String> {
         val cleanCode = code.trim().uppercase()
-        return if (cleanCode.matches("^[A-Z0-9]{6}$".toRegex())) {
+        return if (cleanCode.length == INVITE_CODE_LENGTH && cleanCode.all { it in INVITE_CODE_ALPHABET }) {
             Result.success(cleanCode)
         } else {
-            Result.failure(DomainError.ValidationError.InvalidFormat("Invite code", "6 alphanumeric characters"))
+            Result.failure(DomainError.ValidationError.InvalidFormat("Invite code", "$INVITE_CODE_LENGTH letters and digits"))
         }
     }
 

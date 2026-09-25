@@ -1,6 +1,8 @@
 /** One expense or payment in full: the amount, who paid, what each person owes, and deleting it. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.house.model.nameOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -149,7 +151,7 @@ private fun DetailContent(state: ExpenseDetailUiState.Ready, config: HouseConfig
             buildString {
                 append(expense.date.formatWithHouseConfig(config))
                 append(" · added by ")
-                append(state.members.nameOf(expense.createdBy, state.viewerId).let { if (it == "You") "you" else it })
+                append(state.members.nameInSentence(expense.createdBy, state.viewerId))
                 expense.category?.let { append(" · $it") }
             },
             style = MaterialTheme.typography.bodyMedium,

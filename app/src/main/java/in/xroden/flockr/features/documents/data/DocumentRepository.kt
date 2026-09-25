@@ -1,11 +1,10 @@
 package `in`.xroden.flockr.features.documents.data
 
+import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.logging.Logger
-import `in`.xroden.flockr.core.network.RateLimiter
-import `in`.xroden.flockr.core.notification.NotificationService
 import `in`.xroden.flockr.core.security.InputSanitizer
-import `in`.xroden.flockr.core.storage.IStorageRepository
+import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.core.validation.Validators
 import `in`.xroden.flockr.data.dto.DocumentInsert
 import `in`.xroden.flockr.features.documents.model.Document
@@ -21,16 +20,14 @@ import javax.inject.Singleton
 @Singleton
 class DocumentRepository @Inject constructor(
     private val supabase: SupabaseClient,
-    private val notificationService: NotificationService,
-    private val rateLimiter: RateLimiter
-) : IDocumentRepository {
+) {
 
     private val userId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    override fun getCurrentUserId(): String? = userId
+    fun getCurrentUserId(): String? = userId
 
-    override suspend fun getPersonalDocuments(): Result<List<Document>> = runCatching {
+    suspend fun getPersonalDocuments(): Result<List<Document>> = runCatching {
         val currentUserId = userId ?: return@runCatching emptyList()
 
         supabase.from("documents")
@@ -45,7 +42,7 @@ class DocumentRepository @Inject constructor(
             .decodeList<Document>()
     }
 
-    override suspend fun getHouseDocuments(houseId: String): Result<List<Document>> = runCatching {
+    suspend fun getHouseDocuments(houseId: String): Result<List<Document>> = runCatching {
         Validators.validateUUID(houseId).getOrThrow()
 
         supabase.from("documents")
@@ -57,18 +54,17 @@ class DocumentRepository @Inject constructor(
             .decodeList<Document>()
     }
 
-    override suspend fun uploadDocument(
+    suspend fun uploadDocument(
         houseId: String?,
         fileName: String,
         fileData: ByteArray,
         mimeType: String
-    ): Result<Document> = rateLimiter.throttle("upload_document", maxRequestsPerMinute = 20) {
-        runCatching {
+    ): Result<Document> = runCatching {
             val currentUserId = requireAuthenticated(userId)
             val sanitizedFileName = InputSanitizer.sanitizeFileName(fileName)
 
             Validators.validateMimeType(mimeType).getOrThrow()
-            Validators.validateFileSize(fileData.size.toLong(), IStorageRepository.MAX_FILE_SIZE_BYTES).getOrThrow()
+            Validators.validateFileSize(fileData.size.toLong(), StorageRepository.MAX_FILE_SIZE_BYTES).getOrThrow()
             if (houseId != null) Validators.validateUUID(houseId).getOrThrow()
 
             val bucket = if (houseId != null) "house-documents" else "personal-documents"
@@ -91,29 +87,30 @@ class DocumentRepository @Inject constructor(
                 )) { select() }
                 .decodeSingle<Document>()
 
-            if (houseId != null) {
-                notificationService.sendDocumentUploaded(houseId, document.id, sanitizedFileName, currentUserId)
-            }
-
             document
-        }
     }
 
-    override suspend fun deleteDocument(documentId: String, storagePath: String, houseId: String?): Result<Unit> = runCatching {
+    /**
+     * Deletes the record first and the file second, so a refused delete leaves both in place. A file
+     * the caller may not remove, such as another member's that an admin deleted, is left in storage.
+     */
+    suspend fun deleteDocument(documentId: String, storagePath: String, houseId: String?): Result<Unit> = runCatching {
+        val deleted = supabase.from("documents").delete {
+            filter { eq("id", documentId) }
+            select()
+        }.decodeList<Document>()
+        if (deleted.isEmpty()) throw DomainError.ValidationError.Rule("Only whoever added it, or an admin, can delete this document")
         val bucket = if (houseId != null) "house-documents" else "personal-documents"
-
         runCatching { supabase.storage.from(bucket).delete(storagePath) }
-            .onFailure { Logger.w("DocumentRepository", "Failed to delete storage file: $storagePath", it) }
-
-        supabase.from("documents").delete { filter { eq("id", documentId) } }
+            .onFailure { Logger.w("DocumentRepository", "Left the file in storage: $storagePath", it) }
     }
 
-    override suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> = runCatching {
+    suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> = runCatching {
         val bucket = if (houseId != null) "house-documents" else "personal-documents"
         supabase.storage.from(bucket).createSignedUrl(storagePath, kotlin.time.Duration.parse("PT1H"))
     }
 
-    override suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> = runCatching {
+    suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> = runCatching {
         val bucket = if (houseId != null) "house-documents" else "personal-documents"
         supabase.storage.from(bucket).downloadAuthenticated(storagePath)
     }

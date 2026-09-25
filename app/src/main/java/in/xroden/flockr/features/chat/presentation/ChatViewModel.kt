@@ -3,9 +3,9 @@ package `in`.xroden.flockr.features.chat.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.chat.data.IChatRepository
+import `in`.xroden.flockr.features.chat.data.ChatRepository
 import `in`.xroden.flockr.features.chat.model.Message
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +19,8 @@ import kotlin.time.Clock
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: IChatRepository,
-    private val houseRepository: IHouseRepository
+    private val chatRepository: ChatRepository,
+    private val houseRepository: HouseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)

@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.features.house.model.HouseCardData
-import `in`.xroden.flockr.features.house.data.IHouseRepository
-import `in`.xroden.flockr.features.house.data.IHouseInvitationRepository
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.features.house.data.HouseRepository
+import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
 import `in`.xroden.flockr.utils.BitmapUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,19 +15,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import java.math.BigDecimal
 import javax.inject.Inject
-
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
-import kotlinx.datetime.number
-import kotlin.time.Clock
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val houseRepository: IHouseRepository,
-    private val houseInvitationRepository: IHouseInvitationRepository,
+    private val houseRepository: HouseRepository,
+    private val houseInvitationRepository: HouseInvitationRepository,
     private val bitmapUtils: BitmapUtils
 ) : ViewModel() {
 
@@ -61,37 +55,11 @@ class HomeViewModel @Inject constructor(
             }
 
             houseRepository.getHousesFlow().collect { result ->
-                result.fold(
-                    onSuccess = { houses ->
-                        // Show basic data immediately
-                        _uiState.value = HouseListUiState.Success(houses.toBasicCardData())
-                        // Then fetch enriched data in one batch call
-                        loadEnrichedData()
-                    },
-                    onFailure = { error ->
-                        _uiState.value = HouseListUiState.Error(
-                            message = error.message ?: "Failed to load houses",
-                            cause = error
-                        )
-                    }
+                _uiState.value = result.fold(
+                    onSuccess = { HouseListUiState.Success(it) },
+                    onFailure = { HouseListUiState.Error(message = it.userMessage(), cause = it) }
                 )
             }
-        }
-    }
-
-    private fun List<House>.toBasicCardData() = map { house ->
-        HouseCardData(house = house)
-    }
-
-    private fun loadEnrichedData() {
-        viewModelScope.launch {
-            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-            val currentMonth = "${now.year}-${now.month.number.toString().padStart(2, '0')}-01"
-
-            houseRepository.getHousesEnriched(currentMonth)
-                .onSuccess { cardData ->
-                    _uiState.value = HouseListUiState.Success(cardData)
-                }
         }
     }
 
@@ -138,7 +106,7 @@ class HomeViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _createState.value = CreateHouseUiState.Error(
-                        message = error.message ?: "Failed to create house"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -155,7 +123,7 @@ class HomeViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _joinState.value = JoinHouseUiState.Error(
-                        message = error.message ?: "Failed to join household"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -166,14 +134,14 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _joinState.value = JoinHouseUiState.Loading
             
-            houseInvitationRepository.acceptInvitation(invitationId).fold(
+            houseInvitationRepository.respondToInvitation(invitationId, accept = true).fold(
                 onSuccess = {
                     loadPendingInvitations()
                     _joinState.value = JoinHouseUiState.Success(null)
                 },
                 onFailure = { error ->
                     _joinState.value = JoinHouseUiState.Error(
-                        message = error.message ?: "Failed to accept invitation"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -182,7 +150,7 @@ class HomeViewModel @Inject constructor(
 
     fun rejectInvitation(invitationId: String) {
         viewModelScope.launch {
-            houseInvitationRepository.rejectInvitation(invitationId)
+            houseInvitationRepository.respondToInvitation(invitationId, accept = false)
                 .onSuccess { loadPendingInvitations() }
         }
     }
@@ -216,7 +184,7 @@ class HomeViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _previewState.value = HousePreviewUiState.Error(
-                        message = error.message ?: "Failed to validate code"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -227,7 +195,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             houseInvitationRepository.joinHouseByInviteCode(inviteCode).fold(
                 onSuccess = { onResult(true, null) },
-                onFailure = { onResult(false, it.message) }
+                onFailure = { onResult(false, it.userMessage()) }
             )
         }
     }

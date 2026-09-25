@@ -6,7 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.documents.data.IDocumentRepository
+import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
 import `in`.xroden.flockr.features.documents.model.Document
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
-    private val documentRepository: IDocumentRepository,
+    private val documentRepository: DocumentRepository,
     private val uploadDocumentUseCase: UploadDocumentUseCase
 ) : ViewModel() {
 

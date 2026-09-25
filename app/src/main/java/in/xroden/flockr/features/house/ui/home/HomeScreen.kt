@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.ui.home
 
+import coil3.request.crossfade
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,12 +37,12 @@ import `in`.xroden.flockr.features.notifications.presentation.NotificationUiStat
 import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import java.time.LocalTime
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import coil.request.ImageRequest
+import coil3.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import `in`.xroden.flockr.utils.rememberHaptics
@@ -66,17 +67,14 @@ fun HomeScreen(
     }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val notificationUiState by notificationViewModel.uiState.collectAsStateWithLifecycle()
+    val notificationUiState by notificationViewModel.state.collectAsStateWithLifecycle()
     val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
     val pendingInvitations by viewModel.pendingInvitations.collectAsStateWithLifecycle()
 
     val isRefreshing = uiState is HouseListUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
 
-    val unreadCount = when (val state = notificationUiState) {
-        is NotificationUiState.Success -> state.unreadCount
-        else -> 0
-    }
+    val unreadCount = (notificationUiState as? NotificationUiState.Ready)?.unreadCount ?: 0
 
     val profile = (profileUiState as? ProfileUiState.Success)?.profile
     

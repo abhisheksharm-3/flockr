@@ -9,7 +9,7 @@ import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.model.PerDiemCategories
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
 import `in`.xroden.flockr.features.house.model.currency
 import `in`.xroden.flockr.features.house.model.today
@@ -49,7 +49,7 @@ data class PerDiemItemFormState(
 @HiltViewModel
 class PerDiemItemFormViewModel @Inject constructor(
     private val perDiemRepository: PerDiemRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _form = MutableStateFlow(PerDiemItemFormState())
@@ -148,7 +148,7 @@ data class PerDiemEntryFormState(
 @HiltViewModel
 class PerDiemEntryFormViewModel @Inject constructor(
     private val perDiemRepository: PerDiemRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _form = MutableStateFlow(PerDiemEntryFormState())

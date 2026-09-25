@@ -22,7 +22,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.house.model.HouseAuditLog
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.data.HouseAuditRepository
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.features.house.model.timeZone
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @HiltViewModel
 class HouseAuditLogViewModel @Inject constructor(
     private val houseAuditRepository: HouseAuditRepository,
-    private val houseRepository: IHouseRepository
+    private val houseRepository: HouseRepository
 ) : ViewModel() {
 
     private val _auditLogs = MutableStateFlow<List<HouseAuditLog>>(emptyList())

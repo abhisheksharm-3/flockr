@@ -15,9 +15,9 @@ import javax.inject.Singleton
 @Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
-) : ISettingsRepository {
+) {
 
-    override val themeMode: Flow<ThemeMode> = dataStore.data.map { preferences ->
+    val themeMode: Flow<ThemeMode> = dataStore.data.map { preferences ->
         when (preferences[THEME_KEY]) {
             "LIGHT" -> ThemeMode.LIGHT
             "DARK" -> ThemeMode.DARK
@@ -25,27 +25,27 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    override val appLockEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+    val appLockEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[APP_LOCK_KEY] ?: false
     }
 
-    override val hapticsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+    val hapticsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[HAPTICS_KEY] ?: true
     }
 
-    override suspend fun setThemeMode(mode: ThemeMode) {
+    suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { preferences ->
             preferences[THEME_KEY] = mode.name
         }
     }
 
-    override suspend fun setAppLockEnabled(enabled: Boolean) {
+    suspend fun setAppLockEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[APP_LOCK_KEY] = enabled
         }
     }
 
-    override suspend fun setHapticsEnabled(enabled: Boolean) {
+    suspend fun setHapticsEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[HAPTICS_KEY] = enabled
         }

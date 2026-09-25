@@ -12,7 +12,7 @@ import `in`.xroden.flockr.features.expenses.data.expenseShares
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.model.RecurringShare
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.house.model.currency
@@ -109,7 +109,7 @@ data class BillFormState(
 @HiltViewModel
 class BillFormViewModel @Inject constructor(
     private val billRepository: RecurringExpenseRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _form = MutableStateFlow(BillFormState())

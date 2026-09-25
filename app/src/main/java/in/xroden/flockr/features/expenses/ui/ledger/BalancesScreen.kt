@@ -1,6 +1,8 @@
 /** Everyone's balance, the fewest payments that settle the house, and what any two people have shared. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.house.model.nameOf
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -135,7 +137,7 @@ private fun BalancesContent(
 private fun PlanLine(payment: SettleUpPayment, state: BalancesUiState.Ready, currencyCode: String, onSettleUp: (String, String, BigDecimal) -> Unit) {
     val haptics = rememberHaptics()
     val from = state.members.nameOf(payment.fromUserId, state.viewerId)
-    val to = state.members.nameOf(payment.toUserId, state.viewerId).let { if (payment.toUserId == state.viewerId) "you" else it }
+    val to = state.members.nameInSentence(payment.toUserId, state.viewerId)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.weight(1f)) {
             Text("$from ${if (payment.fromUserId == state.viewerId) "pay" else "pays"} $to", style = MaterialTheme.typography.bodyLargeEmphasized)

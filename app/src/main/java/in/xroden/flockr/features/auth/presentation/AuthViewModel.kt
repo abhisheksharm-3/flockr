@@ -4,7 +4,7 @@ import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.auth.data.IAuthRepository
+import `in`.xroden.flockr.features.auth.data.AuthRepository
 import `in`.xroden.flockr.features.auth.data.GoogleSignInHelper
 import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
@@ -21,7 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: IAuthRepository,
+    private val authRepository: AuthRepository,
     private val googleSignInHelper: GoogleSignInHelper
 ) : ViewModel() {
 

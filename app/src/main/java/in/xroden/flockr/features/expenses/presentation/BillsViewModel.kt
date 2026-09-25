@@ -8,7 +8,7 @@ import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.presentation.Notice
 import `in`.xroden.flockr.features.expenses.data.RecurringExpenseRepository
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.house.model.currency
 import `in`.xroden.flockr.utils.minorUnitDigits
@@ -39,7 +39,7 @@ sealed interface BillsUiState {
 @HiltViewModel
 class BillsViewModel @Inject constructor(
     private val billRepository: RecurringExpenseRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<BillsUiState>(BillsUiState.Loading)

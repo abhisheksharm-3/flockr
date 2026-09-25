@@ -165,7 +165,7 @@ private fun ProfileHeaderCard(
                     val avatarUrl = profile?.avatarUrl
                     if (avatarUrl != null) {
                         androidx.compose.foundation.Image(
-                            painter = coil.compose.rememberAsyncImagePainter(avatarUrl),
+                            painter = coil3.compose.rememberAsyncImagePainter(avatarUrl),
                             contentDescription = "Profile Picture",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop

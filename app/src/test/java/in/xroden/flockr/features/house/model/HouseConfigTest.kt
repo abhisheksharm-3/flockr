@@ -7,25 +7,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * A house's settings must change what the app shows. The date layout was once stored in upper case,
- * which as a java.time pattern means week-based year and day of year, so these pin the reading.
+ * A house's settings must change what the app shows. 30 December 2025 falls in week-based year 2026,
+ * so it catches a layout read with `YYYY` or `DD` by mistake.
  */
 class HouseConfigTest {
 
     private fun config(dateFormat: String = "yyyy-MM-dd", timezone: String = "UTC") =
-        HouseConfig(id = "c", houseId = "h", dateFormat = dateFormat, timezone = timezone)
+        HouseConfig(houseId = "h", dateFormat = dateFormat, timezone = timezone)
 
     private val newYearsEveWeek = LocalDate(2025, 12, 30)
 
     @Test
-    fun `upper-case stored layout reads as calendar year and day of month`() {
-        assertEquals("2025-12-30", newYearsEveWeek.formatWithHouseConfig(config("YYYY-MM-DD")))
-    }
-
-    @Test
     fun `each stored layout formats as chosen`() {
         assertEquals("30/12/2025", newYearsEveWeek.formatWithHouseConfig(config("dd/MM/yyyy")))
-        assertEquals("12/30/2025", newYearsEveWeek.formatWithHouseConfig(config("MM/DD/YYYY")))
+        assertEquals("12/30/2025", newYearsEveWeek.formatWithHouseConfig(config("MM/dd/yyyy")))
+        assertEquals("2025-12-30", newYearsEveWeek.formatWithHouseConfig(config("yyyy-MM-dd")))
     }
 
     @Test

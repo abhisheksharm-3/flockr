@@ -1,6 +1,8 @@
 /** One expense or payment in a list, worded from the viewer's side as Splitwise does. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.house.model.nameOf
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,13 +32,6 @@ import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.shortMonthLabel
 import java.math.BigDecimal
-
-/** "You" for the viewer, the member's name otherwise, and "A former housemate" for someone no longer on the roster. */
-fun Map<String, MemberWithProfile>.nameOf(userId: String?, viewerId: String): String = when (userId) {
-    viewerId -> "You"
-    null -> "Someone"
-    else -> get(userId)?.displayName ?: "A former housemate"
-}
 
 /** The colour for a balance: the primary colour when others owe, the error colour when you owe. */
 @Composable
@@ -74,7 +69,7 @@ fun ExpenseRow(
             val isSettlement = expense.kind == ExpenseKind.SETTLEMENT
             val receiver = expense.shares.firstOrNull { it.owedShare.signum() > 0 }?.userId
             Text(
-                text = if (isSettlement) "$payer paid ${if (receiver == viewerId) "you" else members.nameOf(receiver, viewerId)}" else expense.name,
+                text = if (isSettlement) "$payer paid ${members.nameInSentence(receiver, viewerId)}" else expense.name,
                 style = MaterialTheme.typography.bodyLargeEmphasized,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

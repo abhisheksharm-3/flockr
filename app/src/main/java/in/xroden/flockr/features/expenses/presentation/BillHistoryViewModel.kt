@@ -7,7 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.features.expenses.data.RecurringExpenseRepository
 import `in`.xroden.flockr.features.expenses.model.Expense
-import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import javax.inject.Inject
 import kotlinx.coroutines.async
@@ -30,7 +30,7 @@ sealed interface BillHistoryUiState {
 @HiltViewModel
 class BillHistoryViewModel @Inject constructor(
     private val billRepository: RecurringExpenseRepository,
-    private val houseRepository: IHouseRepository,
+    private val houseRepository: HouseRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<BillHistoryUiState>(BillHistoryUiState.Loading)

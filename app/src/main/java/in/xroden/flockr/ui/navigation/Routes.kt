@@ -19,58 +19,30 @@ import kotlinx.serialization.Serializable
 @Serializable object NotificationsRoute
 
 // Expense routes
-@Serializable data class ExpenseDashboardRoute(val houseId: String)
-@Serializable data class OneTimeExpensesRoute(
+@Serializable data class ExpensesRoute(val houseId: String)
+@Serializable data class ExpenseDetailRoute(val houseId: String, val expenseId: String)
+@Serializable data class ExpenseFormRoute(
     val houseId: String,
-    val category: String? = null,
-    val userId: String? = null
-)
-@Serializable data class AddExpenseRoute(val houseId: String)
-@Serializable data class AddExpenseAdvancedRoute(
-    val houseId: String,
-    val itemName: String? = null,
-    val quantity: Int? = null
-)
-@Serializable data class EditExpenseRoute(
-    val houseId: String,
-    val expenseId: String
-)
-@Serializable data class ExpenseDetailRoute(
-    val houseId: String,
-    val expenseId: String
+    val expenseId: String? = null,
+    val prefillName: String? = null,
+    val prefillQuantity: Int? = null
 )
 @Serializable data class BalancesRoute(val houseId: String)
-@Serializable data class BalancesDetailedRoute(val houseId: String)
-@Serializable data class RecurringExpensesRoute(val houseId: String)
-@Serializable data class AddRecurringExpenseRoute(val houseId: String)
-@Serializable data class EditRecurringExpenseRoute(
-    val houseId: String,
-    val expenseId: String
-)
-@Serializable data class BillHistoryRoute(
-    val houseId: String,
-    val expenseId: String,
-    val expenseName: String
-)
-@Serializable data class MonthlyReportsRoute(val houseId: String)
 
-// Per Diem routes
-@Serializable data class AddPerDiemEntryRoute(
+/** [amount] is a plain decimal string, so it crosses navigation without passing through a float. */
+@Serializable data class SettleUpRoute(
     val houseId: String,
-    val configId: String
+    val fromUserId: String? = null,
+    val toUserId: String? = null,
+    val amount: String? = null
 )
-@Serializable data class QuickPerDiemEntryRoute(val houseId: String)
-@Serializable data class PerDiemTransactionsRoute(val houseId: String)
-@Serializable data class PerDiemConfigRoute(val houseId: String)
-@Serializable data class AddPerDiemConfigRoute(val houseId: String)
-@Serializable data class EditPerDiemConfigRoute(
-    val houseId: String,
-    val configId: String,
-    val itemName: String,
-    val rate: Double,
-    val category: String,
-    val unit: String
-)
+@Serializable data class BillsRoute(val houseId: String)
+@Serializable data class BillFormRoute(val houseId: String, val billId: String? = null)
+@Serializable data class BillHistoryRoute(val houseId: String, val billId: String)
+@Serializable data class ReportsRoute(val houseId: String)
+@Serializable data class PerDiemRoute(val houseId: String)
+@Serializable data class PerDiemItemFormRoute(val houseId: String, val configId: String? = null)
+@Serializable data class PerDiemEntryFormRoute(val houseId: String, val configId: String? = null)
 
 // House management routes
 @Serializable data class ManageMembersRoute(val houseId: String)
@@ -82,12 +54,8 @@ import kotlinx.serialization.Serializable
 
 // Feature routes
 @Serializable data class ShoppingListRoute(val houseId: String)
-@Serializable data class ShoppingListDetailedRoute(val houseId: String)
-@Serializable data class AddShoppingItemRoute(val houseId: String)
 @Serializable data class ChoresRoute(val houseId: String)
-@Serializable data class ChoresDetailedRoute(val houseId: String)
-@Serializable data class AddChoreRoute(val houseId: String)
-@Serializable data class ProductivityRoute(val houseId: String)
+@Serializable data class ChoreFormRoute(val houseId: String, val choreId: String? = null)
 @Serializable data class ChatRoute(val houseId: String)
 @Serializable data class DocumentsRoute(val houseId: String)
 

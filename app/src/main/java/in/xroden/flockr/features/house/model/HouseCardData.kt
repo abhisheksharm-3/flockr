@@ -1,39 +1,38 @@
+/** A house as its home-screen card shows it, one row of `get_my_houses`. */
 package `in`.xroden.flockr.features.house.model
 
-import `in`.xroden.flockr.data.dto.house.HouseEnrichedResult
+import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
 import `in`.xroden.flockr.utils.formatMoney
 import java.math.BigDecimal
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
- * A house as its home-screen card shows it.
- *
- * [monthlySpend] is null until the enriched load returns, so the card shows nothing rather than a
- * zero in the wrong currency while it waits.
+ * [monthlySpend] is everything the house spent this calendar month in its own time zone, per-diem
+ * included and payments between housemates excluded, the same total the monthly report shows.
  */
+@Serializable
 data class HouseCardData(
-    val house: House,
-    val memberCount: Int = 0,
-    val monthlySpend: BigDecimal? = null,
-    val currencyCode: String = DEFAULT_CURRENCY_CODE
+    val id: String,
+    val name: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    @SerialName("header_image_url")
+    val headerImageUrl: String? = null,
+    @SerialName("invite_code")
+    val inviteCode: String? = null,
+    @SerialName("member_count")
+    val memberCount: Int,
+    @SerialName("currency_code")
+    val currencyCode: String,
+    @SerialName("monthly_spend")
+    @Serializable(with = BigDecimalSerializer::class)
+    val monthlySpend: BigDecimal
 ) {
-    /** This month's spend, formatted in the house currency, or null until it has loaded. */
-    val monthlySpendLabel: String? get() = monthlySpend?.formatMoney(currencyCode)
+    val house: House get() = House(id, name, ownerId, inviteCode, address, latitude, longitude, headerImageUrl)
 
-    companion object {
-        fun fromEnriched(result: HouseEnrichedResult) = HouseCardData(
-            house = House(
-                id = result.id,
-                name = result.name,
-                ownerId = result.ownerId,
-                inviteCode = result.inviteCode,
-                address = result.address,
-                latitude = result.latitude,
-                longitude = result.longitude,
-                headerImageUrl = result.headerImageUrl
-            ),
-            memberCount = result.memberCount,
-            monthlySpend = result.monthlyExpense,
-            currencyCode = result.currencyCode
-        )
-    }
+    val monthlySpendLabel: String get() = monthlySpend.formatMoney(currencyCode)
 }

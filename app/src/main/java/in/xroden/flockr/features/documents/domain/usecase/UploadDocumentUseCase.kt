@@ -1,14 +1,14 @@
 package `in`.xroden.flockr.features.documents.domain.usecase
 
 import `in`.xroden.flockr.core.domain.DomainError
-import `in`.xroden.flockr.core.storage.IStorageRepository
-import `in`.xroden.flockr.features.documents.data.IDocumentRepository
+import `in`.xroden.flockr.core.storage.StorageRepository
+import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import `in`.xroden.flockr.features.documents.model.Document
 import javax.inject.Inject
 
 /** Use case for uploading documents with validation and limit enforcement. */
 class UploadDocumentUseCase @Inject constructor(
-    private val documentRepository: IDocumentRepository
+    private val documentRepository: DocumentRepository
 ) {
     companion object {
         const val MAX_HOUSE_DOCUMENTS = 3
@@ -30,9 +30,9 @@ class UploadDocumentUseCase @Inject constructor(
         }
 
         val maxSize = if (mimeType.startsWith("image/")) {
-            IStorageRepository.MAX_IMAGE_SIZE_BYTES
+            StorageRepository.MAX_IMAGE_SIZE_BYTES
         } else {
-            IStorageRepository.MAX_FILE_SIZE_BYTES
+            StorageRepository.MAX_FILE_SIZE_BYTES
         }
 
         if (fileData.size > maxSize) {
