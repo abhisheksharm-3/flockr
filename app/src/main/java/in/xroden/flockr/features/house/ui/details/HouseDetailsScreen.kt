@@ -1,6 +1,10 @@
 /** A house's home: its picture and people, where the viewer stands, and a door to each part of the house. */
 package `in`.xroden.flockr.features.house.ui.details
 
+import `in`.xroden.flockr.data.enums.HouseMemberRole
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.rounded.AddAPhoto
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.clickable
@@ -124,7 +128,7 @@ fun HouseDetailsScreen(
                     contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, top = Spacing.sm, bottom = Spacing.xxxl),
                     verticalArrangement = Arrangement.spacedBy(Spacing.lg),
                 ) {
-                    item(key = "header") { HouseHeader(current, onOpenMembers = onNavigateToManageMembers) }
+                    item(key = "header") { HouseHeader(current, onOpenMembers = onNavigateToManageMembers, onAddPhoto = onNavigateToHouseSettings) }
                     current.viewerNet?.let { net ->
                         item(key = "standing") { StandingCard(net, config.currency(), onClick = onNavigateToExpenses) }
                     }
@@ -147,7 +151,7 @@ fun HouseDetailsScreen(
 
 /** The house picture, or a tinted placeholder when it has none, with the address and who lives there. */
 @Composable
-private fun HouseHeader(state: HouseDetailUiState.Ready, onOpenMembers: () -> Unit) {
+private fun HouseHeader(state: HouseDetailUiState.Ready, onOpenMembers: () -> Unit, onAddPhoto: () -> Unit) {
     val house = state.house
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -177,6 +181,13 @@ private fun HouseHeader(state: HouseDetailUiState.Ready, onOpenMembers: () -> Un
                 }
             }
             MembersRow(state.activeMembers, onClick = onOpenMembers)
+            val viewerRole = state.members.firstOrNull { it.userId == state.viewerId }?.role
+            if (house.headerImageUrl.isNullOrBlank() && (viewerRole == HouseMemberRole.OWNER || viewerRole == HouseMemberRole.ADMIN)) {
+                TextButton(onClick = onAddPhoto, contentPadding = PaddingValues(0.dp)) {
+                    Icon(Icons.Rounded.AddAPhoto, contentDescription = null, modifier = Modifier.size(IconSize.sm))
+                    Text("Add a house photo", modifier = Modifier.padding(start = Spacing.sm))
+                }
+            }
         }
     }
 }

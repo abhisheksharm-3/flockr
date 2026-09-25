@@ -152,12 +152,12 @@ private fun DetailContent(state: ExpenseDetailUiState.Ready, config: HouseConfig
                 append(expense.date.formatWithHouseConfig(config))
                 append(" · added by ")
                 append(state.members.nameInSentence(expense.createdBy, state.viewerId))
-                expense.category?.let { append(" · $it") }
+                expense.category?.takeIf { it != expense.name }?.let { append(" · $it") }
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        SectionCard(title = if (expense.kind == ExpenseKind.SETTLEMENT) "Between" else "Split ${expense.splitMethod?.label?.lowercase() ?: "— one person bears it"}") {
+        SectionCard(title = if (expense.kind == ExpenseKind.SETTLEMENT) "Between" else "Split ${expense.splitMethod?.phrase ?: "— one person bears it"}") {
             expense.shares.sortedByDescending { it.paidShare }.forEach { share -> ShareLine(share, state, currencyCode) }
         }
         expense.notes?.takeIf { it.isNotBlank() }?.let { notes ->

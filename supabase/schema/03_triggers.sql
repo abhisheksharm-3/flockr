@@ -50,3 +50,6 @@ create trigger notify_invitation after insert on public.house_invitations for ea
 create trigger audit_expenses after insert or update or delete on public.expenses for each row execute function public.log_house_activity();
 create trigger audit_chores after insert or update or delete on public.chores for each row execute function public.log_house_activity();
 create trigger audit_members after insert or update or delete on public.house_members for each row execute function public.log_house_activity();
+
+create trigger push_notification after insert on public.notifications
+    for each row execute function public.push_notification();

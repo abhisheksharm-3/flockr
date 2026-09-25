@@ -1,6 +1,7 @@
 /** The signed-in session: signing in and out, and the profile that decides which part of the app to show. */
 package `in`.xroden.flockr.features.auth.presentation
 
+import `in`.xroden.flockr.features.notifications.system.PushTokens
 import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.network.userMessage
 import android.app.Activity
@@ -25,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val googleSignInHelper: GoogleSignInHelper
+    private val googleSignInHelper: GoogleSignInHelper,
+    private val pushTokens: PushTokens,
 ) : ViewModel() {
 
     private val _sessionState = MutableStateFlow<SessionStatus>(SessionStatus.Initializing)
@@ -188,6 +190,7 @@ class AuthViewModel @Inject constructor(
 
     fun signOut() {
         viewModelScope.launch {
+            pushTokens.unregister()
             authRepository.signOut()
             _uiState.value = AuthUiState.NotAuthenticated
         }

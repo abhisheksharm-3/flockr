@@ -7,19 +7,19 @@ import kotlinx.serialization.Serializable
 /**
  * Each method reads a per-person split value differently: [EQUAL] ignores it, [EXACT] takes it as
  * the amount owed, [PERCENT] as a percentage of the total, and [SHARES] as a weight, such as 2 for
- * a couple sharing a room.
+ * a couple sharing a room. [label] names it on a choice chip and [phrase] finishes "Split …".
  */
 @Serializable
-enum class SplitMethod(val label: String) {
+enum class SplitMethod(val label: String, val phrase: String) {
     @SerialName("equal")
-    EQUAL("Equally"),
+    EQUAL("Equal", "equally"),
 
     @SerialName("exact")
-    EXACT("Exact amounts"),
+    EXACT("Amounts", "by exact amounts"),
 
     @SerialName("percent")
-    PERCENT("Percentages"),
+    PERCENT("Percent", "by percentage"),
 
     @SerialName("shares")
-    SHARES("Shares")
+    SHARES("Shares", "by shares")
 }

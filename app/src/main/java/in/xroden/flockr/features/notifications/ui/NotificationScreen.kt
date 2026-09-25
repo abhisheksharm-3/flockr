@@ -137,7 +137,7 @@ private fun Inbox(notifications: List<Notification>, onOpen: (Notification) -> U
 
 @Composable
 private fun NotificationRow(notification: Notification, onClick: () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Spacing.lg, vertical = Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),

@@ -33,6 +33,7 @@ import kotlinx.datetime.LocalDate
 data class SettleUpFormState(
     val viewerId: String = "",
     val members: List<MemberWithProfile> = emptyList(),
+    val viewer: MemberWithProfile? = null,
     val otherUserId: String? = null,
     val isViewerPaying: Boolean = true,
     val amount: String = "",
@@ -87,6 +88,7 @@ class SettleUpViewModel @Inject constructor(
             _form.value = SettleUpFormState(
                 viewerId = viewerId,
                 members = members.await().filter { it.userId != viewerId && it.isActive },
+                viewer = members.await().firstOrNull { it.userId == viewerId },
                 otherUserId = suggestion?.let { if (isViewerPaying) it.toUserId else it.fromUserId },
                 isViewerPaying = isViewerPaying,
                 amount = suggestion?.amount?.takeIf { it.signum() > 0 }?.toAmountInput(currency).orEmpty(),

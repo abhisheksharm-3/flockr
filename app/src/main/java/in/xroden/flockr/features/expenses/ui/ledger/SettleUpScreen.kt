@@ -139,14 +139,14 @@ fun SettleUpScreen(
 @Composable
 private fun DirectionRow(form: SettleUpFormState, onSwap: () -> Unit) {
     val other = form.members.firstOrNull { it.userId == form.otherUserId }
-    val otherName = other?.displayName ?: "Housemate"
+    val otherName = other?.shortName ?: "Housemate"
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally),
     ) {
-        val you: @Composable () -> Unit = { Party("You", null) }
-        val them: @Composable () -> Unit = { Party(otherName, other?.avatarUrl) }
+        val you: @Composable () -> Unit = { Party("You", form.viewer?.displayName ?: "You", form.viewer?.avatarUrl) }
+        val them: @Composable () -> Unit = { Party(otherName, otherName, other?.avatarUrl) }
         if (form.isViewerPaying) you() else them()
         Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = "paid")
         if (form.isViewerPaying) them() else you()
@@ -155,10 +155,10 @@ private fun DirectionRow(form: SettleUpFormState, onSwap: () -> Unit) {
 }
 
 @Composable
-private fun Party(name: String, avatarUrl: String?) {
+private fun Party(label: String, name: String, avatarUrl: String?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         MemberAvatar(name = name, avatarUrl = avatarUrl, size = ComponentHeight.avatarLarge)
-        Text(name, style = MaterialTheme.typography.labelLarge)
+        Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
 

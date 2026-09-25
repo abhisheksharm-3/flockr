@@ -217,7 +217,7 @@ private fun BillCard(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.largeIncreased,
         colors = CardDefaults.cardColors(
-            containerColor = if (isOverdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
     ) {
         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -275,7 +275,7 @@ private fun dueLabel(bill: RecurringExpense, config: HouseConfig?): String {
 private fun splitLabel(bill: RecurringExpense, state: BillsUiState.Ready): String {
     val method = bill.splitMethod ?: return "Not split: whoever pays bears it"
     val names = bill.shares.joinToString { state.members.nameOf(it.userId, state.viewerId) }
-    return "Split ${method.label.lowercase()} between $names"
+    return "Split ${method.phrase} between $names"
 }
 
 /** The amount this time, which can differ for metered bills, the date, and what each person will owe. */

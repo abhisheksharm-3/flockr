@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "392574907294",
+    "project_id": "flockr-96fc4",
+    "storage_bucket": "flockr-96fc4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392574907294:android:22959a79b98b7a215d5c8f",
+        "android_client_info": {
+          "package_name": "in.xroden.flockr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB39rDCnKVnIkJ-ZgQfAdGzT15Cpe-d6Xs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

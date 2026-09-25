@@ -556,3 +556,23 @@ begin
     end loop;
 end;
 $$;
+
+-- Hands each new notification to the push Edge Function, which delivers it to the member's phones.
+-- The function's URL and shared secret live in Vault as push_function_url and push_webhook_secret;
+-- without them nothing is sent and the in-app inbox still works. pg_net sends after the transaction
+-- commits, so a slow push never holds up the write that caused it.
+create function public.push_notification() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+    v_url text := (select decrypted_secret from vault.decrypted_secrets where name = 'push_function_url');
+    v_secret text := (select decrypted_secret from vault.decrypted_secrets where name = 'push_webhook_secret');
+begin
+    if v_url is null or v_secret is null then return null; end if;
+    perform net.http_post(
+        url := v_url,
+        headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', v_secret),
+        body := jsonb_build_object('notification_id', new.id)
+    );
+    return null;
+end;
+$$;

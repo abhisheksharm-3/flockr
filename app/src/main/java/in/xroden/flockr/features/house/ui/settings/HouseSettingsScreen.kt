@@ -105,7 +105,7 @@ fun HouseSettingsScreen(
         bottomBar = {
             if (ready?.canEdit == true) {
                 FlockrPrimaryButton(
-                    text = "Save changes",
+                    text = if (ready.hasChanges) "Save changes" else "All changes saved",
                     onClick = viewModel::save,
                     enabled = ready.canSave,
                     isLoading = ready.isSaving,
@@ -199,13 +199,13 @@ private fun SettingsForm(
                 enabled = isEnabled,
                 modifier = Modifier.fillMaxWidth(),
             )
+            HeaderImageRow(
+                imageUrl = form.house.headerImageUrl,
+                canEdit = form.canEdit,
+                isUploading = form.isUploadingImage,
+                onPickImage = onPickImage,
+            )
         }
-        HeaderImageSection(
-            imageUrl = form.house.headerImageUrl,
-            canEdit = form.canEdit,
-            isUploading = form.isUploadingImage,
-            onPickImage = onPickImage,
-        )
         LocalizationSection(
             currency = form.currencyCode,
             onCurrencyChange = { code -> onUpdate { it.copy(currencyCode = code) } },
@@ -239,27 +239,30 @@ private fun SettingsForm(
     }
 }
 
+/** The house picture as a thumbnail beside the button that sets it; the picture shows on the home card and the house screen. */
 @Composable
-private fun HeaderImageSection(imageUrl: String?, canEdit: Boolean, isUploading: Boolean, onPickImage: () -> Unit) {
+private fun HeaderImageRow(imageUrl: String?, canEdit: Boolean, isUploading: Boolean, onPickImage: () -> Unit) {
     val haptics = rememberHaptics()
-    FormSectionCard(icon = Icons.Rounded.Image, title = "Picture", iconTint = MaterialTheme.colorScheme.tertiary) {
-        val imageModifier = Modifier.fillMaxWidth().height(ComponentHeight.cardSmall).clip(MaterialTheme.shapes.large)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        val thumb = Modifier.size(ComponentHeight.avatarLarge * 1.5f).clip(MaterialTheme.shapes.large)
         if (imageUrl != null) {
-            AsyncImage(model = imageUrl, contentDescription = "House picture", contentScale = ContentScale.Crop, modifier = imageModifier)
+            AsyncImage(model = imageUrl, contentDescription = "House picture", contentScale = ContentScale.Crop, modifier = thumb)
         } else {
-            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = imageModifier) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Home, contentDescription = null, modifier = Modifier.size(IconSize.xl))
-                }
+            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = thumb) {
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(IconSize.lg)) }
             }
         }
-        if (canEdit) {
-            FilledTonalButton(onClick = { haptics.tap(); onPickImage() }, enabled = !isUploading, modifier = Modifier.fillMaxWidth()) {
-                if (isUploading) {
-                    LoadingIndicator(modifier = Modifier.size(IconSize.sm), color = LocalContentColor.current)
-                    Text("Uploading…", modifier = Modifier.padding(start = Spacing.sm))
-                } else {
-                    Text(if (imageUrl != null) "Change picture" else "Add a picture")
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text("Picture", style = MaterialTheme.typography.bodyLargeEmphasized)
+            Text("Shown on the house's card and at the top of its page", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (canEdit) {
+                FilledTonalButton(onClick = { haptics.tap(); onPickImage() }, enabled = !isUploading) {
+                    if (isUploading) {
+                        LoadingIndicator(modifier = Modifier.size(IconSize.sm), color = LocalContentColor.current)
+                        Text("Uploading…", modifier = Modifier.padding(start = Spacing.sm))
+                    } else {
+                        Text(if (imageUrl != null) "Change" else "Add a picture")
+                    }
                 }
             }
         }

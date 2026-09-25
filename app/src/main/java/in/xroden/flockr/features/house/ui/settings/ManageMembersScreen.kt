@@ -358,7 +358,7 @@ private fun roleColor(role: HouseMemberRole): Color = when (role) {
 
 private fun shareLabel(member: MemberWithProfile): String {
     val weight = member.defaultSplitWeight.stripTrailingZeros()
-    val shares = if (weight.compareTo(BigDecimal.ONE) == 0) "1 share" else "${weight.toPlainString()} shares"
+    val shares = "share weight ${weight.stripTrailingZeros().toPlainString()}"
     return if (member.isActive) shares else "Left the house"
 }
 

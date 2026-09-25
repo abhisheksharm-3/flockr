@@ -140,7 +140,7 @@ fun DocumentsScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             PrimaryTabRow(selectedTabIndex = selectedTab) {
                 TABS.forEachIndexed { index, title ->
-                    Tab(selected = selectedTab == index, onClick = { haptics.select(); selectedTab = index }, text = { Text(title) })
+                    Tab(selected = selectedTab == index, onClick = { haptics.select(); selectedTab = index }, text = { Text(title) }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (ready?.isUploading == true) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(vertical = Spacing.xs))

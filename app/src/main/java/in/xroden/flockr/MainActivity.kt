@@ -1,5 +1,6 @@
 package `in`.xroden.flockr
 
+import `in`.xroden.flockr.features.notifications.system.PushTokens
 import `in`.xroden.flockr.features.notifications.system.EXTRA_NOTIFICATION_ID
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -41,6 +42,9 @@ class MainActivity : FragmentActivity() {
     
     @Inject
     lateinit var appLockManager: AppLockManager
+
+    @Inject
+    lateinit var pushTokens: PushTokens
 
     private lateinit var permissionManager: PermissionManager
     private val settingsViewModel: SettingsViewModel by viewModels()
@@ -88,7 +92,7 @@ class MainActivity : FragmentActivity() {
                             onInviteConsumed = { setInviteCode(null) },
                             pendingNotificationId = notificationId,
                             onNotificationConsumed = { setNotificationId(null) },
-                            onSignedIn = ::requestNotificationPermissionIfNeeded
+                            onSignedIn = ::onSignedIn
                         )
 
                         AnimatedVisibility(
@@ -126,6 +130,12 @@ class MainActivity : FragmentActivity() {
                 appLockManager.authenticate(this@MainActivity)
             }
         }
+    }
+
+    /** Runs once the user is signed in: links this phone for pushes and asks to show notifications. */
+    private fun onSignedIn() {
+        lifecycleScope.launch { pushTokens.register() }
+        requestNotificationPermissionIfNeeded()
     }
 
     private fun requestNotificationPermissionIfNeeded() {

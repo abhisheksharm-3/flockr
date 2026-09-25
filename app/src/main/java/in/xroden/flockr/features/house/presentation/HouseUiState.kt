@@ -63,9 +63,14 @@ sealed interface HouseSettingsUiState {
         val isCurrencyLocked: Boolean,
         val isSaving: Boolean = false,
         val isUploadingImage: Boolean = false,
+        val saved: List<Any> = emptyList(),
     ) : HouseSettingsUiState {
         val isOwner: Boolean get() = house.ownerId == viewerId
         val nameError: String? get() = Validators.validateHouseName(name).exceptionOrNull()?.userMessage()
-        val canSave: Boolean get() = canEdit && nameError == null && !isSaving
+
+        /** The editable values, compared against [saved] to know whether there is anything to save. */
+        val values: List<Any> get() = listOf(name.trim(), address.trim(), currencyCode, dateFormat, firstDayOfWeek, timezone)
+        val hasChanges: Boolean get() = values != saved
+        val canSave: Boolean get() = canEdit && hasChanges && nameError == null && !isSaving
     }
 }

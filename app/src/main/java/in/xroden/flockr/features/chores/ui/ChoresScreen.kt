@@ -89,7 +89,7 @@ fun ChoresScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             PrimaryTabRow(selectedTabIndex = selectedTab) {
                 TABS.forEachIndexed { index, title ->
-                    Tab(selected = selectedTab == index, onClick = { haptics.select(); selectedTab = index }, text = { Text(title) })
+                    Tab(selected = selectedTab == index, onClick = { haptics.select(); selectedTab = index }, text = { Text(title) }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Box(Modifier.fillMaxSize()) {

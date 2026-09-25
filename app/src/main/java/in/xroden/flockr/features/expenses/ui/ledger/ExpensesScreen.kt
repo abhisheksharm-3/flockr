@@ -181,7 +181,7 @@ private fun SuggestedPayment(payment: SettleUpPayment, state: ExpensesUiState.Re
     val haptics = rememberHaptics()
     val isViewerPaying = payment.fromUserId == state.viewerId
     val other = state.members[if (isViewerPaying) payment.toUserId else payment.fromUserId]
-    val otherName = other?.displayName ?: "A former housemate"
+    val otherName = other?.shortName ?: "A former housemate"
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,

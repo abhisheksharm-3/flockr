@@ -284,18 +284,21 @@ begin
 end;
 $$;
 
--- Each member's net balance: what they paid minus what they owe, across every expense and payment.
--- Positive means the house owes them.
+-- Each member's standing: [paid] and [owed] are their spending and share of expenses alone, and
+-- [net] is what everything, payments between housemates included, leaves them owed or owing.
+-- Past members appear only while they are not square.
 create function public.get_balances(p_house_id uuid)
 returns table (user_id uuid, full_name text, is_active boolean, paid numeric, owed numeric, net numeric)
 language sql stable security invoker set search_path = public as $$
     select m.user_id, p.full_name, m.left_at is null,
-           coalesce(sum(s.paid_share), 0), coalesce(sum(s.owed_share), 0),
+           coalesce(sum(s.paid_share) filter (where e.kind = 'expense'), 0),
+           coalesce(sum(s.owed_share) filter (where e.kind = 'expense'), 0),
            coalesce(sum(s.paid_share), 0) - coalesce(sum(s.owed_share), 0)
     from house_members m
     join profiles p on p.id = m.user_id
     left join expense_shares s on s.user_id = m.user_id
         and s.expense_id in (select id from expenses where house_id = p_house_id)
+    left join expenses e on e.id = s.expense_id
     where m.house_id = p_house_id
     group by m.user_id, p.full_name, m.left_at
     having m.left_at is null or coalesce(sum(s.paid_share), 0) <> coalesce(sum(s.owed_share), 0)
@@ -600,4 +603,10 @@ create function public.register_device_token(p_token text, p_platform text) retu
 language sql security definer set search_path = public as $$
     insert into device_tokens (token, user_id, platform) values (p_token, auth.uid(), p_platform)
     on conflict (token) do update set user_id = auth.uid(), platform = excluded.platform, updated_at = now();
+$$;
+
+-- Stops pushes to this device for the signed-in user, which signing out must do first.
+create function public.unregister_device_token(p_token text) returns void
+language sql security definer set search_path = public as $$
+    delete from device_tokens where token = p_token and user_id = auth.uid();
 $$;

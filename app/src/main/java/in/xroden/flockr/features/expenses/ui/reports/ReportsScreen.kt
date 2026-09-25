@@ -1,6 +1,8 @@
 /** A month of house spending at a glance: the total and its parts, by category, by person, and usage by item. */
 package `in`.xroden.flockr.features.expenses.ui.reports
 
+import `in`.xroden.flockr.features.expenses.model.SpendByMember
+import `in`.xroden.flockr.ui.components.balanceColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +30,6 @@ import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
 import `in`.xroden.flockr.ui.components.FlockrTopAppBar
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.charts.ChartEntry
-import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
 import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.states.ErrorState
@@ -82,9 +83,8 @@ private fun ReportsContent(state: ReportsUiState.Ready, currencyCode: String) {
             }
         }
         if (state.byMember.isNotEmpty()) {
-            SectionCard(title = "Who paid", subtitle = "What each person paid, against their own share") {
-                SimpleBarChart(data = state.byMember.map { ChartEntry(it.userId, it.fullName, it.paid) }, currencyCode = currencyCode)
-                state.byMember.forEach { member -> SummaryLine("${member.fullName}'s share", member.consumed, currencyCode) }
+            SectionCard(title = "Who paid", subtitle = "What each person paid for the house, and their own share of it") {
+                state.byMember.sortedByDescending { it.paid }.forEach { member -> MemberSpendLine(member, currencyCode) }
             }
         }
         if (state.usage.isNotEmpty()) {
@@ -102,5 +102,30 @@ private fun SummaryLine(label: String, amount: BigDecimal, currencyCode: String)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(amount.formatMoney(currencyCode), style = MaterialTheme.typography.bodyLargeEmphasized)
+    }
+}
+
+/** One person's month: what they paid, their share, and whether that leaves them ahead or behind. */
+@Composable
+private fun MemberSpendLine(member: SpendByMember, currencyCode: String) {
+    val difference = member.paid - member.consumed
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(member.fullName, style = MaterialTheme.typography.bodyLargeEmphasized)
+            Text(
+                "paid ${member.paid.formatMoney(currencyCode)} · share ${member.consumed.formatMoney(currencyCode)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            when (difference.signum()) {
+                1 -> "+${difference.formatMoney(currencyCode)}"
+                -1 -> "−${difference.abs().formatMoney(currencyCode)}"
+                else -> "even"
+            },
+            style = MaterialTheme.typography.bodyLargeEmphasized,
+            color = balanceColor(difference),
+        )
     }
 }

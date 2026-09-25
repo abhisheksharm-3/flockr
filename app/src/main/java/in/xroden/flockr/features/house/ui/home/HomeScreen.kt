@@ -308,7 +308,7 @@ private fun HouseCard(house: HouseCardData, onClick: () -> Unit, modifier: Modif
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    if (house.memberCount == 1) "1 member" else "${house.memberCount} members",
+                    "${if (house.memberCount == 1) "1 member" else "${house.memberCount} members"} · ${house.monthlySpendLabel} this month",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -327,7 +327,6 @@ private fun HouseCard(house: HouseCardData, onClick: () -> Unit, modifier: Modif
                 if (net.signum() != 0) {
                     Text(net.abs().formatMoney(house.currencyCode), style = MaterialTheme.typography.titleMediumEmphasized, color = balanceColor(net))
                 }
-                Text("${house.monthlySpendLabel} this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

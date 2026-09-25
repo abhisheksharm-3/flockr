@@ -8,6 +8,7 @@ where email is not null
 on conflict (id) do nothing;
 
 create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
 
 select cron.unschedule(jobid) from cron.job where jobname = 'flockr-bill-reminders';
 select cron.schedule('flockr-bill-reminders', '0 * * * *', 'select public.send_bill_reminders()');

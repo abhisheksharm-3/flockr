@@ -72,7 +72,7 @@ class HouseSettingsViewModel @Inject constructor(
                 firstDayOfWeek = loadedConfig.firstDayOfWeek,
                 timezone = loadedConfig.timezone,
                 isCurrencyLocked = locked.await(),
-            )
+            ).let { it.copy(saved = it.values) }
         }
     }
 
@@ -94,7 +94,7 @@ class HouseSettingsViewModel @Inject constructor(
             _events.send(
                 result.fold(
                     onSuccess = {
-                        update { it.copy(house = it.house.copy(name = form.name.trim(), address = form.address.trim())) }
+                        update { it.copy(house = it.house.copy(name = form.name.trim(), address = form.address.trim()), saved = form.values) }
                         Notice("Settings saved", isError = false)
                     },
                     onFailure = { Notice(it.userMessage(), isError = true) },

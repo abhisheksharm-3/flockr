@@ -14,6 +14,7 @@ import `in`.xroden.flockr.utils.currencySymbol
 import `in`.xroden.flockr.utils.example
 import java.time.DayOfWeek
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -58,7 +59,7 @@ fun HouseLocaleFields(
         selected = DateLayout.fromPattern(dateFormat) ?: DateLayout.ISO,
         options = DateLayout.entries,
         onSelect = { onDateFormatChange(it.pattern) },
-        optionLabel = { it.example() },
+        optionLabel = { "${it.example()} · ${it.order}" },
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -79,10 +80,16 @@ fun HouseLocaleFields(
         selected = timezone,
         options = zones,
         onSelect = onTimezoneChange,
-        optionLabel = { it.replace('_', ' ') },
+        optionLabel = ::zoneLabel,
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/** "Kolkata · GMT+05:30": the zone's city and its current offset from GMT. */
+private fun zoneLabel(id: String): String {
+    val offset = runCatching { ZonedDateTime.now(ZoneId.of(id)).offset.id }.getOrNull()?.takeIf { it != "Z" } ?: ""
+    return "${id.substringAfterLast('/').replace('_', ' ')} · GMT$offset"
 }
 
 /** The stored day number's name in the device language: 0 is Sunday. */

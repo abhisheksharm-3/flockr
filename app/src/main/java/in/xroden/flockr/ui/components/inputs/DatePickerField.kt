@@ -1,6 +1,9 @@
 /** Choosing a calendar date, shown in the house's date layout. */
 package `in`.xroden.flockr.ui.components.inputs
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +57,8 @@ fun DatePickerField(
             .fillMaxWidth()
             .clickable(enabled = enabled) { isPickerOpen = true },
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = Color.Transparent,
+        border = BorderStroke(Dp.Hairline, MaterialTheme.colorScheme.outline),
     ) {
         Row(
             modifier = Modifier.padding(Spacing.lg),

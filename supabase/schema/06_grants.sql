@@ -94,7 +94,8 @@ grant execute on function
     public.bill_per_diem_month(uuid, date),
     public.mark_notifications_read(uuid[]),
     public.set_notification_preference(uuid, text, boolean),
-    public.register_device_token(text, text)
+    public.register_device_token(text, text),
+    public.unregister_device_token(text)
 to authenticated;
 
 alter default privileges in schema public revoke all on tables from public, anon, authenticated;

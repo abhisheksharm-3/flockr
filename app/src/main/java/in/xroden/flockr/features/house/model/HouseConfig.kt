@@ -27,12 +27,12 @@ data class HouseConfig(
 
 /**
  * The date layouts a house can choose. [pattern] is both the `java.time` pattern and the value stored
- * in `house_config.date_format`, which the database restricts to these three.
+ * in `house_config.date_format`, which the database restricts to these three. [order] names it in words.
  */
-enum class DateLayout(val pattern: String) {
-    DAY_MONTH_YEAR("dd/MM/yyyy"),
-    MONTH_DAY_YEAR("MM/dd/yyyy"),
-    ISO("yyyy-MM-dd");
+enum class DateLayout(val pattern: String, val order: String) {
+    DAY_MONTH_YEAR("dd/MM/yyyy", "day first"),
+    MONTH_DAY_YEAR("MM/dd/yyyy", "month first"),
+    ISO("yyyy-MM-dd", "year first");
 
     companion object {
         fun fromPattern(pattern: String): DateLayout? = entries.firstOrNull { it.pattern == pattern }
