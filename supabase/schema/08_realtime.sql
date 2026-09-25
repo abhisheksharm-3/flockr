@@ -3,5 +3,5 @@
 
 alter publication supabase_realtime add table
     public.houses, public.house_members, public.house_config, public.expenses, public.expense_shares,
-    public.recurring_expenses, public.per_diem_entries, public.chores, public.shopping_items, public.messages,
+    public.recurring_expenses, public.per_diem_config, public.per_diem_entries, public.chores, public.shopping_items, public.messages,
     public.documents, public.notifications;
