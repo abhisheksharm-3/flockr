@@ -24,8 +24,8 @@ create constraint trigger expense_balanced after insert or update or delete on p
     deferrable initially deferred for each row execute function public.check_expense_balanced();
 create constraint trigger expense_amount_balanced after insert or update of amount on public.expenses
     deferrable initially deferred for each row execute function public.check_expense_balanced();
-create trigger advance_recurring_bill after insert on public.expenses
-    for each row execute function public.advance_recurring_bill();
+create trigger sync_recurring_bill after insert or delete or update of recurring_expense_id on public.expenses
+    for each row execute function public.sync_recurring_bill();
 
 create trigger recurring_minor_units before insert or update of amount on public.recurring_expenses
     for each row execute function public.check_minor_units('amount');

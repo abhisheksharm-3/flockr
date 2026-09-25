@@ -78,7 +78,7 @@ grant execute on function
     public.cancel_invitation(uuid),
     public.save_expense(uuid, uuid, text, numeric, text, date, text, text, jsonb),
     public.delete_expense(uuid),
-    public.settle_up(uuid, uuid, numeric, date, text),
+    public.settle_up(uuid, uuid, uuid, numeric, date, text),
     public.get_balances(uuid),
     public.get_settle_up_plan(uuid),
     public.get_shared_history(uuid, uuid),

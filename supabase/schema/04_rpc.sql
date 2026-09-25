@@ -10,7 +10,7 @@ create function public.create_house(
 declare
     v_house_id uuid;
 begin
-    if auth.uid() is null then raise exception 'Sign in to create a house' using errcode = '42501'; end if;
+    if auth.uid() is null then raise exception 'Sign in to create a house'; end if;
     insert into houses (name, owner_id, address, latitude, longitude, header_image_url)
     values (btrim(p_name), auth.uid(), p_address, p_latitude, p_longitude, p_header_image_url)
     returning id into v_house_id;
@@ -31,10 +31,7 @@ returns table (
     select h.id, h.name, h.owner_id, h.address, h.latitude, h.longitude, h.header_image_url, h.invite_code,
            (select count(*) from house_members m where m.house_id = h.id and m.left_at is null),
            hc.currency_code,
-           coalesce((select sum(e.amount) from expenses e
-                     where e.house_id = h.id and e.kind = 'expense'
-                       and e.date >= date_trunc('month', (now() at time zone hc.timezone))::date
-                       and e.date < (date_trunc('month', (now() at time zone hc.timezone)) + interval '1 month')::date), 0)
+           (select total_spend from get_monthly_summary(h.id, (now() at time zone hc.timezone)::date))
     from houses h
     join house_config hc on hc.house_id = h.id
     where h.id in (select auth_house_ids())
@@ -70,10 +67,10 @@ language plpgsql security definer set search_path = public as $$
 declare
     v_house_id uuid;
 begin
-    if auth.uid() is null then raise exception 'Sign in to join a house' using errcode = '42501'; end if;
+    if auth.uid() is null then raise exception 'Sign in to join a house'; end if;
     select id into v_house_id from houses
     where invite_code = upper(btrim(p_code)) and (invite_code_expires_at is null or invite_code_expires_at > now());
-    if v_house_id is null then raise exception 'This invite code is invalid or has expired' using errcode = 'P0002'; end if;
+    if v_house_id is null then raise exception 'This invite code is invalid or has expired'; end if;
     insert into house_members (house_id, user_id) values (v_house_id, auth.uid())
     on conflict (house_id, user_id) do update set left_at = null, joined_at = now(), role = 'Member'
         where house_members.left_at is not null;
@@ -86,7 +83,7 @@ language plpgsql security definer set search_path = public as $$
 declare
     v_code text := generate_invite_code();
 begin
-    if not auth_is_house_admin(p_house_id) then raise exception 'Only an admin can change the invite code' using errcode = '42501'; end if;
+    if not auth_is_house_admin(p_house_id) then raise exception 'Only an admin can change the invite code'; end if;
     update houses set invite_code = v_code, invite_code_generated_at = now(), invite_code_expires_at = now() + interval '7 days'
     where id = p_house_id;
     return v_code;
@@ -96,9 +93,9 @@ $$;
 create function public.remove_house_member(p_house_id uuid, p_user_id uuid) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-    if not auth_is_house_admin(p_house_id) then raise exception 'Only an admin can remove a member' using errcode = '42501'; end if;
+    if not auth_is_house_admin(p_house_id) then raise exception 'Only an admin can remove a member'; end if;
     if exists (select 1 from house_members where house_id = p_house_id and user_id = p_user_id and role = 'Owner') then
-        raise exception 'The owner cannot be removed' using errcode = '42501';
+        raise exception 'The owner cannot be removed';
     end if;
     update house_members set left_at = now() where house_id = p_house_id and user_id = p_user_id and left_at is null;
 end;
@@ -108,10 +105,10 @@ $$;
 create function public.leave_house(p_house_id uuid) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
     if exists (select 1 from house_members where house_id = p_house_id and user_id = auth.uid() and role = 'Owner')
        and exists (select 1 from house_members where house_id = p_house_id and left_at is null and user_id <> auth.uid()) then
-        raise exception 'Transfer ownership before leaving' using errcode = 'P0001';
+        raise exception 'Transfer ownership before leaving';
     end if;
     update house_members set left_at = now() where house_id = p_house_id and user_id = auth.uid();
 end;
@@ -121,10 +118,10 @@ create function public.transfer_house_ownership(p_house_id uuid, p_new_owner_id 
 language plpgsql security definer set search_path = public as $$
 begin
     if not exists (select 1 from house_members where house_id = p_house_id and user_id = auth.uid() and role = 'Owner' and left_at is null) then
-        raise exception 'Only the owner can transfer the house' using errcode = '42501';
+        raise exception 'Only the owner can transfer the house';
     end if;
     if not is_active_house_member(p_house_id, p_new_owner_id) then
-        raise exception 'The new owner must be a member' using errcode = 'P0001';
+        raise exception 'The new owner must be a member';
     end if;
     perform set_config('flockr.transferring_ownership', 'on', true);
     update house_members set role = 'Admin' where house_id = p_house_id and user_id = auth.uid();
@@ -137,7 +134,7 @@ create function public.delete_house(p_house_id uuid) returns void
 language plpgsql security definer set search_path = public as $$
 begin
     if not exists (select 1 from houses where id = p_house_id and owner_id = auth.uid()) then
-        raise exception 'Only the owner can delete the house' using errcode = '42501';
+        raise exception 'Only the owner can delete the house';
     end if;
     delete from houses where id = p_house_id;
 end;
@@ -151,14 +148,14 @@ declare
     v_id uuid;
     v_window invitation_rate_limit;
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
     insert into invitation_rate_limit (user_id, house_id) values (auth.uid(), p_house_id) on conflict do nothing;
     select * into v_window from invitation_rate_limit where user_id = auth.uid() and house_id = p_house_id for update;
     if v_window.window_start < now() - interval '1 hour' then
         update invitation_rate_limit set invitations_sent = 0, window_start = now() where user_id = auth.uid() and house_id = p_house_id;
         v_window.invitations_sent := 0;
     end if;
-    if v_window.invitations_sent >= 10 then raise exception 'Too many invitations. Try again in an hour.' using errcode = 'P0001'; end if;
+    if v_window.invitations_sent >= 10 then raise exception 'Too many invitations. Try again in an hour.'; end if;
     update invitation_rate_limit set invitations_sent = invitations_sent + 1 where user_id = auth.uid() and house_id = p_house_id;
     insert into house_invitations (house_id, inviter_id, invitee_email)
     values (p_house_id, auth.uid(), lower(btrim(p_email)))
@@ -185,7 +182,7 @@ begin
     select * into v_invitation from house_invitations
     where id = p_invitation_id and status = 'pending' and invitee_email = (select email from profiles where id = auth.uid())
     for update;
-    if not found then raise exception 'Invitation not found' using errcode = 'P0002'; end if;
+    if not found then raise exception 'Invitation not found'; end if;
     update house_invitations set status = case when p_accept then 'accepted' else 'rejected' end where id = p_invitation_id;
     if p_accept then
         insert into house_members (house_id, user_id) values (v_invitation.house_id, auth.uid())
@@ -202,7 +199,7 @@ begin
     update house_invitations set status = 'cancelled'
     where id = p_invitation_id and status = 'pending'
       and (inviter_id = auth.uid() or auth_is_house_admin(house_id));
-    if not found then raise exception 'Invitation not found' using errcode = 'P0002'; end if;
+    if not found then raise exception 'Invitation not found'; end if;
 end;
 $$;
 
@@ -230,7 +227,7 @@ create function public.save_expense(
 declare
     v_id uuid := p_expense_id;
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
     if v_id is null then
         insert into expenses (house_id, name, amount, category, date, notes, split_method, created_by)
         values (p_house_id, btrim(p_name), p_amount, p_category, p_date, p_notes, p_split_method, auth.uid())
@@ -239,7 +236,7 @@ begin
         update expenses
         set name = btrim(p_name), amount = p_amount, category = p_category, date = p_date, notes = p_notes, split_method = p_split_method
         where id = v_id and house_id = p_house_id and kind = 'expense';
-        if not found then raise exception 'Expense not found' using errcode = 'P0002'; end if;
+        if not found then raise exception 'Expense not found'; end if;
     end if;
     perform write_expense_shares(v_id, p_shares);
     perform notify_expense(v_id, auth.uid(), case when p_expense_id is null then 'expense_added' else 'expense_updated' end);
@@ -253,24 +250,27 @@ begin
     delete from expenses e
     where e.id = p_expense_id and auth_is_house_member(e.house_id)
       and (e.created_by = auth.uid() or auth_is_house_admin(e.house_id));
-    if not found then raise exception 'Only whoever added it, or an admin, can delete this' using errcode = '42501'; end if;
+    if not found then raise exception 'Only whoever added it, or an admin, can delete this'; end if;
 end;
 $$;
 
--- Records that the caller paid [p_to_user_id] back [p_amount]. An overpayment simply leaves the other
--- person owing the difference, because a settlement is an ordinary entry in the ledger.
-create function public.settle_up(p_house_id uuid, p_to_user_id uuid, p_amount numeric, p_date date, p_note text) returns uuid
-language plpgsql security definer set search_path = public as $$
+-- Records that [p_from_user_id] paid [p_to_user_id] back [p_amount], as a settlement in the ledger.
+-- Either of the two may record it and the other is told. Paying more than is owed carries forward
+-- as a balance the other way.
+create function public.settle_up(
+    p_house_id uuid, p_from_user_id uuid, p_to_user_id uuid, p_amount numeric, p_date date, p_note text
+) returns uuid language plpgsql security definer set search_path = public as $$
 declare
     v_id uuid;
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
-    if p_to_user_id = auth.uid() then raise exception 'You cannot pay yourself' using errcode = 'P0001'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
+    if auth.uid() not in (p_from_user_id, p_to_user_id) then raise exception 'Only the two people in a payment can record it'; end if;
+    if p_from_user_id = p_to_user_id then raise exception 'A payment needs two different people'; end if;
     insert into expenses (house_id, kind, name, amount, date, notes, created_by)
     values (p_house_id, 'settlement', 'Payment', p_amount, p_date, p_note, auth.uid())
     returning id into v_id;
     insert into expense_shares (expense_id, user_id, paid_share, owed_share) values
-        (v_id, auth.uid(), p_amount, 0),
+        (v_id, p_from_user_id, p_amount, 0),
         (v_id, p_to_user_id, 0, p_amount);
     perform notify_expense(v_id, auth.uid(), 'settlement_received');
     return v_id;
@@ -408,9 +408,9 @@ create function public.save_recurring_expense(
 declare
     v_id uuid := p_recurring_id;
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
     if exists (select 1 from jsonb_array_elements(p_shares) s where not was_house_member(p_house_id, (s ->> 'user_id')::uuid)) then
-        raise exception 'Everyone on a bill must belong to the house' using errcode = '23514';
+        raise exception 'Everyone on a bill must belong to the house';
     end if;
     if v_id is null then
         insert into recurring_expenses (house_id, name, amount, category, frequency, custom_frequency_days, first_due_date,
@@ -426,7 +426,7 @@ begin
             reminder_days_before = p_reminder_days_before, allow_prepayment = p_allow_prepayment,
             split_method = p_split_method, notes = p_notes
         where id = v_id and house_id = p_house_id;
-        if not found then raise exception 'Bill not found' using errcode = 'P0002'; end if;
+        if not found then raise exception 'Bill not found'; end if;
     end if;
     delete from recurring_expense_shares where recurring_expense_id = v_id;
     insert into recurring_expense_shares (recurring_expense_id, user_id, split_value)
@@ -471,9 +471,9 @@ declare
     v_id uuid;
 begin
     select * into v_bill from recurring_expenses where id = p_recurring_id;
-    if not found or not auth_is_house_member(v_bill.house_id) then raise exception 'Bill not found' using errcode = 'P0002'; end if;
+    if not found or not auth_is_house_member(v_bill.house_id) then raise exception 'Bill not found'; end if;
     if not v_bill.allow_prepayment and p_date < v_bill.next_due_date - v_bill.reminder_days_before then
-        raise exception 'This bill is not due yet' using errcode = 'P0001';
+        raise exception 'This bill is not due yet';
     end if;
     insert into expenses (house_id, name, amount, category, date, notes, split_method, recurring_expense_id, created_by)
     values (v_bill.house_id, v_bill.name, p_amount, v_bill.category, p_date, v_bill.notes, v_bill.split_method, v_bill.id, auth.uid())
@@ -538,7 +538,7 @@ $$;
 create function public.set_notification_preference(p_house_id uuid, p_type text, p_enabled boolean) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house' using errcode = '42501'; end if;
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
     insert into notification_preferences (user_id, house_id, type, is_enabled) values (auth.uid(), p_house_id, p_type, p_enabled)
     on conflict (user_id, house_id, type) do update set is_enabled = excluded.is_enabled, updated_at = now();
 end;

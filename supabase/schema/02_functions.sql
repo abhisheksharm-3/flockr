@@ -1,5 +1,7 @@
 -- Helper functions and the trigger functions that keep the data consistent. Nothing here is callable
--- by a client; 06_grants.sql exposes only the RPCs in 04_rpc.sql.
+-- by a client; 06_grants.sql exposes only the RPCs in 04_rpc.sql. Every raise here and in 04_rpc.sql
+-- uses the default SQLSTATE P0001 with a sentence written for the user, and the app shows exactly
+-- those messages, so a raise must never carry internal detail.
 
 -- Access helpers. Each derives the caller from auth.uid() and never trusts an argument for identity.
 
@@ -67,6 +69,7 @@ begin
         when 'custom' then return p_from + p_custom_days;
         when 'monthly' then v_months := 1;
         when 'quarterly' then v_months := 3;
+        when 'semiannual' then v_months := 6;
         when 'yearly' then v_months := 12;
     end case;
     v_target := (date_trunc('month', p_from) + make_interval(months => v_months))::date;
@@ -98,13 +101,13 @@ $$;
 create function public.validate_house_config() returns trigger language plpgsql as $$
 begin
     if not exists (select 1 from pg_timezone_names where name = new.timezone) then
-        raise exception 'Unknown time zone %', new.timezone using errcode = '22023';
+        raise exception 'Unknown time zone %', new.timezone;
     end if;
     if tg_op = 'UPDATE' and new.currency_code <> old.currency_code
        and (exists (select 1 from public.expenses where house_id = new.house_id)
             or exists (select 1 from public.recurring_expenses where house_id = new.house_id)
             or exists (select 1 from public.per_diem_config where house_id = new.house_id)) then
-        raise exception 'The currency cannot change once the house has recorded money' using errcode = '23514';
+        raise exception 'The currency cannot change once the house has recorded money';
     end if;
     return new;
 end;
@@ -124,7 +127,7 @@ begin
     foreach v_column in array tg_argv loop
         v_value := (v_row ->> v_column)::numeric;
         if v_value <> round(v_value, v_digits) then
-            raise exception 'Amounts must be whole units of the house currency' using errcode = '23514';
+            raise exception 'Amounts must be whole units of the house currency';
         end if;
     end loop;
     return new;
@@ -171,7 +174,7 @@ begin
     select max_members into v_limit from houses where id = new.house_id;
     select count(*) into v_active from house_members where house_id = new.house_id and left_at is null and user_id <> new.user_id;
     if v_active >= v_limit then
-        raise exception 'This house is full (% members)', v_limit using errcode = 'P0001';
+        raise exception 'This house is full (% members)', v_limit;
     end if;
     return new;
 end;
@@ -196,20 +199,19 @@ begin
     select coalesce(sum(paid_share), 0), coalesce(sum(owed_share), 0) into v_paid, v_owed
     from expense_shares where expense_id = v_expense_id;
     if v_paid <> v_expense.amount or v_owed <> v_expense.amount then
-        raise exception 'Shares must add up to the expense: paid %, owed %, amount %', v_paid, v_owed, v_expense.amount
-            using errcode = '23514';
+        raise exception 'Shares must add up to the expense: paid %, owed %, amount %', v_paid, v_owed, v_expense.amount;
     end if;
 
     v_digits := house_minor_digits(v_expense.house_id);
     if v_expense.amount <> round(v_expense.amount, v_digits)
        or exists (select 1 from expense_shares where expense_id = v_expense_id
                   and (paid_share <> round(paid_share, v_digits) or owed_share <> round(owed_share, v_digits))) then
-        raise exception 'Amounts must be whole units of the house currency' using errcode = '23514';
+        raise exception 'Amounts must be whole units of the house currency';
     end if;
 
     if exists (select 1 from expense_shares s where s.expense_id = v_expense_id
                and not was_house_member(v_expense.house_id, s.user_id)) then
-        raise exception 'Everyone on an expense must belong to the house' using errcode = '23514';
+        raise exception 'Everyone on an expense must belong to the house';
     end if;
     return null;
 end;
@@ -226,7 +228,7 @@ begin
         select rate, house_id into new.rate, v_house_id from per_diem_config where id = new.config_id;
     else
         if new.config_id <> old.config_id then
-            raise exception 'An entry cannot move to another item' using errcode = '23514';
+            raise exception 'An entry cannot move to another item';
         end if;
         new.rate := old.rate;
         select house_id into v_house_id from per_diem_config where id = new.config_id;
@@ -236,17 +238,26 @@ begin
 end;
 $$;
 
--- Recording a payment against a recurring bill moves the bill to its next due date.
-create function public.advance_recurring_bill() returns trigger
+-- A bill's next due date is its first due date advanced once per recorded payment, and its last paid
+-- date is its latest payment's. Recording a payment moves the bill forward; deleting one moves it back.
+create function public.sync_recurring_bill() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare
+    v_bill recurring_expenses;
+    v_payments int;
+    v_last_paid date;
+    v_due date;
 begin
-    if new.recurring_expense_id is null then return new; end if;
-    update recurring_expenses r
-    set last_paid_date = greatest(coalesce(r.last_paid_date, new.date), new.date),
-        next_due_date = next_due_date(r.next_due_date, r.frequency, r.custom_frequency_days,
-                                      extract(day from r.first_due_date)::smallint)
-    where r.id = new.recurring_expense_id;
-    return new;
+    select * into v_bill from recurring_expenses
+    where id = coalesce((to_jsonb(new) ->> 'recurring_expense_id')::uuid, (to_jsonb(old) ->> 'recurring_expense_id')::uuid);
+    if not found then return null; end if;
+    select count(*), max(date) into v_payments, v_last_paid from expenses where recurring_expense_id = v_bill.id;
+    v_due := v_bill.first_due_date;
+    for i in 1..v_payments loop
+        v_due := next_due_date(v_due, v_bill.frequency, v_bill.custom_frequency_days, extract(day from v_bill.first_due_date)::smallint);
+    end loop;
+    update recurring_expenses set next_due_date = v_due, last_paid_date = v_last_paid where id = v_bill.id;
+    return null;
 end;
 $$;
 
@@ -285,10 +296,10 @@ begin
     if new.role = old.role then return new; end if;
     if current_setting('flockr.transferring_ownership', true) = 'on' then return new; end if;
     if old.role = 'Owner' or new.role = 'Owner' then
-        raise exception 'Ownership changes only through a transfer' using errcode = '42501';
+        raise exception 'Ownership changes only through a transfer';
     end if;
     if auth.uid() is not null and (auth.uid() = new.user_id or not auth_is_house_admin(new.house_id)) then
-        raise exception 'Only an admin can change another member''s role' using errcode = '42501';
+        raise exception 'Only an admin can change another member''s role';
     end if;
     return new;
 end;
@@ -420,6 +431,15 @@ begin
 end;
 $$;
 
+-- [p_amount] as the notification text shows it: the currency code, then the amount with thousands
+-- separators and exactly the currency's decimals, such as "INR 1,050.00" or "JPY 1,000".
+create function public.format_money(p_amount numeric, p_currency text) returns text
+language sql stable set search_path = public as $$
+    select p_currency || ' ' || to_char(round(p_amount, c.minor_digits),
+                                        'FM999,999,999,990' || case when c.minor_digits > 0 then '.' || repeat('0', c.minor_digits) else '' end)
+    from currencies c where c.code = p_currency;
+$$;
+
 -- Notifies everyone on [p_expense_id] except [p_actor_id]. Called by the expense RPCs once the shares
 -- exist, which a trigger on the expense row alone could not see.
 create function public.notify_expense(p_expense_id uuid, p_actor_id uuid, p_type text) returns void
@@ -428,20 +448,24 @@ declare
     v_expense record;
     v_share record;
     v_currency text;
+    v_payer uuid;
 begin
     select * into v_expense from expenses where id = p_expense_id;
     select currency_code into v_currency from house_config where house_id = v_expense.house_id;
+    select user_id into v_payer from expense_shares where expense_id = p_expense_id order by paid_share desc limit 1;
     for v_share in select * from expense_shares where expense_id = p_expense_id loop
-        if v_expense.kind = 'settlement' then
-            if v_share.owed_share > 0 then
-                perform notify(v_share.user_id, v_expense.house_id, p_actor_id, 'settlement_received', 'You were paid back',
-                               display_name(p_actor_id) || ' paid you ' || v_currency || ' ' || v_expense.amount,
-                               jsonb_build_object('expense_id', p_expense_id));
-            end if;
+        if v_expense.kind = 'settlement' and v_share.owed_share > 0 then
+            perform notify(v_share.user_id, v_expense.house_id, p_actor_id, 'settlement_received', 'You were paid back',
+                           display_name(v_payer) || ' paid you ' || format_money(v_expense.amount, v_currency),
+                           jsonb_build_object('expense_id', p_expense_id));
+        elsif v_expense.kind = 'settlement' then
+            perform notify(v_share.user_id, v_expense.house_id, p_actor_id, 'settlement_recorded', 'Payment recorded',
+                           display_name(p_actor_id) || ' recorded that you paid them ' || format_money(v_expense.amount, v_currency),
+                           jsonb_build_object('expense_id', p_expense_id));
         elsif v_share.owed_share > 0 then
             perform notify(v_share.user_id, v_expense.house_id, p_actor_id, p_type,
                            case p_type when 'expense_updated' then 'Expense changed' when 'bill_paid' then 'Bill paid' else 'New expense' end,
-                           v_expense.name || ': your share ' || v_currency || ' ' || v_share.owed_share,
+                           v_expense.name || ': your share ' || format_money(v_share.owed_share, v_currency),
                            jsonb_build_object('expense_id', p_expense_id));
         end if;
     end loop;

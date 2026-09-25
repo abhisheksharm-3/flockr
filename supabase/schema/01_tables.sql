@@ -106,7 +106,7 @@ create table public.recurring_expenses (
     amount                numeric not null check (amount > 0),
     category              text not null check (length(btrim(category)) > 0),
     frequency             text not null default 'monthly'
-        check (frequency in ('daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom')),
+        check (frequency in ('daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semiannual', 'yearly', 'custom')),
     custom_frequency_days smallint check (custom_frequency_days between 1 and 366),
     first_due_date        date not null,
     next_due_date         date not null,
@@ -280,6 +280,7 @@ insert into public.notification_types (type, description) values
     ('expense_added',       'An expense you share was added'),
     ('expense_updated',     'An expense you share was changed'),
     ('settlement_received', 'A housemate paid you back'),
+    ('settlement_recorded', 'A housemate recorded a payment you made them'),
     ('bill_due',            'A recurring bill is due soon'),
     ('bill_paid',           'A recurring bill you share was paid'),
     ('chore_assigned',      'A chore was assigned to you'),
