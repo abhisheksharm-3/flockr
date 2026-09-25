@@ -238,19 +238,15 @@ cd flockr
    - Click "New Project"
    - Wait for initialization (2-3 minutes)
 
-2. **Run Database Setup**
-   - Open Supabase Dashboard → SQL Editor
-   - Copy contents of `SUPABASE_RPC_FUNCTIONS.sql`
-   - Paste and click "Run"
-   - Verify all functions were created (check bottom of file)
+2. **Create the database**
+   - The whole backend lives in `supabase/schema/`, numbered `00_reset.sql` to `09_finalize.sql`.
+   - Run them in order, as one transaction, in the SQL Editor or with `psql`:
+     `cat supabase/schema/0*.sql | psql "$DATABASE_URL" --single-transaction`
+   - This creates the tables, row-level security, storage buckets and policies, realtime
+     publication, and the hourly bill-reminder job, enabling `pg_cron` if it is not already on. `00_reset.sql` drops the `public` schema first,
+     so only run it against a project whose data you can lose.
 
-3. **Create Storage Bucket**
-   - Go to Storage → New Bucket
-   - Name: `documents`
-   - Privacy: Private
-   - Click "Create bucket"
-
-4. **Get Your Credentials**
+3. **Get Your Credentials**
    - Settings → API
    - Copy:
      - **Project URL**: `https://xxxxx.supabase.co`
@@ -307,51 +303,43 @@ Configure via the `house_config` table or add a settings UI.
 ### Runtime Permissions
 
 The app requests these permissions:
-- **POST_NOTIFICATIONS** (Android 13+) - For push notifications
-- **READ_MEDIA_IMAGES** (Android 13+) / **READ_EXTERNAL_STORAGE** (Android 12-) - For document uploads
-- **ACCESS_FINE_LOCATION** / **ACCESS_COARSE_LOCATION** - For house location (optional)
+- **POST_NOTIFICATIONS** (Android 13+), for bill reminders, new expenses, chores and messages.
 
-Permissions are requested at runtime when needed.
+Photos and documents are picked with the system pickers, which need no storage permission.
+
 
 ---
 
 ## 🗄️ Database Schema
 
-### Core Tables
-- `profiles` - User profiles synced with Supabase Auth
-- `houses` - Household information with location data
-- `house_config` - **NEW**: Per-household settings
-- `house_members` - Junction table for multi-tenant membership
-- `house_invitations` - Invitation system with codes
+The database is the single source of truth. Every amount is exact to the house currency's smallest
+unit, and triggers refuse anything that would leave the ledger out of balance.
 
-### Finance Tables
-- `one_time_expenses` - Individual purchases
-- `recurring_expenses` - Monthly bills (rent, utilities)
-- `expense_splits` - Bill splitting with IOU tracking
-- `transactions` - Settlement ledger
-- `per_diem_config` - Daily item templates
-- `per_diem_entries` - Daily usage logs
-- `payment_history` - Recurring expense payment tracking
+### Houses
+- `profiles`, `houses`, `house_config` (currency, date layout, first day of week, time zone)
+- `house_members`: current and past members, roles, and each member's default weight for shares
+- `house_invitations`: email invitations; houses also have an eight-character invite code
 
-### Organization Tables
-- `shopping_items` - Shared shopping lists
-- `chores` - Tasks with assignment and recurrence
+### The ledger
+- `expenses` and `expense_shares`: each expense or payment, and what each person paid and owes.
+  Paid shares and owed shares each add up to the amount. A balance is what someone paid minus what
+  they owe. Payments between housemates are expenses of kind `settlement`.
+- `recurring_expenses` and `recurring_expense_shares`: bills and how each payment splits
+- `per_diem_config` and `per_diem_entries`: items bought by usage, with the price each use was
+  logged at; a month of usage can be billed into the ledger
 
-### Communication Tables
-- `messages` - House group chat
-- `notifications` - Unified notification inbox
+### House life
+- `chores` with rotation and effort points, `shopping_items` grouped by aisle, `messages`,
+  `documents`, `house_audit_log`
+- `notifications`, `notification_types`, `notification_preferences`, `device_tokens`: written only by
+  database triggers, honouring each member's per-house choices
 
-### Storage
-- `documents` - File metadata with Supabase Storage integration
-
-### Server-Side Functions (RPC)
-- `create_notification_for_house` - Broadcast notifications
-- `get_user_balances` - Calculate IOU balances
-- `get_monthly_summary` - Monthly expense totals
-- `get_spend_by_member` - Member spending breakdown
-- `get_spend_by_category` - Category breakdown
-- `get_per_diem_bill_itemized` - Itemized per-diem bill
-- `get_per_diem_bill_by_member` - Per-member per-diem costs
+### API (RPC)
+Writes that span tables go through functions that check the caller first, such as `save_expense`,
+`settle_up`, `pay_recurring_expense`, `bill_per_diem_month`, `create_house` and
+`join_house_with_invite_code`. Reads such as `get_balances`, `get_settle_up_plan`,
+`get_shared_history` and `get_monthly_summary` run as the caller, so row-level security decides
+what they see.
 
 ---
 

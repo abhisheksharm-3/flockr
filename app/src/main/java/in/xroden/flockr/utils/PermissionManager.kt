@@ -1,70 +1,21 @@
+/** Asks for the one runtime permission Flockr uses: posting notifications. */
 package `in`.xroden.flockr.utils
 
 import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 
-class PermissionManager(private val activity: ComponentActivity) {
+/** Must be created before the activity starts, because it registers an activity result launcher. */
+class PermissionManager(activity: ComponentActivity) {
 
     private var onNotificationPermissionResult: ((Boolean) -> Unit)? = null
-    private var onLocationPermissionResult: ((Boolean) -> Unit)? = null
-    private var onStoragePermissionResult: ((Boolean) -> Unit)? = null
 
-    private val notificationPermissionLauncher = activity.registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
+    private val notificationPermissionLauncher = activity.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         onNotificationPermissionResult?.invoke(isGranted)
-    }
-
-    private val locationPermissionLauncher = activity.registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.values.any { it }
-        onLocationPermissionResult?.invoke(granted)
-    }
-
-    private val storagePermissionLauncher = activity.registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        onStoragePermissionResult?.invoke(isGranted)
     }
 
     fun requestNotificationPermission(onResult: (Boolean) -> Unit) {
         onNotificationPermissionResult = onResult
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
-
-    fun requestLocationPermission(onResult: (Boolean) -> Unit) {
-        onLocationPermissionResult = onResult
-        locationPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
-    }
-
-    fun requestStoragePermission(onResult: (Boolean) -> Unit) {
-        onStoragePermissionResult = onResult
-        storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-    }
-
-    companion object {
-        fun hasNotificationPermission(context: Context): Boolean {
-            return ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-
-        fun hasStoragePermission(context: Context): Boolean {
-            return ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED
-        }
     }
 }
