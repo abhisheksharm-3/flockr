@@ -233,6 +233,9 @@ begin
         values (p_house_id, btrim(p_name), p_amount, p_category, p_date, p_notes, p_split_method, auth.uid())
         returning id into v_id;
     else
+        if exists (select 1 from expenses where id = v_id and per_diem_month is not null) then
+            raise exception 'A usage bill is worked out from the usage log. Delete it and bill the month again to change it.';
+        end if;
         update expenses
         set name = btrim(p_name), amount = p_amount, category = p_category, date = p_date, notes = p_notes, split_method = p_split_method
         where id = v_id and house_id = p_house_id and kind = 'expense';
@@ -328,14 +331,18 @@ begin
 end;
 $$;
 
--- The expenses and payments the caller shares with [p_other_user_id], with what each one moved
--- between the two of them. This is the detail behind "you owe" and "owes you".
+-- The expenses and payments the caller shares with [p_other_user_id], each with [between_us]: how much
+-- it added to what the other person owes the caller, negative when it added to what the caller owes
+-- them. Each person's debt is owed to the payers in proportion to what they paid, so with one payer
+-- this is exactly the other person's share, or the caller's; with several it is rounded to the currency.
 create function public.get_shared_history(p_house_id uuid, p_other_user_id uuid)
-returns table (expense_id uuid, kind text, name text, date date, amount numeric, my_net numeric, their_net numeric)
+returns table (expense_id uuid, kind text, name text, date date, amount numeric, between_us numeric)
 language sql stable security invoker set search_path = public as $$
     select e.id, e.kind, e.name, e.date, e.amount,
-           mine.paid_share - mine.owed_share, theirs.paid_share - theirs.owed_share
+           round((theirs.owed_share * mine.paid_share - mine.owed_share * theirs.paid_share) / e.amount, c.minor_digits)
     from expenses e
+    join house_config hc on hc.house_id = e.house_id
+    join currencies c on c.code = hc.currency_code
     join expense_shares mine on mine.expense_id = e.id and mine.user_id = auth.uid()
     join expense_shares theirs on theirs.expense_id = e.id and theirs.user_id = p_other_user_id
     where e.house_id = p_house_id
@@ -343,7 +350,8 @@ language sql stable security invoker set search_path = public as $$
 $$;
 
 -- Spending in a calendar month, excluding payments between housemates. Recurring bill payments are
--- counted once, as the expenses they are.
+-- counted once, as the expenses they are. Per-diem is counted from its usage entries, so a usage bill,
+-- which is those same entries turned into an expense, is left out rather than counted twice.
 create function public.get_monthly_summary(p_house_id uuid, p_month date)
 returns table (total_spend numeric, recurring_spend numeric, one_time_spend numeric, per_diem_spend numeric)
 language sql stable security invoker set search_path = public as $$
@@ -353,7 +361,8 @@ language sql stable security invoker set search_path = public as $$
         select coalesce(sum(e.amount) filter (where e.recurring_expense_id is not null), 0) as recurring,
                coalesce(sum(e.amount) filter (where e.recurring_expense_id is null), 0) as one_time
         from expenses e, month_bounds b
-        where e.house_id = p_house_id and e.kind = 'expense' and e.date >= b.starts and e.date < b.ends
+        where e.house_id = p_house_id and e.kind = 'expense' and e.per_diem_month is null
+          and e.date >= b.starts and e.date < b.ends
     ), per_diem as (
         select coalesce(sum(pe.total_cost), 0) as total
         from per_diem_entries pe
@@ -386,7 +395,8 @@ language sql stable security invoker set search_path = public as $$
     select category, sum(total) from (
         select e.category, e.amount as total
         from expenses e, month_bounds b
-        where e.house_id = p_house_id and e.kind = 'expense' and e.date >= b.starts and e.date < b.ends
+        where e.house_id = p_house_id and e.kind = 'expense' and e.per_diem_month is null
+          and e.date >= b.starts and e.date < b.ends
         union all
         select pc.category, pe.total_cost
         from per_diem_entries pe join per_diem_config pc on pc.id = pe.config_id, month_bounds b
@@ -525,6 +535,44 @@ language sql stable security invoker set search_path = public as $$
       and pe.date >= date_trunc('month', p_month)::date and pe.date < (date_trunc('month', p_month) + interval '1 month')::date
     group by pe.added_by, p.full_name
     order by 3 desc;
+$$;
+
+-- Turns [p_month]'s usage into one expense the caller paid, owed by each member exactly as their
+-- entries cost, so per-diem reaches everyone's balance. A month is billed once; its entries are then
+-- fixed until the bill is deleted.
+create function public.bill_per_diem_month(p_house_id uuid, p_month date) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+    v_month date := date_trunc('month', p_month)::date;
+    v_total numeric;
+    v_id uuid;
+begin
+    if not auth_is_house_member(p_house_id) then raise exception 'Not a member of this house'; end if;
+    if exists (select 1 from expenses where house_id = p_house_id and per_diem_month = v_month) then
+        raise exception 'This month''s usage has already been billed';
+    end if;
+    select sum(pe.total_cost) into v_total
+    from per_diem_entries pe join per_diem_config pc on pc.id = pe.config_id
+    where pc.house_id = p_house_id and pe.date >= v_month and pe.date < v_month + interval '1 month';
+    if coalesce(v_total, 0) <= 0 then raise exception 'There is no usage to bill this month'; end if;
+
+    insert into expenses (house_id, name, amount, category, date, split_method, per_diem_month, created_by)
+    values (p_house_id, 'Usage for ' || to_char(v_month, 'FMMonth YYYY'), v_total, 'Usage',
+            least((v_month + interval '1 month' - interval '1 day')::date, (now() at time zone (select timezone from house_config where house_id = p_house_id))::date),
+            'exact', v_month, auth.uid())
+    returning id into v_id;
+    insert into expense_shares (expense_id, user_id, paid_share, owed_share, split_value)
+    select v_id, coalesce(owed.user_id, auth.uid()),
+           case when coalesce(owed.user_id, auth.uid()) = auth.uid() then v_total else 0 end,
+           coalesce(owed.cost, 0), owed.cost
+    from (select pe.added_by as user_id, sum(pe.total_cost) as cost
+          from per_diem_entries pe join per_diem_config pc on pc.id = pe.config_id
+          where pc.house_id = p_house_id and pe.date >= v_month and pe.date < v_month + interval '1 month'
+          group by pe.added_by) owed
+    full join (select auth.uid() as user_id) payer on payer.user_id = owed.user_id;
+    perform notify_expense(v_id, auth.uid(), 'expense_added');
+    return v_id;
+end;
 $$;
 
 -- Notifications

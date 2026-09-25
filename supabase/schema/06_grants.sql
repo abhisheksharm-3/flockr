@@ -91,6 +91,7 @@ grant execute on function
     public.get_per_diem_entries(uuid, date),
     public.get_per_diem_bill_itemized(uuid, date),
     public.get_per_diem_bill_by_member(uuid, date),
+    public.bill_per_diem_month(uuid, date),
     public.mark_notifications_read(uuid[]),
     public.set_notification_preference(uuid, text, boolean),
     public.register_device_token(text, text)

@@ -150,15 +150,20 @@ create table public.expenses (
     date                 date not null,
     notes                text,
     recurring_expense_id uuid references public.recurring_expenses (id) on delete set null,
+    per_diem_month       date check (per_diem_month = date_trunc('month', per_diem_month)::date),
     created_by           uuid not null references public.profiles (id),
     created_at           timestamptz not null default now(),
     updated_at           timestamptz not null default now(),
     check ((kind = 'settlement') = (category is null)),
-    check (kind = 'expense' or (split_method is null and recurring_expense_id is null))
+    check (kind = 'expense' or (split_method is null and recurring_expense_id is null and per_diem_month is null)),
+    check (recurring_expense_id is null or per_diem_month is null)
 );
 
 create index expenses_house_date on public.expenses (house_id, date desc);
 create index expenses_recurring on public.expenses (recurring_expense_id) where recurring_expense_id is not null;
+
+-- A month's per-diem usage is billed at most once.
+create unique index expenses_one_usage_bill on public.expenses (house_id, per_diem_month) where per_diem_month is not null;
 
 -- One row per person on an expense. Paid shares sum to the amount, and so do owed shares; a deferred
 -- constraint trigger checks both at commit. split_value keeps the input the owed share came from,

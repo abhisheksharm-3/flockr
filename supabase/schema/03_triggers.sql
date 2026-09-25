@@ -32,6 +32,8 @@ create trigger recurring_minor_units before insert or update of amount on public
 create trigger per_diem_minor_units before insert or update of rate on public.per_diem_config
     for each row execute function public.check_minor_units('rate');
 
+create trigger guard_billed_usage before insert or update or delete on public.per_diem_entries
+    for each row execute function public.guard_billed_usage();
 create trigger price_per_diem_entry before insert or update on public.per_diem_entries
     for each row execute function public.price_per_diem_entry();
 

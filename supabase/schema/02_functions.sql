@@ -225,7 +225,8 @@ declare
     v_house_id uuid;
 begin
     if tg_op = 'INSERT' then
-        select rate, house_id into new.rate, v_house_id from per_diem_config where id = new.config_id;
+        select rate, house_id into new.rate, v_house_id from per_diem_config where id = new.config_id and is_active;
+        if not found then raise exception 'This item is archived and takes no new usage'; end if;
     else
         if new.config_id <> old.config_id then
             raise exception 'An entry cannot move to another item';
@@ -235,6 +236,23 @@ begin
     end if;
     new.total_cost := round(new.quantity * new.rate, house_minor_digits(v_house_id));
     return new;
+end;
+$$;
+
+-- Usage in a month that has been billed is fixed, so the bill and the entries it was worked out from
+-- always agree. Deleting the bill unlocks the month. Deleting a whole item still removes its entries,
+-- because by then the item row is gone and the check finds nothing; the bill keeps its recorded shares.
+create function public.guard_billed_usage() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+    v_entry per_diem_entries := coalesce(new, old);
+begin
+    if exists (select 1 from expenses e join per_diem_config c on c.house_id = e.house_id
+               where c.id = v_entry.config_id
+                 and e.per_diem_month in (date_trunc('month', v_entry.date)::date, date_trunc('month', coalesce(old.date, v_entry.date))::date)) then
+        raise exception 'This month''s usage has been billed. Delete that bill to change it.';
+    end if;
+    return coalesce(new, old);
 end;
 $$;
 
