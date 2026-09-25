@@ -17,7 +17,7 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.People
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Scale
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -89,7 +89,7 @@ fun ExpensesScreen(houseId: String, navigation: ExpensesNavigation, viewModel: E
             }
             FlockrFabMenu(
                 actions = listOf(
-                    FabAction("Add expense", Icons.Rounded.ReceiptLong, navigation.addExpense),
+                    FabAction("Add expense", Icons.AutoMirrored.Rounded.ReceiptLong, navigation.addExpense),
                     FabAction("Record a payment", Icons.Rounded.Handshake) { navigation.settleUp(null, null, null) },
                 ),
                 contentDescription = "Add",
@@ -118,7 +118,7 @@ private fun ExpensesContent(state: ExpensesUiState.Ready, currencyCode: String, 
         if (state.expenses.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
-                    icon = Icons.Rounded.ReceiptLong,
+                    icon = Icons.AutoMirrored.Rounded.ReceiptLong,
                     title = "No expenses yet",
                     subtitle = "Add what you spend for the house and Flockr works out who owes whom.",
                     actionText = "Add an expense",

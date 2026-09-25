@@ -48,7 +48,7 @@ sealed interface HousePreviewUiState {
 
 sealed interface HouseSettingsUiState {
     data object Loading : HouseSettingsUiState
-    data class Success(val config: HouseConfig) : HouseSettingsUiState
+    data class Success(val config: HouseConfig, val isCurrencyLocked: Boolean) : HouseSettingsUiState
     data class Error(val message: String) : HouseSettingsUiState
 }
 

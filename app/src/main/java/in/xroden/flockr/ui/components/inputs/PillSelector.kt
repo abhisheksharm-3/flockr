@@ -71,28 +71,3 @@ private fun OverflowIndicator(menuState: ButtonGroupMenuState) {
     }
 }
 
-/**
- * A standalone on/off filter pill, for a toggle that is not one of a mutually exclusive set.
- */
-@Composable
-fun TogglePill(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    val haptics = rememberHaptics()
-
-    ToggleButton(
-        checked = checked,
-        onCheckedChange = {
-            haptics.toggle(it)
-            onCheckedChange(it)
-        },
-        modifier = modifier,
-        enabled = enabled
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLargeEmphasized)
-    }
-}

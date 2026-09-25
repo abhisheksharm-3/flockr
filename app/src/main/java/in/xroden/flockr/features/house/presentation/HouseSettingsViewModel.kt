@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.house.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -42,13 +43,14 @@ class HouseSettingsViewModel @Inject constructor(
                 val config = configResult.getOrNull()
 
                 if (house != null && config != null) {
-                    _uiState.value = HouseSettingsUiState.Success(config)
+                    val isLocked = houseRepository.hasRecordedMoney(houseId).getOrDefault(true)
+                    _uiState.value = HouseSettingsUiState.Success(config, isLocked)
                 } else {
                     _uiState.value = HouseSettingsUiState.Error("House or config not found")
                 }
             } else {
                 _uiState.value = HouseSettingsUiState.Error(
-                    message = houseResult.exceptionOrNull()?.message ?: "Failed to load settings"
+                    message = houseResult.exceptionOrNull()?.userMessage() ?: "Failed to load settings"
                 )
             }
         }
@@ -71,7 +73,7 @@ class HouseSettingsViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.message ?: "Failed to update house"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -101,7 +103,7 @@ class HouseSettingsViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.message ?: "Failed to update settings"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -129,7 +131,7 @@ class HouseSettingsViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.message ?: "Failed to upload image"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -152,11 +154,11 @@ class HouseSettingsViewModel @Inject constructor(
         _updateState.value = UpdateHouseSettingsUiState.Loading
 
         houseRepository.updateHouse(houseId, name, address, null, null).onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to update house")
+            _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
             return Result.failure(e)
         }
         houseRepository.updateHouseConfig(houseId, currencyCode, dateFormat, firstDayOfWeek, timezone).onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to update settings")
+            _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
             return Result.failure(e)
         }
         _updateState.value = UpdateHouseSettingsUiState.Success
@@ -169,7 +171,7 @@ class HouseSettingsViewModel @Inject constructor(
         return houseRepository.leaveHouse(houseId)
             .onSuccess { _updateState.value = UpdateHouseSettingsUiState.Success }
             .onFailure { e ->
-                _updateState.value = UpdateHouseSettingsUiState.Error(e.message ?: "Failed to leave house")
+                _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
             }
     }
 
@@ -181,7 +183,7 @@ class HouseSettingsViewModel @Inject constructor(
         result.onSuccess {
             _updateState.value = UpdateHouseSettingsUiState.Success
         }.onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(message = e.message ?: "Failed to delete house")
+            _updateState.value = UpdateHouseSettingsUiState.Error(message = e.userMessage())
         }
 
         return result

@@ -16,11 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.DatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import java.util.Locale
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +72,7 @@ fun DatePickerField(
     if (isPickerOpen) {
         FlockrDatePickerDialog(
             initialDate = date,
+            firstDayOfWeek = houseConfig?.firstDayOfWeek,
             onDateSelected = { onDateChange(it); isPickerOpen = false },
             onDismiss = { isPickerOpen = false },
         )
@@ -78,7 +80,8 @@ fun DatePickerField(
 }
 
 /**
- * Material's date picker, taking and returning a calendar date.
+ * Material's date picker, taking and returning a calendar date, with weeks starting on
+ * [firstDayOfWeek] (0 for Sunday, as the house stores it) or the device's usual day when null.
  *
  * The picker works in milliseconds at midnight UTC, so both conversions go through UTC. Converting
  * through the device time zone instead shifts the date by a day: east of UTC the picker opens on the
@@ -89,9 +92,12 @@ fun FlockrDatePickerDialog(
     initialDate: LocalDate,
     onDateSelected: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
+    firstDayOfWeek: Int? = null,
 ) {
     val haptics = rememberHaptics()
-    val state = rememberDatePickerState(initialSelectedDateMillis = initialDate.toPickerMillis())
+    val state = remember(firstDayOfWeek) {
+        DatePickerState(locale = localeStartingWeekOn(firstDayOfWeek), initialSelectedDateMillis = initialDate.toPickerMillis())
+    }
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -109,6 +115,17 @@ fun FlockrDatePickerDialog(
     ) {
         DatePicker(state = state)
     }
+}
+
+/**
+ * The device locale with its week starting on [day], through the Unicode "fw" keyword, which the
+ * picker's calendar reads its first day of the week from.
+ */
+private fun localeStartingWeekOn(day: Int?): Locale {
+    val locale = Locale.getDefault()
+    if (day == null) return locale
+    val keyword = listOf("sun", "mon", "tue", "wed", "thu", "fri", "sat")[day.coerceIn(0, 6)]
+    return Locale.Builder().setLocale(locale).setUnicodeLocaleKeyword("fw", keyword).build()
 }
 
 private fun LocalDate.toPickerMillis(): Long = atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()

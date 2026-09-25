@@ -1,6 +1,7 @@
 /** Turns dates into the text a house sees, in the layout that house chose. */
 package `in`.xroden.flockr.utils
 
+import `in`.xroden.flockr.features.house.model.DateLayout
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.dateLayout
 import kotlinx.datetime.LocalDate
@@ -19,3 +20,7 @@ fun LocalDate.monthYearLabel(): String =
 /** The short month name, such as "Sep". */
 fun LocalDate.shortMonthLabel(): String =
     toJavaLocalDate().format(DateTimeFormatter.ofPattern("LLL", Locale.getDefault()))
+
+/** How [layout] shows 30 December 2025, which is what a setting's choices are labelled with. */
+fun DateLayout.example(): String =
+    java.time.LocalDate.of(2025, 12, 30).format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))

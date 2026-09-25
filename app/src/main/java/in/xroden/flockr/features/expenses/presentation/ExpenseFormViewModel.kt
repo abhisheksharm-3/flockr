@@ -45,6 +45,13 @@ class ExpenseFormViewModel @Inject constructor(
     /** Emits once each time the expense has been written, which is the only time to leave the form. */
     val saved = _saved.receiveAsFlow()
 
+    private val _savedAndReset = Channel<Unit>(Channel.BUFFERED)
+
+    /** Emits after "add and start another" saved, once the form has been cleared for the next expense. */
+    val savedAndReset = _savedAndReset.receiveAsFlow()
+
+    private var blankForm = ExpenseFormState()
+
     private var saveJob: Job? = null
 
     /**
@@ -69,6 +76,7 @@ class ExpenseFormViewModel @Inject constructor(
                 isLoaded = expenseId == null,
             )
             _formState.value = base
+            blankForm = base
             if (expenseId == null) return@launch
 
             expenseRepository.getExpense(expenseId).fold(
@@ -93,7 +101,11 @@ class ExpenseFormViewModel @Inject constructor(
         _uiState.value = ExpenseFormUiState.Idle
     }
 
-    fun save(houseId: String) {
+    /**
+     * Saves the expense. With [startAnother] the form stays open, cleared for the next one but
+     * keeping the date, category, payer and who it is split between, for entering a batch of receipts.
+     */
+    fun save(houseId: String, startAnother: Boolean = false) {
         val form = _formState.value
         val date = form.date ?: return
         val amount = form.parsedAmount ?: return fail("Enter an amount in ${form.currencyCode}")
@@ -115,7 +127,17 @@ class ExpenseFormViewModel @Inject constructor(
             ).fold(
                 onSuccess = {
                     _uiState.value = ExpenseFormUiState.Idle
-                    _saved.send(Unit)
+                    if (startAnother) {
+                        _formState.value = blankForm.copy(
+                            date = form.date,
+                            category = form.category,
+                            payerId = form.payerId,
+                            split = form.split.copy(values = if (form.split.method == SplitMethod.SHARES) form.split.values else emptyMap()),
+                        )
+                        _savedAndReset.send(Unit)
+                    } else {
+                        _saved.send(Unit)
+                    }
                 },
                 onFailure = { fail(it.userMessage()) },
             )

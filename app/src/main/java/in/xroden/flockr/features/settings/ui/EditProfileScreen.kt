@@ -190,36 +190,3 @@ fun EditProfileScreen(
         }
     }
 }
-
-@Composable
-fun UserAvatar(
-    profileImageUrl: String?,
-    userName: String?,
-    modifier: Modifier = Modifier,
-    size: Int = 40
-) {
-    Surface(
-        modifier = modifier.size(size.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (profileImageUrl != null) {
-                Image(
-                    painter = rememberAsyncImagePainter(profileImageUrl),
-                    contentDescription = "Avatar",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Text(
-                    text = userName?.firstOrNull()?.uppercase() ?: "?",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-    }
-}

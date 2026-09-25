@@ -1,7 +1,4 @@
-/**
- * The app's floating action buttons, in the three shapes a screen needs: one primary action, one
- * small secondary action, or several related actions behind a toggle.
- */
+/** The app's floating action buttons: one primary action, or several related actions behind a toggle. */
 package `in`.xroden.flockr.ui.components.buttons
 
 import androidx.activity.compose.BackHandler
@@ -48,30 +45,6 @@ fun FlockrExtendedFab(
     )
 }
 
-/**
- * A secondary action sitting alongside a primary FAB, toned down to the secondary container so the
- * two do not compete.
- */
-@Composable
-fun FlockrSmallFab(
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    contentDescription: String? = null
-) {
-    val haptics = rememberHaptics()
-
-    SmallFloatingActionButton(
-        onClick = {
-            haptics.tap()
-            onClick()
-        },
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Icon(icon, contentDescription = contentDescription)
-    }
-}
 
 /**
  * One entry in a [FlockrFabMenu].

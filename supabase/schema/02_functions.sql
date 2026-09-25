@@ -331,18 +331,45 @@ begin
 end;
 $$;
 
+-- Records what changed in a house as one readable event: who did it, what kind of change, and the
+-- name, amount or role the activity feed needs to describe it. Skips rows whose house is being
+-- deleted, since the log goes with the house.
 create function public.log_house_activity() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
     v_row jsonb := to_jsonb(coalesce(new, old));
+    v_old jsonb := case when tg_op = 'UPDATE' then to_jsonb(old) end;
+    v_action text;
 begin
     if not exists (select 1 from houses where id = (v_row ->> 'house_id')::uuid) then
         return coalesce(new, old);
     end if;
+    v_action := case tg_table_name
+        when 'house_members' then case
+            when tg_op = 'INSERT' then 'member_joined'
+            when tg_op = 'DELETE' then 'member_removed'
+            when v_old ->> 'left_at' is null and v_row ->> 'left_at' is not null then 'member_left'
+            when v_old ->> 'left_at' is not null and v_row ->> 'left_at' is null then 'member_joined'
+            when v_old ->> 'role' is distinct from v_row ->> 'role' then 'role_changed'
+        end
+        when 'expenses' then case
+            when v_row ->> 'kind' = 'settlement' then case tg_op when 'INSERT' then 'payment_recorded' when 'DELETE' then 'payment_deleted' end
+            else case tg_op when 'INSERT' then 'expense_added' when 'UPDATE' then 'expense_updated' else 'expense_deleted' end
+        end
+        when 'chores' then case
+            when tg_op = 'INSERT' then 'chore_added'
+            when tg_op = 'DELETE' then 'chore_deleted'
+            when (v_row ->> 'is_completed')::boolean and not (v_old ->> 'is_completed')::boolean then 'chore_completed'
+        end
+    end;
+    if v_action is null then return coalesce(new, old); end if;
     insert into house_audit_log (house_id, user_id, action, target_user_id, details)
-    values ((v_row ->> 'house_id')::uuid, auth.uid(), lower(tg_op) || '_' || tg_table_name,
-            nullif(v_row ->> 'user_id', '')::uuid,
-            jsonb_build_object('id', v_row ->> 'id'));
+    values ((v_row ->> 'house_id')::uuid, auth.uid(), v_action, nullif(v_row ->> 'user_id', '')::uuid,
+            jsonb_strip_nulls(jsonb_build_object(
+                'id', v_row ->> 'id',
+                'name', coalesce(v_row ->> 'name', v_row ->> 'task_name'),
+                'amount', v_row ->> 'amount',
+                'role', v_row ->> 'role')));
     return coalesce(new, old);
 end;
 $$;

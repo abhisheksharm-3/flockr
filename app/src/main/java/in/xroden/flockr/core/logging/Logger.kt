@@ -36,19 +36,3 @@ object Logger {
         if (isDebugBuild) android.util.Log.v("$TAG_PREFIX:$tag", message)
     }
 }
-
-inline fun <reified T> T.logDebug(message: String) {
-    Logger.d(T::class.java.simpleName, message)
-}
-
-inline fun <reified T> T.logInfo(message: String) {
-    Logger.i(T::class.java.simpleName, message)
-}
-
-inline fun <reified T> T.logWarning(message: String, throwable: Throwable? = null) {
-    Logger.w(T::class.java.simpleName, message, throwable)
-}
-
-inline fun <reified T> T.logError(message: String, throwable: Throwable? = null) {
-    Logger.e(T::class.java.simpleName, message, throwable)
-}

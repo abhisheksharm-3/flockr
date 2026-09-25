@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.settings.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -47,7 +48,7 @@ class ProfileViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.value = ProfileUiState.Error(
-                        message = error.message ?: "Failed to load profile"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -70,7 +71,7 @@ class ProfileViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateProfileUiState.Error(
-                        message = error.message ?: "Failed to update profile"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -114,7 +115,7 @@ class ProfileViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateProfileUiState.Error(
-                        message = error.message ?: "Failed to upload profile picture"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -150,7 +151,7 @@ class ProfileViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _updateState.value = UpdateProfileUiState.Error(
-                        message = error.message ?: "Failed to upload profile picture"
+                        message = error.userMessage()
                     )
                 }
             )

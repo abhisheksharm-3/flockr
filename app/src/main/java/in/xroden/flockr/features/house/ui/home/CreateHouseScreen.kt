@@ -1,6 +1,11 @@
 package `in`.xroden.flockr.features.house.ui.home
 
 
+import `in`.xroden.flockr.features.house.ui.HouseLocaleFields
+import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
+import `in`.xroden.flockr.utils.SUPPORTED_CURRENCIES
+import `in`.xroden.flockr.ui.theme.Spacing
+import androidx.compose.runtime.mutableIntStateOf
 import `in`.xroden.flockr.core.logging.Logger
 
 import androidx.compose.foundation.background
@@ -95,12 +100,10 @@ private fun CreateHouseScreenContent(
     }
     
     // Localization
-    var currency by remember { mutableStateOf("USD") }
-    var currencyExpanded by remember { mutableStateOf(false) }
+    var currency by remember { mutableStateOf(defaultCurrency()) }
+    var firstDayOfWeek by remember { mutableIntStateOf(defaultFirstDayOfWeek()) }
     var dateFormat by remember { mutableStateOf("dd/MM/yyyy") }
-    var dateFormatExpanded by remember { mutableStateOf(false) }
     var timezone by remember { mutableStateOf(kotlinx.datetime.TimeZone.currentSystemDefault().id) }
-    var timezoneExpanded by remember { mutableStateOf(false) }
     
     var isCreating by remember { mutableStateOf(false) }
     var createdHouse by remember { mutableStateOf<House?>(null) }
@@ -108,11 +111,6 @@ private fun CreateHouseScreenContent(
     var nameError by remember { mutableStateOf<String?>(null) }
     var currentStep by remember { mutableIntStateOf(0) }
 
-    val currencies = listOf(
-        "USD" to "$", "EUR" to "€", "GBP" to "£", "JPY" to "¥", "INR" to "₹", "CAD" to "C$", "AUD" to "A$", "CNY" to "¥"
-    )
-    
-    val dateFormats = listOf("dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd")
 
     val createState by viewModel.createState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -167,8 +165,8 @@ private fun CreateHouseScreenContent(
                 onPrimaryClick = {
                     when (currentStep) {
                         0 -> if (houseName.isBlank()) nameError = "Required" else currentStep++
-                        1 -> currentStep++ // Address optional
-                        2 -> currentStep++ // Localization
+                        1 -> currentStep++
+                        2 -> currentStep++
                         3 -> viewModel.createHouse(
                             houseName,
                             address.ifBlank { null },
@@ -176,7 +174,7 @@ private fun CreateHouseScreenContent(
                             null,
                             currency,
                             dateFormat,
-                            1,
+                            firstDayOfWeek,
                             timezone,
                             headerImageBytes = imageBytes
                         )
@@ -215,22 +213,13 @@ private fun CreateHouseScreenContent(
                     )
                     2 -> LocalizationStep(
                         currency = currency,
-                        currencies = currencies,
-                        currencyExpanded = currencyExpanded,
-                        onCurrencyExpandedChange = { currencyExpanded = !currencyExpanded },
-                        onCurrencyDismiss = { currencyExpanded = false },
-                        onCurrencySelected = { currency = it; currencyExpanded = false },
+                        onCurrencyChange = { currency = it },
                         dateFormat = dateFormat,
-                        dateFormats = dateFormats,
-                        dateFormatExpanded = dateFormatExpanded,
-                        onDateFormatExpandedChange = { dateFormatExpanded = !dateFormatExpanded },
-                        onDateFormatDismiss = { dateFormatExpanded = false },
-                        onDateFormatSelected = { dateFormat = it; dateFormatExpanded = false },
+                        onDateFormatChange = { dateFormat = it },
+                        firstDayOfWeek = firstDayOfWeek,
+                        onFirstDayOfWeekChange = { firstDayOfWeek = it },
                         timezone = timezone,
-                        timezoneExpanded = timezoneExpanded,
-                        onTimezoneExpandedChange = { timezoneExpanded = !timezoneExpanded },
-                        onTimezoneDismiss = { timezoneExpanded = false },
-                        onTimezoneSelected = { timezone = it; timezoneExpanded = false }
+                        onTimezoneChange = { timezone = it },
                     )
                     3 -> ReviewStep(
                         houseName = houseName,
@@ -387,123 +376,35 @@ private fun AddressStep(
         modifier = Modifier.fillMaxWidth()
     )
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsDropdown(
-    label: String,
-    displayValue: String,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onDismissRequest: () -> Unit,
-    menuItems: @Composable ColumnScope.() -> Unit
-) {
-    val haptics = rememberHaptics()
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange
-    ) {
-        OutlinedTextField(
-            value = displayValue,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            shape = MaterialTheme.shapes.medium
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = onDismissRequest
-        ) {
-            menuItems()
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocalizationStep(
     currency: String,
-    currencies: List<Pair<String, String>>,
-    currencyExpanded: Boolean,
-    onCurrencyExpandedChange: (Boolean) -> Unit,
-    onCurrencyDismiss: () -> Unit,
-    onCurrencySelected: (String) -> Unit,
+    onCurrencyChange: (String) -> Unit,
     dateFormat: String,
-    dateFormats: List<String>,
-    dateFormatExpanded: Boolean,
-    onDateFormatExpandedChange: (Boolean) -> Unit,
-    onDateFormatDismiss: () -> Unit,
-    onDateFormatSelected: (String) -> Unit,
+    onDateFormatChange: (String) -> Unit,
+    firstDayOfWeek: Int,
+    onFirstDayOfWeekChange: (Int) -> Unit,
     timezone: String,
-    timezoneExpanded: Boolean,
-    onTimezoneExpandedChange: (Boolean) -> Unit,
-    onTimezoneDismiss: () -> Unit,
-    onTimezoneSelected: (String) -> Unit
+    onTimezoneChange: (String) -> Unit,
 ) {
-    val haptics = rememberHaptics()
-    Text("Regional Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(24.dp))
-
-    // Currency
-    SettingsDropdown(
-        label = "Currency",
-        displayValue = "$currency (${currencies.find { it.first == currency }?.second ?: ""})",
-        expanded = currencyExpanded,
-        onExpandedChange = onCurrencyExpandedChange,
-        onDismissRequest = onCurrencyDismiss
-    ) {
-        currencies.forEach { (code, symbol) ->
-            DropdownMenuItem(
-                text = { Text("$symbol $code") },
-                onClick = { haptics.select(); onCurrencySelected(code) }
-            )
-        }
-    }
-
-    Spacer(Modifier.height(16.dp))
-
-    // Date Format
-    SettingsDropdown(
-        label = "Date Format",
-        displayValue = dateFormat,
-        expanded = dateFormatExpanded,
-        onExpandedChange = onDateFormatExpandedChange,
-        onDismissRequest = onDateFormatDismiss
-    ) {
-        dateFormats.forEach { format ->
-            DropdownMenuItem(
-                text = { Text(format) },
-                onClick = { haptics.select(); onDateFormatSelected(format) }
-            )
-        }
-    }
-    Spacer(Modifier.height(16.dp))
-
-    // Timezone
-    val timezones = listOf(
-        "UTC",
-        "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-        "Europe/London", "Europe/Paris", "Europe/Berlin",
-        "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Singapore",
-        "Australia/Sydney"
+    Text("How the house counts", style = MaterialTheme.typography.headlineSmallEmphasized)
+    Text(
+        "Every amount is shown in this currency, and \"today\" and \"overdue\" follow this time zone. The currency is fixed once money is recorded.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-
-    SettingsDropdown(
-        label = "Timezone",
-        displayValue = timezone,
-        expanded = timezoneExpanded,
-        onExpandedChange = onTimezoneExpandedChange,
-        onDismissRequest = onTimezoneDismiss
-    ) {
-        timezones.forEach { tz ->
-            DropdownMenuItem(
-                text = { Text(tz) },
-                onClick = { haptics.select(); onTimezoneSelected(tz) }
-            )
-        }
+    Spacer(Modifier.height(Spacing.lg))
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        HouseLocaleFields(
+            currencyCode = currency,
+            onCurrencyChange = onCurrencyChange,
+            dateFormat = dateFormat,
+            onDateFormatChange = onDateFormatChange,
+            firstDayOfWeek = firstDayOfWeek,
+            onFirstDayOfWeekChange = onFirstDayOfWeekChange,
+            timezone = timezone,
+            onTimezoneChange = onTimezoneChange,
+        )
     }
 }
 
@@ -738,3 +639,12 @@ fun HouseCreatedSuccessDialog(
         }
     }
 }
+
+/** The device's currency when the app supports it, so most houses need not change it. */
+private fun defaultCurrency(): String =
+    runCatching { java.util.Currency.getInstance(java.util.Locale.getDefault()).currencyCode }.getOrNull()
+        ?.takeIf { it in SUPPORTED_CURRENCIES } ?: DEFAULT_CURRENCY_CODE
+
+/** The device locale's first day of the week, as `house_config` numbers it: 0 is Sunday. */
+private fun defaultFirstDayOfWeek(): Int =
+    java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value % 7

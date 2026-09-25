@@ -52,23 +52,3 @@ object Motion {
 @Composable
 @ReadOnlyComposable
 fun <T> spatialSpec(): FiniteAnimationSpec<T> = MaterialTheme.motionScheme.defaultSpatialSpec()
-
-/** Typed fast spatial spec. See [spatialSpec]. */
-@Composable
-@ReadOnlyComposable
-fun <T> spatialFastSpec(): FiniteAnimationSpec<T> = MaterialTheme.motionScheme.fastSpatialSpec()
-
-/** Typed slow spatial spec. See [spatialSpec]. */
-@Composable
-@ReadOnlyComposable
-fun <T> spatialSlowSpec(): FiniteAnimationSpec<T> = MaterialTheme.motionScheme.slowSpatialSpec()
-
-/** Typed effects spec, for colour, alpha and elevation. See [spatialSpec]. */
-@Composable
-@ReadOnlyComposable
-fun <T> effectsSpec(): FiniteAnimationSpec<T> = MaterialTheme.motionScheme.defaultEffectsSpec()
-
-/** Typed fast effects spec. See [spatialSpec]. */
-@Composable
-@ReadOnlyComposable
-fun <T> effectsFastSpec(): FiniteAnimationSpec<T> = MaterialTheme.motionScheme.fastEffectsSpec()

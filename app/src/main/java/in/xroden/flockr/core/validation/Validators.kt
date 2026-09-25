@@ -1,9 +1,7 @@
+/** Checks on what a user types, before it reaches the database, so the message can name the field. */
 package `in`.xroden.flockr.core.validation
 
 import `in`.xroden.flockr.core.domain.DomainError
-import `in`.xroden.flockr.core.domain.flatMap
-
-typealias ValidationResult<T> = Result<T>
 
 /** The length of a house invite code. Matches `generate_invite_code` in the schema. */
 const val INVITE_CODE_LENGTH = 8
@@ -11,7 +9,7 @@ const val INVITE_CODE_LENGTH = 8
 /** The characters an invite code is drawn from: capitals and digits without the look-alikes I, O, 0 and 1. */
 private const val INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-/** Centralized validation utilities for input validation. */
+/** The length limits match the check constraints on the same columns in the schema. */
 object Validators {
 
     private val UUID_REGEX = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$".toRegex()
@@ -30,75 +28,24 @@ object Validators {
         "text/plain"
     )
 
-    fun validateNonEmpty(value: String, fieldName: String): ValidationResult<String> =
-        if (value.isBlank()) {
-            Result.failure(DomainError.ValidationError.EmptyField(fieldName))
-        } else {
-            Result.success(value.trim())
-        }
+    /** The address trimmed and lower-cased, the form invitations are matched on. */
+    fun validateEmail(email: String): Result<String> =
+        if (email.trim().matches(EMAIL_REGEX)) Result.success(email.trim().lowercase())
+        else Result.failure(DomainError.ValidationError.InvalidEmail(email))
 
-    fun validateEmail(email: String): ValidationResult<String> =
-        if (email.matches(EMAIL_REGEX)) {
-            Result.success(email.trim().lowercase())
-        } else {
-            Result.failure(DomainError.ValidationError.InvalidEmail(email))
-        }
+    fun validateUUID(uuid: String, fieldName: String = "ID"): Result<String> =
+        if (uuid.matches(UUID_REGEX)) Result.success(uuid)
+        else Result.failure(DomainError.ValidationError.InvalidFormat(fieldName, "UUID format"))
 
-    fun validateUUID(uuid: String, fieldName: String = "ID"): ValidationResult<String> =
-        if (uuid.matches(UUID_REGEX)) {
-            Result.success(uuid)
-        } else {
-            Result.failure(DomainError.ValidationError.InvalidFormat(fieldName, "UUID format"))
-        }
+    fun validateFileSize(size: Long, maxSize: Long): Result<Long> =
+        if (size <= maxSize) Result.success(size) else Result.failure(DomainError.StorageError.FileTooLarge(size, maxSize))
 
-    fun validateFileSize(size: Long, maxSize: Long, fieldName: String = "File"): ValidationResult<Long> =
-        if (size <= maxSize) {
-            Result.success(size)
-        } else {
-            Result.failure(DomainError.StorageError.FileTooLarge(size, maxSize))
-        }
+    fun validateMimeType(mimeType: String): Result<String> =
+        if (mimeType.lowercase() in ALLOWED_DOCUMENT_MIME_TYPES) Result.success(mimeType)
+        else Result.failure(DomainError.ValidationError.InvalidFormat("File", "a PDF, image, Office document or text file"))
 
-    fun validateMimeType(mimeType: String): ValidationResult<String> =
-        if (ALLOWED_DOCUMENT_MIME_TYPES.contains(mimeType.lowercase())) {
-            Result.success(mimeType)
-        } else {
-            Result.failure(DomainError.DocumentError.InvalidMimeType(mimeType))
-        }
-
-    fun validateAmount(amount: String): ValidationResult<java.math.BigDecimal> = try {
-        val decimal = java.math.BigDecimal(amount)
-        if (decimal < java.math.BigDecimal.ZERO) {
-            Result.failure(DomainError.ExpenseError.InvalidAmount(amount))
-        } else {
-            Result.success(decimal)
-        }
-    } catch (e: NumberFormatException) {
-        Result.failure(DomainError.ExpenseError.InvalidAmount(amount))
-    }
-
-    fun validatePositiveAmount(amount: java.math.BigDecimal, fieldName: String = "Amount"): ValidationResult<java.math.BigDecimal> =
-        if (amount <= java.math.BigDecimal.ZERO) {
-            Result.failure(DomainError.ValidationError.InvalidFormat(fieldName, "positive number"))
-        } else {
-            Result.success(amount)
-        }
-
-    fun validateLength(value: String, fieldName: String, min: Int, max: Int): ValidationResult<String> {
-        val trimmed = value.trim()
-        return if (trimmed.length in min..max) {
-            Result.success(trimmed)
-        } else {
-            Result.failure(DomainError.ValidationError.InvalidLength(fieldName, min, max))
-        }
-    }
-
-    fun validateDate(dateString: String): ValidationResult<kotlinx.datetime.LocalDate> = try {
-        Result.success(kotlinx.datetime.LocalDate.parse(dateString))
-    } catch (e: Exception) {
-        Result.failure(DomainError.ValidationError.InvalidFormat("Date", "ISO date format (YYYY-MM-DD)"))
-    }
-
-    fun validateInviteCode(code: String): ValidationResult<String> {
+    /** The code upper-cased and trimmed, when it could be one the database generated. */
+    fun validateInviteCode(code: String): Result<String> {
         val cleanCode = code.trim().uppercase()
         return if (cleanCode.length == INVITE_CODE_LENGTH && cleanCode.all { it in INVITE_CODE_ALPHABET }) {
             Result.success(cleanCode)
@@ -107,15 +54,17 @@ object Validators {
         }
     }
 
-    fun validateHouseName(name: String): ValidationResult<String> =
-        validateNonEmpty(name, "House name").flatMap { validateLength(it, "House name", 1, 100) }
+    fun validateHouseName(name: String): Result<String> = validateText(name, "House name", 100)
+    fun validateChoreTask(taskName: String): Result<String> = validateText(taskName, "Task name", 200)
+    fun validateItemName(itemName: String): Result<String> = validateText(itemName, "Item name", 200)
+    fun validateMessageContent(content: String): Result<String> = validateText(content, "Message", 4000)
 
-    fun validateChoreTask(taskName: String): ValidationResult<String> =
-        validateNonEmpty(taskName, "Task name").flatMap { validateLength(it, "Task name", 1, 200) }
-
-    fun validateItemName(itemName: String): ValidationResult<String> =
-        validateNonEmpty(itemName, "Item name").flatMap { validateLength(it, "Item name", 1, 100) }
-
-    fun validateMessageContent(content: String): ValidationResult<String> =
-        validateNonEmpty(content, "Message").flatMap { validateLength(it, "Message", 1, 2000) }
+    private fun validateText(value: String, fieldName: String, maxLength: Int): Result<String> {
+        val trimmed = value.trim()
+        return when {
+            trimmed.isEmpty() -> Result.failure(DomainError.ValidationError.EmptyField(fieldName))
+            trimmed.length > maxLength -> Result.failure(DomainError.ValidationError.InvalidLength(fieldName, 1, maxLength))
+            else -> Result.success(trimmed)
+        }
+    }
 }

@@ -2,6 +2,7 @@
 package `in`.xroden.flockr.core.network
 
 import `in`.xroden.flockr.core.domain.DomainError
+import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.postgrest.exception.PostgrestRestException
 import java.io.IOException
@@ -14,12 +15,14 @@ private const val OFFLINE_MESSAGE = "You're offline. Check your connection and t
 
 /**
  * The message to show for this failure. A rule the database enforces arrives as its own sentence,
- * such as "This invite code is invalid or has expired"; any other server error is reduced to a
+ * such as "This invite code is invalid or has expired", and sign-in failures carry the auth
+ * server's own, such as "Invalid login credentials". Any other server error is reduced to a
  * generic line so table names and constraint text never reach the screen.
  */
 fun Throwable.userMessage(): String = when (this) {
     is PostgrestRestException -> if (code == USER_FACING_SQLSTATE) error else GENERIC_MESSAGE
-    is DomainError.ValidationError -> message
+    is AuthRestException -> errorDescription
+    is DomainError -> message
     is HttpRequestException, is IOException -> OFFLINE_MESSAGE
     else -> GENERIC_MESSAGE
 }

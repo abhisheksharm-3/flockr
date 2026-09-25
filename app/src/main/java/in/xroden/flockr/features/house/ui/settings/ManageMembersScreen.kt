@@ -95,7 +95,7 @@ fun ManageMembersScreen(
             onConfirm = {
                 scope.launch {
                     isInviting = true
-                    val emailToInvite = inviteEmail // Capture email before clearing
+                    val emailToInvite = inviteEmail
                     val result = viewModel.inviteMember(houseId, emailToInvite)
                     if (result.isSuccess) {
                         showInviteDialog = false
@@ -216,7 +216,7 @@ fun ManageMembersScreen(
                                 members = viewModel.getHouseMembers(houseId)
                                 snackbarHostState.showSnackbar(
                                     if (result.isSuccess) "Updated ${member.displayName}'s role"
-                                    else result.exceptionOrNull()?.message ?: "Failed to update role"
+                                    else result.exceptionOrNull()?.userMessage() ?: "Failed to update role"
                                 )
                             }
                         }
@@ -497,7 +497,7 @@ fun MemberListItem(
 
                     // Role Badge
                     val roleColor = when (member.role) {
-                        HouseMemberRole.OWNER -> Color(0xFFFFD700) // Gold
+                        HouseMemberRole.OWNER -> Color(0xFFFFD700)
                         HouseMemberRole.ADMIN -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.secondaryContainer
                     }

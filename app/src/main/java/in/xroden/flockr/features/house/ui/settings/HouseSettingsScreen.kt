@@ -1,5 +1,8 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
+import `in`.xroden.flockr.features.house.model.DateLayout
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.features.house.ui.HouseLocaleFields
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -69,7 +72,7 @@ fun HouseSettingsScreen(
     var houseName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var currency by remember { mutableStateOf("USD") }
-    var dateFormat by remember { mutableStateOf("YYYY-MM-DD") }
+    var dateFormat by remember { mutableStateOf(DateLayout.ISO.pattern) }
     var firstDayOfWeek by remember { mutableStateOf(0) }
     var timezone by remember { mutableStateOf("UTC") }
     var nameError by remember { mutableStateOf<String?>(null) }
@@ -158,7 +161,7 @@ fun HouseSettingsScreen(
                         isSaving = false
                         if (result.isFailure) {
                             snackbarHostState.showSnackbar(
-                                result.exceptionOrNull()?.message ?: "Failed to save settings"
+                                result.exceptionOrNull()?.userMessage() ?: "Failed to save settings"
                             )
                         }
                     }
@@ -213,7 +216,8 @@ fun HouseSettingsScreen(
                     firstDayOfWeek = firstDayOfWeek,
                     onFirstDayChange = { firstDayOfWeek = it },
                     timezone = timezone,
-                    onTimezoneChange = { timezone = it }
+                    onTimezoneChange = { timezone = it },
+                    isCurrencyLocked = (settingsUiState as? HouseSettingsUiState.Success)?.isCurrencyLocked ?: true,
                 )
 
                 house?.let { h ->
@@ -249,7 +253,7 @@ fun HouseSettingsScreen(
                         onDeleteHouse()
                     } else {
                         snackbarHostState.showSnackbar(
-                            result.exceptionOrNull()?.message ?: "Failed to leave house"
+                            result.exceptionOrNull()?.userMessage() ?: "Failed to leave house"
                         )
                     }
                 }
@@ -276,7 +280,7 @@ fun HouseSettingsScreen(
                         snackbarHostState.showSnackbar("House deleted")
                     } else {
                         snackbarHostState.showSnackbar(
-                            result.exceptionOrNull()?.message ?: "Failed to delete house"
+                            result.exceptionOrNull()?.userMessage() ?: "Failed to delete house"
                         )
                     }
                 }
@@ -446,7 +450,6 @@ private fun HeaderImageSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocalizationSection(
     currency: String,
@@ -456,200 +459,21 @@ private fun LocalizationSection(
     firstDayOfWeek: Int,
     onFirstDayChange: (Int) -> Unit,
     timezone: String,
-    onTimezoneChange: (String) -> Unit
+    onTimezoneChange: (String) -> Unit,
+    isCurrencyLocked: Boolean,
 ) {
-    var expandedCurrency by remember { mutableStateOf(false) }
-    var expandedDateFormat by remember { mutableStateOf(false) }
-    var expandedFirstDay by remember { mutableStateOf(false) }
-    var expandedTimezone by remember { mutableStateOf(false) }
-
-    val currencies = listOf(
-        "USD" to "$",
-        "EUR" to "€",
-        "GBP" to "£",
-        "JPY" to "¥",
-        "INR" to "₹",
-        "CAD" to "C$",
-        "AUD" to "A$",
-        "CNY" to "¥"
-    )
-
-    FormSectionCard(
-        title = "Currency & Localization",
-        icon = Icons.Default.Language,
-        iconTint = MaterialTheme.colorScheme.secondary
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Currency
-            ExposedDropdownMenuBox(
-                expanded = expandedCurrency,
-                onExpandedChange = { expandedCurrency = !expandedCurrency }
-            ) {
-                OutlinedTextField(
-                    value = "${currencies.find { it.first == currency }?.second} $currency",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Currency") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCurrency)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedCurrency,
-                    onDismissRequest = { expandedCurrency = false }
-                ) {
-                    currencies.forEach { (code, symbol) ->
-                        key(code) {
-                            DropdownMenuItem(
-                                text = { Text("$symbol $code") },
-                                onClick = {
-                                    onCurrencyChange(code)
-                                    expandedCurrency = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Date Format
-            ExposedDropdownMenuBox(
-                expanded = expandedDateFormat,
-                onExpandedChange = { expandedDateFormat = !expandedDateFormat }
-            ) {
-                OutlinedTextField(
-                    value = dateFormat,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Date Format") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDateFormat)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedDateFormat,
-                    onDismissRequest = { expandedDateFormat = false }
-                ) {
-                    listOf("YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD-MM-YYYY").forEach { format ->
-                        DropdownMenuItem(
-                            text = { Text(format) },
-                            onClick = {
-                                onDateFormatChange(format)
-                                expandedDateFormat = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            // First Day of Week
-            ExposedDropdownMenuBox(
-                expanded = expandedFirstDay,
-                onExpandedChange = { expandedFirstDay = !expandedFirstDay }
-            ) {
-                val days = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-                OutlinedTextField(
-                    value = days[firstDayOfWeek],
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("First Day of Week") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFirstDay)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedFirstDay,
-                    onDismissRequest = { expandedFirstDay = false }
-                ) {
-                    days.forEachIndexed { index, day ->
-                        DropdownMenuItem(
-                            text = { Text(day) },
-                            onClick = {
-                                onFirstDayChange(index)
-                                expandedFirstDay = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Timezone
-            ExposedDropdownMenuBox(
-                expanded = expandedTimezone,
-                onExpandedChange = { expandedTimezone = !expandedTimezone }
-            ) {
-                val timezones = listOf(
-                    "UTC",
-                    "America/New_York",
-                    "America/Chicago",
-                    "America/Denver",
-                    "America/Los_Angeles",
-                    "Europe/London",
-                    "Europe/Paris",
-                    "Asia/Tokyo",
-                    "Asia/Shanghai",
-                    "Asia/Kolkata",
-                    "Australia/Sydney"
-                )
-                OutlinedTextField(
-                    value = timezone,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Timezone") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTimezone)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedTimezone,
-                    onDismissRequest = { expandedTimezone = false }
-                ) {
-                    timezones.forEach { tz ->
-                        key(tz) {
-                            DropdownMenuItem(
-                                text = { Text(tz) },
-                                onClick = {
-                                    onTimezoneChange(tz)
-                                    expandedTimezone = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    FormSectionCard(title = "Money and dates", icon = Icons.Default.Language, iconTint = MaterialTheme.colorScheme.secondary) {
+        HouseLocaleFields(
+            currencyCode = currency,
+            onCurrencyChange = onCurrencyChange,
+            dateFormat = dateFormat,
+            onDateFormatChange = onDateFormatChange,
+            firstDayOfWeek = firstDayOfWeek,
+            onFirstDayOfWeekChange = onFirstDayChange,
+            timezone = timezone,
+            onTimezoneChange = onTimezoneChange,
+            isCurrencyLocked = isCurrencyLocked,
+        )
     }
 }
 

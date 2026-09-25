@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.documents.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -91,7 +92,7 @@ class DocumentViewModel @Inject constructor(
 
             if (personalResult.isFailure && houseResult.isFailure) {
                 _uiState.value = DocumentUiState.Error(
-                    message = personalResult.exceptionOrNull()?.message ?: "Failed to load documents",
+                    message = personalResult.exceptionOrNull()?.userMessage() ?: "Failed to load documents",
                     cause = personalResult.exceptionOrNull()
                 )
             } else {
@@ -122,7 +123,7 @@ class DocumentViewModel @Inject constructor(
             }
 
             val (fileData, mimeType) = readResult.getOrElse { error ->
-                _uploadState.value = UploadDocumentUiState.Error(error.message ?: "Could not read file")
+                _uploadState.value = UploadDocumentUiState.Error(error.userMessage())
                 return@launch
             }
 
@@ -135,7 +136,7 @@ class DocumentViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uploadState.value = UploadDocumentUiState.Error(
-                        message = error.message ?: "Upload failed"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -156,7 +157,7 @@ class DocumentViewModel @Inject constructor(
                 onSuccess = { loadDocuments(currentHouseId) },
                 onFailure = { error ->
                     _uiState.value = DocumentUiState.Error(
-                        message = error.message ?: "Failed to delete document",
+                        message = error.userMessage(),
                         cause = error
                     )
                 }
@@ -209,7 +210,7 @@ class DocumentViewModel @Inject constructor(
                 onSuccess = { url -> _viewDocumentEvent.emit(url) },
                 onFailure = { error ->
                     _uiState.value = DocumentUiState.Error(
-                        message = error.message ?: "Failed to get document URL",
+                        message = error.userMessage(),
                         cause = error
                     )
                 }
@@ -224,7 +225,7 @@ class DocumentViewModel @Inject constructor(
                     _downloadEvent.emit(DownloadRequest(url, document.fileName, document.mimeType))
                 },
                 onFailure = { error ->
-                    _messageEvent.emit(error.message ?: "Could not download file")
+                    _messageEvent.emit(error.userMessage())
                 }
             )
         }

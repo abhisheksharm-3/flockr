@@ -134,27 +134,6 @@ private fun SkeletonHouseCard() {
     }
 }
 
-/** Stands in for one row of the recent-expenses list while it loads. */
-@Composable
-fun SkeletonExpenseCard(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(Spacing.lg),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            SkeletonLine(width = 120.dp, height = 18.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                SkeletonLine(width = 60.dp, height = 20.dp)
-                SkeletonLine(width = 80.dp, height = 14.dp)
-            }
-        }
-        SkeletonLine(width = 70.dp, height = 22.dp)
-    }
-}
-
 /** Stands in for the house list on the home screen while it loads. */
 @Composable
 fun HomeScreenSkeleton(modifier: Modifier = Modifier) {

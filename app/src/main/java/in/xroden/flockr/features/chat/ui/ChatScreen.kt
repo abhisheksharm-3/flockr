@@ -104,7 +104,7 @@ fun ChatScreen(
                             ) {
                                 items(
                                     items = orderedMessages,
-                                    key = { it.id } // Stable key optimization
+                                    key = { it.id }
                                 ) { message ->
                                     MessageBubble(
                                         message = message,

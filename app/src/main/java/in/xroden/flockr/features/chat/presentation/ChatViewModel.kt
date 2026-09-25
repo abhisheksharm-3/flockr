@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.chat.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,7 +67,7 @@ class ChatViewModel @Inject constructor(
                     },
                     onFailure = { error ->
                         _uiState.value = ChatUiState.Error(
-                            message = error.message ?: "Failed to load messages",
+                            message = error.userMessage(),
                             cause = error
                         )
                     }
@@ -117,7 +118,7 @@ class ChatViewModel @Inject constructor(
                 onFailure = { error ->
                     _pendingMessages.update { current -> current.filter { it.id != tempId } }
                     _sendState.value = SendMessageUiState.Error(
-                        message = error.message ?: "Failed to send message"
+                        message = error.userMessage()
                     )
                 }
             )

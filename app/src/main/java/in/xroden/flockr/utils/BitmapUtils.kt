@@ -21,7 +21,7 @@ class BitmapUtils @Inject constructor() {
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false
         val scaledBitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size, options)
-            ?: return imageData // Return original if decoding fails (shouldn't happen)
+            ?: return imageData
 
         // Compress
         val outputStream = ByteArrayOutputStream()

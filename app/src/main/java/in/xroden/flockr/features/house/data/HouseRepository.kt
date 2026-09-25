@@ -20,9 +20,11 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import javax.inject.Inject
@@ -132,6 +134,16 @@ class HouseRepository @Inject constructor(
         val update = HouseConfigUpdate(currencyCode, dateFormat, firstDayOfWeek, timezone)
         supabase.from("house_config").update(update) { filter { eq("house_id", houseId) } }
         cacheManager.invalidate(configCacheKey(houseId))
+    }
+
+    /** Whether the house has recorded any money, after which its currency is fixed. */
+    suspend fun hasRecordedMoney(houseId: String): Result<Boolean> = runCatching {
+        listOf("expenses", "recurring_expenses", "per_diem_config").any { table ->
+            supabase.from(table).select(Columns.raw("id")) {
+                filter { eq("house_id", houseId) }
+                limit(1)
+            }.decodeList<JsonObject>().isNotEmpty()
+        }
     }
 
     suspend fun removeMember(houseId: String, userId: String): Result<Unit> = runCatching {

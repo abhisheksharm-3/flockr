@@ -584,14 +584,12 @@ fun HouseCard(
                         )
                     }
 
-                    houseData.monthlySpendLabel?.let { spend ->
-                        GlassPill {
-                            Text(
-                                spend,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    GlassPill {
+                        Text(
+                            houseData.monthlySpendLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 

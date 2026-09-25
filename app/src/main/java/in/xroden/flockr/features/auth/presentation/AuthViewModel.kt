@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.auth.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -130,10 +131,10 @@ class AuthViewModel @Inject constructor(
                     // A transient load failure must not evict an already-authenticated user to
                     // the login screen; keep the last-good profile and surface a message.
                     if (_uiState.value is AuthUiState.Authenticated) {
-                        _actionError.value = error.message ?: "Failed to refresh profile"
+                        _actionError.value = error.userMessage()
                     } else {
                         _uiState.value = AuthUiState.Error(
-                            message = error.message ?: "Failed to load profile",
+                            message = error.userMessage(),
                             cause = error
                         )
                     }
@@ -150,7 +151,7 @@ class AuthViewModel @Inject constructor(
                 onSuccess = { _signInState.value = SignInUiState.Idle },
                 onFailure = { error ->
                     _signInState.value = SignInUiState.Error(
-                        message = error.message ?: "Sign in failed"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -165,7 +166,7 @@ class AuthViewModel @Inject constructor(
                 onSuccess = { _signUpState.value = SignUpUiState.Idle },
                 onFailure = { error ->
                     _signUpState.value = SignUpUiState.Error(
-                        message = error.message ?: "Sign up failed"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -189,14 +190,14 @@ class AuthViewModel @Inject constructor(
                         onSuccess = { _signInState.value = SignInUiState.Idle },
                         onFailure = { error ->
                             _signInState.value = SignInUiState.Error(
-                                message = error.message ?: "Failed to authenticate with Supabase"
+                                message = error.userMessage()
                             )
                         }
                     )
                 },
                 onFailure = { error ->
                     _signInState.value = SignInUiState.Error(
-                        message = error.message ?: "Google sign in failed"
+                        message = error.userMessage()
                     )
                 }
             )
@@ -213,7 +214,7 @@ class AuthViewModel @Inject constructor(
                 onSuccess = { loadProfile() },
                 onFailure = { error ->
                     // Keep the user in the app; a failed update is recoverable, not a logout.
-                    _actionError.value = error.message ?: "Failed to update profile"
+                    _actionError.value = error.userMessage()
                 }
             )
         }

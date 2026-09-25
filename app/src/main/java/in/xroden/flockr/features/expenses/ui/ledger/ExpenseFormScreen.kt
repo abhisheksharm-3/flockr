@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,6 +38,7 @@ import `in`.xroden.flockr.features.expenses.ui.SplitEditor
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.components.FlockrTopAppBar
 import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.buttons.FlockrSplitButton
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
 import `in`.xroden.flockr.ui.components.inputs.AmountField
 import `in`.xroden.flockr.ui.components.inputs.ChoiceField
@@ -76,6 +78,12 @@ fun ExpenseFormScreen(
             onSaved()
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.savedAndReset.collect {
+            haptics.success()
+            snackbarHostState.showSnackbar("Expense added. Ready for the next one.")
+        }
+    }
     LaunchedEffect(uiState) {
         val error = uiState as? ExpenseFormUiState.Error ?: return@LaunchedEffect
         haptics.error()
@@ -93,16 +101,34 @@ fun ExpenseFormScreen(
             )
         },
         bottomBar = {
-            FlockrPrimaryButton(
-                text = if (form.isEditing) "Save changes" else "Add expense",
-                onClick = { viewModel.save(houseId) },
-                enabled = form.canSave,
-                isLoading = isSaving,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-            )
+            val barModifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
+            if (form.isEditing) {
+                FlockrPrimaryButton(
+                    text = "Save changes",
+                    onClick = { viewModel.save(houseId) },
+                    enabled = form.canSave,
+                    isLoading = isSaving,
+                    modifier = barModifier,
+                )
+            } else {
+                FlockrSplitButton(
+                    text = "Add expense",
+                    onClick = { viewModel.save(houseId) },
+                    enabled = form.canSave && !isSaving,
+                    modifier = barModifier,
+                ) { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text("Add and start another") },
+                        onClick = {
+                            dismiss()
+                            viewModel.save(houseId, startAnother = true)
+                        },
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->

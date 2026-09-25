@@ -42,7 +42,7 @@ fun DocumentsScreen(
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0 = Personal, 1 = House
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -200,7 +200,7 @@ fun DocumentsScreen(
 
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp) // Tighter list
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (docs.isEmpty()) {
                     item {
@@ -256,9 +256,6 @@ fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
     
     ListItem(
-        headlineContent = { 
-            Text(doc.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1) 
-        },
         supportingContent = { 
             Text(formatFileSize(doc.fileSize ?: 0)) 
         },
@@ -295,7 +292,9 @@ fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.clip(RoundedCornerShape(16.dp))
-    )
+    ) {
+        Text(doc.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
 }
 
 fun formatFileSize(size: Long): String {
