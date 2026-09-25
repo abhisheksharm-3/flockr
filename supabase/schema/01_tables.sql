@@ -85,6 +85,8 @@ create table public.invitation_rate_limit (
     primary key (user_id, house_id)
 );
 
+create index invitation_rate_limit_house on public.invitation_rate_limit (house_id);
+
 create table public.house_audit_log (
     id             uuid primary key default gen_random_uuid(),
     house_id       uuid not null references public.houses (id) on delete cascade,
@@ -191,6 +193,8 @@ create table public.per_diem_config (
     is_active  boolean not null default true,
     created_at timestamptz not null default now()
 );
+
+create index per_diem_config_house on public.per_diem_config (house_id);
 
 -- A recorded use of a per-diem item. rate and total_cost are captured when the entry is written, so
 -- changing an item's price later leaves past entries and past bills as they were. total_cost is
@@ -311,6 +315,7 @@ create table public.notifications (
 
 create index notifications_user_time on public.notifications (user_id, created_at desc);
 create index notifications_user_unread on public.notifications (user_id) where not is_read;
+create index notifications_house on public.notifications (house_id);
 
 -- A member's opt-out for one notification type in one house. No row means the type is on, so a new
 -- type reaches everyone until they turn it off.
@@ -322,6 +327,8 @@ create table public.notification_preferences (
     updated_at timestamptz not null default now(),
     primary key (user_id, house_id, type)
 );
+
+create index notification_preferences_house on public.notification_preferences (house_id);
 
 -- A device to deliver push notifications to. One user can have several.
 create table public.device_tokens (

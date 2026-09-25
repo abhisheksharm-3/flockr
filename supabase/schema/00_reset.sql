@@ -6,5 +6,6 @@
 set local check_function_bodies = off;
 
 drop schema if exists public cascade;
+drop schema if exists migration_backups cascade;
 create schema public authorization postgres;
 comment on schema public is 'Flockr application schema. Defined in supabase/schema/.';

@@ -26,11 +26,11 @@ $$;
 create policy "avatars are public" on storage.objects for select
     using (bucket_id = 'avatars');
 create policy "users write their own avatar" on storage.objects for insert to authenticated
-    with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+    with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "users replace their own avatar" on storage.objects for update to authenticated
-    using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+    using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "users delete their own avatar" on storage.objects for delete to authenticated
-    using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+    using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
 create policy "house headers are public" on storage.objects for select
     using (bucket_id = 'house_headers');
@@ -46,15 +46,15 @@ create policy "members read house documents" on storage.objects for select to au
 create policy "members upload house documents as themselves" on storage.objects for insert to authenticated
     with check (bucket_id = 'house-documents'
                 and public.auth_is_house_member(((storage.foldername(name))[1])::uuid)
-                and (storage.foldername(name))[2] = auth.uid()::text);
+                and (storage.foldername(name))[2] = (select auth.uid())::text);
 create policy "uploaders and admins delete house documents" on storage.objects for delete to authenticated
     using (bucket_id = 'house-documents'
-           and ((storage.foldername(name))[2] = auth.uid()::text
+           and ((storage.foldername(name))[2] = (select auth.uid())::text
                 or public.auth_is_house_admin(((storage.foldername(name))[1])::uuid)));
 
 create policy "users read their personal documents" on storage.objects for select to authenticated
-    using (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = auth.uid()::text);
+    using (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "users upload personal documents" on storage.objects for insert to authenticated
-    with check (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = auth.uid()::text);
+    with check (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "users delete personal documents" on storage.objects for delete to authenticated
-    using (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = auth.uid()::text);
+    using (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);

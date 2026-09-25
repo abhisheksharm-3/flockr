@@ -57,7 +57,7 @@ $$;
 -- The due date that follows [p_from] for a bill of [p_frequency]. Monthly and longer cadences land on
 -- [p_due_day], clamped to the month's length, so a bill due on the 31st falls on the 30th in April.
 create function public.next_due_date(p_from date, p_frequency text, p_custom_days smallint, p_due_day smallint)
-returns date language plpgsql immutable as $$
+returns date language plpgsql immutable set search_path = public as $$
 declare
     v_months int;
     v_target date;
@@ -79,7 +79,7 @@ $$;
 
 -- Generic trigger functions.
 
-create function public.touch_updated_at() returns trigger language plpgsql as $$
+create function public.touch_updated_at() returns trigger language plpgsql set search_path = public as $$
 begin
     new.updated_at := now();
     return new;
@@ -98,7 +98,7 @@ $$;
 
 -- The currency is fixed once the house has recorded money, because amounts carry no currency of their
 -- own and switching it would relabel every past amount.
-create function public.validate_house_config() returns trigger language plpgsql as $$
+create function public.validate_house_config() returns trigger language plpgsql set search_path = public as $$
 begin
     if not exists (select 1 from pg_timezone_names where name = new.timezone) then
         raise exception 'Unknown time zone %', new.timezone;
@@ -146,12 +146,12 @@ $$;
 
 -- An invite code admits whoever holds it, so its characters come from a cryptographic source. 32
 -- divides 256, so taking each byte modulo 32 favours no character.
-create function public.generate_invite_code() returns text language sql volatile as $$
+create function public.generate_invite_code() returns text language sql volatile set search_path = public as $$
     select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + get_byte(b, i) % 32, 1), '')
     from (select extensions.gen_random_bytes(8) as b) g, generate_series(0, 7) i;
 $$;
 
-create function public.assign_invite_code() returns trigger language plpgsql as $$
+create function public.assign_invite_code() returns trigger language plpgsql set search_path = public as $$
 begin
     if new.invite_code is null then
         new.invite_code := generate_invite_code();
