@@ -1,6 +1,8 @@
 /** A house's home: its picture and people, where the viewer stands, and a door to each part of the house. */
 package `in`.xroden.flockr.features.house.ui.details
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -130,9 +132,9 @@ fun HouseDetailsScreen(
                         Text("Around the house", style = MaterialTheme.typography.titleMediumEmphasized, modifier = Modifier.padding(top = Spacing.sm))
                     }
                     items(destinations.chunked(2), key = { row -> row.first().title }) { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                             row.forEachIndexed { index, destination ->
-                                DestinationTile(destination, tint = tileTint(destinations.indexOf(destination)), modifier = Modifier.weight(1f))
+                                DestinationTile(destination, tint = tileTint(destinations.indexOf(destination)), modifier = Modifier.weight(1f).fillMaxHeight())
                                 if (row.size == 1 && index == 0) Spacer(Modifier.weight(1f))
                             }
                         }
@@ -152,30 +154,16 @@ private fun HouseHeader(state: HouseDetailUiState.Ready, onOpenMembers: () -> Un
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Box(Modifier.fillMaxWidth().height(ComponentHeight.cardLarge)) {
-            if (house.headerImageUrl != null) {
-                AsyncImage(
-                    model = house.headerImageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxSize()) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Home,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(IconSize.xxl),
-                        )
-                    }
-                }
-            }
+        house.headerImageUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(ComponentHeight.cardLarge),
+            )
         }
         Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(house.name, style = MaterialTheme.typography.headlineSmallEmphasized, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 house.address?.takeIf { it.isNotBlank() }?.let { address ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Icon(

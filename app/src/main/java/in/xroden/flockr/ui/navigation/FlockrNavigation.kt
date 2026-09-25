@@ -25,7 +25,8 @@ import androidx.compose.runtime.key
 /**
  * The app's navigation, switching between the signed-out and signed-in graphs. [initialInviteCode]
  * and [pendingNotificationId] are deep links held until the user is signed in; each consumed
- * callback clears one once it has been followed.
+ * callback clears one once it has been followed. [onSignedIn] runs each time the user reaches the app
+ * signed in, which is when asking for the notification permission makes sense.
  */
 @Composable
 fun FlockrNavigation(
@@ -33,6 +34,7 @@ fun FlockrNavigation(
     onInviteConsumed: () -> Unit = {},
     pendingNotificationId: String? = null,
     onNotificationConsumed: () -> Unit = {},
+    onSignedIn: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -48,6 +50,10 @@ fun FlockrNavigation(
         } else if (authUiState is AuthNavigationState.Unauthenticated || authUiState is AuthNavigationState.NeedsOnboarding) {
             hasAuthenticatedSession.value = false
         }
+    }
+
+    LaunchedEffect(authUiState is AuthNavigationState.Authenticated) {
+        if (authUiState is AuthNavigationState.Authenticated) onSignedIn()
     }
 
     // A tapped system notification: once signed in, mark it read and open what it is about.

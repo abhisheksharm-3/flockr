@@ -59,13 +59,16 @@ data class MemberWithProfile(
 
     /** The member's name, or their email when they have not set one. */
     val displayName: String get() = fullName.ifBlank { email }
+
+    /** The first word of [displayName], for lists where a full name would crowd the row. */
+    val shortName: String get() = displayName.trim().substringBefore(' ')
 }
 
-/** "You" for the viewer, the member's name otherwise, and "A former housemate" for someone no longer on the roster. */
+/** "You" for the viewer, the member's first name otherwise, and "A former housemate" for someone no longer on the roster. */
 fun Map<String, MemberWithProfile>.nameOf(userId: String?, viewerId: String): String = when (userId) {
     viewerId -> "You"
     null -> "Someone"
-    else -> get(userId)?.displayName ?: "A former housemate"
+    else -> get(userId)?.shortName ?: "A former housemate"
 }
 
 /** As [nameOf], but "you" in lower case, for the middle of a sentence. */

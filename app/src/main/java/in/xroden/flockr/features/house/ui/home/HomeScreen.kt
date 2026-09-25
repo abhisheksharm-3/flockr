@@ -1,6 +1,8 @@
 /** The signed-in landing page: invitations waiting for an answer, then every house the user is in. */
 package `in`.xroden.flockr.features.house.ui.home
 
+import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.ui.components.balanceColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -287,16 +289,17 @@ private fun HouseCard(house: HouseCardData, onClick: () -> Unit, modifier: Modif
         shape = MaterialTheme.shapes.largeIncreased,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        HouseImage(
-            imageUrl = house.headerImageUrl,
-            seed = house.id,
-            modifier = Modifier.fillMaxWidth().height(ComponentHeight.cardSmall),
-        )
+        if (!house.headerImageUrl.isNullOrBlank()) {
+            HouseImage(imageUrl = house.headerImageUrl, seed = house.id, modifier = Modifier.fillMaxWidth().height(ComponentHeight.cardSmall))
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            if (house.headerImageUrl.isNullOrBlank()) {
+                HouseImage(imageUrl = null, seed = house.id, modifier = Modifier.size(ComponentHeight.avatarLarge).clip(MaterialTheme.shapes.large))
+            }
             Column(Modifier.weight(1f)) {
                 Text(
                     house.name,
@@ -311,8 +314,20 @@ private fun HouseCard(house: HouseCardData, onClick: () -> Unit, modifier: Modif
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(house.monthlySpendLabel, style = MaterialTheme.typography.titleMediumEmphasized)
-                Text("this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val net = house.myNet
+                Text(
+                    when (net.signum()) {
+                        1 -> "you're owed"
+                        -1 -> "you owe"
+                        else -> "settled up"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = balanceColor(net),
+                )
+                if (net.signum() != 0) {
+                    Text(net.abs().formatMoney(house.currencyCode), style = MaterialTheme.typography.titleMediumEmphasized, color = balanceColor(net))
+                }
+                Text("${house.monthlySpendLabel} this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

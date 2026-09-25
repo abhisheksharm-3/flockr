@@ -8,7 +8,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * [monthlySpend] is everything the house spent this calendar month in its own time zone, per-diem
+ * [myNet] is the viewer's balance in the house: positive when they are owed. [monthlySpend] is everything the house spent this calendar month in its own time zone, per-diem
  * included and payments between housemates excluded, the same total the monthly report shows.
  */
 @Serializable
@@ -30,7 +30,10 @@ data class HouseCardData(
     val currencyCode: String,
     @SerialName("monthly_spend")
     @Serializable(with = BigDecimalSerializer::class)
-    val monthlySpend: BigDecimal
+    val monthlySpend: BigDecimal,
+    @SerialName("my_net")
+    @Serializable(with = BigDecimalSerializer::class)
+    val myNet: BigDecimal = BigDecimal.ZERO
 ) {
     val house: House get() = House(id, name, ownerId, inviteCode, address, latitude, longitude, headerImageUrl)
 

@@ -26,12 +26,16 @@ $$;
 create function public.get_my_houses()
 returns table (
     id uuid, name text, owner_id uuid, address text, latitude double precision, longitude double precision,
-    header_image_url text, invite_code text, member_count bigint, currency_code text, monthly_spend numeric
+    header_image_url text, invite_code text, member_count bigint, currency_code text, monthly_spend numeric,
+    my_net numeric
 ) language sql stable security invoker set search_path = public as $$
     select h.id, h.name, h.owner_id, h.address, h.latitude, h.longitude, h.header_image_url, h.invite_code,
            (select count(*) from house_members m where m.house_id = h.id and m.left_at is null),
            hc.currency_code,
-           (select total_spend from get_monthly_summary(h.id, (now() at time zone hc.timezone)::date))
+           (select total_spend from get_monthly_summary(h.id, (now() at time zone hc.timezone)::date)),
+           (select coalesce(sum(s.paid_share - s.owed_share), 0)
+            from expense_shares s join expenses e on e.id = s.expense_id
+            where e.house_id = h.id and s.user_id = (select auth.uid()))
     from houses h
     join house_config hc on hc.house_id = h.id
     where h.id in (select auth_house_ids())

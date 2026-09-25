@@ -72,10 +72,6 @@ class MainActivity : FragmentActivity() {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
 
-            LaunchedEffect(Unit) {
-                requestNotificationPermissionIfNeeded()
-            }
-
             CompositionLocalProvider(LocalHapticsEnabled provides hapticsEnabled) {
                 FlockrTheme(darkTheme = darkTheme) {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -91,7 +87,8 @@ class MainActivity : FragmentActivity() {
                             initialInviteCode = inviteCode,
                             onInviteConsumed = { setInviteCode(null) },
                             pendingNotificationId = notificationId,
-                            onNotificationConsumed = { setNotificationId(null) }
+                            onNotificationConsumed = { setNotificationId(null) },
+                            onSignedIn = ::requestNotificationPermissionIfNeeded
                         )
 
                         AnimatedVisibility(
