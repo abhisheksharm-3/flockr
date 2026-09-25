@@ -49,7 +49,8 @@ interface IRecurringExpenseRepository {
     suspend fun markRecurringExpenseAsPaid(
         expenseId: String,
         amount: BigDecimal,
-        paymentDate: LocalDate
+        paymentDate: LocalDate,
+        currencyCode: String
     ): Result<Unit>
     suspend fun getPaymentHistory(recurringExpenseId: String): Result<List<PaymentHistory>>
 }

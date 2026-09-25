@@ -21,14 +21,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.utils.formatWithHouseConfig
-import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import `in`.xroden.flockr.features.house.model.today
 import kotlinx.datetime.*
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,7 +38,7 @@ import `in`.xroden.flockr.utils.rememberHaptics
 private fun isOverdue(dateString: String, houseConfig: HouseConfig?): Boolean {
     return runCatching {
         val date = LocalDate.parse(dateString)
-        val today = houseConfig.getTodayInHouseTimezone()
+        val today = houseConfig.today()
         date < today
     }.getOrDefault(false)
 }

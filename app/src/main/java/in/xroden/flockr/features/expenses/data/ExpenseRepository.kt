@@ -6,7 +6,6 @@ import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.data.base.BaseRealtimeRepository
 import `in`.xroden.flockr.data.dto.expense.CreateExpenseParams
 import `in`.xroden.flockr.data.dto.expense.UpdateExpenseParams
-import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -15,10 +14,6 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -66,22 +61,12 @@ class ExpenseRepository @Inject constructor(
         paidBy: String,
         date: LocalDate,
         notes: String?,
-        splitWith: List<String>?,
-        splitType: ExpenseSplitType?,
-        customAmounts: Map<String, BigDecimal>?
+        splitRows: Map<String, BigDecimal>
     ): Result<Unit> = runCatching {
         val resolvedUserId = paidBy.ifEmpty { requireAuthenticated(authenticatedUserId) }
         val sanitizedName = InputSanitizer.sanitizeText(name)
         val sanitizedCategory = InputSanitizer.sanitizeText(category)
         val sanitizedNotes = notes?.let { InputSanitizer.sanitizeText(it) }
-
-        val splitsJson = buildSplitsJson(
-            amount = amount,
-            payerId = resolvedUserId,
-            splitWith = splitWith,
-            splitType = splitType,
-            splitAmounts = customAmounts
-        )
 
         supabase.postgrest.rpc(
             function = "create_one_time_expense",
@@ -93,18 +78,10 @@ class ExpenseRepository @Inject constructor(
                 category = sanitizedCategory,
                 date = date,
                 notes = sanitizedNotes,
-                splits = splitsJson
+                splits = splitRowsJson(splitRows)
             )
         )
     }
-
-    private fun buildSplitsJson(
-        amount: BigDecimal,
-        payerId: String,
-        splitWith: List<String>?,
-        splitType: ExpenseSplitType?,
-        splitAmounts: Map<String, BigDecimal>?
-    ) = buildExpenseSplitsJson(amount, payerId, splitWith, splitType, splitAmounts)
 
     override suspend fun updateOneTimeExpense(
         expenseId: String,
@@ -119,18 +96,6 @@ class ExpenseRepository @Inject constructor(
         val sanitizedCategory = category?.let { InputSanitizer.sanitizeText(it) }
         val sanitizedNotes = notes?.let { InputSanitizer.sanitizeText(it) }
 
-        // Build the split set (payer excluded server-side); null means "leave splits as-is".
-        val splitsJson: JsonElement? = splitAmounts?.let { amounts ->
-            buildJsonArray {
-                amounts.forEach { (splitUserId, amountOwed) ->
-                    add(buildJsonObject {
-                        put("user_id", splitUserId)
-                        put("amount", amountOwed.toPlainString())
-                    })
-                }
-            }
-        }
-
         // Single RPC updates the expense and replaces splits in one transaction, so a
         // partial failure can no longer wipe every split row (the old delete-then-insert
         // pair was non-transactional).
@@ -143,7 +108,7 @@ class ExpenseRepository @Inject constructor(
                 category = sanitizedCategory,
                 date = date,
                 notes = sanitizedNotes,
-                splits = splitsJson
+                splits = splitAmounts?.let(::splitRowsJson)
             )
         )
     }

@@ -155,12 +155,13 @@ class RecurringExpenseViewModel @Inject constructor(
         houseId: String,
         expenseId: String,
         amount: BigDecimal,
-        paymentDate: LocalDate
+        paymentDate: LocalDate,
+        currencyCode: String
     ) {
         viewModelScope.launch {
             _uiState.value = RecurringExpenseUiState.Loading
-            
-            recurringExpenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate).fold(
+
+            recurringExpenseRepository.markRecurringExpenseAsPaid(expenseId, amount, paymentDate, currencyCode).fold(
                 onSuccess = {
                     loadRecurringExpenses(houseId)
                 },

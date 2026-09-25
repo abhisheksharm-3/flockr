@@ -5,9 +5,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import `in`.xroden.flockr.features.expenses.ui.dashboard.ExpenseDashboardScreen
-import `in`.xroden.flockr.features.expenses.ui.onetime.AddExpenseScreen
+import `in`.xroden.flockr.features.expenses.ui.onetime.ExpenseFormScreen
 import `in`.xroden.flockr.features.expenses.ui.onetime.BalancesScreen
-import `in`.xroden.flockr.features.expenses.ui.onetime.EditExpenseScreen
 import `in`.xroden.flockr.features.expenses.ui.onetime.ExpenseDetailScreen
 import `in`.xroden.flockr.features.expenses.ui.onetime.OneTimeExpensesScreen
 import `in`.xroden.flockr.features.expenses.ui.perdiem.AddPerDiemConfigScreen
@@ -59,23 +58,21 @@ fun NavGraphBuilder.expenseGraph(navController: NavController) {
 
     composable<AddExpenseRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<AddExpenseRoute>()
-        AddExpenseScreen(
+        ExpenseFormScreen(
             houseId = route.houseId,
-            initialName = null,
-            initialQuantity = null,
             onNavigateBack = { navController.popBackStack() },
-            onExpenseAdded = { navController.popBackStack() }
+            onSaved = { navController.popBackStack() }
         )
     }
 
     composable<AddExpenseAdvancedRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<AddExpenseAdvancedRoute>()
-        AddExpenseScreen(
+        ExpenseFormScreen(
             houseId = route.houseId,
             initialName = route.itemName,
             initialQuantity = route.quantity,
             onNavigateBack = { navController.popBackStack() },
-            onExpenseAdded = { navController.popBackStack() }
+            onSaved = { navController.popBackStack() }
         )
     }
 
@@ -116,10 +113,11 @@ fun NavGraphBuilder.expenseGraph(navController: NavController) {
 
     composable<EditExpenseRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<EditExpenseRoute>()
-        EditExpenseScreen(
+        ExpenseFormScreen(
             houseId = route.houseId,
             expenseId = route.expenseId,
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() }
         )
     }
 

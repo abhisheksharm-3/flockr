@@ -27,7 +27,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
 import `in`.xroden.flockr.features.documents.presentation.DocumentUiState

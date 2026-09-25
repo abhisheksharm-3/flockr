@@ -16,12 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.currencySymbol
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,7 @@ fun EditPerDiemConfigScreen(
     val categories = listOf("Food & Beverages", "Household Supplies", "Utilities", "Other")
     
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = houseConfig?.currencyCode?.let { getCurrencySymbol(it) } ?: "$"
+    val currencyCode = houseConfig.currency()
 
     val scope = rememberCoroutineScope()
 
@@ -225,7 +226,7 @@ fun EditPerDiemConfigScreen(
                             value = rate,
                             onValueChange = { rate = it },
                             label = { Text("Rate") },
-                            prefix = { Text(currencySymbol) },
+                            prefix = { Text(currencySymbol(currencyCode)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                             singleLine = true,

@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +24,7 @@ import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.data.HouseAuditRepository
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.utils.formatWithHouseConfig
-import `in`.xroden.flockr.utils.getTimezone
+import `in`.xroden.flockr.features.house.model.timeZone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -138,7 +138,7 @@ fun HouseAuditLogScreen(
                 } else {
                     // Group logs by date (in the house's timezone + date format)
                     val groupedLogs = auditLogs.groupBy {
-                       it.createdAt.toLocalDateTime(houseConfig.getTimezone()).date
+                       it.createdAt.toLocalDateTime(houseConfig.timeZone()).date
                            .formatWithHouseConfig(houseConfig)
                     }
 
@@ -202,7 +202,7 @@ fun EmptyAuditLogState() {
 @Composable
 private fun AuditLogCard(log: HouseAuditLog, houseConfig: HouseConfig?) {
     val time = remember(log.createdAt, houseConfig) {
-        val dateTime = log.createdAt.toLocalDateTime(houseConfig.getTimezone())
+        val dateTime = log.createdAt.toLocalDateTime(houseConfig.timeZone())
         val hour12 = when {
             dateTime.hour == 0 -> 12
             dateTime.hour > 12 -> dateTime.hour - 12

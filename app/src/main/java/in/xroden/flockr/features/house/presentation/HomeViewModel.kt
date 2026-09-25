@@ -80,7 +80,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun List<House>.toBasicCardData() = map { house ->
-        HouseCardData(house = house, memberCount = 0, monthlyExpense = BigDecimal.ZERO, currencySymbol = "$")
+        HouseCardData(house = house)
     }
 
     private fun loadEnrichedData() {

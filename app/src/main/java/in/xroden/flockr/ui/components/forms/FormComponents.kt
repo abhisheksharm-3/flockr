@@ -21,6 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.ui.theme.spatialSpec
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.Switch
+import `in`.xroden.flockr.utils.rememberHaptics
 
 private const val IconContainerAlpha = 0.12f
 
@@ -69,5 +73,40 @@ private fun SectionHeader(icon: ImageVector, title: String, iconTint: Color) {
             Icon(icon, null, modifier = Modifier.padding(Spacing.sm), tint = iconTint)
         }
         Text(title, style = MaterialTheme.typography.titleMediumEmphasized)
+    }
+}
+
+/**
+ * A labelled switch, for a form option that is either on or off. The whole row is the touch target,
+ * and toggling fires the direction-specific haptic.
+ */
+@Composable
+fun ToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    enabled: Boolean = true,
+) {
+    val haptics = rememberHaptics()
+    fun toggleTo(value: Boolean) {
+        haptics.toggle(value)
+        onCheckedChange(value)
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = ::toggleTo),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(title, style = MaterialTheme.typography.titleSmallEmphasized)
+            subtitle?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

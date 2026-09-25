@@ -1,10 +1,12 @@
 package `in`.xroden.flockr.ui.components.inputs
 
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 
 /**
  * The app's text field, so every form shares one shape and one label treatment.
@@ -28,7 +30,9 @@ fun FlockrTextField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     isError: Boolean = false,
-    supportingText: String? = null
+    supportingText: String? = null,
+    prefix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     OutlinedTextField(
         value = value,
@@ -44,6 +48,8 @@ fun FlockrTextField(
         trailingIcon = trailingIcon,
         isError = isError,
         supportingText = supportingText?.let { { Text(it) } },
+        prefix = prefix?.let { { Text(it) } },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = singleLine,
         maxLines = maxLines,
         shape = MaterialTheme.shapes.large

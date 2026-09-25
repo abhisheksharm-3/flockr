@@ -48,5 +48,3 @@ sealed interface CreateExpenseUiState {
     data object Success : CreateExpenseUiState
     data class Error(val message: String) : CreateExpenseUiState
 }
-
-

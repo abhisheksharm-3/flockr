@@ -1,6 +1,5 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.data.enums.ExpenseSplitType
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
@@ -17,9 +16,7 @@ interface IExpenseRepository {
         paidBy: String,
         date: LocalDate,
         notes: String?,
-        splitWith: List<String>?,
-        splitType: ExpenseSplitType?,
-        customAmounts: Map<String, BigDecimal>?
+        splitRows: Map<String, BigDecimal>
     ): Result<Unit>
     suspend fun updateOneTimeExpense(
         expenseId: String,

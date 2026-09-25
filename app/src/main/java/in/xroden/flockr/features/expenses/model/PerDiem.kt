@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.data.serialization.LocalDateSerializer
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

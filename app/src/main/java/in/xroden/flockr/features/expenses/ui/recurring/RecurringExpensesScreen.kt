@@ -17,21 +17,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseUiState
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.utils.getCurrencySymbol
-import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import `in`.xroden.flockr.features.house.model.today
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,9 +46,7 @@ fun RecurringExpensesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = remember(houseConfig) {
-        houseConfig?.getCurrencySymbol() ?: "$"
-    }
+    val currencyCode = houseConfig.currency()
 
     var selectedExpense by remember { mutableStateOf<RecurringExpense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -81,16 +80,15 @@ fun RecurringExpensesScreen(
         RecurringExpensesContent(
             state = uiState,
             padding = padding,
-            currencySymbol = currencySymbol,
+            currencyCode = currencyCode,
             houseConfig = houseConfig,
             onMarkAsPaid = { expense ->
-                val houseTimezone = houseConfig?.timezone
-                val tz = houseTimezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: TimeZone.currentSystemDefault()
                 viewModel.markAsPaid(
                     houseId = houseId,
                     expenseId = expense.id,
                     amount = expense.amount,
-                    paymentDate = kotlin.time.Clock.System.todayIn(tz)
+                    paymentDate = houseConfig.today(),
+                    currencyCode = houseConfig.currency()
                 )
             },
             onEdit = onNavigateToEditBill,
@@ -161,7 +159,7 @@ private fun DeleteBillConfirmationDialog(
 private fun RecurringExpensesContent(
     state: RecurringExpenseUiState,
     padding: PaddingValues,
-    currencySymbol: String,
+    currencyCode: String,
     houseConfig: HouseConfig?,
     onMarkAsPaid: (RecurringExpense) -> Unit,
     onEdit: (String) -> Unit,
@@ -182,7 +180,7 @@ private fun RecurringExpensesContent(
                 RecurringExpensesList(
                     expenses = state.expenses,
                     padding = padding,
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     houseConfig = houseConfig,
                     onMarkAsPaid = onMarkAsPaid,
                     onEdit = onEdit,
@@ -201,7 +199,7 @@ private fun RecurringExpensesContent(
 private fun RecurringExpensesList(
     expenses: List<RecurringExpense>,
     padding: PaddingValues,
-    currencySymbol: String,
+    currencyCode: String,
     houseConfig: HouseConfig?,
     onMarkAsPaid: (RecurringExpense) -> Unit,
     onEdit: (String) -> Unit,
@@ -249,7 +247,7 @@ private fun RecurringExpensesList(
             ) { expense ->
                 RecurringExpenseCard(
                     expense = expense,
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     houseConfig = houseConfig,
                     onMarkAsPaid = { onMarkAsPaid(expense) },
                     onEdit = { onEdit(expense.id) },
@@ -387,7 +385,7 @@ private fun FrequencySection(frequency: String, count: Int, modifier: Modifier =
 @Composable
 private fun RecurringExpenseCard(
     expense: RecurringExpense,
-    currencySymbol: String,
+    currencyCode: String,
     houseConfig: HouseConfig?,
     onMarkAsPaid: () -> Unit,
     onEdit: () -> Unit,
@@ -395,7 +393,7 @@ private fun RecurringExpenseCard(
     onHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val today = houseConfig.getTodayInHouseTimezone()
+    val today = houseConfig.today()
     
     val isPaidThisPeriod = remember(expense.lastPaidDate, expense.frequency) {
         if (expense.lastPaidDate == null) return@remember false
@@ -435,7 +433,7 @@ private fun RecurringExpenseCard(
                     }
                 }
 
-                Text("$currencySymbol${expense.amount}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("${expense.amount.formatMoney(currencyCode)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
 
             Spacer(Modifier.height(12.dp))

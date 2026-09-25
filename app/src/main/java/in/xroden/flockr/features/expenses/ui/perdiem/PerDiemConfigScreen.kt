@@ -16,16 +16,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.util.Locale
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +41,7 @@ fun PerDiemConfigScreen(
     val haptics = rememberHaptics()
     val configsState by viewModel.configState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
+    val currencyCode = houseConfig.currency()
 
     var showDeleteDialog by remember { mutableStateOf<PerDiemConfig?>(null) }
     val scope = rememberCoroutineScope()
@@ -164,7 +165,7 @@ fun PerDiemConfigScreen(
                         items(state.configs, key = { it.id }) { config ->
                             PerDiemConfigCard(
                                 config = config,
-                                currencySymbol = currencySymbol,
+                                currencyCode = currencyCode,
                                 onAddEntry = { onNavigateToAddEntry(config.id) },
                                 onEdit = { onNavigateToEditConfig(config) },
                                 onDelete = { showDeleteDialog = config }
@@ -182,7 +183,7 @@ fun PerDiemConfigScreen(
 @Composable
 private fun PerDiemConfigCard(
     config: PerDiemConfig,
-    currencySymbol: String,
+    currencyCode: String,
     onAddEntry: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -246,7 +247,7 @@ private fun PerDiemConfigCard(
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
                 ) {
                     Text(
-                        text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)}/${config.unit}",
+                        text = "${config.rate.formatMoney(currencyCode)}/${config.unit}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.tertiary,

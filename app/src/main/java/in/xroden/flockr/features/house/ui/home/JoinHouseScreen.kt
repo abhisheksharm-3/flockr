@@ -18,7 +18,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.JoinHouseUiState
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState

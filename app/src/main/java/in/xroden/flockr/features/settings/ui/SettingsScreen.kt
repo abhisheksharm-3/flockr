@@ -42,7 +42,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.utils.Haptics
 import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle

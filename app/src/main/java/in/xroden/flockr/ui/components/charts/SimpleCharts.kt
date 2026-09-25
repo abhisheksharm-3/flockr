@@ -25,8 +25,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.ui.theme.Motion
 import `in`.xroden.flockr.ui.theme.Spacing
-import `in`.xroden.flockr.utils.formatAmount
+import `in`.xroden.flockr.utils.apportion
+import `in`.xroden.flockr.utils.formatMoney
 import java.math.BigDecimal
+import java.math.BigInteger
+import java.math.RoundingMode
 
 private const val FullTurn = 360f
 private const val RingStartAngle = -90f
@@ -35,6 +38,9 @@ private const val MinSegmentDegrees = 2f
 private const val RingThicknessFraction = 0.16f
 private const val PercentScale = 100
 
+/** One bar or segment. [key] identifies it for [onItemClick]; [label] is what the chart shows. */
+data class ChartEntry(val key: String, val label: String, val value: BigDecimal)
+
 private val RingSize = 200.dp
 private val BarHeight = 12.dp
 private val LegendSwatchSize = 12.dp
@@ -42,18 +48,18 @@ private val LegendSwatchSize = 12.dp
 /**
  * Spend split by category, as a segmented ring with the period total in its centre.
  *
- * Segments follow the iteration order of [data], so pass an ordered map to control the palette
- * each category lands on. [onItemClick] receives the category key of the legend row tapped.
+ * Segments follow the order of [data], which also decides the palette colour each one lands on.
+ * [onItemClick] receives the [ChartEntry.key] of the legend row tapped.
  */
 @Composable
 fun SimplePieChart(
-    data: Map<String, Double>,
+    data: List<ChartEntry>,
     modifier: Modifier = Modifier,
-    currencySymbol: String = "$",
+    currencyCode: String,
     onItemClick: ((String) -> Unit)? = null
 ) {
-    val total = data.values.sum()
-    if (total <= 0.0) return
+    val total = data.sumOf { it.value }
+    if (total.signum() <= 0) return
 
     Column(
         modifier = modifier,
@@ -65,11 +71,11 @@ fun SimplePieChart(
             contentAlignment = Alignment.Center
         ) {
             SegmentRing(data = data)
-            RingTotal(total = total, currencySymbol = currencySymbol)
+            RingTotal(total = total, currencyCode = currencyCode)
         }
         CategoryLegend(
             data = data,
-            currencySymbol = currencySymbol,
+            currencyCode = currencyCode,
             onItemClick = onItemClick
         )
     }
@@ -78,23 +84,23 @@ fun SimplePieChart(
 /**
  * Spend per member, each bar scaled against the largest value in [data].
  *
- * [onItemClick] receives the member key of the row tapped.
+ * [onItemClick] receives the [ChartEntry.key] of the row tapped.
  */
 @Composable
 fun SimpleBarChart(
-    data: Map<String, Double>,
+    data: List<ChartEntry>,
     modifier: Modifier = Modifier,
-    currencySymbol: String = "$",
+    currencyCode: String,
     onItemClick: ((String) -> Unit)? = null
 ) {
-    val maxValue = data.values.maxOrNull()?.takeIf { it > 0.0 } ?: 1.0
+    val maxValue = data.maxOfOrNull { it.value }?.takeIf { it.signum() > 0 } ?: BigDecimal.ONE
     val growth = rememberGrowth(data)
 
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        data.entries.forEach { entry ->
+        data.forEach { entry ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -109,17 +115,17 @@ fun SimpleBarChart(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = entry.key,
+                        text = entry.label,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = formatAmount(BigDecimal.valueOf(entry.value), currencySymbol),
+                        text = entry.value.formatMoney(currencyCode),
                         style = MaterialTheme.typography.bodyMediumEmphasized
                     )
                 }
                 LinearProgressIndicator(
-                    progress = { (entry.value / maxValue).toFloat() * growth },
+                    progress = { entry.value.toFloat() / maxValue.toFloat() * growth },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(BarHeight),
@@ -131,10 +137,10 @@ fun SimpleBarChart(
 }
 
 @Composable
-private fun SegmentRing(data: Map<String, Double>) {
+private fun SegmentRing(data: List<ChartEntry>) {
     val palette = chartPalette()
     val growth = rememberGrowth(data)
-    val total = data.values.sum()
+    val total = data.sumOf { it.value }.toFloat()
 
     Canvas(modifier = Modifier.size(RingSize)) {
         val thickness = size.minDimension * RingThicknessFraction
@@ -143,8 +149,9 @@ private fun SegmentRing(data: Map<String, Double>) {
         val stroke = Stroke(width = thickness, cap = StrokeCap.Round)
 
         var startAngle = RingStartAngle
-        data.values.forEachIndexed { index, value ->
-            val sweep = (value / total * FullTurn).toFloat() * growth
+        data.forEachIndexed { index, entry ->
+            val value = entry.value
+            val sweep = value.toFloat() / total * FullTurn * growth
             drawArc(
                 color = palette[index % palette.size],
                 startAngle = startAngle + SegmentGapDegrees / 2f,
@@ -160,10 +167,10 @@ private fun SegmentRing(data: Map<String, Double>) {
 }
 
 @Composable
-private fun RingTotal(total: Double, currencySymbol: String) {
+private fun RingTotal(total: BigDecimal, currencyCode: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = formatAmount(BigDecimal.valueOf(total), currencySymbol),
+            text = total.formatMoney(currencyCode),
             style = MaterialTheme.typography.titleLargeEmphasized
         )
         Text(
@@ -176,18 +183,18 @@ private fun RingTotal(total: Double, currencySymbol: String) {
 
 @Composable
 private fun CategoryLegend(
-    data: Map<String, Double>,
-    currencySymbol: String,
+    data: List<ChartEntry>,
+    currencyCode: String,
     onItemClick: ((String) -> Unit)?
 ) {
     val palette = chartPalette()
-    val total = data.values.sum()
+    val percents = remember(data) { wholePercents(data) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        data.entries.forEachIndexed { index, entry ->
+        data.forEachIndexed { index, entry ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -209,7 +216,7 @@ private fun CategoryLegend(
                             .background(palette[index % palette.size])
                     )
                     Text(
-                        text = entry.key,
+                        text = entry.label,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -218,11 +225,11 @@ private fun CategoryLegend(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = formatAmount(BigDecimal.valueOf(entry.value), currencySymbol),
+                        text = entry.value.formatMoney(currencyCode),
                         style = MaterialTheme.typography.bodyMediumEmphasized
                     )
                     Text(
-                        text = "${(entry.value / total * PercentScale).toInt()}%",
+                        text = "${percents[entry.key]}%",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -257,3 +264,14 @@ private fun rememberGrowth(key: Any?): Float {
     }
     return growth.value.coerceIn(0f, 1f)
 }
+
+/**
+ * Each category's share of the total as whole percentages that add up to exactly 100. Truncating
+ * each share separately does not: three equal categories come out as 33 + 33 + 33 = 99.
+ */
+private fun wholePercents(data: List<ChartEntry>): Map<String, BigInteger> =
+    apportion(
+        total = PercentScale.toBigInteger(),
+        weights = data.associate { it.key to it.value.setScale(2, RoundingMode.HALF_UP).unscaledValue().max(BigInteger.ZERO) },
+        tieOrder = naturalOrder()
+    )

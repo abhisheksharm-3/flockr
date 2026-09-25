@@ -18,16 +18,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 /**
  * Quick Per Diem Entry Screen - Select from configured items to add entry
@@ -49,7 +50,7 @@ fun QuickPerDiemEntryScreen(
     }
     val isLoading = configsState is PerDiemConfigUiState.Loading
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+    val currencyCode = houseConfig.currency()
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
@@ -144,7 +145,7 @@ fun QuickPerDiemEntryScreen(
                 items(configs, key = { it.id }) { config ->
                     PerDiemQuickSelectCard(
                         config = config,
-                        currencySymbol = currencySymbol,
+                        currencyCode = currencyCode,
                         onClick = { onNavigateToAddEntry(config.id) }
                     )
                 }
@@ -240,7 +241,7 @@ private fun PerDiemHeroCard(
 @Composable
 private fun PerDiemQuickSelectCard(
     config: PerDiemConfig,
-    currencySymbol: String = "$",
+    currencyCode: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -302,7 +303,7 @@ private fun PerDiemQuickSelectCard(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                         ) {
                             Text(
-                                text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)}",
+                                text = "${config.rate.formatMoney(currencyCode)}",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.secondary,

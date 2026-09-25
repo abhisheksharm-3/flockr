@@ -27,7 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.data.dto.expense.DebtBreakdownItem
 import `in`.xroden.flockr.features.expenses.model.UserBalance
 import `in`.xroden.flockr.features.expenses.presentation.BalanceViewModel
@@ -37,6 +37,9 @@ import java.math.BigDecimal
 import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.utils.currencySymbol
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,9 +50,7 @@ fun BalancesScreen(
 ) {
     val uiState by viewModel.balanceState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = remember(houseConfig) {
-        houseConfig?.getCurrencySymbol() ?: "$"
-    }
+    val currencyCode = houseConfig.currency()
     
     val currentUserId = viewModel.getCurrentUserId() ?: ""
 
@@ -105,7 +106,7 @@ fun BalancesScreen(
                         balances = state.balances,
                         currentUserId = currentUserId,
                         currentUserName = currentUserName,
-                        currencySymbol = currencySymbol,
+                        currencyCode = currencyCode,
                         onSettle = { userBalance, amount, notes ->
                             viewModel.settleBalance(
                                 houseId = houseId,
@@ -131,7 +132,7 @@ fun BalancesContent(
     balances: List<UserBalance>,
     currentUserId: String,
     currentUserName: String,
-    currencySymbol: String,
+    currencyCode: String,
     onSettle: (UserBalance, BigDecimal, String) -> Unit,
     viewModel: BalanceViewModel
 ) {
@@ -139,15 +140,8 @@ fun BalancesContent(
         balances.filter { it.userId != currentUserId }
     }
 
-    val (totalYouOwe, totalYouAreOwed) = remember(balances, currentUserId) {
-        // balances are pairwise relative to me: positive = they owe me, negative = I owe them.
-        var owe = 0.0
-        var owed = 0.0
-        balances.forEach { b ->
-            val v = b.balance.toDouble()
-            if (v < 0) owe += -v else owed += v
-        }
-        owe to owed
+    val (totalYouOwe, totalYouAreOwed) = remember(balances) {
+        balances.sumOf { it.balance.min(BigDecimal.ZERO).negate() } to balances.sumOf { it.balance.max(BigDecimal.ZERO) }
     }
 
     val netBalance = totalYouAreOwed - totalYouOwe
@@ -163,7 +157,7 @@ fun BalancesContent(
                 netBalance = netBalance,
                 totalYouOwe = totalYouOwe,
                 totalYouAreOwed = totalYouAreOwed,
-                currencySymbol = currencySymbol
+                currencyCode = currencyCode
             )
         }
 
@@ -181,7 +175,7 @@ fun BalancesContent(
                 BalancePersonCard(
                     houseId = houseId,
                     balance = balance,
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     onSettle = onSettle,
                     viewModel = viewModel,
                     currentUserId = currentUserId
@@ -193,12 +187,12 @@ fun BalancesContent(
 
 @Composable
 private fun BalanceHeroCard(
-    netBalance: Double,
-    totalYouOwe: Double,
-    totalYouAreOwed: Double,
-    currencySymbol: String
+    netBalance: BigDecimal,
+    totalYouOwe: BigDecimal,
+    totalYouAreOwed: BigDecimal,
+    currencyCode: String
 ) {
-    val isPositive = netBalance >= 0
+    val isPositive = netBalance.signum() >= 0
     val cardColor = if (isPositive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
     val contentColor = if (isPositive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
 
@@ -224,7 +218,7 @@ private fun BalanceHeroCard(
 
             // Large Amount
             Text(
-                "${if (isPositive) "+" else "-"}$currencySymbol${"%.2f".format(kotlin.math.abs(netBalance))}",
+                "${if (isPositive) "+" else "-"}${netBalance.abs().formatMoney(currencyCode)}",
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = contentColor
@@ -262,7 +256,7 @@ private fun BalanceHeroCard(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "$currencySymbol${"%.2f".format(totalYouOwe)}",
+                        "${totalYouOwe.formatMoney(currencyCode)}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = contentColor
@@ -300,7 +294,7 @@ private fun BalanceHeroCard(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "$currencySymbol${"%.2f".format(totalYouAreOwed)}",
+                        "${totalYouAreOwed.formatMoney(currencyCode)}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = contentColor
@@ -427,7 +421,7 @@ private fun AllSettledCard() {
 fun BalancePersonCard(
     houseId: String,
     balance: UserBalance,
-    currencySymbol: String,
+    currencyCode: String,
     onSettle: (UserBalance, BigDecimal, String) -> Unit,
     viewModel: BalanceViewModel,
     currentUserId: String
@@ -438,7 +432,7 @@ fun BalancePersonCard(
     // Pairwise: balance > 0 means they owe me; balance < 0 means I owe them.
     val iOweThem = balance.balance < BigDecimal.ZERO
     val isSettled = balance.balance.compareTo(BigDecimal.ZERO) == 0
-    val amount = balance.balance.abs().toDouble()
+    val amount = balance.balance.abs()
 
     val statusColor = when {
         isSettled -> MaterialTheme.colorScheme.tertiary
@@ -485,7 +479,7 @@ fun BalancePersonCard(
             // Header Row
             BalancePersonCardHeader(
                 balance = balance,
-                currencySymbol = currencySymbol,
+                currencyCode = currencyCode,
                 statusColor = statusColor,
                 statusText = statusText,
                 amount = amount
@@ -494,7 +488,7 @@ fun BalancePersonCard(
             // Expandable Section
             AnimatedVisibility(visible = expanded) {
                 BalancePersonCardDetails(
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     isSettled = isSettled,
                     isBreakdownLoading = isBreakdownLoading,
                     breakdownItems = breakdownItems,
@@ -508,7 +502,7 @@ fun BalancePersonCard(
     if (showSettleDialog) {
         SettleBalanceDialog(
             balance = balance,
-            currencySymbol = currencySymbol,
+            currencyCode = currencyCode,
             onDismiss = { showSettleDialog = false },
             onSettle = { settleAmount, note ->
                 onSettle(balance, settleAmount, note ?: "Settlement")
@@ -521,10 +515,10 @@ fun BalancePersonCard(
 @Composable
 private fun BalancePersonCardHeader(
     balance: UserBalance,
-    currencySymbol: String,
+    currencyCode: String,
     statusColor: Color,
     statusText: String,
-    amount: Double
+    amount: BigDecimal
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -577,7 +571,7 @@ private fun BalancePersonCardHeader(
         // Amount
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                "$currencySymbol${"%.2f".format(amount)}",
+                "${amount.formatMoney(currencyCode)}",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = statusColor
@@ -594,7 +588,7 @@ private fun BalancePersonCardHeader(
 
 @Composable
 private fun BalancePersonCardDetails(
-    currencySymbol: String,
+    currencyCode: String,
     isSettled: Boolean,
     isBreakdownLoading: Boolean,
     breakdownItems: List<DebtBreakdownItem>?,
@@ -638,7 +632,7 @@ private fun BalancePersonCardDetails(
             }
             else -> {
                 breakdownItems.forEach { item ->
-                    DebtBreakdownRow(item = item, currencySymbol = currencySymbol)
+                    DebtBreakdownRow(item = item, currencyCode = currencyCode)
                 }
             }
         }
@@ -668,7 +662,7 @@ private fun BalancePersonCardDetails(
 @Composable
 private fun DebtBreakdownRow(
     item: DebtBreakdownItem,
-    currencySymbol: String
+    currencyCode: String
 ) {
     Row(
         modifier = Modifier
@@ -690,7 +684,7 @@ private fun DebtBreakdownRow(
             )
         }
         Text(
-            "$currencySymbol${"%.2f".format(item.amountOwed.toDouble().let { abs(it) })}",
+            "${item.amountOwed.abs().formatMoney(currencyCode)}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = if (item.amountOwed < BigDecimal.ZERO)
@@ -704,7 +698,7 @@ private fun DebtBreakdownRow(
 @Composable
 fun SettleBalanceDialog(
     balance: UserBalance,
-    currencySymbol: String,
+    currencyCode: String,
     onDismiss: () -> Unit,
     onSettle: (BigDecimal, String?) -> Unit
 ) {
@@ -761,7 +755,7 @@ fun SettleBalanceDialog(
                     value = amount,
                     onValueChange = { amount = it },
                     label = { Text("Amount") },
-                    prefix = { Text(currencySymbol) },
+                    prefix = { Text(currencySymbol(currencyCode)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(12.dp),

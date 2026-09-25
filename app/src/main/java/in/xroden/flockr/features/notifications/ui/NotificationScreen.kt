@@ -26,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.presentation.NotificationUiState
 import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
@@ -257,7 +257,7 @@ private fun iconForNotificationType(type: NotificationType): ImageVector = when 
 
 private fun formatTimestamp(timestamp: String): String {
     return try {
-        val notifTime = kotlinx.datetime.Instant.parse(timestamp)
+        val notifTime = kotlin.time.Instant.parse(timestamp)
         val now = Clock.System.now()
         val diff = now - notifTime
 

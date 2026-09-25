@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.ui.components.cards.SectionCard
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.charts.SimpleBarChart
@@ -26,8 +26,7 @@ import `in`.xroden.flockr.ui.components.charts.SimplePieChart
 import `in`.xroden.flockr.features.expenses.presentation.MonthlySummaryViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 
-import `in`.xroden.flockr.utils.getCurrencySymbol
-import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import `in`.xroden.flockr.features.house.model.today
 import kotlinx.datetime.*
 
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
@@ -38,8 +37,14 @@ import java.math.BigDecimal
 import java.util.Locale
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.ui.components.charts.ChartEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
+
+private const val PER_DIEM_CHART_KEY = "per-diem"
+
 @Composable
 fun MonthlyReportsScreen(
     houseId: String,
@@ -68,7 +73,7 @@ fun MonthlyReportsScreen(
     // Update selected month when house config loads to use correct timezone
     LaunchedEffect(houseConfig) {
         houseConfig?.let {
-            val houseToday = it.getTodayInHouseTimezone()
+            val houseToday = it.today()
             selectedMonth = LocalDate(houseToday.year, houseToday.month, 1)
         }
     }
@@ -237,7 +242,7 @@ private fun MonthlyOverviewCard(
                 } else BigDecimal.ZERO
 
                 Text(
-                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), totalExpenses),
+                    text = totalExpenses.formatMoney(houseConfig.currency()),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -271,7 +276,7 @@ private fun MonthlyOverviewCard(
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.oneTimeExpenses ?: BigDecimal.ZERO),
+                        text = (summary?.oneTimeExpenses ?: BigDecimal.ZERO).formatMoney(houseConfig.currency()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -293,7 +298,7 @@ private fun MonthlyOverviewCard(
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.recurringExpenses ?: BigDecimal.ZERO),
+                        text = (summary?.recurringExpenses ?: BigDecimal.ZERO).formatMoney(houseConfig.currency()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -315,7 +320,7 @@ private fun MonthlyOverviewCard(
                         letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}%.2f".format(Locale.getDefault(), summary?.perDiemExpenses ?: BigDecimal.ZERO),
+                        text = (summary?.perDiemExpenses ?: BigDecimal.ZERO).formatMoney(houseConfig.currency()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -351,28 +356,15 @@ private fun SpendingByMemberSection(
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Build member data map - individual spending
-                val memberData = spendByMember.associate {
-                    (it.fullName ?: "Unknown") to (it.totalSpent.toDouble())
-                }.toMutableMap()
-
-                // Add per diem as "House" spending
-                val perDiemTotal = perDiemItemized.fold(BigDecimal.ZERO) { acc, item ->
-                    acc.add(item.totalAmount)
-                }
-
-                if (perDiemTotal > BigDecimal.ZERO) {
-                    memberData["House (Per Diem)"] = perDiemTotal.toDouble()
-                }
+                val perDiemTotal = perDiemItemized.sumOf { it.totalAmount }
+                val memberData = spendByMember.map { ChartEntry(it.userId, it.fullName ?: "Unknown", it.totalSpent) } +
+                    listOfNotNull(perDiemTotal.takeIf { it.signum() > 0 }?.let { ChartEntry(PER_DIEM_CHART_KEY, "House (Per Diem)", it) })
 
                 SimpleBarChart(
                     data = memberData,
                     modifier = Modifier.fillMaxWidth(),
-                    currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
-                    onItemClick = { name ->
-                        val user = spendByMember.find { it.fullName == name }
-                        user?.userId?.let { onNavigateToUser(it) }
-                    }
+                    currencyCode = houseConfig.currency(),
+                    onItemClick = { key -> if (key != PER_DIEM_CHART_KEY) onNavigateToUser(key) }
                 )
             }
         }
@@ -405,17 +397,13 @@ private fun SpendingByCategorySection(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Category data is now fully aggregated by the RPC
-                val categoryData = spendByCategory.associate {
-                    (it.category) to (it.totalAmount.toDouble())
-                }
+                val categoryData = spendByCategory.map { ChartEntry(it.category, it.category, it.totalAmount) }
 
                 SimplePieChart(
                     data = categoryData,
                     modifier = Modifier.fillMaxWidth(),
-                    currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$"),
-                    onItemClick = { category ->
-                        onNavigateToCategory(category)
-                    }
+                    currencyCode = houseConfig.currency(),
+                    onItemClick = onNavigateToCategory
                 )
             }
         }
@@ -468,7 +456,7 @@ private fun PerDiemItemizedSection(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", summary.perDiemExpenses)}",
+                            text = summary.perDiemExpenses.formatMoney(houseConfig.currency()),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -512,7 +500,7 @@ private fun PerDiemItemizedCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", item.totalAmount)}",
+                    text = item.totalAmount.formatMoney(houseConfig.currency()),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -545,7 +533,7 @@ private fun PerDiemItemizedCard(
                     )
                 }
                 Text(
-                    text = "@${getCurrencySymbol(houseConfig?.currencyCode ?: "$")}${String.format(Locale.getDefault(), "%.2f", item.rate)}/${item.unit}",
+                    text = "@${item.rate.formatMoney(houseConfig.currency())}/${item.unit}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )

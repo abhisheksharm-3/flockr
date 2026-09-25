@@ -5,7 +5,7 @@ import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.data.enums.InvitationStatus
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.features.auth.model.Profile
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

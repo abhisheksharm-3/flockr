@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.cards.SectionCard
@@ -25,6 +25,8 @@ import `in`.xroden.flockr.ui.theme.CategoryRed
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.time.format.DateTimeFormatter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +39,7 @@ fun ExpenseDetailScreen(
 ) {
     val expense by viewModel.selectedExpense.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = remember(houseConfig) {
-        houseConfig?.getCurrencySymbol() ?: "$"
-    }
+    val currencyCode = houseConfig.currency()
     
     var houseMembers by remember { mutableStateOf<List<MemberWithProfile>>(emptyList()) }
 
@@ -109,7 +109,7 @@ fun ExpenseDetailScreen(
                             Text(currentExpense.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "$currencySymbol${"%.2f".format(currentExpense.amount)}",
+                                text = "${currentExpense.amount.formatMoney(currencyCode)}",
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -172,7 +172,7 @@ fun ExpenseDetailScreen(
                                     Text("Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            Text("$currencySymbol${"%.2f".format(payerShare)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("${payerShare.formatMoney(currencyCode)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         }
 
                         if (currentExpense.splits!!.isNotEmpty()) {
@@ -198,7 +198,7 @@ fun ExpenseDetailScreen(
                                         Text(if (isSettled) "Settled" else "Owes", style = MaterialTheme.typography.labelSmall, color = if (isSettled) CategoryGreen else CategoryRed)
                                     }
                                 }
-                                Text("$currencySymbol${"%.2f".format(split.amountOwed)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text("${split.amountOwed.formatMoney(currencyCode)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                             }
                             
                             if (index < currentExpense.splits!!.size - 1) {

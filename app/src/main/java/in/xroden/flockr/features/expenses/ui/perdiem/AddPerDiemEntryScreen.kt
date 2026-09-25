@@ -18,11 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemConfigUiState
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
@@ -32,6 +31,10 @@ import java.util.Locale
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.utils.lineTotal
+import `in`.xroden.flockr.utils.parseDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +62,7 @@ fun AddPerDiemEntryScreen(
     }
     val config = configs.firstOrNull { it.id == configId }
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "USD")
+    val currencyCode = houseConfig.currency()
 
     LaunchedEffect(houseId) {
         viewModel.loadConfigs(houseId)
@@ -80,7 +83,7 @@ fun AddPerDiemEntryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(millis)
+                        val instant = kotlin.time.Instant.fromEpochMilliseconds(millis)
                         val selectedDate = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
                         date = selectedDate.toString()
                     }
@@ -125,7 +128,7 @@ fun AddPerDiemEntryScreen(
                 Button(
                     onClick = {
                         haptics.tap()
-                        val quantityBd = quantity.toBigDecimalOrNull()
+                        val quantityBd = parseDecimal(quantity)
                         if (quantityBd != null && quantityBd > BigDecimal.ZERO && config != null) {
                             isLoading = true
                             scope.launch {
@@ -151,7 +154,7 @@ fun AddPerDiemEntryScreen(
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                         .navigationBarsPadding()
                         .height(56.dp),
-                    enabled = !isLoading && quantity.toDoubleOrNull()?.let { it > 0 } == true && config != null,
+                    enabled = !isLoading && parseDecimal(quantity)?.let { it.signum() > 0 } == true && config != null,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
@@ -228,7 +231,7 @@ fun AddPerDiemEntryScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "$currencySymbol${String.format(Locale.getDefault(), "%.2f", config.rate)} per ${config.unit}",
+                                "${config.rate.formatMoney(currencyCode)} per ${config.unit}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -298,8 +301,8 @@ fun AddPerDiemEntryScreen(
                         )
 
                         // Cost Preview
-                        val quantityDouble = quantity.toDoubleOrNull()
-                        if (quantityDouble != null && quantityDouble > 0) {
+                        val parsedQuantity = parseDecimal(quantity)
+                        if (parsedQuantity != null && parsedQuantity.signum() > 0) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
@@ -315,7 +318,7 @@ fun AddPerDiemEntryScreen(
                                         style = MaterialTheme.typography.bodyLarge
                                     )
                                     Text(
-                                        "$currencySymbol${String.format(Locale.getDefault(), "%.2f", quantityDouble * config.rate.toDouble())}",
+                                        lineTotal(parsedQuantity, config.rate, currencyCode).formatMoney(currencyCode),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.tertiary

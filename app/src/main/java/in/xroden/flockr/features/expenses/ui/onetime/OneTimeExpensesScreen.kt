@@ -18,20 +18,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseUiState
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.theme.*
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import java.util.Locale
 import `in`.xroden.flockr.utils.formatWithHouseConfig
-import `in`.xroden.flockr.utils.getTodayInHouseTimezone
+import `in`.xroden.flockr.features.house.model.today
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +50,7 @@ fun OneTimeExpensesScreen(
     val expenseState by viewModel.expenseState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     
-    val currencySymbol = remember(houseConfig) {
-        getCurrencySymbol(houseConfig?.currencyCode ?: "$")
-    }
+    val currencyCode = houseConfig.currency()
     
     val isRefreshing = expenseState is OneTimeExpenseUiState.Loading
     val pullToRefreshState = rememberPullToRefreshState()
@@ -63,7 +62,7 @@ fun OneTimeExpensesScreen(
 
     // Calculate current month start using house timezone
     val currentMonthStart = remember(houseConfig) {
-        val now = houseConfig.getTodayInHouseTimezone()
+        val now = houseConfig.today()
         LocalDate(now.year, now.month, 1)
     }
 
@@ -208,7 +207,7 @@ fun OneTimeExpensesScreen(
                                     ModernExpenseCard(
                                         expense = expense,
                                         houseId = houseId,
-                                        currencySymbol = currencySymbol,
+                                        currencyCode = currencyCode,
                                         houseConfig = houseConfig,
                                         onClick = { onNavigateToExpenseDetail(expense.id) },
                                         onEdit = { onNavigateToEditExpense(expense.id) },
@@ -250,7 +249,7 @@ fun OneTimeExpensesScreen(
 fun ModernExpenseCard(
     expense: OneTimeExpense,
     houseId: String,
-    currencySymbol: String = "$",
+    currencyCode: String,
     houseConfig: `in`.xroden.flockr.features.house.model.HouseConfig? = null,
     onClick: () -> Unit,
     onEdit: () -> Unit,
@@ -311,7 +310,7 @@ fun ModernExpenseCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)) {
                         Text(
-                            text = "$currencySymbol${"%.2f".format(expense.amount)}",
+                            text = "${expense.amount.formatMoney(currencyCode)}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,

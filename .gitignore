@@ -40,3 +40,5 @@ supabase.txt
 
 # MCP server config (may contain access tokens)
 .mcp.json
+
+.polaris/work/

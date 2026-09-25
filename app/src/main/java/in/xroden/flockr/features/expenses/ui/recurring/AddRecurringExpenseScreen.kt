@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.forms.FormSectionCard
@@ -32,13 +32,14 @@ import androidx.compose.foundation.BorderStroke
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
 import `in`.xroden.flockr.data.enums.ExpenseSplitType
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.currencySymbol
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +81,7 @@ fun AddRecurringExpenseScreen(
     )
 
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+    val currencyCode = houseConfig.currency()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -120,7 +121,7 @@ fun AddRecurringExpenseScreen(
                 onNameChange = { name = it },
                 amount = amount,
                 onAmountChange = { amount = it },
-                currencySymbol = currencySymbol,
+                currencyCode = currencyCode,
                 dueDay = dueDay,
                 onDueDayChange = { dueDay = it },
                 onShowDueDayPicker = { showDueDayPicker = true },
@@ -169,7 +170,7 @@ fun AddRecurringExpenseScreen(
                     onSplitTypeChange = { splitType = it },
                     customAmounts = customAmounts,
                     onCustomAmountsChange = { customAmounts = it },
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     isLoading = isLoading
                 )
             }
@@ -255,7 +256,7 @@ private fun BillDetailsSection(
     onNameChange: (String) -> Unit,
     amount: String,
     onAmountChange: (String) -> Unit,
-    currencySymbol: String,
+    currencyCode: String,
     dueDay: String,
     onDueDayChange: (String) -> Unit,
     onShowDueDayPicker: () -> Unit,
@@ -293,7 +294,7 @@ private fun BillDetailsSection(
             value = amount,
             onValueChange = onAmountChange,
             label = { Text("Amount *") },
-            prefix = { Text(currencySymbol) },
+            prefix = { Text(currencySymbol(currencyCode)) },
             leadingIcon = { Icon(Icons.Default.AttachMoney, null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(),
@@ -535,7 +536,7 @@ private fun SplitBillSection(
     onSplitTypeChange: (String) -> Unit,
     customAmounts: Map<String, java.math.BigDecimal>,
     onCustomAmountsChange: (Map<String, java.math.BigDecimal>) -> Unit,
-    currencySymbol: String,
+    currencyCode: String,
     isLoading: Boolean
 ) {
     val haptics = rememberHaptics()
@@ -605,7 +606,7 @@ private fun SplitBillSection(
                                 else if (it.isEmpty()) onCustomAmountsChange(customAmounts - memberId)
                             },
                             label = { Text("Amount") },
-                            prefix = { Text(currencySymbol) },
+                            prefix = { Text(currencySymbol(currencyCode)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.width(140.dp),
                             enabled = !isLoading,

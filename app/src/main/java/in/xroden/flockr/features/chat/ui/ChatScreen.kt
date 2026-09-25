@@ -22,13 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.presentation.ChatUiState
 import `in`.xroden.flockr.features.chat.presentation.ChatViewModel
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.utils.formatWithHouseConfig
-import `in`.xroden.flockr.utils.getTimezone
+import `in`.xroden.flockr.features.house.model.timeZone
 import `in`.xroden.flockr.utils.rememberHaptics
 import java.time.Instant
 import java.time.LocalDateTime
@@ -341,7 +341,7 @@ private fun formatTimestamp(timestamp: String, houseConfig: HouseConfig? = null)
     // Silent version: returns "Unknown" on failure without logging
     return runCatching {
         val instant = Instant.parse(timestamp)
-        val zoneId = ZoneId.of(houseConfig.getTimezone().id)
+        val zoneId = ZoneId.of(houseConfig.timeZone().id)
         val messageTime = LocalDateTime.ofInstant(instant, zoneId)
         val now = LocalDateTime.now(zoneId)
 

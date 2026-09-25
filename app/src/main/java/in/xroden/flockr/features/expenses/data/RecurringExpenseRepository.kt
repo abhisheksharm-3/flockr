@@ -20,6 +20,7 @@ import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
+import `in`.xroden.flockr.utils.minorUnitDigits
 
 @Singleton
 class RecurringExpenseRepository @Inject constructor(
@@ -134,7 +135,8 @@ class RecurringExpenseRepository @Inject constructor(
     override suspend fun markRecurringExpenseAsPaid(
         expenseId: String,
         amount: BigDecimal,
-        paymentDate: LocalDate
+        paymentDate: LocalDate,
+        currencyCode: String
     ): Result<Unit> = runCatching {
         val currentUserId = requireAuthenticated(authenticatedUserId)
 
@@ -145,17 +147,10 @@ class RecurringExpenseRepository @Inject constructor(
             .decodeSingleOrNull<RecurringExpense>()
             ?: throw IllegalStateException("Recurring expense not found")
 
-        val splitsJson = buildExpenseSplitsJson(
-            amount = amount,
-            payerId = currentUserId,
-            splitWith = recurringExpense.splitWith,
-            splitType = recurringExpense.splitType,
-            splitAmounts = recurringExpense.splitAmounts
-        )
+        val shares = requireNotNull(
+            recurringPaymentShares(recurringExpense, amount, currentUserId, minorUnitDigits(currencyCode))
+        ) { "This bill's split can't be applied to that amount" }
 
-        // One RPC does the expense insert, splits, payment-history row, and last_paid_date
-        // update in a single transaction — previously three separate calls could half-apply
-        // (orphan history row + a retry double-inserting).
         supabase.postgrest.rpc(
             function = "mark_recurring_bill_paid",
             parameters = MarkRecurringBillPaidParams(
@@ -167,7 +162,7 @@ class RecurringExpenseRepository @Inject constructor(
                 category = recurringExpense.category,
                 date = paymentDate,
                 notes = "Recurring Payment",
-                splits = splitsJson
+                splits = splitRowsJson(shares.rows)
             )
         )
     }

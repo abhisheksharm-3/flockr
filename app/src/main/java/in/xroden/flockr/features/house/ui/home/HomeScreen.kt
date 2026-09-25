@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.HouseListUiState
 import `in`.xroden.flockr.features.house.model.HouseCardData
@@ -586,12 +586,14 @@ fun HouseCard(
                         )
                     }
 
-                    GlassPill {
-                        Text(
-                            "${houseData.currencySymbol}${houseData.monthlyExpense.toInt()}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    houseData.monthlySpendLabel?.let { spend ->
+                        GlassPill {
+                            Text(
+                                spend,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 

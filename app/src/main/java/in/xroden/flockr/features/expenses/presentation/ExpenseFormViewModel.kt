@@ -1,0 +1,132 @@
+package `in`.xroden.flockr.features.expenses.presentation
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.features.expenses.data.IExpenseRepository
+import `in`.xroden.flockr.features.house.data.IHouseRepository
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.features.house.model.today
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import javax.inject.Inject
+
+/**
+ * Adds a one-time expense or edits an existing one. Both go through [ExpenseFormState.splitPlan],
+ * so the split the user previews is the split that is saved.
+ */
+@HiltViewModel
+class ExpenseFormViewModel @Inject constructor(
+    private val houseRepository: IHouseRepository,
+    private val expenseRepository: IExpenseRepository,
+) : ViewModel() {
+
+    private val _formState = MutableStateFlow(ExpenseFormState())
+    val formState: StateFlow<ExpenseFormState> = _formState.asStateFlow()
+
+    private val _uiState = MutableStateFlow<ExpenseFormUiState>(ExpenseFormUiState.Idle)
+    val uiState: StateFlow<ExpenseFormUiState> = _uiState.asStateFlow()
+
+    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
+    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
+
+    private val _saved = Channel<Unit>(Channel.BUFFERED)
+
+    /** Emits once each time the expense has been written, which is the only time to leave the form. */
+    val saved = _saved.receiveAsFlow()
+
+    private var saveJob: Job? = null
+
+    /**
+     * Prepares the form. With [expenseId] it loads that expense for editing; otherwise it starts a
+     * new expense dated today in the house, optionally prefilled from a shopping item.
+     */
+    fun initialize(houseId: String, expenseId: String?, initialName: String?, initialQuantity: Int?) {
+        viewModelScope.launch {
+            val config = houseRepository.getHouseConfig(houseId).getOrNull()
+            _houseConfig.value = config
+            val viewerId = houseRepository.getCurrentUserId().orEmpty()
+            val base = ExpenseFormState(
+                name = initialName.orEmpty(),
+                date = config.today(),
+                notes = initialQuantity?.let { "Quantity: $it" }.orEmpty(),
+                houseMembers = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() },
+                currencyCode = config.currency(),
+                payerId = viewerId,
+                viewerId = viewerId,
+                isLoaded = expenseId == null,
+            )
+            _formState.value = base
+            if (expenseId == null) return@launch
+
+            expenseRepository.getOneTimeExpense(expenseId).fold(
+                onSuccess = { _formState.value = ExpenseFormState.editing(it, base) },
+                onFailure = { _uiState.value = ExpenseFormUiState.Error(it.message ?: "Couldn't load this expense") },
+            )
+        }
+    }
+
+    fun onNameChange(name: String) = _formState.update { it.copy(name = name) }
+    fun onAmountChange(amount: String) = _formState.update { it.copy(amount = amount) }
+    fun onDateChange(date: LocalDate) = _formState.update { it.copy(date = date) }
+    fun onNotesChange(notes: String) = _formState.update { it.copy(notes = notes) }
+    fun onCategoryChange(category: String) = _formState.update { it.copy(category = category) }
+    fun onSplitEnabledChange(enabled: Boolean) = _formState.update { it.copy(isSplitEnabled = enabled) }
+    fun onSplitEqualChange(equal: Boolean) = _formState.update { it.copy(isSplitEqual = equal) }
+
+    fun onMemberSelectionChange(userId: String, selected: Boolean) = _formState.update {
+        it.copy(selectedMemberIds = if (selected) it.selectedMemberIds + userId else it.selectedMemberIds - userId)
+    }
+
+    fun onCustomSplitChange(userId: String, amount: String) = _formState.update {
+        it.copy(customSplits = it.customSplits + (userId to amount))
+    }
+
+    fun dismissError() {
+        _uiState.value = ExpenseFormUiState.Idle
+    }
+
+    fun save(houseId: String) {
+        val form = _formState.value
+        val date = form.date ?: return
+        val amount = form.parsedAmount ?: return fail("Enter an amount in ${form.currencyCode}")
+        val plan = form.splitPlan ?: return fail("Shares must not exceed the total, and yours must match what is left")
+        if (form.payerId.isEmpty()) return fail("You're signed out. Sign in again to save.")
+        if (saveJob?.isActive == true) return
+
+        saveJob = viewModelScope.launch {
+            _uiState.value = ExpenseFormUiState.Saving
+            val notes = form.notes.takeIf { it.isNotBlank() }
+            val result = if (form.expenseId == null) {
+                expenseRepository.createOneTimeExpense(
+                    houseId = houseId, name = form.name, amount = amount, category = form.category,
+                    paidBy = form.payerId, date = date, notes = notes, splitRows = plan.rows,
+                )
+            } else {
+                expenseRepository.updateOneTimeExpense(
+                    expenseId = form.expenseId, name = form.name, amount = amount, category = form.category,
+                    date = date, notes = notes, splitAmounts = plan.rows,
+                )
+            }
+            result.fold(
+                onSuccess = {
+                    _uiState.value = ExpenseFormUiState.Idle
+                    _saved.send(Unit)
+                },
+                onFailure = { fail(it.message ?: "Couldn't save the expense") },
+            )
+        }
+    }
+
+    private fun fail(message: String) {
+        _uiState.value = ExpenseFormUiState.Error(message)
+    }
+}

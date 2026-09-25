@@ -21,12 +21,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.chores.presentation.ChoreUiState
 import `in`.xroden.flockr.features.chores.presentation.ChoreViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
-import `in`.xroden.flockr.utils.getTimezone
+import `in`.xroden.flockr.features.house.model.timeZone
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toLocalDateTime
@@ -43,7 +43,7 @@ fun ProductivityScreen(
     val scope = rememberCoroutineScope()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
 
-    val now = kotlin.time.Clock.System.now().toLocalDateTime(houseConfig.getTimezone())
+    val now = kotlin.time.Clock.System.now().toLocalDateTime(houseConfig.timeZone())
     var selectedMonth by remember { mutableStateOf(LocalDate(now.year, now.month, 1)) }
 
     LaunchedEffect(houseId) {
@@ -67,7 +67,7 @@ fun ProductivityScreen(
         completedChores
             .filter { chore ->
                 chore.completedAt?.let { completedAt ->
-                    val completedDate = completedAt.toLocalDateTime(houseConfig.getTimezone())
+                    val completedDate = completedAt.toLocalDateTime(houseConfig.timeZone())
                     completedDate.year == selectedMonth.year && completedDate.month == selectedMonth.month
                 } ?: false
             }
@@ -83,7 +83,7 @@ fun ProductivityScreen(
         completedChores
             .filter { chore ->
                 chore.completedAt?.let { completedAt ->
-                    val completedDate = completedAt.toLocalDateTime(houseConfig.getTimezone())
+                    val completedDate = completedAt.toLocalDateTime(houseConfig.timeZone())
                     completedDate.year == selectedMonth.year
                 } ?: false
             }

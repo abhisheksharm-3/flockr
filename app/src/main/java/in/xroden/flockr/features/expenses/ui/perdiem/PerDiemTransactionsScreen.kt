@@ -14,14 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemEntryUiState
 import `in`.xroden.flockr.features.expenses.presentation.PerDiemViewModel
 import `in`.xroden.flockr.features.expenses.model.PerDiemEntryWithDetails
 import `in`.xroden.flockr.ui.components.inputs.MonthSelector
 import `in`.xroden.flockr.ui.components.loading.ListScreenSkeleton
 import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import kotlinx.datetime.*
 import java.util.Locale
@@ -29,6 +28,8 @@ import java.math.BigDecimal
 import kotlin.time.Clock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.utils.rememberHaptics
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 /**
  * Screen to view all per diem transactions
@@ -52,7 +53,7 @@ fun PerDiemTransactionsScreen(
     val entryState by viewModel.entryState.collectAsStateWithLifecycle()
 
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+    val currencyCode = houseConfig.currency()
 
     LaunchedEffect(houseId, selectedMonth) {
         // Format as "YYYY-MM" for the API/ViewModel
@@ -107,7 +108,7 @@ fun PerDiemTransactionsScreen(
                     entries = state.entries,
                     selectedMonth = selectedMonth,
                     onMonthChange = { selectedMonth = it },
-                    currencySymbol = currencySymbol,
+                    currencyCode = currencyCode,
                     houseConfig = houseConfig,
                     onDeleteEntry = { entryId -> viewModel.deletePerDiemEntry(houseId, entryId) },
                     onUpdateEntry = { entryId, quantity, date, notes ->
@@ -145,7 +146,7 @@ private fun PerDiemTransactionsContent(
     entries: List<PerDiemEntryWithDetails>,
     selectedMonth: LocalDate,
     onMonthChange: (LocalDate) -> Unit,
-    currencySymbol: String,
+    currencyCode: String,
     houseConfig: HouseConfig?,
     onDeleteEntry: (String) -> Unit,
     onUpdateEntry: (String, BigDecimal?, LocalDate?, String?) -> Unit,
@@ -169,7 +170,7 @@ private fun PerDiemTransactionsContent(
             MonthSpendingSummaryCard(
                 entries = entries,
                 selectedMonth = selectedMonth,
-                currencySymbol = currencySymbol
+                currencyCode = currencyCode
             )
         }
 
@@ -197,7 +198,7 @@ private fun PerDiemTransactionsContent(
                 items(dateEntries, key = { it.entryId }) { entry ->
                     PerDiemTransactionCard(
                         entry = entry,
-                        currencySymbol = currencySymbol,
+                        currencyCode = currencyCode,
                         onDelete = { onDeleteEntry(entry.entryId) },
                         onUpdate = { quantity, date, notes ->
                             onUpdateEntry(entry.entryId, quantity, date, notes)
@@ -213,9 +214,9 @@ private fun PerDiemTransactionsContent(
 private fun MonthSpendingSummaryCard(
     entries: List<PerDiemEntryWithDetails>,
     selectedMonth: LocalDate,
-    currencySymbol: String
+    currencyCode: String
 ) {
-    val totalAmount = entries.sumOf { it.totalCost.toDouble() }
+    val totalAmount = entries.sumOf { it.totalCost }
     val monthName = selectedMonth.month.name.lowercase()
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
@@ -267,7 +268,7 @@ private fun MonthSpendingSummaryCard(
                 )
             }
             Text(
-                text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", totalAmount)}",
+                text = totalAmount.formatMoney(currencyCode),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -312,7 +313,7 @@ private fun EmptyTransactionsContent() {
 @Composable
 private fun PerDiemTransactionCard(
     entry: PerDiemEntryWithDetails,
-    currencySymbol: String,
+    currencyCode: String,
     onDelete: () -> Unit,
     onUpdate: (BigDecimal?, LocalDate?, String?) -> Unit
 ) {
@@ -357,7 +358,7 @@ private fun PerDiemTransactionCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${String.format(Locale.getDefault(), "%.1f", entry.quantity)} ${entry.unit} @ $currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.rate)}",
+                        text = "${String.format(Locale.getDefault(), "%.1f", entry.quantity)} ${entry.unit} @ ${entry.rate.formatMoney(currencyCode)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -402,7 +403,7 @@ private fun PerDiemTransactionCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", entry.totalCost)}",
+                    text = entry.totalCost.formatMoney(currencyCode),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

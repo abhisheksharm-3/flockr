@@ -11,12 +11,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.presentation.RecurringExpenseViewModel
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +30,7 @@ fun BillHistoryScreen(
 ) {
     val historyState by viewModel.paymentHistoryState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    val currencySymbol = getCurrencySymbol(houseConfig?.currencyCode ?: "$")
+    val currencyCode = houseConfig.currency()
 
     // Fetch house members to resolve names
     val houseMembers = produceState<List<MemberWithProfile>>(initialValue = emptyList(), key1 = houseId) {
@@ -129,7 +130,7 @@ fun BillHistoryScreen(
                                 )
                             }
                             Text(
-                                text = "$currencySymbol${"%.2f".format(payment.amount)}",
+                                text = "${payment.amount.formatMoney(currencyCode)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary

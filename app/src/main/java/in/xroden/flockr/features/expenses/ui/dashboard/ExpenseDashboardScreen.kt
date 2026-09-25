@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import `in`.xroden.flockr.features.expenses.model.MonthlySummary
 import `in`.xroden.flockr.features.expenses.model.OneTimeExpense
 import `in`.xroden.flockr.features.expenses.presentation.OneTimeExpenseViewModel
@@ -35,11 +35,12 @@ import `in`.xroden.flockr.ui.theme.CategoryGreen
 import `in`.xroden.flockr.ui.theme.CategoryOrange
 import `in`.xroden.flockr.ui.theme.CategoryPurple
 import `in`.xroden.flockr.ui.theme.CategoryRed
-import `in`.xroden.flockr.utils.getCurrencySymbol
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.TimeZone
 import java.math.BigDecimal
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.utils.formatMoney
 
 /**
  * Central Finance Dashboard - Hub for all finance features
@@ -67,9 +68,7 @@ fun ExpenseDashboardScreen(
     val currentUserId = expenseViewModel.getCurrentUserId()
     
     // Derived state for heavy calculations
-    val currencySymbol by remember {
-        derivedStateOf { houseConfig?.getCurrencySymbol() ?: "$" }
-    }
+    val currencyCode = houseConfig.currency()
 
     val summaryData by remember {
         derivedStateOf {
@@ -122,7 +121,7 @@ fun ExpenseDashboardScreen(
             quickStatsSection(
                 summaryData = summaryData,
                 currentUserId = currentUserId,
-                currencySymbol = currencySymbol
+                currencyCode = currencyCode
             )
 
             manageFeaturesSection(
@@ -137,7 +136,7 @@ fun ExpenseDashboardScreen(
 
             recentExpensesSection(
                 expenseState = expenseState,
-                currencySymbol = currencySymbol,
+                currencyCode = currencyCode,
                 onNavigateToExpenseDetail = onNavigateToExpenseDetail,
                 onNavigateToOneTimeExpenses = onNavigateToOneTimeExpenses
             )
@@ -177,11 +176,11 @@ private fun LazyListScope.dashboardHeaderSection() {
 private fun LazyListScope.quickStatsSection(
     summaryData: Pair<MonthlySummary?, List<SpendByMember>>,
     currentUserId: String?,
-    currencySymbol: String
+    currencyCode: String
 ) {
     item {
         val (monthlySummary, spendByMember) = summaryData
-        val totalThisMonth = monthlySummary?.totalExpenses?.toDouble() ?: 0.0
+        val totalThisMonth = monthlySummary?.totalExpenses ?: BigDecimal.ZERO
         val userSpending = spendByMember.find { it.userId == currentUserId }?.totalSpent ?: BigDecimal.ZERO
 
         Row(
@@ -190,13 +189,13 @@ private fun LazyListScope.quickStatsSection(
         ) {
             FinanceStatCard(
                 label = "THIS MONTH",
-                value = "$currencySymbol${"%.2f".format(totalThisMonth)}",
+                value = totalThisMonth.formatMoney(currencyCode),
                 modifier = Modifier.weight(1f),
                 accentColor = MaterialTheme.colorScheme.primary
             )
             FinanceStatCard(
                 label = "YOUR EXPENSE",
-                value = "$currencySymbol${"%.2f".format(userSpending)}",
+                value = userSpending.formatMoney(currencyCode),
                 modifier = Modifier.weight(1f),
                 accentColor = MaterialTheme.colorScheme.tertiary,
                 isPositive = true
@@ -310,7 +309,7 @@ private fun LazyListScope.reportsSection(
  */
 private fun LazyListScope.recentExpensesSection(
     expenseState: OneTimeExpenseUiState,
-    currencySymbol: String,
+    currencyCode: String,
     onNavigateToExpenseDetail: (String) -> Unit,
     onNavigateToOneTimeExpenses: () -> Unit
 ) {
@@ -348,7 +347,7 @@ private fun LazyListScope.recentExpensesSection(
                 ) { expense ->
                     RecentExpenseCard(
                         expense = expense,
-                        currencySymbol = currencySymbol,
+                        currencyCode = currencyCode,
                         onClick = { onNavigateToExpenseDetail(expense.id) }
                     )
                 }
@@ -554,7 +553,7 @@ private fun FinanceFeatureCard(
 @Composable
 fun RecentExpenseCard(
     expense: OneTimeExpense,
-    currencySymbol: String,
+    currencyCode: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -605,7 +604,7 @@ fun RecentExpenseCard(
             }
 
             Text(
-                text = "$currencySymbol${"%.2f".format(expense.amount)}",
+                text = expense.amount.formatMoney(currencyCode),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
