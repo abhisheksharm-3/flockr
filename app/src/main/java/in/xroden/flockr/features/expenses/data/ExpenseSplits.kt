@@ -1,186 +1,132 @@
-/** The rules for dividing an expense between its payer and the members it is split with. */
+/** The rules for dividing an expense into what each person paid and what each person owes. */
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.utils.apportion
+import java.math.BigDecimal
+import java.math.BigInteger
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import java.math.BigDecimal
-import java.math.BigInteger
-import java.math.RoundingMode
+
+/** Decimal places a split value may have. Matches `split_value numeric(14, 4)` in the schema. */
+private const val SPLIT_VALUE_DIGITS = 4
+
+private val HUNDRED = BigDecimal(100)
 
 /**
- * How an expense divides between its payer and the other members.
+ * Each participant's owed share of [amount] under [method], in exact units of a currency with
+ * [minorDigits] decimal places. The keys of [splitValues] are the participants; each value is read
+ * as [SplitMethod] describes.
  *
- * Only [rows] are stored. The payer holds no split row: their share is whatever the total leaves
- * after [rows], and it is returned so the UI can show the payer what they will actually bear.
+ * Divisions use the largest-remainder method, so the shares add up to [amount] exactly and no two
+ * equal shares differ by more than one unit. Leftover units go first to whoever [tieOrder] puts first.
+ *
+ * Returns null when the values cannot make a split: no participants, a value that is not positive
+ * or has more than four decimals, percentages that do not total 100, or exact amounts that do not
+ * total [amount] or are finer than the currency allows.
  */
-internal data class SplitShares(
-    val rows: Map<String, BigDecimal>,
-    val payerShare: BigDecimal,
-)
-
-/**
- * Divides [amount] equally between [payerId] and [splitWith] in the currency's smallest unit.
- *
- * [minorDigits] is the currency's number of minor-unit digits: 2 for cents, 0 for yen. Dividing in
- * cents for a currency without them would store fractions of a yen that no display can show, and
- * the shares would appear not to add up. Leftover units go to the other members before the payer,
- * so the shares sum to exactly [amount] and no two differ by more than one unit.
- *
- * [splitWith] may contain [payerId]; the payer is counted once. With no one else to split with, or
- * an amount that is not positive, there are no rows and the payer bears it all.
- */
-internal fun equalShares(
+internal fun owedShares(
     amount: BigDecimal,
-    payerId: String,
-    splitWith: Collection<String>,
-    minorDigits: Int,
-): SplitShares {
-    val participants = (splitWith + payerId).distinct()
-    if (participants.size < 2 || amount.signum() <= 0) return payerBearsAll(amount, minorDigits)
-    val payerLast = compareBy<String> { it == payerId }.thenBy { it }
-    return sharesOf(amount, payerId, participants.associateWith { BigInteger.ONE }, minorDigits, payerLast)
-}
-
-/**
- * Divides [amount] in proportion to [weights], in the currency's smallest unit.
- *
- * This is how a recurring bill with a custom split is paid: the amounts saved on the template are
- * proportions, so a 60/40 split of a 100 bill becomes 72/48 when this month's bill is 120. The
- * shares always sum to exactly [amount]; ties go to the lower user id so the result is stable.
- *
- * [payerId] need not appear in [weights], in which case the payer bears nothing. Returns null when
- * no weight is positive or any weight is negative.
- */
-internal fun proportionalShares(
-    amount: BigDecimal,
-    payerId: String,
-    weights: Map<String, BigDecimal>,
-    minorDigits: Int,
-): SplitShares? {
-    if (weights.values.any { it.signum() < 0 } || weights.values.none { it.signum() > 0 }) return null
-    val weightUnits = weights.mapValues { it.value.toMinorUnits(minorDigits) }
-    return sharesOf(amount, payerId, weightUnits, minorDigits, naturalOrder())
-}
-
-private fun sharesOf(
-    amount: BigDecimal,
-    payerId: String,
-    weights: Map<String, BigInteger>,
+    method: SplitMethod,
+    splitValues: Map<String, BigDecimal>,
     minorDigits: Int,
     tieOrder: Comparator<String>,
-): SplitShares {
-    val shares = apportion(amount.toMinorUnits(minorDigits), weights, tieOrder).mapValues { it.value.fromMinorUnits(minorDigits) }
-    return SplitShares(
-        rows = shares.filterKeys { it != payerId },
-        payerShare = shares[payerId] ?: BigDecimal.ZERO.setScale(minorDigits),
-    )
+): Map<String, BigDecimal>? {
+    val isWellFormed = splitValues.isNotEmpty() && amount.fitsDigits(minorDigits) && amount.signum() > 0 &&
+        splitValues.values.all { it.signum() > 0 && it.fitsDigits(SPLIT_VALUE_DIGITS) }
+    if (!isWellFormed) return null
+    return when (method) {
+        SplitMethod.EQUAL -> divide(amount, splitValues.mapValues { BigDecimal.ONE }, minorDigits, tieOrder)
+        SplitMethod.SHARES -> divide(amount, splitValues, minorDigits, tieOrder)
+        SplitMethod.PERCENT ->
+            if (splitValues.values.sum().compareTo(HUNDRED) == 0) divide(amount, splitValues, minorDigits, tieOrder) else null
+        SplitMethod.EXACT ->
+            splitValues.takeIf { values -> values.values.all { it.fitsDigits(minorDigits) } && values.values.sum().compareTo(amount) == 0 }
+                ?.mapValues { it.value.setScale(minorDigits) }
+    }
 }
 
-private fun payerBearsAll(amount: BigDecimal, minorDigits: Int) =
-    SplitShares(emptyMap(), amount.max(BigDecimal.ZERO).setScale(minorDigits, RoundingMode.HALF_UP))
-
-private fun BigDecimal.toMinorUnits(minorDigits: Int): BigInteger =
-    setScale(minorDigits, RoundingMode.HALF_UP).movePointRight(minorDigits).toBigIntegerExact()
-
-private fun BigInteger.fromMinorUnits(minorDigits: Int): BigDecimal =
-    toBigDecimal().movePointLeft(minorDigits).setScale(minorDigits)
+/**
+ * The share rows for an expense of [amount] that [payerId] paid in full, divided by [method] across
+ * the participants in [splitValues]. With no [method] the payer bears it alone. The payer need not
+ * be a participant, so one housemate can pay for something only the others share.
+ *
+ * The same rows are previewed and saved, so what the user sees before saving is what is written.
+ * Someone who neither paid nor owes anything gets no row. Returns null when [owedShares] does.
+ */
+internal fun expenseShares(
+    amount: BigDecimal,
+    payerId: String,
+    method: SplitMethod?,
+    splitValues: Map<String, BigDecimal>,
+    minorDigits: Int,
+): List<ExpenseShare>? {
+    if (!amount.fitsDigits(minorDigits) || amount.signum() <= 0) return null
+    val total = amount.setScale(minorDigits)
+    val owed = if (method == null) {
+        mapOf(payerId to total)
+    } else {
+        val payerLast = compareBy<String> { it == payerId }.thenBy { it }
+        owedShares(amount, method, splitValues, minorDigits, payerLast) ?: return null
+    }
+    val zero = BigDecimal.ZERO.setScale(minorDigits)
+    return (owed.keys + payerId).distinct()
+        .map { userId ->
+            ExpenseShare(
+                userId = userId,
+                paidShare = if (userId == payerId) total else zero,
+                owedShare = owed[userId] ?: zero,
+                splitValue = if (method == null || method == SplitMethod.EQUAL) null else splitValues[userId],
+            )
+        }
+        .filter { it.paidShare.signum() > 0 || it.owedShare.signum() > 0 }
+}
 
 /**
- * How one payment of the recurring bill [template] divides when [payerId] pays [amount].
- *
- * The bill belongs to its creator and the members it is split with, whoever happens to pay this
- * time. An equal split weights each participant the same; a custom split uses the template's saved
- * amounts as proportions, with the creator holding whatever those amounts leave of the template's
- * total. Returns null when the template's split cannot be applied.
+ * The share rows when [payerId] pays [amount] towards [bill]. The bill's split values apply to
+ * whatever this payment's amount is, so a 60/40 split of a 100 bill becomes 72/48 when this month's
+ * bill is 120. Exact amounts that no longer add up to this payment are scaled the same way.
  */
 internal fun recurringPaymentShares(
-    template: RecurringExpense,
+    bill: RecurringExpense,
     amount: BigDecimal,
     payerId: String,
     minorDigits: Int,
-): SplitShares? {
-    val splitWith = template.splitWith.orEmpty()
-    if (splitWith.isEmpty() || template.splitType == null) return payerBearsAll(amount, minorDigits)
-    val weights: Map<String, BigDecimal> = when (template.splitType) {
-        ExpenseSplitType.EQUAL -> (splitWith + template.createdBy).distinct().associateWith { BigDecimal.ONE }
-        ExpenseSplitType.AMOUNT, ExpenseSplitType.CUSTOM -> {
-            val listed = template.splitAmounts.orEmpty()
-            val creatorRemainder = template.amount - listed.values.fold(BigDecimal.ZERO, BigDecimal::add)
-            if (creatorRemainder.signum() > 0) {
-                listed + (template.createdBy to (listed[template.createdBy].orZero() + creatorRemainder))
-            } else listed
-        }
-        ExpenseSplitType.PERCENTAGE -> return null
-    }
-    return proportionalShares(amount, payerId, weights, minorDigits)
+): List<ExpenseShare>? {
+    val method = bill.splitMethod?.takeIf { bill.shares.isNotEmpty() }
+    val effectiveMethod = if (method == SplitMethod.EXACT && amount.compareTo(bill.amount) != 0) SplitMethod.SHARES else method
+    return expenseShares(amount, payerId, effectiveMethod, bill.shares.associate { it.userId to it.splitValue }, minorDigits)
 }
 
-private fun BigDecimal?.orZero(): BigDecimal = this ?: BigDecimal.ZERO
-
-/**
- * Validates explicit per-member [amounts] against [amount] and returns the resulting shares.
- *
- * The payer's share is whatever the other members' amounts leave. If the payer is listed with an
- * amount of their own it must equal that remainder, so the listed amounts total [amount] exactly.
- * Returns null when an amount is negative or has more decimals than [minorDigits], when the other
- * members' amounts exceed the expense, or when the payer's own listed amount does not match.
- */
-internal fun customShares(
-    amount: BigDecimal,
-    payerId: String,
-    amounts: Map<String, BigDecimal>,
-    minorDigits: Int,
-): SplitShares? {
-    val isWellFormed = amounts.values.all { it.signum() >= 0 && it.stripTrailingZeros().scale() <= minorDigits }
-    if (!isWellFormed || amount.signum() <= 0) return null
-
-    val rows = amounts.filterKeys { it != payerId }.mapValues { it.value.setScale(minorDigits) }
-    val payerShare = amount.setScale(minorDigits, RoundingMode.HALF_UP) - rows.values.fold(BigDecimal.ZERO, BigDecimal::add)
-    if (payerShare.signum() < 0) return null
-
-    val listedPayerShare = amounts[payerId]
-    if (listedPayerShare != null && listedPayerShare.compareTo(payerShare) != 0) return null
-
-    return SplitShares(rows, payerShare)
-}
-
-/**
- * Plans how [amount] divides for a split of [splitType] across [members], in a currency with
- * [minorDigits] minor-unit digits. The preview and the saved rows both come from here, so what the
- * user sees before saving is exactly what is written.
- *
- * Returns null when the custom amounts break the rules in [customShares], or for a percentage
- * split, which no screen produces and this app does not support.
- */
-internal fun planSplit(
-    amount: BigDecimal,
-    payerId: String,
-    splitType: ExpenseSplitType?,
-    members: Collection<String>,
-    customAmounts: Map<String, BigDecimal>?,
-    minorDigits: Int,
-): SplitShares? = when {
-    splitType == null || members.none { it != payerId } -> payerBearsAll(amount, minorDigits)
-    splitType == ExpenseSplitType.EQUAL -> equalShares(amount, payerId, members, minorDigits)
-    splitType == ExpenseSplitType.PERCENTAGE -> null
-    else -> {
-        val amounts = customAmounts.orEmpty().filterKeys { it in members || it == payerId }
-        val isEveryMemberPriced = members.all { it == payerId || it in amounts }
-        if (isEveryMemberPriced) customShares(amount, payerId, amounts, minorDigits) else null
-    }
-}
-
-/** The `expense_splits` payload the expense RPCs take, as plain decimal strings so no precision is lost. */
-internal fun splitRowsJson(rows: Map<String, BigDecimal>): JsonArray = buildJsonArray {
-    rows.forEach { (userId, owed) ->
+/** The `p_shares` payload the expense RPCs take, with amounts as plain decimal strings so no precision is lost. */
+internal fun sharesJson(shares: List<ExpenseShare>): JsonArray = buildJsonArray {
+    shares.forEach { share ->
         add(buildJsonObject {
-            put("user_id", userId)
-            put("amount", owed.toPlainString())
+            put("user_id", share.userId)
+            put("paid_share", share.paidShare.toPlainString())
+            put("owed_share", share.owedShare.toPlainString())
+            put("split_value", share.splitValue?.toPlainString())
         })
     }
 }
+
+private fun divide(
+    amount: BigDecimal,
+    weights: Map<String, BigDecimal>,
+    minorDigits: Int,
+    tieOrder: Comparator<String>,
+): Map<String, BigDecimal> {
+    val units = amount.movePointRight(minorDigits).toBigIntegerExact()
+    val integerWeights = weights.mapValues { it.value.movePointRight(SPLIT_VALUE_DIGITS).toBigIntegerExact() }
+    return apportion(units, integerWeights, tieOrder).mapValues { it.value.fromUnits(minorDigits) }
+}
+
+private fun BigInteger.fromUnits(minorDigits: Int): BigDecimal = toBigDecimal().movePointLeft(minorDigits).setScale(minorDigits)
+
+private fun BigDecimal.fitsDigits(digits: Int): Boolean = stripTrailingZeros().scale() <= digits
+
+private fun Collection<BigDecimal>.sum(): BigDecimal = fold(BigDecimal.ZERO, BigDecimal::add)

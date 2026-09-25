@@ -1,179 +1,131 @@
+/** Recurring bills: their schedule and split, and recording each payment as an expense. */
 package `in`.xroden.flockr.features.expenses.data
 
+import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.data.base.BaseRealtimeRepository
-import `in`.xroden.flockr.data.dto.RecurringExpenseInsert
-import `in`.xroden.flockr.data.dto.RecurringExpenseUpdate
-import `in`.xroden.flockr.data.dto.expense.GetRecurringExpensesParams
-import `in`.xroden.flockr.data.dto.expense.MarkRecurringBillPaidParams
-import `in`.xroden.flockr.data.enums.ExpenseSplitType
-import `in`.xroden.flockr.features.expenses.model.PaymentHistory
+import `in`.xroden.flockr.core.security.InputSanitizer
+import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.data.realtime.TableWatch
+import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
+import `in`.xroden.flockr.features.expenses.model.RecurringShare
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
-import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.LocalDate
 import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
-import `in`.xroden.flockr.utils.minorUnitDigits
+import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 
 @Singleton
 class RecurringExpenseRepository @Inject constructor(
-    supabase: SupabaseClient,
-    connectionManager: RealtimeConnectionManager
-) : BaseRealtimeRepository(supabase, connectionManager), IRecurringExpenseRepository {
+    private val supabase: SupabaseClient,
+    private val connectionManager: RealtimeConnectionManager,
+) {
+    /** The house's bills, soonest due first. Recording a payment moves a bill on, so payments refresh it too. */
+    fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>> =
+        supabase.liveQuery(
+            connectionManager,
+            listOf(TableWatch("recurring_expenses", "house_id", houseId), TableWatch("expenses", "house_id", houseId))
+        ) { fetchRecurringExpenses(houseId) }
 
-    override fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>> =
-        createRealtimeFlow(
-            channelId = "recurring_expenses_$houseId",
-            table = "recurring_expenses",
-            filterColumn = "house_id",
-            filterValue = houseId,
-            fetchData = { getRecurringExpenses(houseId) }
-        )
+    suspend fun getRecurringExpenses(houseId: String): Result<List<RecurringExpense>> = runCatching { fetchRecurringExpenses(houseId) }
 
-    override suspend fun getRecurringExpenses(houseId: String): Result<List<RecurringExpense>> = runCatching {
-        supabase.postgrest.rpc(
-            function = "get_recurring_expenses_with_status",
-            parameters = GetRecurringExpensesParams(houseId = houseId)
-        ).decodeList<RecurringExpense>()
-    }
+    private suspend fun fetchRecurringExpenses(houseId: String): List<RecurringExpense> =
+        supabase.postgrest.rpc("get_recurring_expenses", buildJsonObject { put("p_house_id", houseId) })
+            .decodeList<RecurringExpense>()
 
-    override suspend fun createRecurringExpense(
+    /**
+     * Adds a bill, or replaces [billId]'s details and split, and returns its id. A bill's first due
+     * date is fixed once it exists, because its schedule counts from there.
+     */
+    suspend fun saveRecurringExpense(
         houseId: String,
+        billId: String?,
         name: String,
         amount: BigDecimal,
-        dueDay: Int,
         category: String,
-        frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency,
+        frequency: ExpenseFrequency,
         customFrequencyDays: Int?,
-        reminderDaysBefore: Int,
+        firstDueDate: LocalDate,
         reminderEnabled: Boolean,
+        reminderDaysBefore: Int,
+        allowPrepayment: Boolean,
+        splitMethod: SplitMethod?,
+        shares: List<RecurringShare>,
         notes: String?,
-        splitWith: List<String>?,
-        splitType: ExpenseSplitType?,
-        splitAmounts: Map<String, BigDecimal>?,
-        prepayEnabled: Boolean,
-        firstPaymentDate: LocalDate?
-    ): Result<RecurringExpense> = runCatching {
-        val currentUserId = requireAuthenticated(authenticatedUserId)
-
-        supabase.from("recurring_expenses")
-            .insert(
-                RecurringExpenseInsert(
-                    houseId = houseId,
-                    name = name,
-                    amount = amount,
-                    dueDay = dueDay,
-                    category = category,
-                    createdBy = currentUserId,
-                    frequency = frequency,
-                    customFrequencyDays = customFrequencyDays,
-                    reminderDaysBefore = reminderDaysBefore,
-                    reminderEnabled = reminderEnabled,
-                    notes = notes,
-                    splitWith = splitWith,
-                    splitType = splitType,
-                    splitAmounts = splitAmounts,
-                    prepayEnabled = prepayEnabled,
-                    firstPaymentDate = firstPaymentDate
-                )
-            ) { select() }
-            .decodeSingle<RecurringExpense>()
-    }
-
-    override suspend fun updateRecurringExpense(
-        expenseId: String,
-        name: String?,
-        amount: BigDecimal?,
-        dueDay: Int?,
-        category: String?,
-        isActive: Boolean?,
-        frequency: `in`.xroden.flockr.data.enums.ExpenseFrequency?,
-        lastPaidDate: LocalDate?,
-        customFrequencyDays: Int?,
-        reminderDaysBefore: Int?,
-        reminderEnabled: Boolean?,
-        notes: String?,
-        splitWith: List<String>?,
-        splitType: ExpenseSplitType?,
-        splitAmounts: Map<String, BigDecimal>?
-    ): Result<Unit> = runCatching {
-        supabase.from("recurring_expenses")
-            .update(
-                RecurringExpenseUpdate(
-                    name = name,
-                    amount = amount,
-                    dueDay = dueDay,
-                    category = category,
-                    isActive = isActive,
-                    frequency = frequency,
-                    lastPaidDate = lastPaidDate,
-                    customFrequencyDays = customFrequencyDays,
-                    reminderDaysBefore = reminderDaysBefore,
-                    reminderEnabled = reminderEnabled,
-                    notes = notes,
-                    splitWith = splitWith,
-                    splitType = splitType,
-                    splitAmounts = splitAmounts
-                )
-            ) {
-                filter { eq("id", expenseId) }
-            }
-    }
-
-    override suspend fun deleteRecurringExpense(expenseId: String): Result<Unit> = runCatching {
-        supabase.from("payment_history").delete { filter { eq("recurring_expense_id", expenseId) } }
-        supabase.from("recurring_expenses").delete { filter { eq("id", expenseId) } }
-    }
-
-    override suspend fun markRecurringExpenseAsPaid(
-        expenseId: String,
-        amount: BigDecimal,
-        paymentDate: LocalDate,
-        currencyCode: String
-    ): Result<Unit> = runCatching {
-        val currentUserId = requireAuthenticated(authenticatedUserId)
-
-        val recurringExpense = supabase.from("recurring_expenses")
-            .select(Columns.list("*, split_with, split_type, split_amounts")) {
-                filter { eq("id", expenseId) }
-            }
-            .decodeSingleOrNull<RecurringExpense>()
-            ?: throw IllegalStateException("Recurring expense not found")
-
-        val shares = requireNotNull(
-            recurringPaymentShares(recurringExpense, amount, currentUserId, minorUnitDigits(currencyCode))
-        ) { "This bill's split can't be applied to that amount" }
-
+    ): Result<String> = runCatching {
         supabase.postgrest.rpc(
-            function = "mark_recurring_bill_paid",
-            parameters = MarkRecurringBillPaidParams(
-                recurringId = expenseId,
-                houseId = recurringExpense.houseId,
-                paidBy = currentUserId,
-                name = recurringExpense.name,
-                amount = amount,
-                category = recurringExpense.category,
-                date = paymentDate,
-                notes = "Recurring Payment",
-                splits = splitRowsJson(shares.rows)
-            )
-        )
+            "save_recurring_expense",
+            buildJsonObject {
+                put("p_recurring_id", billId)
+                put("p_house_id", houseId)
+                put("p_name", InputSanitizer.sanitizeText(name))
+                put("p_amount", amount.toPlainString())
+                put("p_category", category)
+                put("p_frequency", Json.encodeToJsonElement(frequency))
+                put("p_custom_frequency_days", customFrequencyDays?.takeIf { frequency == ExpenseFrequency.CUSTOM })
+                put("p_first_due_date", firstDueDate.toString())
+                put("p_reminder_enabled", reminderEnabled)
+                put("p_reminder_days_before", reminderDaysBefore)
+                put("p_allow_prepayment", allowPrepayment)
+                put("p_split_method", splitMethod?.let { Json.encodeToJsonElement(it) } ?: JsonNull)
+                put("p_shares", buildJsonArray {
+                    shares.forEach { share ->
+                        add(buildJsonObject {
+                            put("user_id", share.userId)
+                            put("split_value", share.splitValue.toPlainString())
+                        })
+                    }
+                })
+                put("p_notes", notes?.let(InputSanitizer::sanitizeText)?.ifBlank { null })
+            }
+        ).decodeAs<String>()
     }
 
-    override suspend fun getPaymentHistory(recurringExpenseId: String): Result<List<PaymentHistory>> = runCatching {
-        supabase.from("payment_history")
-            .select(Columns.ALL) {
-                filter { eq("recurring_expense_id", recurringExpenseId) }
-                order("payment_date", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                limit(count = 200)
-            }
-            .decodeList<PaymentHistory>()
+    /** Deletes the bill. Payments already recorded stay in the ledger as ordinary expenses. */
+    suspend fun deleteRecurringExpense(billId: String): Result<Unit> = runCatching {
+        supabase.from("recurring_expenses").delete { filter { eq("id", billId) } }
+    }
+
+    /**
+     * Records that the signed-in user paid [amount] towards [bill] on [date], split by the bill's
+     * split, and moves the bill to its next due date.
+     */
+    suspend fun payRecurringExpense(bill: RecurringExpense, amount: BigDecimal, date: LocalDate, minorDigits: Int): Result<Unit> =
+        runCatching {
+            val payerId = requireAuthenticated(supabase.auth.currentUserOrNull()?.id)
+            val shares = recurringPaymentShares(bill, amount, payerId, minorDigits)
+                ?: throw DomainError.ValidationError.Rule("This amount can't be split the way the bill is")
+            supabase.postgrest.rpc(
+                "pay_recurring_expense",
+                buildJsonObject {
+                    put("p_recurring_id", bill.id)
+                    put("p_amount", amount.toPlainString())
+                    put("p_date", date.toString())
+                    put("p_shares", sharesJson(shares))
+                }
+            )
+        }
+
+    /** The payments recorded against a bill, newest first. */
+    suspend fun getBillPayments(billId: String): Result<List<Expense>> = runCatching {
+        supabase.from("expenses").select(EXPENSE_WITH_SHARES) {
+            filter { eq("recurring_expense_id", billId) }
+            order("date", Order.DESCENDING)
+        }.decodeList<Expense>()
     }
 }

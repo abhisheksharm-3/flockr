@@ -37,7 +37,7 @@ create trigger guard_billed_usage before insert or update or delete on public.pe
 create trigger price_per_diem_entry before insert or update on public.per_diem_entries
     for each row execute function public.price_per_diem_entry();
 
-create trigger schedule_next_chore after update of is_completed on public.chores
+create trigger schedule_next_chore before update of is_completed on public.chores
     for each row execute function public.schedule_next_chore();
 create trigger notify_chore_change after insert or update of assigned_to, is_completed on public.chores
     for each row execute function public.notify_chore_change();

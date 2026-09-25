@@ -1,190 +1,236 @@
+/** The house ledger: expenses and payments, recurring bills, balances and spending reports. */
 package `in`.xroden.flockr.features.expenses.model
 
 import androidx.compose.runtime.Immutable
 import `in`.xroden.flockr.data.enums.ExpenseDueStatus
 import `in`.xroden.flockr.data.enums.ExpenseFrequency
-import `in`.xroden.flockr.data.enums.ExpenseSplitType
+import `in`.xroden.flockr.data.enums.SplitMethod
 import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
 import `in`.xroden.flockr.data.serialization.InstantSerializer
 import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import java.math.BigDecimal
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
-import java.math.BigDecimal
+import kotlinx.serialization.Serializable
 
+@Serializable
+enum class ExpenseKind {
+    @SerialName("expense")
+    EXPENSE,
+
+    /** A payment from one housemate to another that settles what one owes the other. */
+    @SerialName("settlement")
+    SETTLEMENT
+}
+
+/**
+ * One person's part in an expense. Across an expense, paid shares and owed shares each add up to
+ * its amount, which the database enforces, so a person's balance is simply what they paid minus
+ * what they owe. [splitValue] is what the split method was given for them: an exact amount, a
+ * percentage or a number of shares; it is null for an equal split.
+ */
 @Immutable
 @Serializable
-data class OneTimeExpense(
+data class ExpenseShare(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("paid_share")
+    @Serializable(with = BigDecimalSerializer::class)
+    val paidShare: BigDecimal,
+    @SerialName("owed_share")
+    @Serializable(with = BigDecimalSerializer::class)
+    val owedShare: BigDecimal,
+    @SerialName("split_value")
+    @Serializable(with = BigDecimalSerializer::class)
+    val splitValue: BigDecimal? = null
+) {
+    /** What this expense moves this person's balance by: positive when others owe them. */
+    val net: BigDecimal get() = paidShare - owedShare
+}
+
+/**
+ * An expense or a settlement. [category] is null exactly for settlements, and [splitMethod] is null
+ * when one person bears the whole cost. [recurringExpenseId] names the bill this pays, if any, and
+ * [perDiemMonth] the month of usage this bills, which makes it read-only.
+ */
+@Immutable
+@Serializable
+data class Expense(
     val id: String,
     @SerialName("house_id")
     val houseId: String,
+    val kind: ExpenseKind = ExpenseKind.EXPENSE,
     val name: String,
     @Serializable(with = BigDecimalSerializer::class)
     val amount: BigDecimal,
-    val category: String,
-    @SerialName("paid_by")
-    val paidBy: String,
+    val category: String? = null,
+    @SerialName("split_method")
+    val splitMethod: SplitMethod? = null,
     @Serializable(with = LocalDateSerializer::class)
     val date: LocalDate,
     val notes: String? = null,
+    @SerialName("recurring_expense_id")
+    val recurringExpenseId: String? = null,
+    @SerialName("per_diem_month")
+    @Serializable(with = LocalDateSerializer::class)
+    val perDiemMonth: LocalDate? = null,
+    @SerialName("created_by")
+    val createdBy: String,
     @SerialName("created_at")
     @Serializable(with = InstantSerializer::class)
     val createdAt: Instant,
-    @SerialName("expense_splits")
-    val splits: List<ExpenseSplit>? = null
+    @SerialName("expense_shares")
+    val shares: List<ExpenseShare> = emptyList()
+) {
+    /** Who paid. The app records one payer per expense; the ledger allows several. */
+    val payerId: String? get() = shares.maxByOrNull { it.paidShare }?.userId
+
+    fun shareOf(userId: String): ExpenseShare? = shares.firstOrNull { it.userId == userId }
+}
+
+/** A person's split value on a recurring bill, applied afresh to each payment's amount. */
+@Immutable
+@Serializable
+data class RecurringShare(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("split_value")
+    @Serializable(with = BigDecimalSerializer::class)
+    val splitValue: BigDecimal
 )
 
+/** A recurring bill, with where it stands against today in the house's time zone. */
 @Immutable
 @Serializable
 data class RecurringExpense(
     val id: String,
-    @SerialName("house_id")
-    val houseId: String,
     val name: String,
     @Serializable(with = BigDecimalSerializer::class)
     val amount: BigDecimal,
-    @SerialName("due_day")
-    val dueDay: Int,
     val category: String,
-    @SerialName("created_by")
-    val createdBy: String,
-    @SerialName("is_active")
-    val isActive: Boolean = true,
-    @SerialName("created_at")
-    @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant,
     val frequency: ExpenseFrequency = ExpenseFrequency.MONTHLY,
+    @SerialName("custom_frequency_days")
+    val customFrequencyDays: Int? = null,
+    @SerialName("first_due_date")
+    @Serializable(with = LocalDateSerializer::class)
+    val firstDueDate: LocalDate,
     @SerialName("next_due_date")
     @Serializable(with = LocalDateSerializer::class)
-    val nextDueDate: LocalDate? = null,
+    val nextDueDate: LocalDate,
     @SerialName("last_paid_date")
     @Serializable(with = LocalDateSerializer::class)
     val lastPaidDate: LocalDate? = null,
-    @SerialName("custom_frequency_days")
-    val customFrequencyDays: Int? = null,
-    @SerialName("reminder_days_before")
-    val reminderDaysBefore: Int = 3,
     @SerialName("reminder_enabled")
     val reminderEnabled: Boolean = true,
+    @SerialName("reminder_days_before")
+    val reminderDaysBefore: Int = 3,
+    @SerialName("allow_prepayment")
+    val allowPrepayment: Boolean = false,
+    @SerialName("split_method")
+    val splitMethod: SplitMethod? = null,
     val notes: String? = null,
-    @SerialName("split_with")
-    val splitWith: List<String>? = null,
-    @SerialName("split_type")
-    val splitType: ExpenseSplitType? = null,
-    @SerialName("split_amounts")
-    val splitAmounts: Map<String, @Serializable(with = BigDecimalSerializer::class) BigDecimal>? = null,
-    @SerialName("prepay_enabled")
-    val prepayEnabled: Boolean = false,
-    @SerialName("first_payment_date")
-    @Serializable(with = LocalDateSerializer::class)
-    val firstPaymentDate: LocalDate? = null,
-    @SerialName("next_payment_date")
-    @Serializable(with = LocalDateSerializer::class)
-    val nextPaymentDate: LocalDate? = null,
+    @SerialName("created_by")
+    val createdBy: String,
+    val shares: List<RecurringShare> = emptyList(),
     @SerialName("due_status")
-    val dueStatus: ExpenseDueStatus? = null,
+    val dueStatus: ExpenseDueStatus,
     @SerialName("days_until_due")
-    val daysUntilDue: Int? = null
+    val daysUntilDue: Int
 )
 
-@Immutable
+/**
+ * A member's standing in the house. [net] is [paid] minus [owed]: positive when the house owes
+ * them, negative when they owe the house. Past members appear only while they are not square.
+ */
 @Serializable
-data class ExpenseSplit(
-    val id: String,
-    @SerialName("expense_id")
-    val expenseId: String,
+data class MemberBalance(
     @SerialName("user_id")
     val userId: String,
-    @SerialName("amount_owed")
-    @Serializable(with = BigDecimalSerializer::class)
-    val amountOwed: BigDecimal,
-    @SerialName("is_settled")
-    val isSettled: Boolean = false,
-    @SerialName("created_at")
-    @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant
-)
-
-@Immutable
-@Serializable
-data class Transaction(
-    val id: String,
-    @SerialName("house_id")
-    val houseId: String,
-    @SerialName("payer_id")
-    val payerId: String,
-    @SerialName("payee_id")
-    val payeeId: String,
-    @Serializable(with = BigDecimalSerializer::class)
-    val amount: BigDecimal,
-    @SerialName("is_settlement")
-    val isSettlement: Boolean = false,
-    val description: String? = null,
-    @SerialName("created_at")
-    @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant
-)
-
-@Immutable
-@Serializable
-data class PaymentHistory(
-    val id: String,
-    @SerialName("recurring_expense_id")
-    val recurringExpenseId: String,
-    @SerialName("paid_by")
-    val paidBy: String,
-    @Serializable(with = BigDecimalSerializer::class)
-    val amount: BigDecimal,
-    @SerialName("payment_date")
-    @Serializable(with = LocalDateSerializer::class)
-    val paymentDate: LocalDate,
-    @SerialName("created_at")
-    @Serializable(with = InstantSerializer::class)
-    val createdAt: Instant
-)
-
-@Serializable
-data class UserBalance(
-    @SerialName("user_id")
-    val userId: String = "",
     @SerialName("full_name")
-    val fullName: String? = null,
+    val fullName: String,
+    @SerialName("is_active")
+    val isActive: Boolean,
     @Serializable(with = BigDecimalSerializer::class)
-    val balance: BigDecimal = BigDecimal.ZERO
+    val paid: BigDecimal,
+    @Serializable(with = BigDecimalSerializer::class)
+    val owed: BigDecimal,
+    @Serializable(with = BigDecimalSerializer::class)
+    val net: BigDecimal
 )
 
+/** One payment in the fewest payments that settle everyone up. */
+@Serializable
+data class SettleUpPayment(
+    @SerialName("from_user_id")
+    val fromUserId: String,
+    @SerialName("to_user_id")
+    val toUserId: String,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal
+)
+
+/** Everyone's balance with the payments that would settle them. */
+data class HouseStanding(val balances: List<MemberBalance>, val plan: List<SettleUpPayment>) {
+    fun netOf(userId: String): BigDecimal = balances.firstOrNull { it.userId == userId }?.net ?: BigDecimal.ZERO
+
+    /** The payments in [plan] that [userId] makes or receives. */
+    fun paymentsOf(userId: String): List<SettleUpPayment> = plan.filter { it.fromUserId == userId || it.toUserId == userId }
+}
+
+/**
+ * An expense or payment the viewer shares with one other member. [betweenUs] is how much it added to
+ * what that member owes the viewer, negative when it added to what the viewer owes them, so the
+ * entries sum to the balance between the two.
+ */
+@Serializable
+data class SharedHistoryEntry(
+    @SerialName("expense_id")
+    val expenseId: String,
+    val kind: ExpenseKind,
+    val name: String,
+    @Serializable(with = LocalDateSerializer::class)
+    val date: LocalDate,
+    @Serializable(with = BigDecimalSerializer::class)
+    val amount: BigDecimal,
+    @SerialName("between_us")
+    @Serializable(with = BigDecimalSerializer::class)
+    val betweenUs: BigDecimal
+)
+
+/** A calendar month's spending, excluding payments between housemates. */
 @Serializable
 data class MonthlySummary(
-    @SerialName("total_expenses")
+    @SerialName("total_spend")
     @Serializable(with = BigDecimalSerializer::class)
-    val totalExpenses: BigDecimal,
-    @SerialName("recurring_expenses")
+    val totalSpend: BigDecimal,
+    @SerialName("recurring_spend")
     @Serializable(with = BigDecimalSerializer::class)
-    val recurringExpenses: BigDecimal,
-    @SerialName("one_time_expenses")
+    val recurringSpend: BigDecimal,
+    @SerialName("one_time_spend")
     @Serializable(with = BigDecimalSerializer::class)
-    val oneTimeExpenses: BigDecimal,
-    @SerialName("per_diem_expenses")
+    val oneTimeSpend: BigDecimal,
+    @SerialName("per_diem_spend")
     @Serializable(with = BigDecimalSerializer::class)
-    val perDiemExpenses: BigDecimal
+    val perDiemSpend: BigDecimal
 )
 
+/** What a member paid for the house in a month and what their own share of it came to. */
 @Serializable
 data class SpendByMember(
     @SerialName("user_id")
     val userId: String,
     @SerialName("full_name")
-    val fullName: String?,
-    @SerialName("total_spent")
+    val fullName: String,
     @Serializable(with = BigDecimalSerializer::class)
-    val totalSpent: BigDecimal
+    val paid: BigDecimal,
+    @Serializable(with = BigDecimalSerializer::class)
+    val consumed: BigDecimal
 )
 
 @Serializable
 data class SpendByCategory(
     val category: String,
-    @SerialName("total_amount")
     @Serializable(with = BigDecimalSerializer::class)
-    val totalAmount: BigDecimal
+    val total: BigDecimal
 )

@@ -3,6 +3,8 @@ package `in`.xroden.flockr.features.expenses.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.data.enums.SplitMethod
 import `in`.xroden.flockr.features.expenses.data.IExpenseRepository
 import `in`.xroden.flockr.features.house.data.IHouseRepository
 import `in`.xroden.flockr.features.house.model.HouseConfig
@@ -20,8 +22,8 @@ import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
 /**
- * Adds a one-time expense or edits an existing one. Both go through [ExpenseFormState.splitPlan],
- * so the split the user previews is the split that is saved.
+ * Adds an expense or edits an existing one. Both save [ExpenseFormState.shares], so the split the
+ * user previews is the split that is saved.
  */
 @HiltViewModel
 class ExpenseFormViewModel @Inject constructor(
@@ -54,11 +56,13 @@ class ExpenseFormViewModel @Inject constructor(
             val config = houseRepository.getHouseConfig(houseId).getOrNull()
             _houseConfig.value = config
             val viewerId = houseRepository.getCurrentUserId().orEmpty()
+            val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
             val base = ExpenseFormState(
                 name = initialName.orEmpty(),
                 date = config.today(),
                 notes = initialQuantity?.let { "Quantity: $it" }.orEmpty(),
-                houseMembers = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() },
+                houseMembers = members,
+                split = SplitDraft.everyone(members),
                 currencyCode = config.currency(),
                 payerId = viewerId,
                 viewerId = viewerId,
@@ -67,9 +71,9 @@ class ExpenseFormViewModel @Inject constructor(
             _formState.value = base
             if (expenseId == null) return@launch
 
-            expenseRepository.getOneTimeExpense(expenseId).fold(
+            expenseRepository.getExpense(expenseId).fold(
                 onSuccess = { _formState.value = ExpenseFormState.editing(it, base) },
-                onFailure = { _uiState.value = ExpenseFormUiState.Error(it.message ?: "Couldn't load this expense") },
+                onFailure = { _uiState.value = ExpenseFormUiState.Error(it.userMessage()) },
             )
         }
     }
@@ -79,16 +83,11 @@ class ExpenseFormViewModel @Inject constructor(
     fun onDateChange(date: LocalDate) = _formState.update { it.copy(date = date) }
     fun onNotesChange(notes: String) = _formState.update { it.copy(notes = notes) }
     fun onCategoryChange(category: String) = _formState.update { it.copy(category = category) }
-    fun onSplitEnabledChange(enabled: Boolean) = _formState.update { it.copy(isSplitEnabled = enabled) }
-    fun onSplitEqualChange(equal: Boolean) = _formState.update { it.copy(isSplitEqual = equal) }
-
-    fun onMemberSelectionChange(userId: String, selected: Boolean) = _formState.update {
-        it.copy(selectedMemberIds = if (selected) it.selectedMemberIds + userId else it.selectedMemberIds - userId)
-    }
-
-    fun onCustomSplitChange(userId: String, amount: String) = _formState.update {
-        it.copy(customSplits = it.customSplits + (userId to amount))
-    }
+    fun onPayerChange(userId: String) = _formState.update { it.copy(payerId = userId) }
+    fun onSplitEnabledChange(enabled: Boolean) = _formState.update { it.copy(split = it.split.copy(isEnabled = enabled)) }
+    fun onSplitMethodChange(method: SplitMethod) = _formState.update { it.copy(split = it.split.withMethod(method, it.houseMembers)) }
+    fun onParticipantChange(userId: String, isIncluded: Boolean) = _formState.update { it.copy(split = it.split.withParticipant(userId, isIncluded)) }
+    fun onSplitValueChange(userId: String, value: String) = _formState.update { it.copy(split = it.split.withValue(userId, value)) }
 
     fun dismissError() {
         _uiState.value = ExpenseFormUiState.Idle
@@ -98,30 +97,27 @@ class ExpenseFormViewModel @Inject constructor(
         val form = _formState.value
         val date = form.date ?: return
         val amount = form.parsedAmount ?: return fail("Enter an amount in ${form.currencyCode}")
-        val plan = form.splitPlan ?: return fail("Shares must not exceed the total, and yours must match what is left")
-        if (form.payerId.isEmpty()) return fail("You're signed out. Sign in again to save.")
+        val shares = form.shares ?: return fail("The split doesn't add up to the total yet")
         if (saveJob?.isActive == true) return
 
         saveJob = viewModelScope.launch {
             _uiState.value = ExpenseFormUiState.Saving
-            val notes = form.notes.takeIf { it.isNotBlank() }
-            val result = if (form.expenseId == null) {
-                expenseRepository.createOneTimeExpense(
-                    houseId = houseId, name = form.name, amount = amount, category = form.category,
-                    paidBy = form.payerId, date = date, notes = notes, splitRows = plan.rows,
-                )
-            } else {
-                expenseRepository.updateOneTimeExpense(
-                    expenseId = form.expenseId, name = form.name, amount = amount, category = form.category,
-                    date = date, notes = notes, splitAmounts = plan.rows,
-                )
-            }
-            result.fold(
+            expenseRepository.saveExpense(
+                houseId = houseId,
+                expenseId = form.expenseId,
+                name = form.name,
+                amount = amount,
+                category = form.category,
+                date = date,
+                notes = form.notes.takeIf { it.isNotBlank() },
+                splitMethod = form.split.savedMethod,
+                shares = shares,
+            ).fold(
                 onSuccess = {
                     _uiState.value = ExpenseFormUiState.Idle
                     _saved.send(Unit)
                 },
-                onFailure = { fail(it.message ?: "Couldn't save the expense") },
+                onFailure = { fail(it.userMessage()) },
             )
         }
     }

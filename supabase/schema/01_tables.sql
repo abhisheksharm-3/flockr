@@ -224,6 +224,7 @@ create table public.chores (
     is_completed       boolean not null default false,
     completed_at       timestamptz,
     completed_by       uuid references public.profiles (id) on delete set null,
+    next_chore_id      uuid references public.chores (id) on delete set null,
     created_by         uuid not null references public.profiles (id),
     created_at         timestamptz not null default now(),
     check (is_completed = (completed_at is not null)),

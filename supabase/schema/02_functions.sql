@@ -279,30 +279,38 @@ begin
 end;
 $$;
 
--- Completing a recurring chore schedules the next one, passed to the next person in its rotation.
--- The completed chore stays as history.
+-- Completing a recurring chore schedules the next one, passed to the next current member in its
+-- rotation, and links the two so completing it again after un-ticking it never schedules a second.
+-- The completed chore stays as history. Runs before the update so it can record the link.
 create function public.schedule_next_chore() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
-    v_next_assignee uuid;
+    v_next_assignee uuid := new.assigned_to;
     v_position int;
+    v_count int := cardinality(new.rotation);
+    v_due date := coalesce(new.due_date, (now() at time zone (select timezone from house_config where house_id = new.house_id))::date);
 begin
-    if not new.is_completed or old.is_completed or new.recurrence_pattern is null then return new; end if;
-    v_next_assignee := new.assigned_to;
-    if cardinality(new.rotation) > 0 then
+    if not new.is_completed or old.is_completed or new.recurrence_pattern is null or new.next_chore_id is not null then
+        return new;
+    end if;
+    if v_count > 0 then
         v_position := coalesce(array_position(new.rotation, new.assigned_to), 0);
-        v_next_assignee := new.rotation[(v_position % cardinality(new.rotation)) + 1];
+        for step in 1..v_count loop
+            v_next_assignee := new.rotation[((v_position + step - 1) % v_count) + 1];
+            exit when is_active_house_member(new.house_id, v_next_assignee);
+        end loop;
     end if;
     insert into chores (house_id, task_name, description, due_date, recurrence_pattern, rotation, effort_points,
                         assigned_to, created_by)
     values (new.house_id, new.task_name, new.description,
             case new.recurrence_pattern
-                when 'daily' then coalesce(new.due_date, current_date) + 1
-                when 'weekly' then coalesce(new.due_date, current_date) + 7
-                when 'monthly' then (coalesce(new.due_date, current_date) + interval '1 month')::date
-                when 'yearly' then (coalesce(new.due_date, current_date) + interval '1 year')::date
+                when 'daily' then v_due + 1
+                when 'weekly' then v_due + 7
+                when 'monthly' then (v_due + interval '1 month')::date
+                when 'yearly' then (v_due + interval '1 year')::date
             end,
-            new.recurrence_pattern, new.rotation, new.effort_points, v_next_assignee, new.created_by);
+            new.recurrence_pattern, new.rotation, new.effort_points, v_next_assignee, new.created_by)
+    returning id into new.next_chore_id;
     return new;
 end;
 $$;
