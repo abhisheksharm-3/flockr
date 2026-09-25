@@ -1,3 +1,4 @@
+/** Uploads a document once it passes the size, type and per-house or per-person count limits. */
 package `in`.xroden.flockr.features.documents.domain.usecase
 
 import `in`.xroden.flockr.core.domain.DomainError
@@ -6,7 +7,6 @@ import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import `in`.xroden.flockr.features.documents.model.Document
 import javax.inject.Inject
 
-/** Use case for uploading documents with validation and limit enforcement. */
 class UploadDocumentUseCase @Inject constructor(
     private val documentRepository: DocumentRepository
 ) {
@@ -22,11 +22,11 @@ class UploadDocumentUseCase @Inject constructor(
         mimeType: String
     ): Result<Document> {
         if (fileName.isBlank()) {
-            return Result.failure(IllegalArgumentException("File name cannot be empty"))
+            return Result.failure(DomainError.ValidationError.EmptyField("File name"))
         }
 
         if (fileData.isEmpty()) {
-            return Result.failure(IllegalArgumentException("File data cannot be empty"))
+            return Result.failure(DomainError.ValidationError.Rule("That file is empty"))
         }
 
         val maxSize = if (mimeType.startsWith("image/")) {
@@ -45,14 +45,14 @@ class UploadDocumentUseCase @Inject constructor(
             val houseDocs = documentRepository.getHouseDocuments(houseId).getOrDefault(emptyList())
             if (houseDocs.size >= MAX_HOUSE_DOCUMENTS) {
                 return Result.failure(
-                    DomainError.StorageError.LimitReached("House document", MAX_HOUSE_DOCUMENTS)
+                    DomainError.StorageError.LimitReached("House", MAX_HOUSE_DOCUMENTS)
                 )
             }
         } else {
             val personalDocs = documentRepository.getPersonalDocuments().getOrDefault(emptyList())
             if (personalDocs.size >= MAX_PERSONAL_DOCUMENTS) {
                 return Result.failure(
-                    DomainError.StorageError.LimitReached("Personal document", MAX_PERSONAL_DOCUMENTS)
+                    DomainError.StorageError.LimitReached("Personal", MAX_PERSONAL_DOCUMENTS)
                 )
             }
         }

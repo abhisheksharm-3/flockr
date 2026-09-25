@@ -1,21 +1,27 @@
+/** The signed-in user's profile: loading it, renaming it and replacing its photo. */
 package `in`.xroden.flockr.features.settings.presentation
 
-import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import `in`.xroden.flockr.features.auth.data.AuthRepository
+import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.storage.StorageRepository
+import `in`.xroden.flockr.features.auth.data.AuthRepository
 import `in`.xroden.flockr.utils.BitmapUtils
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
+
+private const val AVATAR_BUCKET = "avatars"
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -30,51 +36,48 @@ class ProfileViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateProfileUiState>(UpdateProfileUiState.Idle)
     val updateState: StateFlow<UpdateProfileUiState> = _updateState.asStateFlow()
 
+    private val _events = Channel<ProfileEvent>(Channel.BUFFERED)
+    val events: Flow<ProfileEvent> = _events.receiveAsFlow()
+
     init {
         loadProfile()
     }
 
     fun loadProfile() {
-        viewModelScope.launch {
-            _uiState.value = ProfileUiState.Loading
-            
-            authRepository.getProfile().fold(
-                onSuccess = { profile ->
-                    if (profile != null) {
-                        _uiState.value = ProfileUiState.Success(profile)
-                    } else {
-                        _uiState.value = ProfileUiState.Error("Profile not found")
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.value = ProfileUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
-            )
-        }
+        viewModelScope.launch { refresh() }
+    }
+
+    /** Once a profile is showing, reloads it in place and keeps it if the reload fails. */
+    private suspend fun refresh() {
+        if (_uiState.value !is ProfileUiState.Success) _uiState.value = ProfileUiState.Loading
+        authRepository.getProfile().fold(
+            onSuccess = { profile ->
+                _uiState.value = profile?.let { ProfileUiState.Success(it) }
+                    ?: ProfileUiState.Error("We couldn't find your profile. Try again.")
+            },
+            onFailure = { error ->
+                if (_uiState.value !is ProfileUiState.Success) _uiState.value = ProfileUiState.Error(error.userMessage())
+            }
+        )
     }
 
     fun updateProfile(fullName: String) {
-        if (fullName.isBlank()) {
-            _updateState.value = UpdateProfileUiState.Error("Name cannot be empty")
+        if (_updateState.value != UpdateProfileUiState.Idle) return
+        val name = fullName.trim()
+        if (name.isEmpty()) {
+            _events.trySend(ProfileEvent.Failed("Enter your name."))
             return
         }
-
+        _updateState.value = UpdateProfileUiState.Saving
         viewModelScope.launch {
-            _updateState.value = UpdateProfileUiState.Loading
-            
-            authRepository.updateProfile(fullName = fullName, hasCompletedOnboarding = null).fold(
+            authRepository.updateProfile(fullName = name, hasCompletedOnboarding = null).fold(
                 onSuccess = {
-                    _updateState.value = UpdateProfileUiState.Success
-                    loadProfile()
+                    refresh()
+                    _events.send(ProfileEvent.Saved)
                 },
-                onFailure = { error ->
-                    _updateState.value = UpdateProfileUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
+                onFailure = { error -> _events.send(ProfileEvent.Failed(error.userMessage())) }
             )
+            _updateState.value = UpdateProfileUiState.Idle
         }
     }
 
@@ -84,77 +87,37 @@ class ProfileViewModel @Inject constructor(
 
     /** Reads, compresses and uploads the picked image entirely off the main thread. */
     fun uploadProfilePicture(uri: Uri, context: Context) {
-        viewModelScope.launch {
-            _updateState.value = UpdateProfileUiState.Loading
-
-            val currentUser = authRepository.currentUser
-            if (currentUser == null) {
-                _updateState.value = UpdateProfileUiState.Error("User not logged in")
-                return@launch
-            }
-
-            runCatching {
-                val compressedBytes = withContext(Dispatchers.IO) {
-                    val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: throw IllegalStateException("Could not read image")
-                    bitmapUtils.compressImage(raw)
-                }
-                val fileName = "${currentUser.id}/avatar_${System.currentTimeMillis()}.jpg"
-                val publicUrl = storageRepository.uploadFile("avatars", fileName, compressedBytes)
-                    .getOrThrow()
-                authRepository.updateProfile(
-                    fullName = null,
-                    hasCompletedOnboarding = null,
-                    avatarUrl = publicUrl
-                ).getOrThrow()
-            }.fold(
-                onSuccess = {
-                    _updateState.value = UpdateProfileUiState.Success
-                    _uiState.value = ProfileUiState.Loading
-                    loadProfile()
-                },
-                onFailure = { error ->
-                    _updateState.value = UpdateProfileUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
-            )
-        }
+        val resolver = context.contentResolver
+        uploadPhoto { resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Could not read image") }
     }
 
     fun uploadProfilePicture(imageData: ByteArray) {
+        uploadPhoto { imageData }
+    }
+
+    /** [readImage] runs on the IO dispatcher, alongside the compression. */
+    private fun uploadPhoto(readImage: () -> ByteArray) {
+        if (_updateState.value != UpdateProfileUiState.Idle) return
+        val userId = authRepository.currentUser?.id
+        if (userId == null) {
+            _events.trySend(ProfileEvent.Failed("Sign in again to change your photo."))
+            return
+        }
+        _updateState.value = UpdateProfileUiState.UploadingPhoto
         viewModelScope.launch {
-            _updateState.value = UpdateProfileUiState.Loading
-
-            val currentUser = authRepository.currentUser
-            if (currentUser == null) {
-                _updateState.value = UpdateProfileUiState.Error("User not logged in")
-                return@launch
-            }
-
             runCatching {
-                // Bitmap decode/compress is CPU-heavy; keep it off the main thread.
-                val compressedBytes = withContext(Dispatchers.IO) { bitmapUtils.compressImage(imageData) }
-                val fileName = "${currentUser.id}/avatar_${System.currentTimeMillis()}.jpg"
-                val publicUrl = storageRepository.uploadFile("avatars", fileName, compressedBytes)
-                    .getOrThrow()
-                authRepository.updateProfile(
-                    fullName = null,
-                    hasCompletedOnboarding = null,
-                    avatarUrl = publicUrl
-                ).getOrThrow()
+                val compressed = withContext(Dispatchers.IO) { bitmapUtils.compressImage(readImage()) }
+                val fileName = "$userId/avatar_${System.currentTimeMillis()}.jpg"
+                val publicUrl = storageRepository.uploadFile(AVATAR_BUCKET, fileName, compressed).getOrThrow()
+                authRepository.updateProfile(fullName = null, hasCompletedOnboarding = null, avatarUrl = publicUrl).getOrThrow()
             }.fold(
                 onSuccess = {
-                    _updateState.value = UpdateProfileUiState.Success
-                    _uiState.value = ProfileUiState.Loading
-                    loadProfile()
+                    refresh()
+                    _events.send(ProfileEvent.PhotoChanged)
                 },
-                onFailure = { error ->
-                    _updateState.value = UpdateProfileUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
+                onFailure = { error -> _events.send(ProfileEvent.Failed(error.userMessage())) }
             )
+            _updateState.value = UpdateProfileUiState.Idle
         }
     }
 }

@@ -1,175 +1,167 @@
+/** Creating a house in four steps: name and photo, address, money and dates, then a review. */
 package `in`.xroden.flockr.features.house.ui.home
 
-
-import `in`.xroden.flockr.features.house.ui.HouseLocaleFields
-import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
-import `in`.xroden.flockr.utils.SUPPORTED_CURRENCIES
-import `in`.xroden.flockr.ui.theme.Spacing
-import androidx.compose.runtime.mutableIntStateOf
-import `in`.xroden.flockr.core.logging.Logger
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-
-import androidx.compose.material3.*
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.animation.*
-
-import androidx.compose.runtime.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
-import `in`.xroden.flockr.features.house.presentation.HomeViewModel
-import `in`.xroden.flockr.features.house.presentation.CreateHouseUiState
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.Color
-import coil3.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.core.validation.Validators
+import `in`.xroden.flockr.features.house.model.DEFAULT_CURRENCY_CODE
+import `in`.xroden.flockr.features.house.model.DateLayout
+import `in`.xroden.flockr.features.house.presentation.CreateHouseUiState
+import `in`.xroden.flockr.features.house.presentation.HomeViewModel
+import `in`.xroden.flockr.features.house.presentation.HouseEvent
+import `in`.xroden.flockr.features.house.ui.HouseLocaleFields
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.forms.FormSectionCard
+import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.IconSize
+import `in`.xroden.flockr.ui.theme.Motion
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.theme.spatialSpec
+import `in`.xroden.flockr.utils.SUPPORTED_CURRENCIES
+import `in`.xroden.flockr.utils.example
 import `in`.xroden.flockr.utils.rememberHaptics
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-private const val SCREEN_NAME = "CreateHouse"
+private val STEP_TITLES = listOf("Name and photo", "Address", "Money and dates", "Review")
+private val LAST_STEP = STEP_TITLES.lastIndex
+private const val DEFAULT_DATE_FORMAT = "dd/MM/yyyy"
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateHouseScreen(
     onHouseCreated: (String) -> Unit,
     onNavigateBack: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    CreateHouseScreenContent(onHouseCreated, onNavigateBack, viewModel)
-}
-
-@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
-@Composable
-private fun CreateHouseScreenContent(
-    onHouseCreated: (String) -> Unit,
-    onNavigateBack: () -> Unit,
-    viewModel: HomeViewModel
-) {
-    var houseName by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-
-    // Image Upload State
-    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    var imageBytes by remember { mutableStateOf<ByteArray?>(null) }
-    
-    val context = LocalContext.current
-    val contentResolver = context.contentResolver
-    val imageReadScope = rememberCoroutineScope()
-
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        selectedImageUri = uri
-        if (uri != null) {
-            // Read the (potentially multi-MB) image off the main thread to avoid jank/ANR.
-            imageReadScope.launch(Dispatchers.IO) {
-                imageBytes = runCatching {
-                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                }.onFailure { Logger.e(SCREEN_NAME, "Error reading image") }.getOrNull()
-            }
-        }
-    }
-    
-    // Localization
-    var currency by remember { mutableStateOf(defaultCurrency()) }
-    var firstDayOfWeek by remember { mutableIntStateOf(defaultFirstDayOfWeek()) }
-    var dateFormat by remember { mutableStateOf("dd/MM/yyyy") }
-    var timezone by remember { mutableStateOf(kotlinx.datetime.TimeZone.currentSystemDefault().id) }
-    
-    var isCreating by remember { mutableStateOf(false) }
-    var createdHouse by remember { mutableStateOf<House?>(null) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var currentStep by remember { mutableIntStateOf(0) }
-
-
+    val haptics = rememberHaptics()
     val createState by viewModel.createState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val contentResolver = LocalContext.current.contentResolver
 
-    LaunchedEffect(createState) {
-        when (val state = createState) {
-            is CreateHouseUiState.Success -> {
-                isCreating = false
-                createdHouse = state.house
-                showSuccessDialog = true
-            }
-            is CreateHouseUiState.Error -> {
-                isCreating = false
-                snackbarHostState.showSnackbar(state.message)
-            }
-            is CreateHouseUiState.Loading -> isCreating = true
-            else -> {}
-        }
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    var houseName by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
+    var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var imageBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var currency by rememberSaveable { mutableStateOf(defaultCurrency()) }
+    var dateFormat by rememberSaveable { mutableStateOf(DEFAULT_DATE_FORMAT) }
+    var firstDayOfWeek by rememberSaveable { mutableIntStateOf(defaultFirstDayOfWeek()) }
+    var timezone by rememberSaveable { mutableStateOf(kotlinx.datetime.TimeZone.currentSystemDefault().id) }
+
+    val isCreating = createState is CreateHouseUiState.Creating
+    val nameCheck = Validators.validateHouseName(houseName)
+    val canContinue = step != 0 || nameCheck.isSuccess
+    val goBack: () -> Unit = { if (step > 0) step-- else onNavigateBack() }
+
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) imageUri = uri
     }
 
-    if (showSuccessDialog && createdHouse != null) {
-        HouseCreatedSuccessDialog(
-            house = createdHouse!!,
-            onDismiss = {
-                onHouseCreated(createdHouse!!.id)
+    BackHandler(enabled = step > 0 && !isCreating) { step-- }
+
+    LaunchedEffect(imageUri) {
+        val uri = imageUri ?: run { imageBytes = null; return@LaunchedEffect }
+        imageBytes = withContext(Dispatchers.IO) {
+            runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+        }
+        if (imageBytes == null) {
+            imageUri = null
+            haptics.error()
+            snackbarHostState.showSnackbar("That photo couldn't be opened. Try another one.")
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            if (event is HouseEvent.Failed) {
+                haptics.error()
+                snackbarHostState.showSnackbar(event.message)
             }
-        )
+        }
+    }
+    LaunchedEffect(createState) {
+        if (createState is CreateHouseUiState.Created) haptics.success()
     }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Create Household", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (currentStep > 0) currentStep-- else onNavigateBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
-                )
+            FlockrTopAppBar(
+                title = "Create a house",
+                subtitle = "Step ${step + 1} of ${STEP_TITLES.size}: ${STEP_TITLES[step]}",
+                onNavigateBack = goBack,
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            CreateHouseBottomBar(
-                currentStep = currentStep,
-                isCreating = isCreating,
-                onPrimaryClick = {
-                    when (currentStep) {
-                        0 -> if (houseName.isBlank()) nameError = "Required" else currentStep++
-                        1 -> currentStep++
-                        2 -> currentStep++
-                        3 -> viewModel.createHouse(
-                            houseName,
-                            address.ifBlank { null },
+            FlockrPrimaryButton(
+                text = if (step == LAST_STEP) "Create house" else "Next",
+                onClick = {
+                    if (step < LAST_STEP) {
+                        step++
+                    } else {
+                        viewModel.createHouse(
+                            houseName.trim(),
+                            address.trim().ifBlank { null },
                             null,
                             null,
                             currency,
@@ -179,232 +171,138 @@ private fun CreateHouseScreenContent(
                             headerImageBytes = imageBytes
                         )
                     }
-                }
+                },
+                enabled = canContinue,
+                isLoading = isCreating,
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = Spacing.xl, vertical = Spacing.lg),
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        AnimatedContent(
-            targetState = currentStep,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    slideInHorizontally { width -> width } + fadeIn() togetherWith slideOutHorizontally { width -> -width } + fadeOut()
-                } else {
-                    slideInHorizontally { width -> -width } + fadeIn() togetherWith slideOutHorizontally { width -> width } + fadeOut()
-                }
-            },
-            modifier = Modifier.padding(padding)
-        ) { step ->
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
-                when (step) {
-                    0 -> NameAndImageStep(
-                        houseName = houseName,
-                        onHouseNameChange = { houseName = it; nameError = null },
-                        nameError = nameError,
-                        selectedImageUri = selectedImageUri,
-                        onPickImage = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        val progress by animateFloatAsState(targetValue = (step + 1f) / STEP_TITLES.size, animationSpec = Motion.effects)
+        val slideSpec = spatialSpec<IntOffset>()
+        val fadeSpec = Motion.effects
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.xl),
+            )
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    val direction = if (targetState > initialState) 1 else -1
+                    (slideInHorizontally(slideSpec) { it * direction } + fadeIn(fadeSpec)) togetherWith
+                        (slideOutHorizontally(slideSpec) { -it * direction } + fadeOut(fadeSpec))
+                },
+                label = "create house step",
+            ) { current ->
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                ) {
+                    when (current) {
+                        0 -> FormSectionCard(icon = Icons.Rounded.Home, title = "Name and photo") {
+                            FlockrTextField(
+                                value = houseName,
+                                onValueChange = { houseName = it },
+                                label = "House name",
+                                placeholder = "Maple Street flat",
+                                isError = houseName.isNotBlank() && nameCheck.isFailure,
+                                supportingText = nameCheck.exceptionOrNull()?.takeIf { houseName.isNotBlank() }?.userMessage(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            PhotoPicker(
+                                imageUri = imageUri,
+                                onPick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                onRemove = { imageUri = null },
                             )
                         }
-                    )
-                    1 -> AddressStep(
-                        address = address,
-                        onAddressChange = { address = it }
-                    )
-                    2 -> LocalizationStep(
-                        currency = currency,
-                        onCurrencyChange = { currency = it },
-                        dateFormat = dateFormat,
-                        onDateFormatChange = { dateFormat = it },
-                        firstDayOfWeek = firstDayOfWeek,
-                        onFirstDayOfWeekChange = { firstDayOfWeek = it },
-                        timezone = timezone,
-                        onTimezoneChange = { timezone = it },
-                    )
-                    3 -> ReviewStep(
-                        houseName = houseName,
-                        address = address,
-                        currency = currency,
-                        dateFormat = dateFormat,
-                        timezone = timezone,
-                        selectedImageUri = selectedImageUri
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CreateHouseBottomBar(
-    currentStep: Int,
-    isCreating: Boolean,
-    onPrimaryClick: () -> Unit
-) {
-    val haptics = rememberHaptics()
-    Column(modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(24.dp)) {
-        // Progress
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            (0..3).forEach { step ->
-                Box(
-                    modifier = Modifier.weight(1f).height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (step <= currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                )
-            }
-        }
-
-        Button(
-            onClick = { haptics.tap(); onPrimaryClick() },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = MaterialTheme.shapes.medium,
-            enabled = !isCreating
-        ) {
-            if (isCreating) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-            else Text(if (currentStep == 3) "Create Household" else "Continue")
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NameAndImageStep(
-    houseName: String,
-    onHouseNameChange: (String) -> Unit,
-    nameError: String?,
-    selectedImageUri: android.net.Uri?,
-    onPickImage: () -> Unit
-) {
-    Text("Theme & Identity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(8.dp))
-    Text("Name your household and add a cover image.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Spacer(Modifier.height(24.dp))
-
-    CoverImagePicker(
-        selectedImageUri = selectedImageUri,
-        onPickImage = onPickImage
-    )
-
-    Spacer(Modifier.height(24.dp))
-
-    FlockrTextField(
-        value = houseName,
-        onValueChange = onHouseNameChange,
-        label = "Household Name",
-        placeholder = "e.g. The Smith House",
-        isError = nameError != null,
-        modifier = Modifier.fillMaxWidth()
-    )
-    if (nameError != null) Text(nameError, color = MaterialTheme.colorScheme.error)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CoverImagePicker(
-    selectedImageUri: android.net.Uri?,
-    onPickImage: () -> Unit
-) {
-    Card(
-        onClick = onPickImage,
-        modifier = Modifier.fillMaxWidth().height(180.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            if (selectedImageUri != null) {
-                AsyncImage(
-                    model = selectedImageUri,
-                    contentDescription = "Selected Cover Image",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                // Overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                        1 -> FormSectionCard(icon = Icons.Rounded.LocationOn, title = "Address") {
+                            Text(
+                                "Optional. Leave it empty if you'd rather not share it.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            FlockrTextField(
+                                value = address,
+                                onValueChange = { address = it },
+                                label = "Address",
+                                singleLine = false,
+                                maxLines = 3,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        2 -> FormSectionCard(icon = Icons.Rounded.Payments, title = "Money and dates") {
+                            Text(
+                                "Every amount is shown in this currency, and \"today\" and \"overdue\" follow this time zone. The currency is fixed once money is recorded.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            HouseLocaleFields(
+                                currencyCode = currency,
+                                onCurrencyChange = { currency = it },
+                                dateFormat = dateFormat,
+                                onDateFormatChange = { dateFormat = it },
+                                firstDayOfWeek = firstDayOfWeek,
+                                onFirstDayOfWeekChange = { firstDayOfWeek = it },
+                                timezone = timezone,
+                                onTimezoneChange = { timezone = it },
+                            )
+                        }
+                        else -> ReviewStep(
+                            houseName = houseName.trim(),
+                            address = address.trim(),
+                            imageUri = imageUri,
+                            currency = currency,
+                            dateFormat = dateFormat,
+                            firstDayOfWeek = firstDayOfWeek,
+                            timezone = timezone,
                         )
-                        Text("Change Image", color = Color.White, style = MaterialTheme.typography.labelMedium)
                     }
                 }
-            } else {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddPhotoAlternate,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(40.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Tap to add cover image",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
             }
         }
+    }
+
+    (createState as? CreateHouseUiState.Created)?.let { created ->
+        HouseCreatedDialog(
+            name = created.house.name,
+            inviteCode = created.house.inviteCode,
+            photoUploaded = created.photoUploaded,
+            onOpen = { onHouseCreated(created.house.id) },
+        )
     }
 }
 
 @Composable
-private fun AddressStep(
-    address: String,
-    onAddressChange: (String) -> Unit
-) {
-    Text("Where is it located?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text("(Optional) helps with location based features.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Spacer(Modifier.height(24.dp))
-    FlockrTextField(
-        value = address,
-        onValueChange = onAddressChange,
-        label = "Address",
-        placeholder = "123 Main St",
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-@Composable
-private fun LocalizationStep(
-    currency: String,
-    onCurrencyChange: (String) -> Unit,
-    dateFormat: String,
-    onDateFormatChange: (String) -> Unit,
-    firstDayOfWeek: Int,
-    onFirstDayOfWeekChange: (Int) -> Unit,
-    timezone: String,
-    onTimezoneChange: (String) -> Unit,
-) {
-    Text("How the house counts", style = MaterialTheme.typography.headlineSmallEmphasized)
-    Text(
-        "Every amount is shown in this currency, and \"today\" and \"overdue\" follow this time zone. The currency is fixed once money is recorded.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(Spacing.lg))
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        HouseLocaleFields(
-            currencyCode = currency,
-            onCurrencyChange = onCurrencyChange,
-            dateFormat = dateFormat,
-            onDateFormatChange = onDateFormatChange,
-            firstDayOfWeek = firstDayOfWeek,
-            onFirstDayOfWeekChange = onFirstDayOfWeekChange,
-            timezone = timezone,
-            onTimezoneChange = onTimezoneChange,
-        )
+private fun PhotoPicker(imageUri: Uri?, onPick: () -> Unit, onRemove: () -> Unit) {
+    val haptics = rememberHaptics()
+    Surface(
+        onClick = { haptics.tap(); onPick() },
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.fillMaxWidth().height(ComponentHeight.cardSmall),
+    ) {
+        if (imageUri != null) {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = "Header photo. Tap to change it.",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterVertically),
+            ) {
+                Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(IconSize.lg))
+                Text("Add a header photo (optional)", style = MaterialTheme.typography.labelLargeEmphasized)
+            }
+        }
+    }
+    if (imageUri != null) {
+        TextButton(onClick = { haptics.tap(); onRemove() }) { Text("Remove photo") }
     }
 }
 
@@ -412,233 +310,78 @@ private fun LocalizationStep(
 private fun ReviewStep(
     houseName: String,
     address: String,
+    imageUri: Uri?,
     currency: String,
     dateFormat: String,
+    firstDayOfWeek: Int,
     timezone: String,
-    selectedImageUri: android.net.Uri?
 ) {
-    Text("Review Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(24.dp))
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column {
-            // Header Image PREVIEW
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                if (selectedImageUri != null) {
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                            )
-                        ),
-                        contentAlignment = Alignment.BottomStart
-                    ) {
-                        Text(
-                            text = houseName,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("No Header Image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (selectedImageUri == null) {
-                    Text("Name: $houseName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(12.dp))
-                    Text(address.ifBlank { "No address set" }, style = MaterialTheme.typography.bodyMedium)
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text("Currency", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(currency, style = MaterialTheme.typography.bodyLarge)
-                    }
-                    Column {
-                        Text("DateFormat", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(dateFormat, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-
-                Column {
-                    Text("Timezone", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(timezone, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-        }
-    }
-    Spacer(Modifier.height(24.dp))
-    // Aesthetic Info Board
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
-        shape = MaterialTheme.shapes.medium
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Row(
-            Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.width(16.dp))
-            Text(
-                "You can invite members immediately after creation.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+        val headerModifier = Modifier.fillMaxWidth().height(ComponentHeight.cardMedium)
+        if (imageUri != null) {
+            AsyncImage(model = imageUri, contentDescription = null, contentScale = ContentScale.Crop, modifier = headerModifier)
+        } else {
+            HouseImage(imageUrl = null, seed = houseName, modifier = headerModifier)
+        }
+        Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Text(houseName, style = MaterialTheme.typography.headlineSmallEmphasized)
+            ReviewRow("Address", address.ifBlank { "None" })
+            ReviewRow("Currency", currency)
+            ReviewRow("Dates", DateLayout.fromPattern(dateFormat)?.example() ?: dateFormat)
+            ReviewRow("Weeks start on", dayName(firstDayOfWeek))
+            ReviewRow("Time zone", timezone)
         }
     }
+    Text(
+        "Once it's made you'll get an invite code to share with your housemates.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
-fun HouseCreatedSuccessDialog(
-    house: House,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Success Icon
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
-                        .border(2.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.medium),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Success",
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+private fun ReviewRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMediumEmphasized, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+    }
+}
 
-                // Title
-                Text(
-                    text = "Household Created!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                // House Name
-                Text(
-                    text = house.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center
-                )
-
-                HorizontalDivider()
-
-                // Invite Code Section
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Invite Code",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .border(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                MaterialTheme.shapes.medium
-                            )
-                            .padding(20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = house.inviteCode ?: "N/A",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 4.sp
-                        )
+/** Shown once the house exists, with the code to share, before opening it. */
+@Composable
+private fun HouseCreatedDialog(name: String, inviteCode: String?, photoUploaded: Boolean, onOpen: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onOpen,
+        title = { Text("$name is ready") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                if (inviteCode != null) {
+                    Text("Share this code so your housemates can join.", style = MaterialTheme.typography.bodyMedium)
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(inviteCode, style = MaterialTheme.typography.headlineMediumEmphasized, color = MaterialTheme.colorScheme.primary)
                     }
-
-                    Text(
-                        text = "Share this code with others to invite them to your household",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+                } else {
+                    Text("You can invite housemates from the house's settings.", style = MaterialTheme.typography.bodyMedium)
                 }
-
-                // Continue Button
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
+                if (!photoUploaded) {
                     Text(
-                        text = "Continue to Household",
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        fontWeight = FontWeight.Bold
+                        "The header photo didn't upload. You can add it again in the house's settings.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
-        }
-    }
+        },
+        confirmButton = { TextButton(onClick = onOpen) { Text("Open house") } },
+    )
 }
+
+private fun dayName(firstDayOfWeek: Int): String =
+    DayOfWeek.of(if (firstDayOfWeek == 0) 7 else firstDayOfWeek).getDisplayName(TextStyle.FULL, Locale.getDefault())
 
 /** The device's currency when the app supports it, so most houses need not change it. */
 private fun defaultCurrency(): String =

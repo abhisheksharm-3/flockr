@@ -1,323 +1,334 @@
+/** The house's shared documents and the viewer's personal ones, in two tabs, with upload, open, download and delete. */
 package `in`.xroden.flockr.features.documents.ui
 
-import android.content.ContentResolver
+import `in`.xroden.flockr.core.validation.Validators
+import android.app.DownloadManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
-import android.provider.OpenableColumns
+import android.os.Environment
+import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderShared
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.TableChart
+import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import `in`.xroden.flockr.features.documents.model.Document
-import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
-import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
-import `in`.xroden.flockr.features.documents.presentation.UploadDocumentUiState
-import `in`.xroden.flockr.utils.rememberHaptics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.core.storage.StorageRepository
+import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
+import `in`.xroden.flockr.features.documents.model.Document
+import `in`.xroden.flockr.features.documents.presentation.DocumentEvent
+import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
+import `in`.xroden.flockr.features.documents.presentation.DocumentViewModel
+import `in`.xroden.flockr.features.house.model.HouseConfig
+import `in`.xroden.flockr.features.house.model.nameOf
+import `in`.xroden.flockr.features.house.model.timeZone
+import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.buttons.FlockrExtendedFab
+import `in`.xroden.flockr.ui.components.dialogs.ConfirmDialog
+import `in`.xroden.flockr.ui.components.states.EmptyState
+import `in`.xroden.flockr.ui.components.states.ErrorState
+import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.IconSize
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.utils.rememberHaptics
+import kotlinx.coroutines.launch
+import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val HOUSE_TAB = 0
+private const val PERSONAL_TAB = 1
+private val TABS = listOf("House", "Personal")
+
+/** The picker offers only what the repository accepts; keep in step with Validators' document types. */
+
+private const val BYTES_PER_MB = 1024 * 1024
+
 @Composable
 fun DocumentsScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     viewModel: DocumentViewModel = hiltViewModel()
 ) {
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
+    val context = LocalContext.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val config by rememberHouseConfig(houseId)
+    val snackbarHostState = remember { SnackbarHostState() }
+    var selectedTab by rememberSaveable { mutableIntStateOf(HOUSE_TAB) }
+    var deleting by remember { mutableStateOf<Document?>(null) }
+    val ready = state as? DocumentUiState.Ready
 
-    LaunchedEffect(houseId) { viewModel.loadDocuments(houseId) }
-
-    LaunchedEffect(Unit) {
-        viewModel.downloadEvent.collect { request ->
-            val safeName = request.fileName.substringAfterLast('/').ifBlank { "document" }
-            val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            val dmRequest = android.app.DownloadManager.Request(android.net.Uri.parse(request.url))
-                .setTitle(safeName)
-                .setDescription("Downloading document")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, safeName)
-            request.mimeType?.let { dmRequest.setMimeType(it) }
-            runCatching { downloadManager.enqueue(dmRequest) }
-                .onSuccess { snackbarHostState.showSnackbar("Downloading $safeName") }
-                .onFailure { snackbarHostState.showSnackbar("Could not start download") }
-        }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.upload(houseId, uri, toHouse = selectedTab == HOUSE_TAB)
     }
+    val pick = { if (ready?.isUploading == false) picker.launch(Validators.DOCUMENT_MIME_TYPES.toTypedArray()) }
 
+    LaunchedEffect(houseId) { viewModel.load(houseId) }
     LaunchedEffect(Unit) {
-        viewModel.messageEvent.collect { snackbarHostState.showSnackbar(it) }
-    }
-
-     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val fileName = getFileNameFromUri(context, uri)
-            if (selectedTab == 0) {
-                viewModel.uploadPersonalDocument(uri, fileName, context)
-            } else {
-                viewModel.uploadHouseDocument(houseId, uri, fileName, context)
+        viewModel.events.collect { event ->
+            val message = when (event) {
+                is DocumentEvent.Show -> {
+                    if (event.notice.isError) haptics.error() else haptics.success()
+                    event.notice.message
+                }
+                is DocumentEvent.Open -> if (context.openLink(event.url)) null else "No app on this phone can open that file"
+                is DocumentEvent.Download -> if (context.enqueueDownload(event)) "Downloading ${event.fileName}" else "Couldn't start the download"
             }
+            if (message != null) launch { snackbarHostState.showSnackbar(message) }
         }
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Documents", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        },
+        topBar = { FlockrTopAppBar(title = "Documents", onNavigateBack = onNavigateBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { haptics.tap(); filePickerLauncher.launch("*/*") },
-                text = { Text("Upload File", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.CloudUpload, null) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            if (ready != null) {
+                FlockrExtendedFab(text = if (ready.isUploading) "Uploading" else "Upload", icon = Icons.Rounded.UploadFile, onClick = pick)
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Upload Progress
-            val uploadState by viewModel.uploadState.collectAsStateWithLifecycle()
-            
-             when (val state = uploadState) {
-                is UploadDocumentUiState.Error -> {
-                    LaunchedEffect(state) {
-                        snackbarHostState.showSnackbar(state.message)
-                        viewModel.resetUploadState()
-                    }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
+                TABS.forEachIndexed { index, title ->
+                    Tab(selected = selectedTab == index, onClick = { haptics.select(); selectedTab = index }, text = { Text(title) })
                 }
-                is UploadDocumentUiState.Success -> {
-                    LaunchedEffect(state) {
-                        snackbarHostState.showSnackbar("Uploaded successfully")
-                        viewModel.resetUploadState()
-                    }
-                }
-                else -> {}
             }
-            
-            if (uploadState is UploadDocumentUiState.Uploading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            
-            // Custom Segmented Control
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                TabButton("Personal", selectedTab == 0) { haptics.select(); selectedTab = 0 }
-                TabButton("House", selectedTab == 1) { haptics.select(); selectedTab = 1 }
-            }
-            
-            // Content
-            val docs = if (uiState is DocumentUiState.Success) {
-                 if (selectedTab == 0) (uiState as DocumentUiState.Success).personalDocuments
-                 else (uiState as DocumentUiState.Success).houseDocuments
-            } else emptyList()
-
-            val total = docs.size
-            val limit = if (selectedTab == 0) 2 else 3
-            
-            // Storage Bar (Pill style)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-            ) {
-                 Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                 ) {
-                     Column {
-                        Text(
-                            "Storage Usage",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (ready?.isUploading == true) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(vertical = Spacing.xs))
+            Box(Modifier.fillMaxSize()) {
+                when (val current = state) {
+                    DocumentUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
+                    is DocumentUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
+                    is DocumentUiState.Ready -> if (selectedTab == HOUSE_TAB) {
+                        DocumentList(
+                            documents = current.house,
+                            state = current,
+                            config = config,
+                            limitLine = "${current.house.size} of ${UploadDocumentUseCase.MAX_HOUSE_DOCUMENTS} house documents",
+                            showUploader = true,
+                            empty = {
+                                EmptyState(
+                                    icon = Icons.Rounded.FolderShared,
+                                    title = "No house documents yet",
+                                    subtitle = "Keep the lease, bills and house rules where everyone can find them. The house can keep ${UploadDocumentUseCase.MAX_HOUSE_DOCUMENTS}.",
+                                    actionText = "Upload a document",
+                                    onActionClick = pick,
+                                )
+                            },
+                            onOpen = viewModel::open,
+                            onDownload = viewModel::download,
+                            onDelete = { deleting = it },
                         )
-                        Text(
-                            "$total / $limit files used",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                    } else {
+                        DocumentList(
+                            documents = current.personal,
+                            state = current,
+                            config = config,
+                            limitLine = "${current.personal.size} of ${UploadDocumentUseCase.MAX_PERSONAL_DOCUMENTS} personal documents",
+                            showUploader = false,
+                            empty = {
+                                EmptyState(
+                                    icon = Icons.Rounded.Folder,
+                                    title = "No personal documents yet",
+                                    subtitle = "Only you can see these. You can keep ${UploadDocumentUseCase.MAX_PERSONAL_DOCUMENTS}.",
+                                    actionText = "Upload a document",
+                                    onActionClick = pick,
+                                )
+                            },
+                            onOpen = viewModel::open,
+                            onDownload = viewModel::download,
+                            onDelete = { deleting = it },
                         )
-                     }
-                     
-                    CircularProgressIndicator(
-                        progress = { total.toFloat() / limit.toFloat() },
-                        modifier = Modifier.size(32.dp),
-                        strokeWidth = 3.dp,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                 }
-            }
-
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (docs.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                 Icon(Icons.Default.FolderOpen, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
-                                 Spacer(modifier = Modifier.height(8.dp))
-                                 Text("No files found", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
-                             }
-                        }
                     }
                 }
-                
-                items(items = docs, key = { it.id }) { doc ->
-                    FileListItem(doc, 
-                        onDownload = { viewModel.downloadDocument(doc) }, 
-                        onDelete = { viewModel.deleteDocument(doc.id, doc.storagePath, doc.houseId) }
-                    )
-                }
-                
-                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
-}
 
-@Composable
-fun RowScope.TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .padding(4.dp)
-            .clip(CircleShape)
-            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text,
-            fontWeight = FontWeight.Bold,
-            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    deleting?.let { document ->
+        ConfirmDialog(
+            title = "Delete ${document.fileName}?",
+            message = if (document.houseId != null) "It's removed for everyone in the house." else "It's removed from your documents.",
+            confirmText = "Delete",
+            onConfirm = {
+                deleting = null
+                viewModel.delete(document)
+            },
+            onDismiss = { deleting = null },
+            isDestructive = true,
         )
     }
 }
 
 @Composable
-fun FileListItem(doc: Document, onDownload: () -> Unit, onDelete: () -> Unit) {
+private fun DocumentList(
+    documents: List<Document>,
+    state: DocumentUiState.Ready,
+    config: HouseConfig?,
+    limitLine: String,
+    showUploader: Boolean,
+    empty: @Composable () -> Unit,
+    onOpen: (Document) -> Unit,
+    onDownload: (Document) -> Unit,
+    onDelete: (Document) -> Unit,
+) {
+    if (documents.isEmpty()) {
+        empty()
+        return
+    }
+    LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxxxl * 2)) {
+        item(key = "limits") {
+            Text(
+                "$limitLine · files up to ${StorageRepository.MAX_FILE_SIZE_BYTES / BYTES_PER_MB} MB, images up to ${StorageRepository.MAX_IMAGE_SIZE_BYTES / BYTES_PER_MB} MB",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            )
+        }
+        items(documents, key = { it.id }) { document ->
+            DocumentRow(
+                document = document,
+                uploader = if (showUploader) state.members.nameOf(document.userId, state.viewerId) else null,
+                config = config,
+                canDelete = state.canDelete(document),
+                onOpen = { onOpen(document) },
+                onDownload = { onDownload(document) },
+                onDelete = { onDelete(document) },
+                modifier = Modifier.animateItem(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DocumentRow(
+    document: Document,
+    uploader: String?,
+    config: HouseConfig?,
+    canDelete: Boolean,
+    onOpen: () -> Unit,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val haptics = rememberHaptics()
-    var showMenu by remember { mutableStateOf(false) }
-    
-    ListItem(
-        supportingContent = { 
-            Text(formatFileSize(doc.fileSize ?: 0)) 
-        },
-        leadingContent = {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    val icon = if (doc.mimeType?.contains("image") == true) Icons.Default.Image else Icons.Default.Description
-                    Icon(icon, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-                }
-            }
-        },
-        trailingContent = {
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, "More")
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Download") },
-                        onClick = { showMenu = false; onDownload() },
-                        leadingIcon = { Icon(Icons.Default.Download, null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        onClick = { showMenu = false; haptics.error(); onDelete() },
-                        leadingIcon = { Icon(Icons.Default.Delete, null) }
-                    )
-                }
-            }
-        },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.clip(RoundedCornerShape(16.dp))
+    val context = LocalContext.current
+    var menuOpen by remember { mutableStateOf(false) }
+    val details = listOfNotNull(
+        uploader,
+        document.createdAt.toLocalDateTime(config.timeZone()).date.formatWithHouseConfig(config),
+        document.fileSize?.let { Formatter.formatShortFileSize(context, it) },
+    ).joinToString(" · ")
+
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.md, bottom = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(doc.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1)
-    }
-}
-
-fun formatFileSize(size: Long): String {
-    val kb = size / 1024.0
-    val mb = kb / 1024.0
-    return when {
-        mb >= 1 -> "%.1f MB".format(mb)
-        kb >= 1 -> "%.1f KB".format(kb)
-        else -> "$size B"
-    }
-}
-
-private fun getFileNameFromUri(context: Context, uri: Uri): String {
-    var fileName = "unknown"
-    if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex >= 0) {
-                    fileName = cursor.getString(nameIndex)
+        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
+            Box(Modifier.size(ComponentHeight.avatar), contentAlignment = Alignment.Center) {
+                Icon(typeIcon(document.mimeType), contentDescription = null, modifier = Modifier.size(IconSize.md))
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(document.fileName, style = MaterialTheme.typography.bodyLargeEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Box {
+            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More for ${document.fileName}") }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Download") },
+                    leadingIcon = { Icon(Icons.Rounded.Download, contentDescription = null) },
+                    onClick = {
+                        haptics.tap()
+                        menuOpen = false
+                        onDownload()
+                    },
+                )
+                if (canDelete) {
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            menuOpen = false
+                            onDelete()
+                        },
+                    )
                 }
             }
         }
     }
-    return fileName
 }
+
+private fun typeIcon(mimeType: String?): ImageVector = when {
+    mimeType == null -> Icons.Rounded.Description
+    mimeType == "application/pdf" -> Icons.Rounded.PictureAsPdf
+    mimeType.startsWith("image/") -> Icons.Rounded.Image
+    "sheet" in mimeType || "excel" in mimeType -> Icons.Rounded.TableChart
+    else -> Icons.Rounded.Description
+}
+
+/** Opens a signed link in whichever app handles it, false when none can. */
+private fun Context.openLink(url: String): Boolean =
+    runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+
+/** Hands the file to the system downloader, which saves it to Downloads with no storage permission. */
+private fun Context.enqueueDownload(download: DocumentEvent.Download): Boolean = runCatching {
+    val fileName = download.fileName.substringAfterLast('/').ifBlank { "document" }
+    val request = DownloadManager.Request(Uri.parse(download.url))
+        .setTitle(fileName)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+    download.mimeType?.let { request.setMimeType(it) }
+    getSystemService(DownloadManager::class.java).enqueue(request)
+}.isSuccess

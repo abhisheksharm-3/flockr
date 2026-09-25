@@ -1,3 +1,4 @@
+/** What the sign-in, sign-up and onboarding screens show while talking to the auth server. */
 package `in`.xroden.flockr.features.auth.presentation
 
 import androidx.compose.runtime.Immutable
@@ -14,7 +15,9 @@ sealed interface AuthUiState {
 @Immutable
 sealed interface SignInUiState {
     data object Idle : SignInUiState
-    data object Loading : SignInUiState
+
+    /** [withGoogle] tells the screen which button to show the loading indicator on. */
+    data class Loading(val withGoogle: Boolean) : SignInUiState
     data object Success : SignInUiState
     data class Error(val message: String) : SignInUiState
 }

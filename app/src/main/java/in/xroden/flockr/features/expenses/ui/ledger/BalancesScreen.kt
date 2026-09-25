@@ -1,6 +1,7 @@
 /** Everyone's balance, the fewest payments that settle the house, and what any two people have shared. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.ui.components.balanceColor
 import `in`.xroden.flockr.features.house.model.nameInSentence
 import `in`.xroden.flockr.features.house.model.nameOf
 import androidx.compose.animation.AnimatedVisibility

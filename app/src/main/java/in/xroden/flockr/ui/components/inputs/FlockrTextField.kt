@@ -6,6 +6,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 
 /**
@@ -33,7 +34,8 @@ fun FlockrTextField(
     supportingText: String? = null,
     prefix: String? = null,
     suffix: String? = null,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
 ) {
     OutlinedTextField(
         value = value,
@@ -51,7 +53,7 @@ fun FlockrTextField(
         supportingText = supportingText?.let { { Text(it) } },
         prefix = prefix?.let { { Text(it) } },
         suffix = suffix?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = capitalization),
         singleLine = singleLine,
         maxLines = maxLines,
         shape = MaterialTheme.shapes.large

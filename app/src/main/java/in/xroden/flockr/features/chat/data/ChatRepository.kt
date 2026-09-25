@@ -31,8 +31,6 @@ class ChatRepository @Inject constructor(
         supabase.liveQuery(connectionManager, listOf(TableWatch("messages", "house_id", houseId))) { getMessages(houseId) }
 
     private suspend fun getMessages(houseId: String): List<Message> =
-        // Fetch only the most recent page (newest first), then reverse to chronological order.
-        // Avoids re-downloading the entire history on every realtime change.
         supabase.from("messages")
             .select(Columns.raw("*, profiles!messages_user_id_fkey(full_name)")) {
                 filter { eq("house_id", houseId) }

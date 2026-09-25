@@ -1,190 +1,151 @@
+/** Changing your name and profile photo. */
 package `in`.xroden.flockr.features.settings.ui
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.AddAPhoto
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil3.compose.rememberAsyncImagePainter
-import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
-import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
-import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.settings.presentation.ProfileEvent
+import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
+import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
+import `in`.xroden.flockr.features.settings.presentation.UpdateProfileUiState
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.MemberAvatar
+import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.forms.FormSectionCard
+import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.ui.components.states.ErrorState
+import `in`.xroden.flockr.ui.theme.IconSize
+import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val PhotoSize = 120.dp
+
 @Composable
 fun EditProfileScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val haptics = rememberHaptics()
-    val profileUiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-
-    val profile = (profileUiState as? ProfileUiState.Success)?.profile
-
-    var fullName by remember { mutableStateOf(profile?.fullName ?: "") }
-    var profileImageUrl by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val profileState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val profile = (profileState as? ProfileUiState.Success)?.profile
+    var name by rememberSaveable { mutableStateOf<String?>(null) }
+    val draftName = name ?: profile?.fullName.orEmpty()
+    val isBusy = updateState != UpdateProfileUiState.Idle
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.uploadProfilePicture(it, context)
-        }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { viewModel.uploadProfilePicture(it, context) }
     }
 
-    LaunchedEffect(profile) {
-        profile?.let {
-            fullName = it.fullName ?: ""
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                ProfileEvent.Saved -> {
+                    haptics.success()
+                    onNavigateBack()
+                }
+                ProfileEvent.PhotoChanged -> {
+                    haptics.success()
+                    snackbarHostState.showSnackbar("Photo updated")
+                }
+                is ProfileEvent.Failed -> {
+                    haptics.error()
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
         }
     }
-
-    // Handle update success to navigate back or show success
-    LaunchedEffect(updateState) {
-        if (updateState is UpdateProfileUiState.Success) {
-            haptics.success()
-            onNavigateBack()
-        } else if (updateState is UpdateProfileUiState.Error) {
-            haptics.error()
-            errorMessage = (updateState as UpdateProfileUiState.Error).message
-        }
-    }
-    
-    val isLoading = updateState is UpdateProfileUiState.Loading
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Edit Profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Profile Picture
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .clickable { imagePickerLauncher.launch("image/*") },
-                contentAlignment = Alignment.Center
-            ) {
-                if (profileImageUrl != null) {
-                     // Note: Optimally this should come from ViewModel/Cloud
-                    Image(
-                        painter = rememberAsyncImagePainter(profileImageUrl),
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (profile?.avatarUrl != null) {
-                     Image(
-                        painter = rememberAsyncImagePainter(profile.avatarUrl),
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(Icons.Default.Person, "Default Avatar", Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-
-                Box(
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).size(40.dp)
-                        .clip(CircleShape).background(MaterialTheme.colorScheme.primary)
-                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.CameraAlt, "Change Photo", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
-                }
-            }
-
-            Spacer(Modifier.height(40.dp))
-
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = { Text("Full Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium,
-                leadingIcon = { Icon(Icons.Default.Person, null) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                ),
-                isError = errorMessage != null
-            )
-            
-            if (errorMessage != null) {
-                Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, start = 4.dp).align(Alignment.Start))
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = profile?.email ?: "",
-                onValueChange = { },
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                readOnly = true,
-                enabled = false,
-                shape = MaterialTheme.shapes.medium,
-                leadingIcon = { Icon(Icons.Default.Email, null) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        topBar = { FlockrTopAppBar(title = "Edit profile", onNavigateBack = onNavigateBack) },
+        bottomBar = {
+            if (profile != null) {
+                FlockrPrimaryButton(
+                    text = "Save",
+                    onClick = { viewModel.updateProfile(draftName) },
+                    enabled = draftName.isNotBlank() && draftName.trim() != profile.fullName && !isBusy,
+                    isLoading = updateState == UpdateProfileUiState.Saving,
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = Spacing.xl, vertical = Spacing.lg),
                 )
-            )
-
-            Spacer(Modifier.height(32.dp))
-
-            Button(
-                onClick = { haptics.tap(); viewModel.updateProfile(fullName) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = fullName.isNotBlank() && !isLoading,
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        when (val current = profileState) {
+            ProfileUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            is ProfileUiState.Error -> ErrorState(current.message, modifier = Modifier.padding(padding), onRetry = viewModel::loadProfile)
+            is ProfileUiState.Success -> Column(
+                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Text("Save Changes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                MemberAvatar(name = draftName, avatarUrl = current.profile.avatarUrl, size = PhotoSize)
+                FilledTonalButton(
+                    onClick = { haptics.tap(); photoPicker.launch("image/*") },
+                    enabled = !isBusy,
+                ) {
+                    if (updateState == UpdateProfileUiState.UploadingPhoto) {
+                        LoadingIndicator(Modifier.size(IconSize.sm), color = LocalContentColor.current)
+                    } else {
+                        Icon(Icons.Rounded.AddAPhoto, contentDescription = null, modifier = Modifier.size(IconSize.sm))
+                    }
+                    Text(if (current.profile.avatarUrl == null) "Add a photo" else "Change photo", modifier = Modifier.padding(start = Spacing.sm))
+                }
+                FormSectionCard(icon = Icons.Rounded.Person, title = "About you") {
+                    FlockrTextField(
+                        value = draftName,
+                        onValueChange = { name = it },
+                        label = "Name",
+                        enabled = updateState != UpdateProfileUiState.Saving,
+                        isError = name != null && draftName.isBlank(),
+                        supportingText = if (name != null && draftName.isBlank()) "Enter your name" else "How your housemates see you",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    FlockrTextField(
+                        value = current.profile.email,
+                        onValueChange = {},
+                        label = "Email",
+                        readOnly = true,
+                        enabled = false,
+                        supportingText = "The address you sign in with",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

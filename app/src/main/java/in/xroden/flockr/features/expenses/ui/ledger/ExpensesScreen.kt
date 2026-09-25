@@ -1,6 +1,7 @@
 /** The expenses hub: where you stand, the payments that would settle you up, and the house's activity by month. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.ui.components.balanceColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

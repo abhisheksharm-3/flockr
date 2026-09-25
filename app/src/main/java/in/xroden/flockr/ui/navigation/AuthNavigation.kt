@@ -38,7 +38,6 @@ fun NavGraphBuilder.onboardingGraph(navController: NavController) {
     composable<OnboardingRoute> {
         OnboardingScreen(
             onComplete = {
-                // Navigation will be handled by auth state change
             }
         )
     }

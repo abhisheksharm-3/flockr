@@ -1,22 +1,27 @@
+/** A house's settings form: its name, address, picture, money and dates, and leaving or deleting it. */
 package `in`.xroden.flockr.features.house.presentation
 
-import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.core.presentation.Notice
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.utils.BitmapUtils
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
@@ -28,172 +33,116 @@ class HouseSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<HouseSettingsUiState>(HouseSettingsUiState.Loading)
     val uiState: StateFlow<HouseSettingsUiState> = _uiState.asStateFlow()
 
-    private val _updateState = MutableStateFlow<UpdateHouseSettingsUiState>(UpdateHouseSettingsUiState.Idle)
-    val updateState: StateFlow<UpdateHouseSettingsUiState> = _updateState.asStateFlow()
+    private val _events = Channel<Notice>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
-    fun loadHouseSettings(houseId: String) {
+    private val _exited = Channel<Unit>(Channel.CONFLATED)
+
+    /** Fires once the viewer has left or deleted the house, so the screen can leave it too. */
+    val exited = _exited.receiveAsFlow()
+
+    private var houseId: String = ""
+
+    fun load(houseId: String) {
+        if (this.houseId == houseId && _uiState.value is HouseSettingsUiState.Ready) return
+        this.houseId = houseId
         viewModelScope.launch {
             _uiState.value = HouseSettingsUiState.Loading
+            val viewerId = houseRepository.getCurrentUserId().orEmpty()
+            val members = async { houseRepository.getHouseMembers(houseId).getOrElse { emptyList() } }
+            val locked = async { houseRepository.hasRecordedMoney(houseId).getOrDefault(true) }
+            val config = async { houseRepository.getHouseConfig(houseId) }
+            val house = houseRepository.getHouseById(houseId).getOrElse {
+                _uiState.value = HouseSettingsUiState.Error(it.userMessage())
+                return@launch
+            }
+            val loadedConfig = config.await().getOrElse {
+                _uiState.value = HouseSettingsUiState.Error(it.userMessage())
+                return@launch
+            }
+            val role = members.await().firstOrNull { it.userId == viewerId && it.isActive }?.role
+            _uiState.value = HouseSettingsUiState.Ready(
+                house = house,
+                viewerId = viewerId,
+                canEdit = role == HouseMemberRole.OWNER || role == HouseMemberRole.ADMIN,
+                name = house.name,
+                address = house.address.orEmpty(),
+                currencyCode = loadedConfig.currencyCode,
+                dateFormat = loadedConfig.dateFormat,
+                firstDayOfWeek = loadedConfig.firstDayOfWeek,
+                timezone = loadedConfig.timezone,
+                isCurrencyLocked = locked.await(),
+            )
+        }
+    }
 
-            val houseResult = houseRepository.getHouseById(houseId)
-            val configResult = houseRepository.getHouseConfig(houseId)
+    fun update(transform: (HouseSettingsUiState.Ready) -> HouseSettingsUiState.Ready) {
+        (_uiState.value as? HouseSettingsUiState.Ready)?.let { _uiState.value = transform(it) }
+    }
 
-            if (houseResult.isSuccess) {
-                val house = houseResult.getOrNull()
-                val config = configResult.getOrNull()
-
-                if (house != null && config != null) {
-                    val isLocked = houseRepository.hasRecordedMoney(houseId).getOrDefault(true)
-                    _uiState.value = HouseSettingsUiState.Success(config, isLocked)
-                } else {
-                    _uiState.value = HouseSettingsUiState.Error("House or config not found")
+    /** Saves the house and its config together, so a failure in either is reported and nothing is half done silently. */
+    fun save() {
+        val form = _uiState.value as? HouseSettingsUiState.Ready ?: return
+        if (!form.canSave) return
+        update { it.copy(isSaving = true) }
+        viewModelScope.launch {
+            val result = houseRepository.updateHouse(houseId, form.name.trim(), form.address.trim(), form.house.latitude, form.house.longitude)
+                .mapCatching {
+                    houseRepository.updateHouseConfig(houseId, form.currencyCode, form.dateFormat, form.firstDayOfWeek, form.timezone).getOrThrow()
                 }
-            } else {
-                _uiState.value = HouseSettingsUiState.Error(
-                    message = houseResult.exceptionOrNull()?.userMessage() ?: "Failed to load settings"
+            update { it.copy(isSaving = false) }
+            _events.send(
+                result.fold(
+                    onSuccess = {
+                        update { it.copy(house = it.house.copy(name = form.name.trim(), address = form.address.trim())) }
+                        Notice("Settings saved", isError = false)
+                    },
+                    onFailure = { Notice(it.userMessage(), isError = true) },
+                )
+            )
+        }
+    }
+
+    fun uploadHeaderImage(uri: Uri) {
+        val form = _uiState.value as? HouseSettingsUiState.Ready ?: return
+        if (!form.canEdit || form.isUploadingImage) return
+        update { it.copy(isUploadingImage = true) }
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+                    ?.let { bitmapUtils.compressImage(it) }
+            }
+            val result = if (bytes == null) null else houseRepository.uploadHouseHeaderImage(houseId, bytes)
+            update { it.copy(isUploadingImage = false) }
+            when {
+                result == null -> _events.send(Notice("That image couldn't be read. Try another.", isError = true))
+                else -> result.fold(
+                    onSuccess = { url ->
+                        update { it.copy(house = it.house.copy(headerImageUrl = url)) }
+                        _events.send(Notice("Picture updated", isError = false))
+                    },
+                    onFailure = { _events.send(Notice(it.userMessage(), isError = true)) },
                 )
             }
         }
     }
 
-    fun updateHouse(
-        houseId: String,
-        name: String?,
-        address: String?,
-        latitude: Double? = null,
-        longitude: Double? = null
-    ) {
-        viewModelScope.launch {
-            _updateState.value = UpdateHouseSettingsUiState.Loading
+    fun leaveHouse() = exit { houseRepository.leaveHouse(houseId) }
 
-            houseRepository.updateHouse(houseId, name, address, latitude, longitude).fold(
-                onSuccess = {
-                    _updateState.value = UpdateHouseSettingsUiState.Success
-                    loadHouseSettings(houseId)
-                },
+    fun deleteHouse() = exit { houseRepository.deleteHouse(houseId) }
+
+    private fun exit(call: suspend () -> Result<Unit>) {
+        val form = _uiState.value as? HouseSettingsUiState.Ready ?: return
+        if (form.isSaving) return
+        update { it.copy(isSaving = true) }
+        viewModelScope.launch {
+            call().fold(
+                onSuccess = { _exited.send(Unit) },
                 onFailure = { error ->
-                    _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
+                    update { it.copy(isSaving = false) }
+                    _events.send(Notice(error.userMessage(), isError = true))
+                },
             )
         }
     }
-
-    fun updateHouseConfig(
-        houseId: String,
-        currencyCode: String? = null,
-        dateFormat: String? = null,
-        firstDayOfWeek: Int? = null,
-        timezone: String? = null
-    ) {
-        viewModelScope.launch {
-            _updateState.value = UpdateHouseSettingsUiState.Loading
-
-            houseRepository.updateHouseConfig(
-                houseId = houseId,
-                currencyCode = currencyCode,
-                dateFormat = dateFormat,
-                firstDayOfWeek = firstDayOfWeek,
-                timezone = timezone
-            ).fold(
-                onSuccess = {
-                    _updateState.value = UpdateHouseSettingsUiState.Success
-                    loadHouseSettings(houseId)
-                },
-                onFailure = { error ->
-                    _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
-            )
-        }
-    }
-
-    fun uploadHeaderImage(houseId: String, uri: Uri) {
-        viewModelScope.launch {
-            _updateState.value = UpdateHouseSettingsUiState.Loading
-
-            val bytes = withContext(Dispatchers.IO) {
-                val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                raw?.let { bitmapUtils.compressImage(it) }
-            }
-
-            if (bytes == null) {
-                _updateState.value = UpdateHouseSettingsUiState.Error("Failed to read image")
-                return@launch
-            }
-
-            houseRepository.uploadHouseHeaderImage(houseId, bytes).fold(
-                onSuccess = {
-                    _updateState.value = UpdateHouseSettingsUiState.Success
-                    loadHouseSettings(houseId)
-                },
-                onFailure = { error ->
-                    _updateState.value = UpdateHouseSettingsUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
-            )
-        }
-    }
-
-    /**
-     * Saves house details and config together, awaiting both so a navigation-on-success can't
-     * cancel the second write (the previous fire-and-forget pair silently dropped config edits).
-     */
-    suspend fun saveSettings(
-        houseId: String,
-        name: String?,
-        address: String?,
-        currencyCode: String? = null,
-        dateFormat: String? = null,
-        firstDayOfWeek: Int? = null,
-        timezone: String? = null
-    ): Result<Unit> {
-        _updateState.value = UpdateHouseSettingsUiState.Loading
-
-        houseRepository.updateHouse(houseId, name, address, null, null).onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
-            return Result.failure(e)
-        }
-        houseRepository.updateHouseConfig(houseId, currencyCode, dateFormat, firstDayOfWeek, timezone).onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
-            return Result.failure(e)
-        }
-        _updateState.value = UpdateHouseSettingsUiState.Success
-        loadHouseSettings(houseId)
-        return Result.success(Unit)
-    }
-
-    suspend fun leaveHouse(houseId: String): Result<Unit> {
-        _updateState.value = UpdateHouseSettingsUiState.Loading
-        return houseRepository.leaveHouse(houseId)
-            .onSuccess { _updateState.value = UpdateHouseSettingsUiState.Success }
-            .onFailure { e ->
-                _updateState.value = UpdateHouseSettingsUiState.Error(e.userMessage())
-            }
-    }
-
-    suspend fun deleteHouse(houseId: String): Result<Unit> {
-        _updateState.value = UpdateHouseSettingsUiState.Loading
-
-        val result = houseRepository.deleteHouse(houseId)
-
-        result.onSuccess {
-            _updateState.value = UpdateHouseSettingsUiState.Success
-        }.onFailure { e ->
-            _updateState.value = UpdateHouseSettingsUiState.Error(message = e.userMessage())
-        }
-
-        return result
-    }
-
-    fun resetUpdateState() {
-        _updateState.value = UpdateHouseSettingsUiState.Idle
-    }
-
-    fun getCurrentUserId(): String? = houseRepository.getCurrentUserId()
-
-    suspend fun getHouse(houseId: String): House? = houseRepository.getHouseById(houseId).getOrNull()
 }

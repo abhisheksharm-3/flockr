@@ -27,12 +27,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.math.BigDecimal
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val CONFIG_CACHE_TTL_MS = 5 * 60 * 1000L
 
 private const val HEADERS_BUCKET = "house_headers"
+
+const val MAX_SPLIT_WEIGHT_DECIMALS = 3
 
 private fun configCacheKey(houseId: String) = "house_config_$houseId"
 
@@ -176,6 +179,22 @@ class HouseRepository @Inject constructor(
                 }
             }
         }
+
+    /** The member's share when an expense is split by shares; the column holds up to three decimals and must be above zero. */
+    suspend fun setDefaultSplitWeight(houseId: String, userId: String, weight: BigDecimal): Result<Unit> = runCatching {
+        require(weight.signum() > 0 && weight.stripTrailingZeros().scale() <= MAX_SPLIT_WEIGHT_DECIMALS) { "Invalid split weight" }
+        supabase.from("house_members").update({ set("default_split_weight", weight.toPlainString()) }) {
+            filter {
+                eq("house_id", houseId)
+                eq("user_id", userId)
+            }
+        }
+    }
+
+    /** A fresh invite code, valid for seven days; the old one stops working. Admins only. */
+    suspend fun regenerateInviteCode(houseId: String): Result<String> = runCatching {
+        supabase.postgrest.rpc("regenerate_invite_code", buildJsonObject { put("p_house_id", houseId) }).decodeAs<String>()
+    }
 
     suspend fun leaveHouse(houseId: String): Result<Unit> = runCatching {
         supabase.postgrest.rpc("leave_house", buildJsonObject { put("p_house_id", houseId) })

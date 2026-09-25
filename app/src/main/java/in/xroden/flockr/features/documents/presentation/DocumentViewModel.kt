@@ -1,250 +1,158 @@
+/** The house's shared documents and the viewer's personal ones: listing, uploading, opening and deleting. */
 package `in`.xroden.flockr.features.documents.presentation
 
-import `in`.xroden.flockr.core.network.userMessage
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import `in`.xroden.flockr.core.domain.DomainError
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.core.presentation.Notice
+import `in`.xroden.flockr.core.storage.StorageRepository
+import `in`.xroden.flockr.core.validation.Validators
+import `in`.xroden.flockr.data.enums.HouseMemberRole
 import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
 import `in`.xroden.flockr.features.documents.model.Document
+import `in`.xroden.flockr.features.house.data.HouseRepository
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val documentRepository: DocumentRepository,
-    private val uploadDocumentUseCase: UploadDocumentUseCase
+    private val houseRepository: HouseRepository,
+    private val uploadDocument: UploadDocumentUseCase,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
-    val uiState: StateFlow<DocumentUiState> = _uiState.asStateFlow()
-
-    private val _uploadState = MutableStateFlow<UploadDocumentUiState>(UploadDocumentUiState.Idle)
-    val uploadState: StateFlow<UploadDocumentUiState> = _uploadState.asStateFlow()
+    private val _state = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
+    val state: StateFlow<DocumentUiState> = _state.asStateFlow()
 
     private val _events = Channel<DocumentEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    private val _viewDocumentEvent = MutableSharedFlow<String>()
-    val viewDocumentEvent = _viewDocumentEvent.asSharedFlow()
-
-    private val _downloadEvent = MutableSharedFlow<DownloadRequest>()
-    val downloadEvent = _downloadEvent.asSharedFlow()
-
-    private val _messageEvent = MutableSharedFlow<String>()
-    val messageEvent = _messageEvent.asSharedFlow()
-
-    private var currentHouseId: String? = null
-
-    val personalDocuments: StateFlow<List<Document>> =
-        _uiState.map { state ->
-            when (state) {
-                is DocumentUiState.Success -> state.personalDocuments
-                else -> emptyList()
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList()
-        )
-
-    val houseDocuments: StateFlow<List<Document>> =
-        _uiState.map { state ->
-            when (state) {
-                is DocumentUiState.Success -> state.houseDocuments
-                else -> emptyList()
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList()
-        )
-
-    fun loadDocuments(houseId: String? = null) {
+    fun load(houseId: String) {
         viewModelScope.launch {
-            _uiState.value = DocumentUiState.Loading
-            currentHouseId = houseId
-
-            val personalResult = documentRepository.getPersonalDocuments()
-            val houseResult = if (houseId != null) {
-                documentRepository.getHouseDocuments(houseId)
-            } else {
-                Result.success(emptyList())
-            }
-
-            val personal = personalResult.getOrElse { emptyList() }
-            val house = houseResult.getOrElse { emptyList() }
-
-            if (personalResult.isFailure && houseResult.isFailure) {
-                _uiState.value = DocumentUiState.Error(
-                    message = personalResult.exceptionOrNull()?.userMessage() ?: "Failed to load documents",
-                    cause = personalResult.exceptionOrNull()
-                )
-            } else {
-                _uiState.value = DocumentUiState.Success(
-                    personalDocuments = personal,
-                    houseDocuments = house
-                )
-            }
+            if (_state.value !is DocumentUiState.Ready) _state.value = DocumentUiState.Loading
+            _state.value = fetch(houseId)
         }
     }
 
-    fun uploadDocument(uri: Uri, fileName: String, context: Context, houseId: String? = null) {
-        viewModelScope.launch {
-            _uploadState.value = UploadDocumentUiState.Uploading
+    private suspend fun fetch(houseId: String): DocumentUiState = coroutineScope {
+        val house = async { documentRepository.getHouseDocuments(houseId) }
+        val personal = async { documentRepository.getPersonalDocuments() }
+        val members = async { houseRepository.getHouseMembers(houseId).getOrElse { emptyList() } }
+        val houseResult = house.await()
+        val personalResult = personal.await()
+        val failure = houseResult.exceptionOrNull() ?: personalResult.exceptionOrNull()
+        if (failure != null) return@coroutineScope DocumentUiState.Error(failure.userMessage())
+        val viewerId = documentRepository.getCurrentUserId().orEmpty()
+        val roster = members.await()
+        DocumentUiState.Ready(
+            house = houseResult.getOrThrow(),
+            personal = personalResult.getOrThrow(),
+            members = roster.associateBy { it.userId },
+            viewerId = viewerId,
+            isAdmin = roster.any { it.userId == viewerId && it.role in ADMIN_ROLES },
+        )
+    }
 
-            val readResult = withContext(Dispatchers.IO) {
-                runCatching {
-                    // Check the declared size BEFORE reading, so a huge pick can't OOM the app.
-                    val size = queryFileSize(context, uri)
-                    if (size != null && size > MAX_UPLOAD_SIZE_BYTES) {
-                        throw IllegalArgumentException("File is too large (max 10 MB)")
+    /** Uploads the file at [uri] to the house when [toHouse], else to the viewer's personal documents. */
+    fun upload(houseId: String, uri: Uri, toHouse: Boolean) {
+        val ready = _state.value as? DocumentUiState.Ready ?: return
+        if (ready.isUploading) return
+        _state.value = ready.copy(isUploading = true)
+        viewModelScope.launch {
+            val uploaded = withContext(Dispatchers.IO) { runCatching { readPicked(uri) } }.fold(
+                onSuccess = { uploadDocument(if (toHouse) houseId else null, it.name, it.bytes, it.mimeType) },
+                onFailure = { Result.failure<Document>(it) },
+            )
+            uploaded.fold(
+                onSuccess = { document ->
+                    _state.update { current ->
+                        if (current !is DocumentUiState.Ready) current
+                        else if (toHouse) current.copy(house = listOf(document) + current.house, isUploading = false)
+                        else current.copy(personal = listOf(document) + current.personal, isUploading = false)
                     }
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: throw java.io.IOException("Could not read file")
-                    val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
-                    bytes to mimeType
-                }
-            }
+                    _events.send(DocumentEvent.Show(Notice("Uploaded ${document.fileName}", isError = false)))
+                },
+                onFailure = { error ->
+                    _state.update { (it as? DocumentUiState.Ready)?.copy(isUploading = false) ?: it }
+                    _events.send(DocumentEvent.Show(Notice(error.userMessage(), isError = true)))
+                },
+            )
+        }
+    }
 
-            val (fileData, mimeType) = readResult.getOrElse { error ->
-                _uploadState.value = UploadDocumentUiState.Error(error.userMessage())
-                return@launch
-            }
-
-            // Route through the use case so document-count and image-size limits are enforced.
-            uploadDocumentUseCase(houseId, fileName, fileData, mimeType).fold(
+    fun delete(document: Document) {
+        viewModelScope.launch {
+            documentRepository.deleteDocument(document.id, document.storagePath, document.houseId).fold(
                 onSuccess = {
-                    _uploadState.value = UploadDocumentUiState.Success
-                    _events.send(DocumentEvent.DocumentUploaded)
-                    loadDocuments(currentHouseId)
+                    _state.update { current ->
+                        (current as? DocumentUiState.Ready)?.let { it.copy(house = it.house - document, personal = it.personal - document) } ?: current
+                    }
+                    _events.send(DocumentEvent.Show(Notice("Deleted ${document.fileName}", isError = false)))
                 },
-                onFailure = { error ->
-                    _uploadState.value = UploadDocumentUiState.Error(
-                        message = error.userMessage()
-                    )
-                }
+                onFailure = { _events.send(DocumentEvent.Show(Notice(it.userMessage(), isError = true))) },
             )
         }
     }
 
-    fun uploadPersonalDocument(uri: Uri, fileName: String, context: Context) {
-        uploadDocument(uri, fileName, context, houseId = null)
-    }
+    fun open(document: Document) = withLink(document) { DocumentEvent.Open(it) }
 
-    fun uploadHouseDocument(houseId: String, uri: Uri, fileName: String, context: Context) {
-        uploadDocument(uri, fileName, context, houseId = houseId)
-    }
+    fun download(document: Document) = withLink(document) { DocumentEvent.Download(it, document.fileName, document.mimeType) }
 
-    fun deleteDocument(documentId: String, storagePath: String, houseId: String?) {
-        viewModelScope.launch {
-            documentRepository.deleteDocument(documentId, storagePath, houseId).fold(
-                onSuccess = { loadDocuments(currentHouseId) },
-                onFailure = { error ->
-                    _uiState.value = DocumentUiState.Error(
-                        message = error.userMessage(),
-                        cause = error
-                    )
-                }
-            )
-        }
-    }
-
-    fun resetUploadState() {
-        _uploadState.value = UploadDocumentUiState.Idle
-    }
-
-    fun loadPersonalDocuments() {
-        viewModelScope.launch {
-            val result = documentRepository.getPersonalDocuments()
-            if (result.isSuccess) {
-                val current = _uiState.value
-                if (current is DocumentUiState.Success) {
-                    _uiState.value = current.copy(personalDocuments = result.getOrElse { emptyList() })
-                } else {
-                    _uiState.value = DocumentUiState.Success(
-                        personalDocuments = result.getOrElse { emptyList() },
-                        houseDocuments = emptyList()
-                    )
-                }
-            }
-        }
-    }
-
-    fun loadHouseDocuments(houseId: String) {
-        currentHouseId = houseId
-        viewModelScope.launch {
-            val result = documentRepository.getHouseDocuments(houseId)
-            if (result.isSuccess) {
-                val current = _uiState.value
-                if (current is DocumentUiState.Success) {
-                    _uiState.value = current.copy(houseDocuments = result.getOrElse { emptyList() })
-                } else {
-                    _uiState.value = DocumentUiState.Success(
-                        personalDocuments = emptyList(),
-                        houseDocuments = result.getOrElse { emptyList() }
-                    )
-                }
-            }
-        }
-    }
-
-    fun viewDocument(document: Document) {
+    private fun withLink(document: Document, event: (String) -> DocumentEvent) {
         viewModelScope.launch {
             documentRepository.getDocumentUrl(document.storagePath, document.houseId).fold(
-                onSuccess = { url -> _viewDocumentEvent.emit(url) },
-                onFailure = { error ->
-                    _uiState.value = DocumentUiState.Error(
-                        message = error.userMessage(),
-                        cause = error
-                    )
-                }
+                onSuccess = { _events.send(event(it)) },
+                onFailure = { _events.send(DocumentEvent.Show(Notice(it.userMessage(), isError = true))) },
             )
         }
     }
 
-    fun downloadDocument(document: Document) {
-        viewModelScope.launch {
-            documentRepository.getDocumentUrl(document.storagePath, document.houseId).fold(
-                onSuccess = { url ->
-                    _downloadEvent.emit(DownloadRequest(url, document.fileName, document.mimeType))
-                },
-                onFailure = { error ->
-                    _messageEvent.emit(error.userMessage())
-                }
-            )
+    /**
+     * Reads the picked file, refusing a type the app does not store and a file over its size limit
+     * before any of it is loaded into memory. A provider that misreports the size is caught by
+     * reading at most one byte past the limit.
+     */
+    private fun readPicked(uri: Uri): PickedFile {
+        val resolver = context.contentResolver
+        val mimeType = Validators.validateMimeType(resolver.getType(uri).orEmpty()).getOrThrow()
+        val maxSize = if (mimeType.startsWith("image/")) StorageRepository.MAX_IMAGE_SIZE_BYTES else StorageRepository.MAX_FILE_SIZE_BYTES
+        var name: String? = null
+        var size: Long? = null
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                name = cursor.getString(0)
+                if (!cursor.isNull(1)) size = cursor.getLong(1)
+            }
         }
+        size?.let { if (it > maxSize) throw DomainError.StorageError.FileTooLarge(it, maxSize) }
+        val bytes = resolver.openInputStream(uri)?.use { it.readNBytes(maxSize.toInt() + 1) }
+            ?: throw DomainError.ValidationError.Rule("That file couldn't be read. Pick it again.")
+        if (bytes.size > maxSize) throw DomainError.StorageError.FileTooLarge(bytes.size.toLong(), maxSize)
+        return PickedFile(name?.takeIf { it.isNotBlank() } ?: FALLBACK_NAME, bytes, mimeType)
     }
 
-    private fun queryFileSize(context: Context, uri: Uri): Long? =
-        context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
-            val index = cursor.getColumnIndex(OpenableColumns.SIZE)
-            if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) cursor.getLong(index) else null
-        }
+    private class PickedFile(val name: String, val bytes: ByteArray, val mimeType: String)
 
-    companion object {
-        // Keep in sync with the repository's authoritative size limit.
-        private const val MAX_UPLOAD_SIZE_BYTES = 10L * 1024 * 1024
+    private companion object {
+        val ADMIN_ROLES = setOf(HouseMemberRole.OWNER, HouseMemberRole.ADMIN)
+        const val FALLBACK_NAME = "document"
     }
 }
-
-sealed class DocumentEvent {
-    data object DocumentUploaded : DocumentEvent()
-}
-
-data class DownloadRequest(val url: String, val fileName: String, val mimeType: String?)

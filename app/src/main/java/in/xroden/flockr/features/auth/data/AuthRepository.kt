@@ -34,7 +34,6 @@ class AuthRepository @Inject constructor(
             }
         }
 
-        // Verify profile creation
         val newUserId = supabase.auth.currentUserOrNull()?.id
         if (newUserId != null) {
             supabase.from("profiles")

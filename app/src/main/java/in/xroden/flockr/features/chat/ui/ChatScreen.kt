@@ -1,364 +1,293 @@
+/** The house group chat: messages by day, grouped by sender, with an input that follows the keyboard. */
 package `in`.xroden.flockr.features.chat.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.features.chat.model.Message
+import `in`.xroden.flockr.features.chat.presentation.ChatEvent
 import `in`.xroden.flockr.features.chat.presentation.ChatUiState
 import `in`.xroden.flockr.features.chat.presentation.ChatViewModel
 import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.utils.formatWithHouseConfig
+import `in`.xroden.flockr.features.house.model.nameOf
 import `in`.xroden.flockr.features.house.model.timeZone
+import `in`.xroden.flockr.features.house.model.today
+import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.MemberAvatar
+import `in`.xroden.flockr.ui.components.states.EmptyState
+import `in`.xroden.flockr.ui.components.states.ErrorState
+import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.IconSize
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.utils.rememberHaptics
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.Duration
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlin.time.ExperimentalTime
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.datetime.minus
+import kotlinx.datetime.toJavaLocalTime
+import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val TIME_ALPHA = 0.7f
+
+/** How far from the newest row the list may sit and still count as "at the bottom" when a message lands. */
+private const val NEAR_BOTTOM_ROWS = 2
+
 @Composable
 fun ChatScreen(
     houseId: String,
     onNavigateBack: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
-    var messageText by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val haptics = rememberHaptics()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val config by rememberHouseConfig(houseId)
+    val snackbarHostState = remember { SnackbarHostState() }
+    var draft by rememberSaveable { mutableStateOf("") }
 
-    LaunchedEffect(houseId) {
-        viewModel.loadMessages(houseId)
-        viewModel.loadHouseConfig(houseId)
+    LaunchedEffect(houseId) { viewModel.load(houseId) }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is ChatEvent.SendFailed -> {
+                    haptics.error()
+                    if (draft.isBlank()) draft = event.content
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
+        }
     }
 
     Scaffold(
-        modifier = Modifier,
-        contentWindowInsets = WindowInsets.statusBars,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Chat", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+        topBar = { FlockrTopAppBar(title = "Chat", onNavigateBack = onNavigateBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .navigationBarsPadding()
-                .imePadding()
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                when (val state = uiState) {
-                    is ChatUiState.Loading -> {
-                        `in`.xroden.flockr.ui.components.loading.ChatScreenSkeleton()
-                    }
-                    is ChatUiState.Success -> {
-                        if (state.messages.isEmpty()) {
-                            EmptyChatState(modifier = Modifier.fillMaxSize())
-                        } else {
-                            val orderedMessages = remember(state.messages) { state.messages.reversed() }
-                            val currentUserId = remember { viewModel.getCurrentUserId() }
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                state = listState,
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                reverseLayout = true
-                            ) {
-                                items(
-                                    items = orderedMessages,
-                                    key = { it.id }
-                                ) { message ->
-                                    MessageBubble(
-                                        message = message,
-                                        currentUserId = currentUserId,
-                                        houseConfig = houseConfig
-                                    )
-                                }
-
-                                item(key = "security_warning") {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Lock,
-                                            null,
-                                            modifier = Modifier.size(12.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            "Messages are not end-to-end encrypted",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    is ChatUiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Something went wrong", color = MaterialTheme.colorScheme.error)
-                        }
+        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when (val current = state) {
+                    ChatUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
+                    is ChatUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
+                    is ChatUiState.Ready -> if (current.messages.isEmpty()) {
+                        EmptyState(icon = Icons.Rounded.Forum, title = "No messages yet", subtitle = "Say hello. Everyone in the house sees what you send here.")
+                    } else {
+                        MessageList(current, config)
                     }
                 }
             }
-
-            // Input Area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .padding(bottom = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    TextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                        placeholder = { Text("Message...", style = MaterialTheme.typography.bodyLarge) },
-                        maxLines = 4,
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                        ),
-                        shape = CircleShape
-                    )
-
-                    val isEnabled = messageText.isNotBlank()
-                    
-                    FilledIconButton(
-                        onClick = {
-                            if (isEnabled) {
-                                haptics.tap()
-                                viewModel.sendMessage(houseId, messageText)
-                                messageText = ""
-                            }
-                        },
-                        enabled = isEnabled,
-                        modifier = Modifier.size(56.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            "Send",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EmptyChatState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-            modifier = Modifier.size(80.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Chat,
-                    null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "No messages yet",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            "Start the conversation!",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@OptIn(ExperimentalTime::class)
-@Composable
-fun MessageBubble(
-    message: Message,
-    currentUserId: String? = null,
-    houseConfig: HouseConfig? = null
-) {
-    val isCurrentUser = currentUserId != null && message.userId == currentUserId
-    
-    // Remember shape to avoid re-allocation
-    val bubbleShape = remember(isCurrentUser) {
-        if (isCurrentUser) {
-            RoundedCornerShape(24.dp, 24.dp, 4.dp, 24.dp)
-        } else {
-            RoundedCornerShape(24.dp, 24.dp, 24.dp, 4.dp)
-        }
-    }
-    
-    // Remember timestamp string to avoid re-parsing on every composition
-    val timestampStr = remember(message.createdAt, houseConfig) {
-        formatTimestamp(message.createdAt.toString(), houseConfig)
-    }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
-    ) {
-        if (!isCurrentUser && message.senderName != null) {
-            Text(
-                text = message.senderName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+            Composer(
+                text = draft,
+                onTextChange = { draft = it },
+                onSend = {
+                    haptics.tap()
+                    viewModel.send(houseId, draft)
+                    draft = ""
+                },
             )
         }
+    }
+}
 
-        Box(
-            modifier = Modifier
-                .widthIn(max = 300.dp)
-                .clip(bubbleShape)
-                .background(
-                    if (isCurrentUser) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    }
-                )
-                .then(if (message.isPending) Modifier.alpha(0.7f) else Modifier)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
-        ) {
-            Column {
+private sealed interface ChatRow {
+    val key: String
+
+    data class Day(val label: String, override val key: String) : ChatRow
+
+    /** [startsRun] is true for the first of consecutive messages from one sender on one day. */
+    data class Bubble(val message: Message, val startsRun: Boolean) : ChatRow {
+        override val key: String get() = message.id
+    }
+}
+
+@Composable
+private fun MessageList(state: ChatUiState.Ready, config: HouseConfig?) {
+    val rows = remember(state.messages, config) { chatRows(state.messages, config) }
+    val listState = rememberLazyListState()
+    val newest = state.messages.last()
+
+    LaunchedEffect(newest.id) {
+        if (newest.userId == state.viewerId || listState.firstVisibleItemIndex <= NEAR_BOTTOM_ROWS) listState.animateScrollToItem(0)
+    }
+
+    LazyColumn(
+        state = listState,
+        reverseLayout = true,
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(rows, key = { it.key }, contentType = { it::class }) { row ->
+            when (row) {
+                is ChatRow.Day -> DaySeparator(row.label)
+                is ChatRow.Bubble -> MessageRow(row, state, config)
+            }
+        }
+    }
+}
+
+/** The rows newest first, for a list laid out from the bottom, with a day heading above each day's messages. */
+private fun chatRows(messages: List<Message>, config: HouseConfig?): List<ChatRow> {
+    val zone = config.timeZone()
+    val today = config.today()
+    val rows = mutableListOf<ChatRow>()
+    var previous: Message? = null
+    var previousDay: LocalDate? = null
+    messages.forEach { message ->
+        val day = message.createdAt.toLocalDateTime(zone).date
+        val newDay = day != previousDay
+        if (newDay) rows += ChatRow.Day(dayLabel(day, today, config), key = "day_$day")
+        rows += ChatRow.Bubble(message, startsRun = newDay || previous?.userId != message.userId)
+        previous = message
+        previousDay = day
+    }
+    return rows.asReversed()
+}
+
+private fun dayLabel(day: LocalDate, today: LocalDate, config: HouseConfig?): String = when (day) {
+    today -> "Today"
+    today.minus(1, DateTimeUnit.DAY) -> "Yesterday"
+    else -> day.formatWithHouseConfig(config)
+}
+
+@Composable
+private fun DaySeparator(label: String) {
+    Box(Modifier.fillMaxWidth().padding(vertical = Spacing.md), contentAlignment = Alignment.Center) {
+        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageRow(row: ChatRow.Bubble, state: ChatUiState.Ready, config: HouseConfig?) {
+    val message = row.message
+    val isOwn = message.userId == state.viewerId
+    val topPadding = if (row.startsRun) Spacing.sm else Spacing.xxs
+    if (isOwn) {
+        Row(Modifier.fillMaxWidth().padding(top = topPadding), horizontalArrangement = Arrangement.End) {
+            Spacer(Modifier.width(Spacing.xxxxl))
+            Bubble(message, config, isOwn = true, modifier = Modifier.weight(1f, fill = false))
+        }
+        return
+    }
+    val member = state.members[message.userId]
+    val name = member?.displayName ?: message.senderName ?: state.members.nameOf(message.userId, state.viewerId)
+    Row(Modifier.fillMaxWidth().padding(top = topPadding), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        if (row.startsRun) {
+            MemberAvatar(name = name, avatarUrl = member?.avatarUrl, size = IconSize.lg)
+        } else {
+            Spacer(Modifier.width(IconSize.lg))
+        }
+        Column(Modifier.weight(1f, fill = false)) {
+            if (row.startsRun) {
                 Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isCurrentUser) Color.White else MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 22.sp
+                    name,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.xxs),
                 )
-                
-                Row(
-                    modifier = Modifier.padding(top = 6.dp).align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = timestampStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isCurrentUser) 
-                            Color.White.copy(alpha = 0.7f) 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = 10.sp
-                    )
-                    
-                    if (message.isPending) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Schedule,
-                            null,
-                            modifier = Modifier.size(10.dp),
-                            tint = Color.White.copy(alpha = 0.7f)
-                        )
-                    }
+            }
+            Bubble(message, config, isOwn = false)
+        }
+        Spacer(Modifier.width(Spacing.xxxl))
+    }
+}
+
+@Composable
+private fun Bubble(message: Message, config: HouseConfig?, isOwn: Boolean, modifier: Modifier = Modifier) {
+    val time = remember(message.createdAt, config) {
+        message.createdAt.toLocalDateTime(config.timeZone()).time.toJavaLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+    }
+    val container = if (isOwn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+    val content = if (isOwn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = container,
+        contentColor = content,
+        modifier = modifier.semantics(mergeDescendants = true) {},
+    ) {
+        Column(Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+            Text(message.content, style = MaterialTheme.typography.bodyLarge)
+            Row(
+                modifier = Modifier.align(Alignment.End).padding(top = Spacing.xxs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(time, style = MaterialTheme.typography.labelSmall, color = content.copy(alpha = TIME_ALPHA))
+                if (message.isPending) {
+                    Icon(Icons.Rounded.Schedule, contentDescription = "Sending", tint = content.copy(alpha = TIME_ALPHA), modifier = Modifier.size(IconSize.xs))
                 }
             }
         }
     }
 }
 
-private fun formatTimestamp(timestamp: String, houseConfig: HouseConfig? = null): String {
-    // Silent version: returns "Unknown" on failure without logging
-    return runCatching {
-        val instant = Instant.parse(timestamp)
-        val zoneId = ZoneId.of(houseConfig.timeZone().id)
-        val messageTime = LocalDateTime.ofInstant(instant, zoneId)
-        val now = LocalDateTime.now(zoneId)
-
-        val minutesAgo = Duration.between(messageTime, now).toMinutes()
-        val hoursAgo = Duration.between(messageTime, now).toHours()
-        val daysAgo = Duration.between(messageTime, now).toDays()
-
-        when {
-            minutesAgo < 1 -> "Now"
-            minutesAgo < 60 -> "${minutesAgo}m ago"
-            hoursAgo < 24 -> "${hoursAgo}h ago"
-            daysAgo == 1L -> "Yesterday"
-            daysAgo < 7 -> "${daysAgo}d ago"
-            else -> {
-                val date = LocalDate(messageTime.year, messageTime.monthValue, messageTime.dayOfMonth)
-                date.formatWithHouseConfig(houseConfig)
+@Composable
+private fun Composer(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                placeholder = { Text("Message the house") },
+                maxLines = 5,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier.weight(1f),
+            )
+            FilledIconButton(onClick = onSend, enabled = text.isNotBlank(), modifier = Modifier.size(ComponentHeight.inputField)) {
+                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Send")
             }
         }
-    }.getOrDefault("Unknown")
+    }
 }

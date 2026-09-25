@@ -15,8 +15,6 @@ fun NavGraphBuilder.settingsGraph(navController: NavController) {
             onNavigateToProfile = { navController.navigate(EditProfileRoute) },
             onNavigateToNotificationPreferences = { navController.navigate(NotificationPreferencesRoute) },
             onLogout = {
-                // The authViewModel.signOut() in SettingsScreen will change auth state
-                // which triggers the UI to show the unauthenticated (login) screen
                 navController.popBackStack<HomeRoute>(inclusive = true)
             },
             onNavigateToSecurity = {

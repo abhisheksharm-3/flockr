@@ -1,5 +1,7 @@
+/** The signed-in session: signing in and out, and the profile that decides which part of the app to show. */
 package `in`.xroden.flockr.features.auth.presentation
 
+import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.network.userMessage
 import android.app.Activity
 import androidx.lifecycle.ViewModel
@@ -38,10 +40,15 @@ class AuthViewModel @Inject constructor(
     private val _signUpState = MutableStateFlow<SignUpUiState>(SignUpUiState.Idle)
     val signUpState: StateFlow<SignUpUiState> = _signUpState.asStateFlow()
 
-    // Non-fatal errors from profile actions (e.g. a failed profile update). Surfaced to the
-    // UI as a message; must NOT flip the user to the unauthenticated shell.
+    /**
+     * Failures of profile actions, such as a failed update, shown as a message. They never move the
+     * user to the signed-out screens.
+     */
     private val _actionError = MutableStateFlow<String?>(null)
     val actionError: StateFlow<String?> = _actionError.asStateFlow()
+
+    private val _isUpdatingProfile = MutableStateFlow(false)
+    val isUpdatingProfile: StateFlow<Boolean> = _isUpdatingProfile.asStateFlow()
 
     val profile: StateFlow<Profile?> =
         _uiState.map { state ->
@@ -87,6 +94,10 @@ class AuthViewModel @Inject constructor(
         observeSessionFlow()
     }
 
+    /**
+     * A fresh sign-in shows the loader rather than the sign-in screen while the profile loads; a
+     * token refresh while already signed in shows nothing new.
+     */
     private fun observeSessionFlow() {
         viewModelScope.launch {
             authRepository.sessionFlow.collect { status ->
@@ -97,8 +108,6 @@ class AuthViewModel @Inject constructor(
                     }
                     is SessionStatus.Authenticated -> {
                         _sessionState.value = status
-                        // Show a loader (not the login screen) while the profile loads after a
-                        // fresh sign-in; don't flash on token refresh when already authenticated.
                         if (_uiState.value !is AuthUiState.Authenticated) {
                             _uiState.value = AuthUiState.Loading
                         }
@@ -118,34 +127,38 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun loadProfile() {
-        viewModelScope.launch {
-            authRepository.getProfile().fold(
-                onSuccess = { profile ->
-                    if (profile != null) {
-                        _uiState.value = AuthUiState.Authenticated(profile)
-                    } else {
-                        _uiState.value = AuthUiState.Error("Profile not found", null)
-                    }
-                },
-                onFailure = { error ->
-                    // A transient load failure must not evict an already-authenticated user to
-                    // the login screen; keep the last-good profile and surface a message.
-                    if (_uiState.value is AuthUiState.Authenticated) {
-                        _actionError.value = error.userMessage()
-                    } else {
-                        _uiState.value = AuthUiState.Error(
-                            message = error.userMessage(),
-                            cause = error
-                        )
-                    }
+        viewModelScope.launch { refreshProfile() }
+    }
+
+    /**
+     * A failed load keeps an already signed-in user on their last good profile and shows a
+     * message, rather than sending them back to the sign-in screen.
+     */
+    private suspend fun refreshProfile() {
+        authRepository.getProfile().fold(
+            onSuccess = { profile ->
+                if (profile != null) {
+                    _uiState.value = AuthUiState.Authenticated(profile)
+                } else {
+                    _uiState.value = AuthUiState.Error("Profile not found", null)
                 }
-            )
-        }
+            },
+            onFailure = { error ->
+                if (_uiState.value is AuthUiState.Authenticated) {
+                    _actionError.value = error.userMessage()
+                } else {
+                    _uiState.value = AuthUiState.Error(
+                        message = error.userMessage(),
+                        cause = error
+                    )
+                }
+            }
+        )
     }
 
     fun signIn(email: String, password: String) {
         viewModelScope.launch {
-            _signInState.value = SignInUiState.Loading
+            _signInState.value = SignInUiState.Loading(withGoogle = false)
 
             authRepository.signIn(email, password).fold(
                 onSuccess = { _signInState.value = SignInUiState.Idle },
@@ -182,7 +195,7 @@ class AuthViewModel @Inject constructor(
 
     fun signInWithGoogle(activity: Activity) {
         viewModelScope.launch {
-            _signInState.value = SignInUiState.Loading
+            _signInState.value = SignInUiState.Loading(withGoogle = true)
 
             googleSignInHelper.signIn(activity).fold(
                 onSuccess = { idToken ->
@@ -196,27 +209,33 @@ class AuthViewModel @Inject constructor(
                     )
                 },
                 onFailure = { error ->
-                    _signInState.value = SignInUiState.Error(
-                        message = error.userMessage()
-                    )
+                    _signInState.value = if (error is DomainError.AuthError.SignInCancelled) {
+                        SignInUiState.Idle
+                    } else {
+                        SignInUiState.Error(message = error.userMessage())
+                    }
                 }
             )
         }
     }
 
+    /**
+     * A failed update is recoverable, so it leaves the user where they are with [actionError] set.
+     * [isUpdatingProfile] stays on until the refreshed profile is in, so finishing onboarding hands
+     * straight over to the app.
+     */
     fun updateProfile(fullName: String? = null, hasCompletedOnboarding: Boolean? = null) {
         viewModelScope.launch {
+            _isUpdatingProfile.value = true
             authRepository.updateProfile(
                 fullName = fullName,
                 avatarUrl = null,
                 hasCompletedOnboarding = hasCompletedOnboarding
             ).fold(
-                onSuccess = { loadProfile() },
-                onFailure = { error ->
-                    // Keep the user in the app; a failed update is recoverable, not a logout.
-                    _actionError.value = error.userMessage()
-                }
+                onSuccess = { refreshProfile() },
+                onFailure = { error -> _actionError.value = error.userMessage() }
             )
+            _isUpdatingProfile.value = false
         }
     }
 

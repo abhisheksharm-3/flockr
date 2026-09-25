@@ -15,7 +15,8 @@ object Validators {
     private val UUID_REGEX = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$".toRegex()
     private val EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
 
-    private val ALLOWED_DOCUMENT_MIME_TYPES = setOf(
+    /** The file types a document may be, which the document picker also offers. */
+    val DOCUMENT_MIME_TYPES = setOf(
         "application/pdf",
         "image/jpeg",
         "image/png",
@@ -41,7 +42,7 @@ object Validators {
         if (size <= maxSize) Result.success(size) else Result.failure(DomainError.StorageError.FileTooLarge(size, maxSize))
 
     fun validateMimeType(mimeType: String): Result<String> =
-        if (mimeType.lowercase() in ALLOWED_DOCUMENT_MIME_TYPES) Result.success(mimeType)
+        if (mimeType.lowercase() in DOCUMENT_MIME_TYPES) Result.success(mimeType)
         else Result.failure(DomainError.ValidationError.InvalidFormat("File", "a PDF, image, Office document or text file"))
 
     /** The code upper-cased and trimmed, when it could be one the database generated. */

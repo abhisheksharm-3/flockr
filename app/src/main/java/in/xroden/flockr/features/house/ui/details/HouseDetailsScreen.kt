@@ -1,86 +1,80 @@
+/** A house's home: its picture and people, where the viewer stands, and a door to each part of the house. */
 package `in`.xroden.flockr.features.house.ui.details
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import coil3.compose.AsyncImage
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import `in`.xroden.flockr.R
-import `in`.xroden.flockr.data.enums.HouseMemberRole
-import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.features.house.model.House
-import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.ui.theme.*
-import javax.inject.Inject
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import `in`.xroden.flockr.ui.components.balanceColor
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.features.house.presentation.HouseDetailUiState
+import `in`.xroden.flockr.features.house.presentation.HouseDetailsViewModel
+import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.MemberAvatar
+import `in`.xroden.flockr.ui.components.states.ErrorState
+import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.IconSize
+import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.utils.formatMoney
+import java.math.BigDecimal
 
-@HiltViewModel
-class HouseDetailsViewModel @Inject constructor(
-    private val houseRepository: HouseRepository
-) : ViewModel() {
-    
-    private val _house = MutableStateFlow<House?>(null)
-    val house: StateFlow<House?> = _house.asStateFlow()
-    
-    private val _houseConfig = MutableStateFlow<HouseConfig?>(null)
-    val houseConfig: StateFlow<HouseConfig?> = _houseConfig.asStateFlow()
-    
-    private val _currentUserRole = MutableStateFlow<String?>(null)
-    val currentUserRole: StateFlow<String?> = _currentUserRole.asStateFlow()
-    
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+private const val AVATARS_SHOWN = 5
 
-    fun loadHouseDetails(houseId: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            // Run safely, although repo returns Result
-            runCatching {
-                _house.value = houseRepository.getHouseById(houseId).getOrNull()
-                _houseConfig.value = houseRepository.getHouseConfig(houseId).getOrNull()
+private data class Destination(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit,
+)
 
-                val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
-                val currentUserId = houseRepository.getCurrentUserId()
-                _currentUserRole.value = members.find { it.userId == currentUserId }?.role?.name
-            }.onFailure {
-            }
-            _isLoading.value = false
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseDetailsScreen(
     houseId: String,
@@ -94,171 +88,186 @@ fun HouseDetailsScreen(
     onNavigateToHouseSettings: () -> Unit,
     viewModel: HouseDetailsViewModel = hiltViewModel()
 ) {
-    val house by viewModel.house.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val currentUserRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val config by rememberHouseConfig(houseId)
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    LaunchedEffect(houseId) {
-        viewModel.loadHouseDetails(houseId)
-    }
+    LaunchedEffect(houseId) { viewModel.load(houseId) }
+
+    val destinations = listOf(
+        Destination("Expenses", "Spending and who owes whom", Icons.Rounded.AccountBalanceWallet, onNavigateToExpenses),
+        Destination("Shopping", "The shared list", Icons.Rounded.ShoppingCart, onNavigateToShopping),
+        Destination("Chores", "Whose turn it is", Icons.Rounded.CleaningServices, onNavigateToChores),
+        Destination("Chat", "Talk to the house", Icons.Rounded.Forum, onNavigateToChat),
+        Destination("Documents", "Leases, bills and files", Icons.Rounded.Description, onNavigateToDocuments),
+        Destination("Members", "People and invites", Icons.Rounded.Group, onNavigateToManageMembers),
+        Destination("Settings", "Name, money and dates", Icons.Rounded.Settings, onNavigateToHouseSettings),
+    )
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(house?.name ?: "Household", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                actions = {
-                    if (currentUserRole == HouseMemberRole.OWNER.name || currentUserRole == HouseMemberRole.ADMIN.name) {
-                        IconButton(onClick = onNavigateToHouseSettings) {
-                            Icon(Icons.Default.Settings, "Settings", tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            FlockrTopAppBar(
+                title = (state as? HouseDetailUiState.Ready)?.house?.name ?: "House",
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior,
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets.systemBars
     ) { padding ->
-        if (isLoading) {
-            `in`.xroden.flockr.ui.components.loading.DetailScreenSkeleton(
-                modifier = Modifier.padding(padding)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                item { HouseInfoCard(house = house, currentUserRole = currentUserRole) }
-                
-                item {
-                    house?.let { houseData ->
-                        QuickActionsCard(house = houseData, onNavigateToManageMembers = onNavigateToManageMembers)
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (val current = state) {
+                HouseDetailUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
+                is HouseDetailUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
+                is HouseDetailUiState.Ready -> LazyColumn(
+                    contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, top = Spacing.sm, bottom = Spacing.xxxl),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                ) {
+                    item(key = "header") { HouseHeader(current, onOpenMembers = onNavigateToManageMembers) }
+                    current.viewerNet?.let { net ->
+                        item(key = "standing") { StandingCard(net, config.currency(), onClick = onNavigateToExpenses) }
+                    }
+                    item(key = "destinations_title") {
+                        Text("Around the house", style = MaterialTheme.typography.titleMediumEmphasized, modifier = Modifier.padding(top = Spacing.sm))
+                    }
+                    items(destinations.chunked(2), key = { row -> row.first().title }) { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
+                            row.forEachIndexed { index, destination ->
+                                DestinationTile(destination, tint = tileTint(destinations.indexOf(destination)), modifier = Modifier.weight(1f))
+                                if (row.size == 1 && index == 0) Spacer(Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
-
-                item {
-                    Text("Manage Household", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 8.dp))
-                }
-
-                item { FeatureCard("Expenses", "Track spending and split bills", Icons.Default.AccountBalance, CategoryBlue, onNavigateToExpenses) }
-                item { FeatureCard("Shopping List", "Shared grocery lists", Icons.Default.ShoppingCart, CategoryGreen, onNavigateToShopping) }
-                item { FeatureCard("Chores", "Assign and track tasks", Icons.Default.CheckCircle, CategoryPurple, onNavigateToChores) }
-                item { FeatureCard("Chat", "Group conversations", Icons.Default.Email, MaterialTheme.colorScheme.tertiary, onNavigateToChat) }
-                item { FeatureCard("Documents", "Store shared files", Icons.Default.Description, CategoryOrange, onNavigateToDocuments) }
-
-                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
 }
 
+/** The house picture, or a tinted placeholder when it has none, with the address and who lives there. */
 @Composable
-private fun HouseInfoCard(house: House?, currentUserRole: String?) {
+private fun HouseHeader(state: HouseDetailUiState.Ready, onOpenMembers: () -> Unit) {
+    val house = state.house
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Box(Modifier.fillMaxWidth().height(220.dp)) {
-            if (house != null) {
-                if (house.headerImageUrl != null) {
-                    AsyncImage(model = house.headerImageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                } else {
-                    Image(painter = painterResource(id = R.drawable.house), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                }
-            }
-
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f), Color.Black.copy(alpha = 0.8f)), startY = 0f)))
-
-            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.Start) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    currentUserRole?.let { role ->
-                        Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f), shape = CircleShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))) {
-                            Text(role.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), letterSpacing = 1.sp)
-                        }
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(house?.name ?: "Household", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    house?.address?.takeIf { it.isNotEmpty() }?.let { address ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocationOn, null, Modifier.size(16.dp), tint = Color.White.copy(alpha = 0.8f))
-                            Text(address, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+        Box(Modifier.fillMaxWidth().height(ComponentHeight.cardLarge)) {
+            if (house.headerImageUrl != null) {
+                AsyncImage(
+                    model = house.headerImageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxSize()) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Home,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(IconSize.xxl),
+                        )
                     }
                 }
             }
+        }
+        Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(house.name, style = MaterialTheme.typography.headlineSmallEmphasized, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                house.address?.takeIf { it.isNotBlank() }?.let { address ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Icon(
+                            Icons.Rounded.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(IconSize.sm),
+                        )
+                        Text(address, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            MembersRow(state.activeMembers, onClick = onOpenMembers)
         }
     }
 }
 
 @Composable
-private fun QuickActionsCard(house: House, onNavigateToManageMembers: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-        elevation = CardDefaults.cardElevation(2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+private fun MembersRow(members: List<MemberWithProfile>, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(onClick = onClick).padding(vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("MEMBERS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                TextButton(onClick = onNavigateToManageMembers, contentPadding = PaddingValues(0.dp), modifier = Modifier.height(32.dp), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)) {
-                    Text("View & Invite", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(20.dp))
-                }
-            }
-
-            house.inviteCode?.let { code ->
-                val context = LocalContext.current
-                IconButton(
-                    onClick = {
-                        val shareIntent = android.content.Intent().apply {
-                            action = android.content.Intent.ACTION_SEND
-                            putExtra(android.content.Intent.EXTRA_TEXT, "Hey! Join my household \"${house.name}\" on Flockr so we can manage expenses, chores, and shopping together.\n\nHere is the invite code: $code")
-                            type = "text/plain"
-                        }
-                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Invite"))
-                    },
-                    modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Share, "Share Invite", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
-                }
+        Row(horizontalArrangement = Arrangement.spacedBy(-Spacing.sm)) {
+            members.take(AVATARS_SHOWN).forEach { member ->
+                MemberAvatar(name = member.displayName, avatarUrl = member.avatarUrl)
             }
         }
+        Text(
+            when (members.size) {
+                1 -> "Just you so far"
+                else -> "${members.size} people live here"
+            },
+            style = MaterialTheme.typography.bodyMediumEmphasized,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+/** The viewer's overall balance in the house; opening it goes to the expenses. */
 @Composable
-private fun FeatureCard(title: String, subtitle: String, icon: ImageVector, accentColor: Color, onClick: () -> Unit) {
+private fun StandingCard(net: BigDecimal, currencyCode: String, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(56.dp).clip(MaterialTheme.shapes.medium).background(accentColor.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = accentColor, modifier = Modifier.size(28.dp))
+        Row(Modifier.padding(Spacing.xl), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                when (net.signum()) {
+                    0 -> Text("You're all settled up", style = MaterialTheme.typography.titleLargeEmphasized)
+                    else -> {
+                        Text(
+                            if (net.signum() > 0) "You are owed" else "You owe",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(net.abs().formatMoney(currencyCode), style = MaterialTheme.typography.displaySmallEmphasized, color = balanceColor(net))
+                    }
+                }
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "Open expenses", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+@Composable
+private fun DestinationTile(destination: Destination, tint: Color, modifier: Modifier = Modifier) {
+    Card(
+        onClick = destination.onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.largeIncreased,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Surface(shape = MaterialShapes.Cookie4Sided.toShape(), color = tint) {
+                Icon(destination.icon, contentDescription = null, modifier = Modifier.padding(Spacing.sm).size(IconSize.md))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(destination.title, style = MaterialTheme.typography.titleMediumEmphasized)
+                Text(destination.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun tileTint(index: Int): Color = when (index % 3) {
+    0 -> MaterialTheme.colorScheme.primaryContainer
+    1 -> MaterialTheme.colorScheme.secondaryContainer
+    else -> MaterialTheme.colorScheme.tertiaryContainer
 }

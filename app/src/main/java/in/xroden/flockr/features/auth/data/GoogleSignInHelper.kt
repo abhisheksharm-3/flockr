@@ -1,5 +1,6 @@
 package `in`.xroden.flockr.features.auth.data
 
+import `in`.xroden.flockr.core.domain.DomainError
 import android.app.Activity
 import android.content.Context
 import androidx.credentials.CredentialManager
@@ -64,11 +65,11 @@ class GoogleSignInHelper @Inject constructor(
                 }
             }
         } catch (e: GetCredentialCancellationException) {
-            throw Exception("Sign-in cancelled")
+            throw DomainError.AuthError.SignInCancelled
         } catch (e: NoCredentialException) {
-            throw Exception("No Google accounts available. Please add a Google account to your device.")
+            throw DomainError.AuthError.NoGoogleAccount
         } catch (e: GetCredentialException) {
-            throw Exception("Sign-in failed: ${e.errorMessage ?: e.message}")
+            throw DomainError.AuthError.GoogleUnavailable("Google sign-in isn't available right now. Try email instead.")
         }
     }
 }

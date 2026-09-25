@@ -69,14 +69,12 @@ fun FlockrNavigation(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Authenticated Content (Main App)
         if (authUiState is AuthNavigationState.Authenticated || (hasAuthenticatedSession.value && authUiState is AuthNavigationState.Loading)) {
             key("authenticated") {
                 NavHost(
                     navController = navController,
                     startDestination = HomeRoute
                 ) {
-                    // Core navigation: Home and Notifications (kept inline due to complex deep-link handling)
                     composable<HomeRoute> {
                         HomeScreen(
                             onHouseClick = { houseId ->
@@ -107,7 +105,6 @@ fun FlockrNavigation(
                         )
                     }
 
-                    // Feature-specific navigation graphs
                     houseGraph(navController)
                     expenseGraph(navController)
                     settingsGraph(navController)
@@ -115,7 +112,6 @@ fun FlockrNavigation(
             }
         }
 
-        // Unauthenticated Content
         if (authUiState is AuthNavigationState.Unauthenticated) {
             key("unauthenticated") {
                 NavHost(
@@ -127,7 +123,6 @@ fun FlockrNavigation(
             }
         }
 
-        // Onboarding Content
         if (authUiState is AuthNavigationState.NeedsOnboarding) {
             key("onboarding") {
                 NavHost(
@@ -139,7 +134,6 @@ fun FlockrNavigation(
             }
         }
 
-        // Loading Overlay
         if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {
             FlockrSplashLoader()
         }

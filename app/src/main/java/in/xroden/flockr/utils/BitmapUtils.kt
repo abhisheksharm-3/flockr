@@ -9,21 +9,17 @@ import javax.inject.Inject
 class BitmapUtils @Inject constructor() {
 
     fun compressImage(imageData: ByteArray, maxSize: Int = 1024): ByteArray {
-        // First decode with inJustDecodeBounds to check dimensions
         val options = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
         BitmapFactory.decodeByteArray(imageData, 0, imageData.size, options)
 
-        // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
 
-        // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false
         val scaledBitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size, options)
             ?: return imageData
 
-        // Compress
         val outputStream = ByteArrayOutputStream()
         scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
         

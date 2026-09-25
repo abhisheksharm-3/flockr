@@ -22,6 +22,3 @@ val Shapes = Shapes(
     extraLargeIncreased = RoundedCornerShape(32.dp),
     extraExtraLarge = RoundedCornerShape(48.dp),
 )
-
-/** A fully rounded shape, for pills, avatars and toggle groups. */
-val PillShape = RoundedCornerShape(percent = 50)

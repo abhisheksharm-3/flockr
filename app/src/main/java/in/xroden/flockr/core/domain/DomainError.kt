@@ -5,6 +5,13 @@ sealed class DomainError(override val message: String, override val cause: Throw
 
     sealed class AuthError(override val message: String) : DomainError(message) {
         object NotAuthenticated : AuthError("You're signed out. Sign in again to continue.")
+
+        /** The user closed the account picker; nothing went wrong, so nothing is shown. */
+        object SignInCancelled : AuthError("Sign-in cancelled")
+
+        object NoGoogleAccount : AuthError("Add a Google account to this phone to sign in with Google.")
+
+        data class GoogleUnavailable(override val message: String) : AuthError(message)
     }
 
     sealed class ValidationError(override val message: String) : DomainError(message) {

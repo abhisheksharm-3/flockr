@@ -1,6 +1,7 @@
 /** One expense or payment in a list, worded from the viewer's side as Splitwise does. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import `in`.xroden.flockr.ui.components.balanceColor
 import `in`.xroden.flockr.features.house.model.nameInSentence
 import `in`.xroden.flockr.features.house.model.nameOf
 import androidx.compose.foundation.clickable
@@ -32,14 +33,6 @@ import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.shortMonthLabel
 import java.math.BigDecimal
-
-/** The colour for a balance: the primary colour when others owe, the error colour when you owe. */
-@Composable
-fun balanceColor(net: BigDecimal): Color = when (net.signum()) {
-    1 -> MaterialTheme.colorScheme.primary
-    -1 -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
-}
 
 @Composable
 fun ExpenseRow(

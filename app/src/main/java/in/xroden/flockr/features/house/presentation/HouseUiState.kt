@@ -1,10 +1,12 @@
 package `in`.xroden.flockr.features.house.presentation
 
+import `in`.xroden.flockr.core.network.userMessage
+import `in`.xroden.flockr.core.validation.Validators
+import java.math.BigDecimal
+
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
-import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.HousePreview
-import `in`.xroden.flockr.features.house.model.HouseInvitation
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 
 sealed interface HouseListUiState {
@@ -13,30 +15,25 @@ sealed interface HouseListUiState {
     data class Error(val message: String, val cause: Throwable? = null) : HouseListUiState
 }
 
+/** [viewerNet] is null when the balances could not be loaded, so the home can still open without them. */
 sealed interface HouseDetailUiState {
     data object Loading : HouseDetailUiState
-    data class Success(val house: House, val config: HouseConfig?, val members: List<MemberWithProfile>) : HouseDetailUiState
-    data class Error(val message: String, val cause: Throwable? = null) : HouseDetailUiState
+    data class Ready(
+        val house: House,
+        val members: List<MemberWithProfile>,
+        val viewerId: String,
+        val viewerNet: BigDecimal?,
+    ) : HouseDetailUiState {
+        val activeMembers: List<MemberWithProfile> get() = members.filter { it.isActive }
+    }
+    data class Error(val message: String) : HouseDetailUiState
 }
 
+/** [Created.photoUploaded] is false when the house was made but its header photo failed to upload. */
 sealed interface CreateHouseUiState {
     data object Idle : CreateHouseUiState
-    data object Loading : CreateHouseUiState
-    data class Success(val house: House) : CreateHouseUiState
-    data class Error(val message: String) : CreateHouseUiState
-}
-
-sealed interface JoinHouseUiState {
-    data object Idle : JoinHouseUiState
-    data object Loading : JoinHouseUiState
-    data class Success(val house: House?) : JoinHouseUiState
-    data class Error(val message: String) : JoinHouseUiState
-}
-
-sealed interface InvitationsUiState {
-    data object Loading : InvitationsUiState
-    data class Success(val invitations: List<HouseInvitation>) : InvitationsUiState
-    data class Error(val message: String) : InvitationsUiState
+    data object Creating : CreateHouseUiState
+    data class Created(val house: House, val photoUploaded: Boolean) : CreateHouseUiState
 }
 
 sealed interface HousePreviewUiState {
@@ -46,15 +43,29 @@ sealed interface HousePreviewUiState {
     data class Error(val message: String) : HousePreviewUiState
 }
 
+/**
+ * The settings form. Only admins may change the house, so [canEdit] is false for a plain member,
+ * who can still see the settings, open the activity log and leave.
+ */
 sealed interface HouseSettingsUiState {
     data object Loading : HouseSettingsUiState
-    data class Success(val config: HouseConfig, val isCurrencyLocked: Boolean) : HouseSettingsUiState
     data class Error(val message: String) : HouseSettingsUiState
-}
-
-sealed interface UpdateHouseSettingsUiState {
-    data object Idle : UpdateHouseSettingsUiState
-    data object Loading : UpdateHouseSettingsUiState
-    data object Success : UpdateHouseSettingsUiState
-    data class Error(val message: String) : UpdateHouseSettingsUiState
+    data class Ready(
+        val house: House,
+        val viewerId: String,
+        val canEdit: Boolean,
+        val name: String,
+        val address: String,
+        val currencyCode: String,
+        val dateFormat: String,
+        val firstDayOfWeek: Int,
+        val timezone: String,
+        val isCurrencyLocked: Boolean,
+        val isSaving: Boolean = false,
+        val isUploadingImage: Boolean = false,
+    ) : HouseSettingsUiState {
+        val isOwner: Boolean get() = house.ownerId == viewerId
+        val nameError: String? get() = Validators.validateHouseName(name).exceptionOrNull()?.userMessage()
+        val canSave: Boolean get() = canEdit && nameError == null && !isSaving
+    }
 }

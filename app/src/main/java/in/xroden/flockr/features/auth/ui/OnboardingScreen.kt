@@ -1,241 +1,112 @@
+/** The one step after a first sign-in: confirming the name housemates will see. */
 package `in`.xroden.flockr.features.auth.ui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.auth.presentation.AuthValidation
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
+import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
-import kotlinx.coroutines.launch
 
-data class OnboardingPage(
-    val icon: ImageVector,
-    val title: String,
-    val description: String
-)
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+/**
+ * Finishing marks onboarding complete on the profile, and the app moves on when the auth state
+ * sees it, so [onComplete] is not needed to leave this screen. [viewModel] defaults to the
+ * activity's instance, the one the app's navigation reads, so the finished profile reaches it.
+ */
 @Composable
 fun OnboardingScreen(
     onComplete: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
-) {
-    OnboardingCarousel(
-        onComplete = {
-            viewModel.updateProfile(hasCompletedOnboarding = true)
-        }
-    )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun OnboardingCarousel(
-    onComplete: () -> Unit
+    viewModel: AuthViewModel = hiltViewModel(checkNotNull(LocalActivity.current as? ComponentActivity))
 ) {
     val haptics = rememberHaptics()
-    val pages = listOf(
-        OnboardingPage(
-            icon = Icons.Outlined.Home,
-            title = "Welcome to Flockr",
-            description = "The all-in-one app for managing your household. Track expenses, organize chores, and stay connected."
-        ),
-        OnboardingPage(
-            icon = Icons.Outlined.Receipt,
-            title = "Track Finances",
-            description = "Split bills easily, track who owes what, and generate automated expense reports."
-        ),
-        OnboardingPage(
-            icon = Icons.Outlined.TaskAlt,
-            title = "Organize Chores",
-            description = "Assign tasks, create shopping lists, and keep everyone on the same page."
-        ),
-        OnboardingPage(
-            icon = Icons.Outlined.Notifications,
-            title = "Stay Connected",
-            description = "Real-time notifications, group chat, and document sharing. Everything in one place."
-        )
-    )
+    val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isUpdatingProfile.collectAsStateWithLifecycle()
+    val actionError by viewModel.actionError.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var name by rememberSaveable { mutableStateOf<String?>(null) }
+    var showErrors by rememberSaveable { mutableStateOf(false) }
+    val draftName = name ?: profile?.fullName.orEmpty()
+    val nameError = AuthValidation.nameError(draftName).takeIf { showErrors }
 
-    val pagerState = rememberPagerState(pageCount = { pages.size })
-    val scope = rememberCoroutineScope()
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Skip button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onComplete) {
-                    Text(
-                        "Skip",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            // Pager
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f)
-            ) { page ->
-                OnboardingPageContent(pages[page])
-            }
-
-            // Bottom section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Page indicators
-                Row(
-                    modifier = Modifier.padding(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    repeat(pages.size) { index ->
-                        Box(
-                            modifier = Modifier
-                                .size(
-                                    width = if (index == pagerState.currentPage) 24.dp else 8.dp,
-                                    height = 8.dp
-                                )
-                                .clip(CircleShape)
-                                .background(
-                                    if (index == pagerState.currentPage)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                )
-                        )
-                    }
-                }
-
-                // Navigation button
-                Button(
-                    onClick = {
-                        haptics.tap()
-                        if (pagerState.currentPage < pages.size - 1) {
-                            scope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
-                        } else {
-                            onComplete()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        if (pagerState.currentPage < pages.size - 1) "Continue" else "Get Started",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                // Back button (if not first page)
-                if (pagerState.currentPage > 0) {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                            }
-                        },
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text("Back", fontWeight = FontWeight.Medium)
-                    }
-                } else {
-                    Spacer(modifier = Modifier.height(48.dp))
-                }
-            }
-        }
+    LaunchedEffect(actionError) {
+        val message = actionError ?: return@LaunchedEffect
+        haptics.error()
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearActionError()
     }
-}
 
-@Composable
-fun OnboardingPageContent(page: OnboardingPage) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Icon container with subtle background
-        Box(
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
+    fun finish() {
+        showErrors = true
+        if (AuthValidation.nameError(draftName) != null) {
+            haptics.error()
+            return
+        }
+        viewModel.updateProfile(fullName = draftName.trim(), hasCompletedOnboarding = true)
+    }
+
+    Scaffold(
+        topBar = { FlockrTopAppBar(title = "Welcome to Flockr", subtitle = "One thing before you start", onNavigateBack = null) },
+        bottomBar = {
+            FlockrPrimaryButton(
+                text = "Continue",
+                onClick = ::finish,
+                enabled = draftName.isNotBlank(),
+                isLoading = isSaving,
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = Spacing.xl, vertical = Spacing.lg),
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
-            Icon(
-                imageVector = page.icon,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
+            Text(
+                "What should your housemates call you? You can change it later in settings.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            AuthTextField(
+                value = draftName,
+                onValueChange = { name = it },
+                label = "Name",
+                leadingIcon = Icons.Rounded.Person,
+                autofill = ContentType.PersonFullName,
+                capitalization = KeyboardCapitalization.Words,
+                error = nameError,
+                enabled = !isSaving,
+                onDone = ::finish,
             )
         }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = page.description,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4f
-        )
     }
 }

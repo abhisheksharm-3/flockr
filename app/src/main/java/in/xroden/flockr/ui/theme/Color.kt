@@ -84,7 +84,3 @@ val DarkColorScheme = darkColorScheme(
     inversePrimary = Color(0xFF4F46E5)
 )
 
-val CategoryGreen = Color(0xFF4CAF50)
-val CategoryBlue = Color(0xFF2196F3)
-val CategoryPurple = Color(0xFF9C27B0)
-val CategoryOrange = Color(0xFFFF5722)

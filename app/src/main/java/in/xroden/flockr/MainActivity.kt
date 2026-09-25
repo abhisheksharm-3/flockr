@@ -87,8 +87,6 @@ class MainActivity : FragmentActivity() {
                             intentState.value?.getStringExtra(EXTRA_NOTIFICATION_ID)?.let { setNotificationId(it) }
                         }
 
-                        // Pass any invite code into navigation, which routes to the join preview
-                        // once the user is authenticated (or right away if already signed in).
                         FlockrNavigation(
                             initialInviteCode = inviteCode,
                             onInviteConsumed = { setInviteCode(null) },
