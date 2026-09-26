@@ -1,10 +1,9 @@
 /** Who lives in a house and who used to, the invite code and email invitations, and what admins can change about members. */
 package `in`.xroden.flockr.features.house.ui.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
+import `in`.xroden.flockr.features.house.ui.copyInviteCode
+import `in`.xroden.flockr.features.house.ui.shareInvite
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +84,6 @@ import `in`.xroden.flockr.utils.rememberHaptics
 import java.math.BigDecimal
 import kotlinx.coroutines.launch
 
-private const val INVITE_LINK_PREFIX = "flockr://invite/"
 
 private sealed interface PendingConfirm {
     data class Remove(val member: MemberWithProfile) : PendingConfirm
@@ -125,7 +123,7 @@ fun ManageMembersScreen(
             is ManageMembersUiState.Ready -> MembersContent(
                 state = current,
                 onCopyCode = { code ->
-                    copyToClipboard(context, code)
+                    copyInviteCode(context, code)
                     scope.launch { snackbarHostState.showSnackbar("Invite code copied") }
                 },
                 onShareCode = { code -> shareInvite(context, current.houseName, code) },
@@ -456,17 +454,4 @@ private fun SplitShareDialog(member: MemberWithProfile, onConfirm: (String) -> U
         },
         dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text("Cancel") } },
     )
-}
-
-private fun copyToClipboard(context: Context, code: String) {
-    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Invite code", code))
-}
-
-private fun shareInvite(context: Context, houseName: String, code: String) {
-    val text = "Join $houseName on Flockr: $INVITE_LINK_PREFIX$code\n\nOr open Flockr, tap Join with a code and enter $code."
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    context.startActivity(Intent.createChooser(send, "Share invite"))
 }

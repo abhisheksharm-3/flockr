@@ -135,7 +135,7 @@ fun HouseLocaleSentence(
         )
         LocalePicker.ZONE -> OptionSheet(
             options = remember(timezone, zoneLabels) {
-                (listOf(timezone, ZoneId.systemDefault().id) + COMMON_TIME_ZONES + zoneLabels.keys).distinct()
+                (listOf(timezone, deviceZoneId()) + COMMON_TIME_ZONES + zoneLabels.keys.filterNot { it in RENAMED_ZONES }).distinct()
             },
             selected = timezone,
             onSelect = onTimezoneChange,
@@ -153,8 +153,29 @@ internal fun zoneLabel(id: String): String {
     return "${zoneCity(id)} · GMT$offset"
 }
 
-/** The city part of a zone id, "New York" for "America/New_York". */
-private fun zoneCity(id: String): String = id.substringAfterLast('/').replace('_', ' ')
+/** The city part of a zone id, "New York" for "America/New_York", under its current name. */
+private fun zoneCity(id: String): String = modernZoneId(id).substringAfterLast('/').replace('_', ' ')
+
+/**
+ * Old zone ids phones still report, mapped to the names cities use now. Both stay valid, so a house
+ * saved with either keeps working; new houses get the modern one, and the list shows each city once.
+ */
+private val RENAMED_ZONES = mapOf(
+    "Asia/Calcutta" to "Asia/Kolkata",
+    "Asia/Saigon" to "Asia/Ho_Chi_Minh",
+    "Asia/Katmandu" to "Asia/Kathmandu",
+    "Asia/Rangoon" to "Asia/Yangon",
+    "Asia/Dacca" to "Asia/Dhaka",
+    "Asia/Thimbu" to "Asia/Thimphu",
+    "Asia/Ulan_Bator" to "Asia/Ulaanbaatar",
+    "Europe/Kiev" to "Europe/Kyiv",
+)
+
+/** [id] under the name its city uses today, such as Asia/Kolkata for Asia/Calcutta. */
+internal fun modernZoneId(id: String): String = RENAMED_ZONES[id] ?: id
+
+/** The phone's own time zone, under its modern name. */
+internal fun deviceZoneId(): String = modernZoneId(ZoneId.systemDefault().id)
 
 /** The stored day number's name in the device language: 0 is Sunday. */
 internal fun dayName(day: Int): String = DayOfWeek.SUNDAY.plus(day.toLong()).getDisplayName(TextStyle.FULL, Locale.getDefault())

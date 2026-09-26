@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -33,6 +36,8 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -270,8 +275,8 @@ private fun GreetingHero(
         },
     ) {
         if (houses.isEmpty()) {
-            HeroLabel("Welcome to Flockr")
-            HeroCaption("Split bills, share chores and keep the shopping list in one place.")
+            Text("Let's set up your home", style = MaterialTheme.typography.headlineMediumEmphasized, modifier = Modifier.padding(top = Spacing.sm))
+            HeroCaption("Flockr keeps a shared home fair and simple: money to the paisa, bills on time, chores in turn, and one list.")
             return@HeroHeader
         }
         val currencies = houses.map { it.currencyCode }.distinct()
@@ -452,20 +457,49 @@ private fun AnotherHouse(onCreateHouseClick: () -> Unit, onJoinHouseClick: () ->
     }
 }
 
+/**
+ * A new member's first look: three numbered steps, because getting a house going really is a
+ * sequence. The first is live, with both ways in; the other two say what comes next.
+ */
 @Composable
 private fun NoHousesYet(onCreateHouseClick: () -> Unit, onJoinHouseClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        Text("Start with your house", style = MaterialTheme.typography.headlineSmallEmphasized)
-        Text(
-            "Create one for the people you live with, or join with the code a housemate sent you.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onCreateHouseClick, modifier = Modifier.fillMaxWidth()) { Text("Create a house") }
-        OutlinedButton(onClick = onJoinHouseClick, modifier = Modifier.fillMaxWidth()) { Text("Join with a code") }
+    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xl)) {
+        SetupStep(1, "Make your house", "Create one for the people you live with, or join the one they made.", isCurrent = true, isLast = false) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(top = Spacing.md)) {
+                Button(onClick = onCreateHouseClick, shapes = ButtonDefaults.shapes()) {
+                    Icon(Icons.Rounded.AddHome, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Text("Create a house", modifier = Modifier.padding(start = ButtonDefaults.IconSpacing))
+                }
+                OutlinedButton(onClick = onJoinHouseClick, shapes = ButtonDefaults.shapes()) {
+                    Icon(Icons.Rounded.Key, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Text("Join with a code", modifier = Modifier.padding(start = ButtonDefaults.IconSpacing))
+                }
+            }
+        }
+        SetupStep(2, "Bring in your housemates", "Share the house's code. They join in one tap, and everyone sees the same numbers.", isCurrent = false, isLast = false)
+        SetupStep(3, "Add the first expense", "Split it equally or your way. Flockr works out who owes whom.", isCurrent = false, isLast = true)
+    }
+}
+
+/** One step of the path: its number in a circle on a line that joins it to the next, then its words. */
+@Composable
+private fun SetupStep(number: Int, title: String, body: String, isCurrent: Boolean, isLast: Boolean, content: @Composable () -> Unit = {}) {
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Surface(
+                shape = CircleShape,
+                color = if (isCurrent) colors.primary else colors.surfaceContainerHigh,
+                contentColor = if (isCurrent) colors.onPrimary else colors.onSurfaceVariant,
+                modifier = Modifier.size(ComponentHeight.avatar),
+            ) { Box(contentAlignment = Alignment.Center) { Text("$number", style = MaterialTheme.typography.titleMediumEmphasized) } }
+            if (!isLast) Box(Modifier.weight(1f).width(Spacing.xxs).background(colors.outlineVariant))
+        }
+        Column(Modifier.weight(1f).padding(top = Spacing.sm, bottom = Spacing.xxl)) {
+            Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = if (isCurrent) colors.onSurface else colors.onSurfaceVariant)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = Spacing.xs))
+            content()
+        }
     }
 }
 

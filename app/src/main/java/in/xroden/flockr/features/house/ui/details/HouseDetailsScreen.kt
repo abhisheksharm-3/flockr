@@ -112,6 +112,7 @@ import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.house.model.currency
 import `in`.xroden.flockr.features.house.model.nameOf
 import `in`.xroden.flockr.features.house.presentation.HouseDetailUiState
+import `in`.xroden.flockr.features.house.ui.shareInvite
 import `in`.xroden.flockr.features.house.presentation.HouseDetailsViewModel
 import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
 import `in`.xroden.flockr.ui.components.BadgeTone
@@ -244,6 +245,9 @@ fun HouseDetailsScreen(
                         onChores = onNavigateToChores,
                         onShopping = onNavigateToShopping,
                         onAddExpense = onAddExpense,
+                        onShareInvite = { code -> shareInvite(context, current.house.name, code) },
+                        onMembers = onNavigateToManageMembers,
+                        onOpenSettings = onNavigateToHouseSettings,
                     ),
                     places = listOf(
                         Shortcut("Expense", Icons.Rounded.Add, onAddExpense, isPrimary = true),
@@ -578,8 +582,8 @@ private fun PromptPage(prompt: Prompt, index: Int, count: Int) {
 
 /**
  * The prompts, most pressing first: money between the viewer and a housemate, then housemates sharing
- * where they are, then bills by how due they are, then the viewer's chores, then the shopping list.
- * With nothing pending, one calm page.
+ * where they are, then bills by how due they are, then the viewer's chores, then the shopping list,
+ * then whatever a new house still needs. With nothing pending, one calm page.
  */
 private fun prompts(
     state: HouseDetailUiState.Ready,
@@ -593,6 +597,9 @@ private fun prompts(
     onChores: () -> Unit,
     onShopping: () -> Unit,
     onAddExpense: () -> Unit,
+    onShareInvite: (String) -> Unit,
+    onMembers: () -> Unit,
+    onOpenSettings: () -> Unit,
 ): List<Prompt> {
     val byId = state.members.associateBy { it.userId }
     val money = state.viewerPayments.map { payment ->
@@ -616,10 +623,32 @@ private fun prompts(
     val shopping = state.digest.toBuy?.takeIf { it > 0 }?.let { count ->
         listOf(Prompt("Shopping", if (count == 1) "1 thing on the list" else "$count things on the list", "Heading out? Take the list with you.", "Open the list", onShopping))
     }.orEmpty()
-    return (money + sharers + bills + chores + shopping).ifEmpty {
+    return (money + sharers + bills + chores + shopping + setup(state, onShareInvite, onMembers, onAddExpense, onOpenSettings)).ifEmpty {
         listOf(Prompt("All good", "Nothing needs you right now", "No bills due this week, and nobody owes anybody.", "Add expense", onAddExpense))
     }
 }
+
+/**
+ * What a young house still needs, each prompt gone once it's done: its people, its first expense,
+ * then, for whoever runs the house, its pin on the map and its photo.
+ */
+private fun setup(
+    state: HouseDetailUiState.Ready,
+    onShareInvite: (String) -> Unit,
+    onMembers: () -> Unit,
+    onAddExpense: () -> Unit,
+    onOpenSettings: () -> Unit,
+): List<Prompt> = listOfNotNull(
+    state.house.inviteCode?.takeIf { state.activeMembers.size == 1 }?.let { code ->
+        Prompt("Get started", "Bring in your housemates", "They join with the code $code, in one tap.", "Share invite", { onShareInvite(code) }, "Members" to onMembers)
+    },
+    Prompt("Get started", "Add the first expense", "Split it equally or your way. Flockr works out who owes whom.", "Add expense", onAddExpense)
+        .takeIf { state.recent.isEmpty() },
+    Prompt("Get started", "Pin the house on the map", "Its street becomes this page, and sharing shows how far people are from home.", "Pin it", onOpenSettings)
+        .takeIf { state.canManageHouse && state.house.latitude == null },
+    Prompt("Get started", "Add a house photo", "It goes behind this page and on the house's tile at home.", "Add a photo", onOpenSettings)
+        .takeIf { state.canManageHouse && state.house.headerImageUrl.isNullOrBlank() },
+)
 
 @Composable
 private fun HouseSheet(

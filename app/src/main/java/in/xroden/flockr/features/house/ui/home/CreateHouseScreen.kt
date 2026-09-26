@@ -1,6 +1,29 @@
 /** Creating a house: its name typed large on cobalt, then how money and dates read as a sentence, then the address and a photo. */
 package `in`.xroden.flockr.features.house.ui.home
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.unit.em
+import `in`.xroden.flockr.features.house.ui.copyInviteCode
+import `in`.xroden.flockr.features.house.ui.shareInvite
+import `in`.xroden.flockr.ui.components.AnimatedGlyph
+import `in`.xroden.flockr.ui.components.GlyphMotion
+import `in`.xroden.flockr.ui.components.HeroActions
+import `in`.xroden.flockr.ui.components.HeroBackdrop
+import `in`.xroden.flockr.ui.components.HeroButton
+import `in`.xroden.flockr.ui.components.HeroSecondaryButton
+import `in`.xroden.flockr.ui.components.LightStatusBarIcons
+import `in`.xroden.flockr.ui.theme.flockrColors
+import `in`.xroden.flockr.ui.theme.IconSize
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -15,7 +38,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,7 +46,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +68,7 @@ import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.HouseEvent
 import `in`.xroden.flockr.features.house.ui.HouseLocaleSentence
 import `in`.xroden.flockr.features.house.ui.HouseLocationRow
+import `in`.xroden.flockr.features.house.ui.deviceZoneId
 import `in`.xroden.flockr.ui.components.HeroColumn
 import `in`.xroden.flockr.ui.components.forms.FormHero
 import `in`.xroden.flockr.ui.components.forms.FormSubmitBar
@@ -64,8 +86,8 @@ import java.util.Currency
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.TimeZone
 
+private val CODE_TRACKING = 0.08.em
 private const val DEFAULT_DATE_FORMAT = "dd/MM/yyyy"
 
 /**
@@ -92,7 +114,17 @@ fun CreateHouseScreen(
     var currency by rememberSaveable { mutableStateOf(defaultCurrency()) }
     var dateFormat by rememberSaveable { mutableStateOf(DEFAULT_DATE_FORMAT) }
     var firstDayOfWeek by rememberSaveable { mutableIntStateOf(defaultFirstDayOfWeek()) }
-    var timezone by rememberSaveable { mutableStateOf(TimeZone.currentSystemDefault().id) }
+    var timezone by rememberSaveable { mutableStateOf(deviceZoneId()) }
+
+    (createState as? CreateHouseUiState.Created)?.let { created ->
+        HouseReady(
+            name = created.house.name,
+            inviteCode = created.house.inviteCode,
+            photoUploaded = created.photoUploaded,
+            onOpen = { onHouseCreated(created.house.id) },
+        )
+        return
+    }
 
     val isCreating = createState is CreateHouseUiState.Creating
     val nameCheck = Validators.validateHouseName(houseName)
@@ -196,14 +228,6 @@ fun CreateHouseScreen(
         }
     }
 
-    (createState as? CreateHouseUiState.Created)?.let { created ->
-        HouseCreatedDialog(
-            name = created.house.name,
-            inviteCode = created.house.inviteCode,
-            photoUploaded = created.photoUploaded,
-            onOpen = { onHouseCreated(created.house.id) },
-        )
-    }
 }
 
 /**
@@ -235,33 +259,54 @@ private fun HousePhoto(imageUri: Uri?, enabled: Boolean, onPick: () -> Unit, onR
     }
 }
 
-/** Shown once the house exists, with the code to share, before opening it. */
+/**
+ * The moment a house exists: the whole screen goes cobalt, a tick pops, and the invite code is set
+ * large with the two ways to pass it on, because the house is only useful once its people are in it.
+ * Back or "Open the house" goes in.
+ */
 @Composable
-private fun HouseCreatedDialog(name: String, inviteCode: String?, photoUploaded: Boolean, onOpen: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onOpen,
-        title = { Text("$name is ready") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                if (inviteCode != null) {
-                    Text("Share this code so your housemates can join.", style = MaterialTheme.typography.bodyMedium)
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text(inviteCode, style = MaterialTheme.typography.headlineMediumEmphasized, color = MaterialTheme.colorScheme.primary)
-                    }
-                } else {
-                    Text("You can invite housemates from the house's settings.", style = MaterialTheme.typography.bodyMedium)
-                }
-                if (!photoUploaded) {
-                    Text(
-                        "The header photo didn't upload. You can add it again in the house's settings.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+private fun HouseReady(name: String, inviteCode: String?, photoUploaded: Boolean, onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val haptics = rememberHaptics()
+    val colors = MaterialTheme.flockrColors
+    var isCopied by remember { mutableStateOf(false) }
+    var hasLanded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { hasLanded = true; haptics.success() }
+    BackHandler(onBack = onOpen)
+    LightStatusBarIcons()
+    Box(Modifier.fillMaxSize()) {
+        HeroBackdrop(imageUrl = null, modifier = Modifier.matchParentSize())
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = Spacing.xl, vertical = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Spacer(Modifier.weight(1f))
+            Surface(shape = CircleShape, color = colors.sun, contentColor = colors.onSun, modifier = Modifier.size(ComponentHeight.avatarLarge + Spacing.lg)) {
+                Box(contentAlignment = Alignment.Center) {
+                    AnimatedGlyph(Icons.Rounded.Check, trigger = hasLanded, motion = GlyphMotion.POP, contentDescription = null, modifier = Modifier.size(IconSize.lg))
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onOpen, shapes = ButtonDefaults.shapes()) { Text("Open house") } },
-    )
+            Text("$name is ready", style = MaterialTheme.typography.displaySmallEmphasized, color = colors.onHero)
+            Text(
+                if (inviteCode != null) "Now bring in the people you live with. They join with this code:"
+                else "Invite the people you live with from the house's members.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = colors.onHeroVariant,
+            )
+            inviteCode?.let { code ->
+                Text(code, style = MaterialTheme.typography.displayMediumEmphasized.copy(letterSpacing = CODE_TRACKING), color = colors.onHero)
+                HeroActions {
+                    HeroButton("Share invite", onClick = { shareInvite(context, name, code) })
+                    HeroSecondaryButton(if (isCopied) "Copied" else "Copy code", onClick = { copyInviteCode(context, code); isCopied = true })
+                }
+            }
+            if (!photoUploaded) {
+                Text("The photo didn't upload. You can add it again in the house's settings.", style = MaterialTheme.typography.bodyMedium, color = colors.sun)
+            }
+            Spacer(Modifier.weight(1f))
+            HeroSecondaryButton("Open the house", onClick = onOpen, modifier = Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight))
+        }
+    }
 }
 
 /** The device's currency when the app supports it, so most houses need not change it. */
