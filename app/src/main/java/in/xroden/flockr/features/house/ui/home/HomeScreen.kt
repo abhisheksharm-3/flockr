@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.AddHome
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Badge
@@ -371,7 +372,15 @@ private fun HouseTile(house: HouseCardData, members: List<MemberWithProfile>, on
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize(),
                     )
-                    location != null -> HouseMap(location, Modifier.matchParentSize())
+                    location != null -> {
+                        HouseMap(location, Modifier.matchParentSize())
+                        Icon(
+                            Icons.Rounded.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(IconSize.xl).offset(y = -IconSize.xl / 2),
+                        )
+                    }
                     else -> HeroBackdrop(imageUrl = null, modifier = Modifier.matchParentSize())
                 }
                 if (house.headerImageUrl.isNullOrBlank() && location == null) {

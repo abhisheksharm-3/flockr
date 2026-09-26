@@ -604,7 +604,8 @@ private fun prompts(
         }
     }
     val sharers = people.filter { !it.isViewer }.map { person ->
-        Prompt("Location", "${person.name} is sharing their location", "${whereLabel(person.location, home).replaceFirstChar { it.uppercase() }} · ${updatedLabel(person.location)}.", "See on map", onOpenMap)
+        val line = listOfNotNull(whereLabel(person.location, home), updatedLabel(person.location)).joinToString(" · ")
+        Prompt("Location", "${person.name} is sharing their location", "${line.replaceFirstChar { it.uppercase() }}.", "See on map", onOpenMap)
     }
     val bills = state.upcomingBills.map { bill ->
         Prompt("Bills", "${bill.name} is ${dueLabel(bill.daysUntilDue).replaceFirstChar { it.lowercase() }}", "${bill.amount.formatMoney(currencyCode)} for the house.", "Open bills", onBills)
@@ -736,7 +737,7 @@ private fun PersonSheet(
             sharing?.let { shared ->
                 val context = LocalContext.current
                 Text(
-                    "Sharing their location · ${whereLabel(shared.location, home)} · ${updatedLabel(shared.location)}",
+                    listOfNotNull("Sharing their location", whereLabel(shared.location, home), updatedLabel(shared.location)).joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

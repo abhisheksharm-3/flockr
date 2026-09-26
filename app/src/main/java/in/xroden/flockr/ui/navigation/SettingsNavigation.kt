@@ -8,15 +8,18 @@ import `in`.xroden.flockr.features.notifications.ui.NotificationPreferencesScree
 import `in`.xroden.flockr.features.settings.ui.SecuritySettingsScreen
 import `in`.xroden.flockr.features.settings.ui.SettingsScreen
 
-fun NavGraphBuilder.settingsGraph(navController: NavController) {
+/**
+ * The settings screens. [onSignOut] comes from the app-wide auth view model rather than one scoped
+ * to the settings screen: signing out removes the screens it runs from, which would cancel a
+ * sign-out started in their own scope halfway, leaving the member signed in on a blank screen.
+ */
+fun NavGraphBuilder.settingsGraph(navController: NavController, onSignOut: () -> Unit) {
     composable<SettingsRoute> {
         SettingsScreen(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToProfile = { navController.navigate(EditProfileRoute) },
             onNavigateToNotificationPreferences = { navController.navigate(NotificationPreferencesRoute) },
-            onLogout = {
-                navController.popBackStack<HomeRoute>(inclusive = true)
-            },
+            onSignOut = onSignOut,
             onNavigateToSecurity = {
                 navController.navigate(SecuritySettingsRoute)
             }

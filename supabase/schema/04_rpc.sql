@@ -612,8 +612,9 @@ language sql security definer set search_path = public as $$
 $$;
 
 -- Starts, or restarts, sharing the caller's location with one house for 15, 60 or 480 minutes, and
--- returns when it ends. The server sets the expiry, so a phone can't keep itself visible for longer
--- than the member chose.
+-- returns when it ends. A member shares with one house at a time, so this ends any share they have
+-- elsewhere, even one a phone lost track of. The server sets the expiry, so a phone can't keep
+-- itself visible for longer than the member chose.
 create function public.start_location_sharing(
     p_house_id uuid, p_minutes integer, p_latitude double precision, p_longitude double precision, p_accuracy real
 ) returns timestamptz language plpgsql security definer set search_path = public as $$
@@ -626,6 +627,7 @@ begin
     if p_minutes not in (15, 60, 480) then
         raise exception 'Share for 15 minutes, an hour or 8 hours.' using errcode = 'P0001';
     end if;
+    delete from member_locations where user_id = auth.uid() and house_id <> p_house_id;
     insert into member_locations (house_id, user_id, latitude, longitude, accuracy_m, started_at, updated_at, expires_at)
     values (p_house_id, auth.uid(), p_latitude, p_longitude, p_accuracy, now(), now(), v_expires)
     on conflict (house_id, user_id) do update

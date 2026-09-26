@@ -52,7 +52,7 @@ private const val EXTRA_HOUSE_NAME = "house_name"
 private const val EXTRA_LENGTH = "length"
 
 /**
- * Shares with one house at a time: starting in another house stops the first. It takes a first fix,
+ * Shares with one house at a time; the server ends any other share when a new one starts. It takes a first fix,
  * asks the server to start sharing (the server decides when it ends), then sends a fix every 30
  * seconds or 25 metres, whichever comes later, until the server's end time, a tap on Stop, or the
  * server answering that sharing has already stopped. It only starts from the app in the foreground,
@@ -92,11 +92,9 @@ class LocationSharingService : Service() {
     private fun begin(house: String, name: String, length: SharingLength) {
         session?.cancel()
         stopUpdates()
-        val previous = houseId
         houseId = house
         status.starting(house)
         session = scope.launch {
-            if (previous != null && previous != house) repository.stop(previous)
             if (!hasLocationPermission()) return@launch fail("Flockr needs your location to share it.")
             val provider = bestProvider() ?: return@launch fail("Turn on location in your phone's settings to share it.")
             val first = firstFix(provider) ?: return@launch fail("Couldn't find where you are. Try again somewhere with a clearer sky.")

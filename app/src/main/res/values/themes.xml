@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Flockr" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- The system splash is the hero cobalt, matching the app's own loading screen that follows it. -->
+    <style name="Theme.Flockr" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/flockr_launch</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/flockr_logo_foreground</item>
+    </style>
 </resources>

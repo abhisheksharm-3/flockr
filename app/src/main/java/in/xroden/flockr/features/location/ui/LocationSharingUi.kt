@@ -85,9 +85,9 @@ data class SharedPerson(val location: MemberLocation, val member: MemberWithProf
     val name: String get() = if (isViewer) "You" else member?.shortName ?: "A housemate"
 }
 
-/** "at home", "1.2 km from home", or "sharing now" when the house has no pin to measure from. */
-fun whereLabel(location: MemberLocation, home: LatLng?): String {
-    home ?: return "sharing now"
+/** "at home" or "1.2 km from home"; null when the house has no pin to measure from. */
+fun whereLabel(location: MemberLocation, home: LatLng?): String? {
+    home ?: return null
     val metres = FloatArray(1).also { Location.distanceBetween(home.latitude, home.longitude, location.latitude, location.longitude, it) }[0]
     return when {
         metres <= AT_HOME_METRES -> "at home"
@@ -192,7 +192,7 @@ fun LiveMapSheet(houseName: String, home: LatLng?, people: List<SharedPerson>, o
             people.forEach { person ->
                 ListRow(
                     headline = person.name,
-                    supporting = "${whereLabel(person.location, home)} · ${updatedLabel(person.location)}",
+                    supporting = listOfNotNull(whereLabel(person.location, home), updatedLabel(person.location)).joinToString(" · "),
                     leading = { MemberAvatar(name = person.member?.displayName ?: person.name, avatarUrl = person.member?.avatarUrl) },
                     trailing = if (person.isViewer) null else ({
                         OutlinedButton(onClick = { openDirections(context, person.location, person.name) }, shapes = ButtonDefaults.shapes()) { Text("Directions") }

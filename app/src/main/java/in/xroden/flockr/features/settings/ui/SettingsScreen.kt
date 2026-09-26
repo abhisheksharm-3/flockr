@@ -48,7 +48,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.BuildConfig
-import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.features.settings.presentation.ProfileUiState
 import `in`.xroden.flockr.features.settings.presentation.ProfileViewModel
@@ -102,9 +101,8 @@ fun SettingsScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToNotificationPreferences: () -> Unit,
     onNavigateToSecurity: () -> Unit,
-    onLogout: () -> Unit,
+    onSignOut: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val haptics = rememberHaptics()
@@ -214,8 +212,7 @@ fun SettingsScreen(
             confirmText = "Sign out",
             onConfirm = {
                 isConfirmingSignOut = false
-                authViewModel.signOut()
-                onLogout()
+                onSignOut()
             },
             onDismiss = { isConfirmingSignOut = false },
             isDestructive = true,

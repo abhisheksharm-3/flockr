@@ -119,7 +119,7 @@ fun FlockrNavigation(
 
                     houseGraph(navController)
                     expenseGraph(navController)
-                    settingsGraph(navController)
+                    settingsGraph(navController, onSignOut = authViewModel::signOut)
                 }
             }
         }
