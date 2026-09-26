@@ -1,6 +1,7 @@
 /** The expense form's state, shared by adding and editing so both follow the same split rules. */
 package `in`.xroden.flockr.features.expenses.presentation
 
+import android.net.Uri
 import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.data.expenseShares
 import `in`.xroden.flockr.features.expenses.model.Expense
@@ -26,6 +27,8 @@ data class ExpenseFormState(
     val payerId: String = "",
     val viewerId: String = "",
     val isLoaded: Boolean = false,
+    val receipt: Uri? = null,
+    val hasSavedReceipt: Boolean = false,
 ) {
     val isEditing: Boolean get() = expenseId != null
 
@@ -66,6 +69,7 @@ data class ExpenseFormState(
                 amount = expense.amount.toAmountInput(base.currencyCode),
                 date = expense.date,
                 notes = expense.notes.orEmpty(),
+                hasSavedReceipt = expense.receiptPath != null,
                 category = expense.category ?: DEFAULT_EXPENSE_CATEGORY,
                 split = SplitDraft(
                     isEnabled = method != null,

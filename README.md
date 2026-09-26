@@ -31,6 +31,9 @@ Version 2.0.0 · Android 14 and newer · Kotlin, Jetpack Compose, Material 3 Exp
 - Balances and the fewest payments that settle everyone, with a shared history between any two
   housemates.
 - Monthly reports by category, by person and by item.
+- Pay a housemate through any UPI app, straight from settle-up, once they've added their UPI ID.
+- Search every expense by name or notes, attach a receipt photo, and export the whole ledger as a
+  CSV with a running balance column per person.
 
 Every amount is stored and computed in the house currency's smallest unit, in the database. Triggers
 refuse anything that would leave the ledger out of balance, so the phone never does sums the server
@@ -53,6 +56,17 @@ disagrees with.
 **Getting started**
 - A first run that asks your name, then walks you through creating a house or joining one with a
   code, and ends on the code to send your housemates.
+
+**Works offline**
+- Houses, money, bills, chores, the shopping list and chat open on what was last loaded when the
+  phone has no connection, with a band saying so, and catch up once it's back.
+
+**Your account**
+- Reset a forgotten password from the sign-in screen with an emailed link that opens the app.
+- Delete your account from Settings. Your profile, photo and personal files are erased; houses you
+  were in keep what was spent under "Deleted account", so their balances still add up. A house only
+  you were in is deleted with it. If you can't open the app, email the address on the Play listing
+  and the account is deleted for you.
 
 **Notifications**
 - Push notifications through Firebase Cloud Messaging, sent by a Supabase Edge Function the moment
@@ -109,6 +123,12 @@ same Google Cloud project.
 
 Maps need no configuration: they use MapLibre with OpenFreeMap's free tiles, with no key or account.
 
+Password-reset emails link to `flockr://reset-password`, which must be in Supabase Auth's redirect
+allow list. Supabase's built-in mailer only reaches your own team's addresses and a few emails an
+hour, so set up custom SMTP (Auth → SMTP settings) before real users need a reset.
+
+Crash reports go to Firebase Crashlytics from release builds only.
+
 ### 4. Build
 
 ```bash
@@ -130,6 +150,7 @@ app/src/main/java/in/xroden/flockr/
 └── utils/           money, dates, haptics, image shrinking
 supabase/
 ├── schema/          the database, numbered in the order it is applied
+├── tests/           SQL checks of the ledger, run in a rolled-back transaction
 └── functions/push/  the Edge Function that sends push notifications
 ```
 
@@ -145,7 +166,16 @@ monthly summaries) is a database function.
 ```
 
 Unit tests cover money parsing and formatting, split apportioning, share weights, validators, house
-configuration and haptics. CI runs the build, unit tests and lint on every pull request into `main`.
+configuration, haptics, UPI links and the CSV export. CI runs the build, unit tests and lint on every
+pull request into `main`.
+
+The ledger's rules are tested in SQL against a real schema: adding and refusing expenses, balances,
+the settle-up plan, overpayment, receipts and account deletion. The file runs in one transaction that
+always rolls back, so it is safe against any database with the schema applied:
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/ledger_test.sql
+```
 
 ## Releases
 

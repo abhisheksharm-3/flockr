@@ -1,10 +1,16 @@
 /** The house ledger: expenses, payments between housemates, and the balances they add up to. */
 package `in`.xroden.flockr.features.expenses.data
 
+import `in`.xroden.flockr.core.realtime.OfflineCache
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.domain.requireAuthenticated
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
+import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.storage.upload
+import kotlin.time.Duration.Companion.hours
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.HouseStanding
@@ -31,6 +37,16 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 
+private const val RECEIPTS_BUCKET = "receipts"
+private const val EXPORT_PAGE = 500
+
+/**
+ * [this] with the characters `ilike` treats as wildcards escaped, and with the commas, quotes and
+ * parentheses that would break PostgREST's `or` filter syntax dropped.
+ */
+private fun String.asLikeLiteral(): String =
+    filterNot { it in ",()\"" }.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 /** An expense row with its shares embedded, the shape [Expense] decodes. */
 internal val EXPENSE_WITH_SHARES = Columns.raw("*, expense_shares(user_id, paid_share, owed_share, split_value)")
 
@@ -40,15 +56,61 @@ class ExpenseRepository @Inject constructor(
 ) {
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    /** Every expense and payment in the house, newest first, kept current as housemates add them. */
-    fun getExpensesFlow(houseId: String): Flow<Result<List<Expense>>> =
-        supabase.liveQuery(listOf(TableWatch("expenses", "house_id", houseId))) {
-            supabase.from("expenses").select(EXPENSE_WITH_SHARES) {
-                filter { eq("house_id", houseId) }
-                order("date", Order.DESCENDING)
-                order("created_at", Order.DESCENDING)
-            }.decodeList<Expense>()
+    /**
+     * The house's newest [limit] expenses and payments, kept current as housemates add them. With a
+     * [search], only those whose name or notes contain it. The unsearched first page is saved for
+     * offline use; searches are not.
+     */
+    fun getExpensesFlow(houseId: String, limit: Int, search: String = ""): Flow<Result<List<Expense>>> =
+        supabase.liveQuery(
+            listOf(TableWatch("expenses", "house_id", houseId)),
+            cachedAs<List<Expense>>("expenses_${houseId}_$limit").takeIf { search.isBlank() },
+        ) { fetchExpenses(houseId, from = 0, count = limit, search = search) }
+
+    /** Every expense and payment the house has recorded, newest first, read a page at a time. */
+    suspend fun getAllExpenses(houseId: String): Result<List<Expense>> = runCatching {
+        buildList {
+            do {
+                val page = fetchExpenses(houseId, from = size, count = EXPORT_PAGE, search = "")
+                addAll(page)
+            } while (page.size == EXPORT_PAGE)
         }
+    }
+
+    private suspend fun fetchExpenses(houseId: String, from: Int, count: Int, search: String): List<Expense> {
+        val pattern = search.trim().takeIf { it.isNotEmpty() }?.let { "%${it.asLikeLiteral()}%" }
+        return supabase.from("expenses").select(EXPENSE_WITH_SHARES) {
+            filter {
+                eq("house_id", houseId)
+                if (pattern != null) or {
+                    ilike("name", pattern)
+                    ilike("notes", pattern)
+                }
+            }
+            order("date", Order.DESCENDING)
+            order("created_at", Order.DESCENDING)
+            range(from.toLong(), (from + count - 1).toLong())
+        }.decodeList<Expense>()
+    }
+
+    /**
+     * Stores [photo] (already shrunk to a JPEG) as [expenseId]'s receipt, replacing any earlier one,
+     * under the uploader's folder in the house's receipts.
+     */
+    suspend fun attachReceipt(houseId: String, expenseId: String, photo: ByteArray): Result<Unit> = runCatching {
+        val userId = requireAuthenticated(getCurrentUserId())
+        val path = "$houseId/$userId/${expenseId}_${System.currentTimeMillis()}.jpg"
+        supabase.storage.from(RECEIPTS_BUCKET).upload(path, photo) { upsert = false }
+        supabase.postgrest.rpc("set_expense_receipt", buildJsonObject {
+            put("p_expense_id", expenseId)
+            put("p_path", path)
+        })
+    }
+
+    /** A link to [receiptPath] that works for an hour, for showing the picture. */
+    suspend fun receiptUrl(receiptPath: String): Result<String> = runCatching {
+        supabase.storage.from(RECEIPTS_BUCKET).createSignedUrl(receiptPath, 1.hours)
+    }
 
     suspend fun getExpense(expenseId: String): Result<Expense> = runCatching {
         supabase.from("expenses").select(EXPENSE_WITH_SHARES) { filter { eq("id", expenseId) } }.decodeSingle<Expense>()
@@ -116,13 +178,16 @@ class ExpenseRepository @Inject constructor(
 
     /** Everyone's balance and the fewest payments that would settle the house, read together so they agree. */
     suspend fun getStanding(houseId: String): Result<HouseStanding> = runCatching {
+        OfflineCache.fetchOrSaved(cachedAs<HouseStanding>("standing_$houseId")) { fetchStanding(houseId) }
+    }
+
+    private suspend fun fetchStanding(houseId: String): HouseStanding =
         coroutineScope {
             val params = buildJsonObject { put("p_house_id", houseId) }
             val balances = async { supabase.postgrest.rpc("get_balances", params).decodeList<MemberBalance>() }
             val plan = async { supabase.postgrest.rpc("get_settle_up_plan", params).decodeList<SettleUpPayment>() }
             HouseStanding(balances.await(), plan.await())
         }
-    }
 
     suspend fun getSharedHistory(houseId: String, otherUserId: String): Result<List<SharedHistoryEntry>> = runCatching {
         supabase.postgrest.rpc(

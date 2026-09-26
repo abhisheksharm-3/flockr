@@ -45,9 +45,9 @@ $$;
 create function public.get_house_members(p_house_id uuid)
 returns table (
     user_id uuid, role text, joined_at timestamptz, left_at timestamptz, default_split_weight numeric,
-    email text, full_name text, avatar_url text
+    email text, full_name text, avatar_url text, upi_id text
 ) language sql stable security invoker set search_path = public as $$
-    select m.user_id, m.role, m.joined_at, m.left_at, m.default_split_weight, p.email, p.full_name, p.avatar_url
+    select m.user_id, m.role, m.joined_at, m.left_at, m.default_split_weight, p.email, p.full_name, p.avatar_url, p.upi_id
     from house_members m
     join profiles p on p.id = m.user_id
     where m.house_id = p_house_id
@@ -141,6 +141,52 @@ begin
         raise exception 'Only the owner can delete the house';
     end if;
     delete from houses where id = p_house_id;
+end;
+$$;
+
+-- Deletes the caller's account. A house they alone are in goes with them; any other house they own must
+-- be handed over first. Their profile stays as a blank "Deleted account" so the ledger still adds up.
+-- The app removes their avatar and personal files from Storage before calling this.
+create function public.delete_my_account() returns void
+language plpgsql security definer set search_path = public as $$
+declare
+    v_me uuid := auth.uid();
+    v_house text;
+begin
+    if v_me is null then raise exception 'Sign in to delete your account'; end if;
+    select h.name into v_house
+    from house_members m join houses h on h.id = m.house_id
+    where m.user_id = v_me and m.role = 'Owner' and m.left_at is null
+      and exists (select 1 from house_members o where o.house_id = m.house_id and o.left_at is null and o.user_id <> v_me)
+    limit 1;
+    if v_house is not null then raise exception 'Hand % over to a housemate before deleting your account', v_house; end if;
+    delete from houses h
+    where h.owner_id = v_me
+      and not exists (select 1 from house_members o where o.house_id = h.id and o.left_at is null and o.user_id <> v_me);
+    update house_members set left_at = now() where user_id = v_me and left_at is null;
+    delete from documents where user_id = v_me and house_id is null;
+    delete from device_tokens where user_id = v_me;
+    delete from notification_preferences where user_id = v_me;
+    delete from notifications where user_id = v_me;
+    delete from member_locations where user_id = v_me;
+    delete from house_invitations where inviter_id = v_me;
+    delete from invitation_rate_limit where user_id = v_me;
+    update profiles set email = '', full_name = 'Deleted account', avatar_url = null, upi_id = null
+    where id = v_me;
+    delete from auth.users where id = v_me;
+end;
+$$;
+
+-- Attaches a receipt picture, already uploaded to receipts/<house_id>/..., to an expense. Whoever added
+-- the expense or an admin may do it; a null path removes it.
+create function public.set_expense_receipt(p_expense_id uuid, p_path text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+    update expenses e set receipt_path = p_path
+    where e.id = p_expense_id
+      and (e.created_by = auth.uid() or auth_is_house_admin(e.house_id))
+      and (p_path is null or split_part(p_path, '/', 1) = e.house_id::text);
+    if not found then raise exception 'Only whoever added it, or an admin, can change its receipt'; end if;
 end;
 $$;
 

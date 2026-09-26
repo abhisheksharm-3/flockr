@@ -70,6 +70,8 @@ data class Expense(
     @Serializable(with = LocalDateSerializer::class)
     val date: LocalDate,
     val notes: String? = null,
+    @SerialName("receipt_path")
+    val receiptPath: String? = null,
     @SerialName("recurring_expense_id")
     val recurringExpenseId: String? = null,
     @SerialName("per_diem_month")
@@ -171,6 +173,7 @@ data class SettleUpPayment(
 )
 
 /** Everyone's balance with the payments that would settle them. */
+@Serializable
 data class HouseStanding(val balances: List<MemberBalance>, val plan: List<SettleUpPayment>) {
     fun netOf(userId: String): BigDecimal = balances.firstOrNull { it.userId == userId }?.net ?: BigDecimal.ZERO
 

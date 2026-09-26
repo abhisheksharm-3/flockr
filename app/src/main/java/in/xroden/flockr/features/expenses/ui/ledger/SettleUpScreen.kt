@@ -13,7 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import android.content.Intent
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CurrencyRupee
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
+import `in`.xroden.flockr.utils.upiPayLink
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material3.Icon
@@ -63,6 +70,9 @@ import `in`.xroden.flockr.utils.rememberHaptics
 import `in`.xroden.flockr.utils.toAmountInput
 import java.math.BigDecimal
 
+/** UPI moves rupees only, so paying through it is offered only in houses that count in INR. */
+private const val UPI_CURRENCY = "INR"
+
 @Composable
 fun SettleUpScreen(
     houseId: String,
@@ -77,6 +87,8 @@ fun SettleUpScreen(
     val form by viewModel.form.collectAsStateWithLifecycle()
     val config by rememberHouseConfig(houseId)
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var isPickingPerson by remember { mutableStateOf(false) }
     var isPickingDate by remember { mutableStateOf(false) }
 
@@ -133,6 +145,26 @@ fun SettleUpScreen(
                     form.date?.let {
                         SentenceWords("on")
                         SentenceToken(it.relativeDayLabel(config), onClick = { isPickingDate = true }, enabled = !form.isSaving, icon = Icons.Rounded.CalendarMonth)
+                    }
+                }
+                val upiId = other?.upiId?.takeIf { form.isViewerPaying && form.currencyCode == UPI_CURRENCY }
+                val payable = form.parsedAmount
+                if (upiId != null && payable != null) {
+                    Sentence {
+                        SentenceWords("Not paid yet?")
+                        SentenceToken(
+                            text = "Pay ${payable.formatMoney(form.currencyCode)} with UPI",
+                            onClick = {
+                                val link = upiPayLink(upiId, other?.displayName.orEmpty(), payable, "Flockr settle-up")
+                                val opened = runCatching {
+                                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, link.toUri()), "Pay with"))
+                                }.isSuccess
+                                if (opened && form.note.isBlank()) viewModel.onNoteChange("UPI")
+                                if (!opened) scope.launch { snackbarHostState.showSnackbar("No UPI app on this phone") }
+                            },
+                            enabled = !form.isSaving,
+                            icon = Icons.Rounded.CurrencyRupee,
+                        )
                     }
                 }
                 SentenceNote(form.note, viewModel::onNoteChange, placeholder = "Cash, UPI, bank transfer", enabled = !form.isSaving)

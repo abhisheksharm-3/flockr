@@ -1,6 +1,8 @@
 /** The signed-in session: signing in and out, and the profile that decides which part of the app to show. */
 package `in`.xroden.flockr.features.auth.presentation
 
+import `in`.xroden.flockr.features.house.data.HouseRepository
+import android.content.Intent
 import `in`.xroden.flockr.features.notifications.system.PushTokens
 import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.network.userMessage
@@ -9,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.AuthRepository
+import `in`.xroden.flockr.core.realtime.OfflineCache
 import `in`.xroden.flockr.features.auth.data.GoogleSignInHelper
 import `in`.xroden.flockr.features.auth.model.Profile
 import `in`.xroden.flockr.features.auth.presentation.AuthNavigationState
@@ -26,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val houseRepository: HouseRepository,
     private val googleSignInHelper: GoogleSignInHelper,
     private val pushTokens: PushTokens,
 ) : ViewModel() {
@@ -69,8 +73,7 @@ class AuthViewModel @Inject constructor(
             when (session) {
                 is SessionStatus.Initializing -> AuthNavigationState.Loading
                 is SessionStatus.NotAuthenticated -> AuthNavigationState.Unauthenticated
-                is SessionStatus.RefreshFailure -> AuthNavigationState.Unauthenticated
-                is SessionStatus.Authenticated -> {
+                is SessionStatus.Authenticated, is SessionStatus.RefreshFailure -> {
                     when (state) {
                         is AuthUiState.Loading -> AuthNavigationState.Loading
                         is AuthUiState.Authenticated -> {
@@ -98,7 +101,9 @@ class AuthViewModel @Inject constructor(
 
     /**
      * A fresh sign-in shows the loader rather than the sign-in screen while the profile loads; a
-     * token refresh while already signed in shows nothing new.
+     * token refresh while already signed in shows nothing new. A refresh that failed for want of a
+     * network keeps the user signed in on their saved profile; the client retries it on its own.
+     * Signing out, however it happens, clears the saved data so the next person sees none of it.
      */
     private fun observeSessionFlow() {
         viewModelScope.launch {
@@ -118,10 +123,11 @@ class AuthViewModel @Inject constructor(
                     is SessionStatus.NotAuthenticated -> {
                         _sessionState.value = status
                         _uiState.value = AuthUiState.NotAuthenticated
+                        OfflineCache.clear()
                     }
                     is SessionStatus.RefreshFailure -> {
-                        _sessionState.value = SessionStatus.NotAuthenticated(false)
-                        _uiState.value = AuthUiState.NotAuthenticated
+                        _sessionState.value = status
+                        if (_uiState.value !is AuthUiState.Authenticated) loadProfile()
                     }
                 }
             }
@@ -186,6 +192,68 @@ class AuthViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    private val _passwordReset = MutableStateFlow<PasswordResetState>(PasswordResetState.Idle)
+    val passwordReset: StateFlow<PasswordResetState> = _passwordReset.asStateFlow()
+
+    private val _accountDeletion = MutableStateFlow<AccountDeletionState>(AccountDeletionState.Idle)
+    val accountDeletion: StateFlow<AccountDeletionState> = _accountDeletion.asStateFlow()
+
+    fun sendPasswordReset(email: String) {
+        if (_passwordReset.value == PasswordResetState.Sending) return
+        _passwordReset.value = PasswordResetState.Sending
+        viewModelScope.launch {
+            _passwordReset.value = authRepository.sendPasswordReset(email).fold(
+                onSuccess = { PasswordResetState.EmailSent(email) },
+                onFailure = { PasswordResetState.Failed(it.userMessage()) },
+            )
+        }
+    }
+
+    /** Called with every intent Flockr opens with; a password-reset link signs the user in and asks for a new password. */
+    fun openLink(intent: Intent) {
+        if (authRepository.openPasswordResetLink(intent)) _passwordReset.value = PasswordResetState.ChoosingPassword()
+    }
+
+    fun setNewPassword(password: String) {
+        _passwordReset.value = PasswordResetState.Saving
+        viewModelScope.launch {
+            _passwordReset.value = authRepository.setNewPassword(password).fold(
+                onSuccess = { PasswordResetState.Idle },
+                onFailure = { PasswordResetState.ChoosingPassword(error = it.userMessage()) },
+            )
+        }
+    }
+
+    /**
+     * Deletes the account after checking, before anything is removed, that the user doesn't own a
+     * house others still live in; the server checks again.
+     */
+    fun deleteAccount() {
+        if (_accountDeletion.value == AccountDeletionState.Deleting) return
+        _accountDeletion.value = AccountDeletionState.Deleting
+        viewModelScope.launch {
+            runCatching {
+                val me = authRepository.getCurrentUserId()
+                houseRepository.getHouses().getOrThrow().firstOrNull { it.ownerId == me && it.memberCount > 1 }?.let {
+                    throw DomainError.ValidationError.Rule("Hand ${it.name} over to a housemate before deleting your account")
+                }
+                pushTokens.unregister()
+                authRepository.deleteAccount().getOrThrow()
+            }.fold(
+                onSuccess = {
+                    OfflineCache.clear()
+                    _accountDeletion.value = AccountDeletionState.Idle
+                    _uiState.value = AuthUiState.NotAuthenticated
+                },
+                onFailure = { _accountDeletion.value = AccountDeletionState.Failed(it.userMessage()) },
+            )
+        }
+    }
+
+    fun dismissAccountDeletionError() {
+        _accountDeletion.value = AccountDeletionState.Idle
     }
 
     fun signOut() {

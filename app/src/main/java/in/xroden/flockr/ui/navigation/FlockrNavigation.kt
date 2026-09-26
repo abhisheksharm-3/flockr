@@ -1,5 +1,8 @@
 package `in`.xroden.flockr.ui.navigation
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.auth.ui.NewPasswordScreen
+import `in`.xroden.flockr.features.auth.presentation.PasswordResetState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -116,7 +119,7 @@ fun FlockrNavigation(
 
                     houseGraph(navController)
                     expenseGraph(navController)
-                    settingsGraph(navController, onSignOut = authViewModel::signOut)
+                    settingsGraph(navController, authViewModel)
                 }
             }
         }
@@ -149,6 +152,13 @@ fun FlockrNavigation(
                     onboardingGraph(navController)
                 }
             }
+        }
+
+        val passwordReset by authViewModel.passwordReset.collectAsStateWithLifecycle()
+        if (authUiState is AuthNavigationState.Authenticated &&
+            (passwordReset is PasswordResetState.ChoosingPassword || passwordReset == PasswordResetState.Saving)
+        ) {
+            NewPasswordScreen(passwordReset, onSave = authViewModel::setNewPassword)
         }
 
         if (authUiState is AuthNavigationState.Loading && !hasAuthenticatedSession.value) {

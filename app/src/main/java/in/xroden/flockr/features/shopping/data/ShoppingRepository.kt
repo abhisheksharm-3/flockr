@@ -5,6 +5,7 @@ import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.core.serialization.InstantSerializer
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
@@ -50,7 +51,7 @@ class ShoppingRepository @Inject constructor(
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     fun getShoppingItemsFlow(houseId: String): Flow<Result<List<ShoppingItem>>> =
-        supabase.liveQuery(listOf(TableWatch("shopping_items", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("shopping_items", "house_id", houseId)), cachedAs<List<ShoppingItem>>("shopping_$houseId")) {
             supabase.from("shopping_items").select {
                 filter { eq("house_id", houseId) }
                 order("created_at", Order.ASCENDING)

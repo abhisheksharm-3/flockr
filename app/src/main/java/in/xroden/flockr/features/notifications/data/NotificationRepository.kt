@@ -2,6 +2,7 @@
 package `in`.xroden.flockr.features.notifications.data
 
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.model.NotificationType
@@ -36,7 +37,7 @@ class NotificationRepository @Inject constructor(
     /** The newest notifications, kept current as the database writes more. */
     fun getNotificationsFlow(): Flow<Result<List<Notification>>> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return flowOf(Result.success(emptyList()))
-        return supabase.liveQuery(listOf(TableWatch("notifications", "user_id", userId))) {
+        return supabase.liveQuery(listOf(TableWatch("notifications", "user_id", userId)), cachedAs<List<Notification>>("notifications")) {
             supabase.from("notifications").select {
                 order("created_at", Order.DESCENDING)
                 limit(INBOX_SIZE)

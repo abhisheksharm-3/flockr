@@ -1,6 +1,7 @@
 /** Signing in with Google, or with an email and password. */
 package `in`.xroden.flockr.features.auth.ui
 
+import `in`.xroden.flockr.features.auth.presentation.PasswordResetState
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,6 +56,7 @@ fun LoginScreen(
     val emailError = AuthValidation.emailError(email).takeIf { showErrors }
     val passwordError = AuthValidation.passwordError(password).takeIf { showErrors }
     val serverError = (signInState as? SignInUiState.Error)?.message ?: (authState as? AuthUiState.Error)?.message
+    val passwordReset by viewModel.passwordReset.collectAsStateWithLifecycle()
 
     LaunchedEffect(serverError) {
         if (serverError != null) haptics.error()
@@ -118,6 +120,14 @@ fun LoginScreen(
                         onDone = ::submit,
                     )
                     serverError?.let { AuthErrorMessage(it) }
+                    ForgotPassword(
+                        state = passwordReset,
+                        onSend = {
+                            showErrors = true
+                            if (AuthValidation.emailError(email) == null) viewModel.sendPasswordReset(email.trim()) else haptics.error()
+                        },
+                        enabled = !isBusy,
+                    )
                 }
             }
             TextButton(
@@ -126,6 +136,24 @@ fun LoginScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = Spacing.lg),
             ) {
                 Text("New to Flockr? Create an account", style = MaterialTheme.typography.titleSmallEmphasized)
+            }
+        }
+    }
+}
+
+/** "Forgot your password?" under the fields: it emails a reset link to the address typed above, then says where it went. */
+@Composable
+private fun ForgotPassword(state: PasswordResetState, onSend: () -> Unit, enabled: Boolean) {
+    when (state) {
+        is PasswordResetState.EmailSent -> Text(
+            "Check ${state.email} for a link to choose a new password.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        else -> {
+            if (state is PasswordResetState.Failed) AuthErrorMessage(state.message)
+            TextButton(onClick = onSend, enabled = enabled && state != PasswordResetState.Sending, shapes = ButtonDefaults.shapes()) {
+                Text(if (state == PasswordResetState.Sending) "Sending the link…" else "Forgot your password?")
             }
         }
     }

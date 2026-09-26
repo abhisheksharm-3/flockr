@@ -4,6 +4,10 @@
  */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import androidx.compose.material.icons.rounded.AddAPhoto
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -83,6 +87,9 @@ fun ExpenseFormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val isSaving = uiState is ExpenseFormUiState.Saving
     var picker by remember { mutableStateOf<Picker?>(null) }
+    val receiptPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::onReceiptPicked)
+    }
 
     LaunchedEffect(houseId, expenseId) { viewModel.initialize(houseId, expenseId, initialName, initialQuantity) }
     LaunchedEffect(Unit) {
@@ -140,6 +147,19 @@ fun ExpenseFormScreen(
         ) {
             ExpenseSentence(form, houseConfig, isSaving, onPick = { picker = it })
             SentenceNote(form.notes, viewModel::onNotesChange, placeholder = "A receipt number, or what was in the bag", enabled = !isSaving)
+            Sentence {
+                SentenceToken(
+                    text = when {
+                        form.receipt != null -> "Receipt photo added"
+                        form.hasSavedReceipt -> "Replace the receipt photo"
+                        else -> "Add a receipt photo"
+                    },
+                    onClick = { receiptPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = !isSaving,
+                    icon = Icons.Rounded.AddAPhoto,
+                    isUnset = form.receipt == null && !form.hasSavedReceipt,
+                )
+            }
             WhoOwesWhat(form)
         }
     }

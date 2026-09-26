@@ -6,6 +6,7 @@ import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
 import `in`.xroden.flockr.features.chores.model.ChoreRecurrence
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.core.serialization.InstantSerializer
 import `in`.xroden.flockr.core.serialization.LocalDateSerializer
@@ -63,7 +64,7 @@ class ChoreRepository @Inject constructor(
 
     /** Every chore in the house, open ones soonest due first, kept current. */
     fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> =
-        supabase.liveQuery(listOf(TableWatch("chores", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("chores", "house_id", houseId)), cachedAs<List<Chore>>("chores_$houseId")) {
             supabase.from("chores").select {
                 filter { eq("house_id", houseId) }
                 order("is_completed", Order.ASCENDING)

@@ -1,6 +1,13 @@
 package `in`.xroden.flockr.features.expenses.presentation
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import `in`.xroden.flockr.core.domain.DomainError
+import `in`.xroden.flockr.utils.uploadJpegOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
@@ -27,6 +34,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ExpenseFormViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val houseRepository: HouseRepository,
     private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
@@ -91,6 +99,7 @@ class ExpenseFormViewModel @Inject constructor(
     fun onDateChange(date: LocalDate) = _formState.update { it.copy(date = date) }
     fun onNotesChange(notes: String) = _formState.update { it.copy(notes = notes) }
     fun onCategoryChange(category: String) = _formState.update { it.copy(category = category) }
+    fun onReceiptPicked(photo: Uri) = _formState.update { it.copy(receipt = photo) }
     fun onPayerChange(userId: String) = _formState.update { it.copy(payerId = userId) }
     fun onSplitEnabledChange(enabled: Boolean) = _formState.update { it.copy(split = it.split.copy(isEnabled = enabled)) }
     fun onSplitMethodChange(method: SplitMethod) = _formState.update { it.copy(split = it.split.withMethod(method, it.houseMembers)) }
@@ -124,7 +133,10 @@ class ExpenseFormViewModel @Inject constructor(
                 notes = form.notes.takeIf { it.isNotBlank() },
                 splitMethod = form.split.savedMethod,
                 shares = shares,
-            ).fold(
+            ).mapCatching { savedId ->
+                _formState.update { it.copy(expenseId = savedId) }
+                form.receipt?.let { attachReceipt(houseId, savedId, it) }
+            }.fold(
                 onSuccess = {
                     _uiState.value = ExpenseFormUiState.Idle
                     if (startAnother) {
@@ -142,6 +154,19 @@ class ExpenseFormViewModel @Inject constructor(
                 onFailure = { fail(it.userMessage()) },
             )
         }
+    }
+
+    /**
+     * Shrinks and uploads the picked receipt. The expense is already saved by then, and the form now
+     * holds its id, so a failure here leaves the user on the form and saving again retries the upload
+     * without adding the expense twice.
+     */
+    private suspend fun attachReceipt(houseId: String, expenseId: String, photo: Uri) {
+        val jpeg = withContext(Dispatchers.IO) {
+            runCatching { context.contentResolver.openInputStream(photo)?.use { it.readBytes() } }.getOrNull()?.let(::uploadJpegOf)
+        } ?: throw DomainError.ValidationError.Rule("Saved, but that receipt picture couldn't be read. Pick another and save again.")
+        expenseRepository.attachReceipt(houseId, expenseId, jpeg).getOrThrow()
+        _formState.update { it.copy(receipt = null, hasSavedReceipt = true) }
     }
 
     private fun fail(message: String) {

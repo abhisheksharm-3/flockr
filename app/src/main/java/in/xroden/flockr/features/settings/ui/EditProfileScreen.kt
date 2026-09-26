@@ -1,4 +1,4 @@
-/** Changing your name and profile photo. */
+/** Changing your name, profile photo and the UPI ID housemates pay you at. */
 package `in`.xroden.flockr.features.settings.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.features.settings.presentation.ProfileEvent
@@ -59,7 +60,9 @@ fun EditProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val profile = (profileState as? ProfileUiState.Success)?.profile
     var name by rememberSaveable { mutableStateOf<String?>(null) }
+    var upi by rememberSaveable { mutableStateOf<String?>(null) }
     val draftName = name ?: profile?.fullName.orEmpty()
+    val draftUpi = upi ?: profile?.upiId.orEmpty()
     val isBusy = updateState != UpdateProfileUiState.Idle
 
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -95,8 +98,9 @@ fun EditProfileScreen(
             if (profile != null) {
                 FormSubmitBar(
                     text = "Save changes",
-                    onClick = { viewModel.updateProfile(draftName) },
-                    enabled = draftName.isNotBlank() && draftName.trim() != profile.fullName && !isBusy,
+                    onClick = { viewModel.updateProfile(draftName, draftUpi) },
+                    enabled = draftName.isNotBlank() && !isBusy &&
+                        (draftName.trim() != profile.fullName || draftUpi.trim() != profile.upiId.orEmpty()),
                     isLoading = isSaving,
                 )
             }
@@ -144,6 +148,16 @@ fun EditProfileScreen(
                         isUnset = current.profile.avatarUrl == null,
                     )
                 }
+                FlockrTextField(
+                    value = draftUpi,
+                    onValueChange = { upi = it },
+                    label = "UPI ID",
+                    placeholder = "name@bank",
+                    keyboardType = KeyboardType.Email,
+                    enabled = !isSaving,
+                    supportingText = "So housemates can pay you straight from Flockr",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
+                )
                 FlockrTextField(
                     value = current.profile.email,
                     onValueChange = {},

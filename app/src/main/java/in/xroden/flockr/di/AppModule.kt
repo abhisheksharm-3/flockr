@@ -18,6 +18,8 @@ import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import javax.inject.Singleton
 import `in`.xroden.flockr.BuildConfig
+import `in`.xroden.flockr.features.auth.data.LINK_SCHEME
+import `in`.xroden.flockr.features.auth.data.PASSWORD_RESET_HOST
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -34,6 +36,8 @@ object AppModule {
         ) {
             install(Auth) {
                 defaultExternalAuthAction = io.github.jan.supabase.auth.ExternalAuthAction.CustomTabs()
+                scheme = LINK_SCHEME
+                host = PASSWORD_RESET_HOST
             }
             install(Postgrest)
             install(Storage)

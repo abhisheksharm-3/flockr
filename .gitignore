@@ -40,3 +40,4 @@ supabase.txt
 .mcp.json
 
 .polaris/work/
+*.hprof

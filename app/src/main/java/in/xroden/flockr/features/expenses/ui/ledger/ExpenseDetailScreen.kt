@@ -1,6 +1,16 @@
 /** One expense or payment in full: the amount and what it means for you, each person's part, and deleting it. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import coil3.compose.AsyncImage
+import androidx.core.net.toUri
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -58,6 +68,8 @@ import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.formatWithHouseConfig
 import `in`.xroden.flockr.utils.rememberHaptics
+
+private val RECEIPT_PREVIEW_HEIGHT = 320.dp
 
 @Composable
 fun ExpenseDetailScreen(
@@ -152,6 +164,25 @@ private fun DetailContent(
             expense.notes?.takeIf { it.isNotBlank() }?.let { notes ->
                 item(key = "notes_title") { SectionTitle("Notes") }
                 item(key = "notes") { QuietLine(notes, MaterialTheme.colorScheme.onSurface) }
+            }
+            state.receiptUrl?.let { url ->
+                item(key = "receipt_title") { SectionTitle("Receipt") }
+                item(key = "receipt") {
+                    val context = LocalContext.current
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Receipt photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .padding(horizontal = Spacing.lg)
+                            .fillMaxWidth()
+                            .heightIn(max = RECEIPT_PREVIEW_HEIGHT)
+                            .clip(MaterialTheme.shapes.large)
+                            .clickable(onClickLabel = "Open the receipt") {
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                            },
+                    )
+                }
             }
             item(key = "origin") {
                 val origin = when {

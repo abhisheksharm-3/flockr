@@ -7,6 +7,7 @@ import `in`.xroden.flockr.features.chat.data.MessageInsert
 import `in`.xroden.flockr.features.chat.model.Message
 import `in`.xroden.flockr.features.chat.model.MessageWithProfile
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -26,7 +27,9 @@ class ChatRepository @Inject constructor(
 
     /** ponytail: re-reads the latest page on every change; append from the change payload if houses get chatty. */
     fun getMessagesFlow(houseId: String): Flow<Result<List<Message>>> =
-        supabase.liveQuery(listOf(TableWatch("messages", "house_id", houseId))) { getMessages(houseId) }
+        supabase.liveQuery(listOf(TableWatch("messages", "house_id", houseId)), cachedAs<List<Message>>("chat_$houseId")) {
+            getMessages(houseId)
+        }
 
     private suspend fun getMessages(houseId: String): List<Message> =
         supabase.from("messages")

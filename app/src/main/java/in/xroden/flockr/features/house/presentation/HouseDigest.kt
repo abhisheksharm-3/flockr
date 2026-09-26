@@ -62,7 +62,7 @@ class HouseDigestLoader @Inject constructor(
         val bills = async { billRepository.getRecurringExpenses(houseId).getOrElse { emptyList() } }
         val chores = async { choreRepository.getChoresFlow(houseId).first().getOrElse { emptyList() } }
         val recent = async {
-            if (forHub) expenseRepository.getExpensesFlow(houseId).first().getOrElse { emptyList() }.take(RECENT_SHOWN) else emptyList()
+            if (forHub) expenseRepository.getExpensesFlow(houseId, RECENT_SHOWN).first().getOrElse { emptyList() } else emptyList()
         }
         val toBuy = async { if (forHub) shoppingRepository.getShoppingItemsFlow(houseId).first().getOrNull()?.count { !it.isPurchased } else null }
         val lastMessage = async { if (forHub) chatRepository.getMessagesFlow(houseId).first().getOrNull()?.maxByOrNull { it.createdAt } else null }

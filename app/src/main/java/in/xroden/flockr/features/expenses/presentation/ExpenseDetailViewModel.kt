@@ -24,8 +24,10 @@ sealed interface ExpenseDetailUiState {
     data class Error(val message: String) : ExpenseDetailUiState
 
     /** [canDelete] mirrors the database rule: whoever added it, or an admin. */
+    /** [receiptUrl] is an hour-long link to the receipt photo, when there is one and it could be signed. */
     data class Ready(
         val expense: Expense,
+        val receiptUrl: String? = null,
         val members: Map<String, MemberWithProfile>,
         val viewerId: String,
         val canDelete: Boolean,
@@ -59,6 +61,7 @@ class ExpenseDetailViewModel @Inject constructor(
                     val viewerRole = roster[viewerId]?.role
                     ExpenseDetailUiState.Ready(
                         expense = expense,
+                        receiptUrl = expense.receiptPath?.let { expenseRepository.receiptUrl(it).getOrNull() },
                         members = roster,
                         viewerId = viewerId,
                         canDelete = expense.createdBy == viewerId || viewerRole == HouseMemberRole.OWNER || viewerRole == HouseMemberRole.ADMIN,

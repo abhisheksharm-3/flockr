@@ -1,6 +1,7 @@
 /** Houses, their settings and their members, through the house RPCs and the columns members may edit. */
 package `in`.xroden.flockr.features.house.data
 
+import `in`.xroden.flockr.core.realtime.OfflineCache
 import `in`.xroden.flockr.core.domain.requireAuthenticated
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.storage.StorageRepository
@@ -9,6 +10,7 @@ import `in`.xroden.flockr.features.house.data.HouseConfigUpdate
 import `in`.xroden.flockr.features.house.data.HouseUpdate
 import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.cachedAs
 import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
@@ -51,11 +53,15 @@ class HouseRepository @Inject constructor(
 
     fun getHousesFlow(): Flow<Result<List<HouseCardData>>> {
         val userId = getCurrentUserId() ?: return flowOf(Result.success(emptyList()))
-        return supabase.liveQuery(listOf(TableWatch("houses"), TableWatch("house_members", "user_id", userId), TableWatch("expenses"))
+        return supabase.liveQuery(
+            listOf(TableWatch("houses"), TableWatch("house_members", "user_id", userId), TableWatch("expenses")),
+            cachedAs<List<HouseCardData>>("houses"),
         ) { fetchHouses() }
     }
 
-    suspend fun getHouses(): Result<List<HouseCardData>> = runCatching { fetchHouses() }
+    suspend fun getHouses(): Result<List<HouseCardData>> = runCatching {
+        OfflineCache.fetchOrSaved(cachedAs<List<HouseCardData>>("houses"), ::fetchHouses)
+    }
 
     private suspend fun fetchHouses(): List<HouseCardData> =
         supabase.postgrest.rpc("get_my_houses").decodeList<HouseCardData>()
@@ -115,14 +121,17 @@ class HouseRepository @Inject constructor(
     }
 
     suspend fun getHouseMembers(houseId: String): Result<List<MemberWithProfile>> = runCatching {
-        supabase.postgrest.rpc("get_house_members", buildJsonObject { put("p_house_id", houseId) })
-            .decodeList<MemberWithProfile>()
+        OfflineCache.fetchOrSaved(cachedAs<List<MemberWithProfile>>("members_$houseId")) {
+            supabase.postgrest.rpc("get_house_members", buildJsonObject { put("p_house_id", houseId) })
+                .decodeList<MemberWithProfile>()
+        }
     }
 
     suspend fun getHouseConfig(houseId: String): Result<HouseConfig> = runCatching {
         configs[houseId]?.takeIf { (_, readAt) -> readAt.elapsedNow() < CONFIG_KEPT_FOR }?.first
-            ?: supabase.from("house_config").select { filter { eq("house_id", houseId) } }.decodeSingle<HouseConfig>()
-                .also { configs[houseId] = it to TimeSource.Monotonic.markNow() }
+            ?: OfflineCache.fetchOrSaved(cachedAs<HouseConfig>("config_$houseId")) {
+                supabase.from("house_config").select { filter { eq("house_id", houseId) } }.decodeSingle<HouseConfig>()
+            }.also { configs[houseId] = it to TimeSource.Monotonic.markNow() }
     }
 
     suspend fun updateHouseConfig(

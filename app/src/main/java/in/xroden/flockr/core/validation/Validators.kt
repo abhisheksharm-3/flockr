@@ -13,6 +13,8 @@ private const val INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 object Validators {
 
     private val UUID_REGEX = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$".toRegex()
+    /** Matches the check on `profiles.upi_id`: a handle, then `@`, then the bank or app's letters. */
+    private val UPI_ID_REGEX = "^[A-Za-z0-9._-]{2,256}@[A-Za-z]{2,64}$".toRegex()
     private val EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
 
     /** The file types a document may be, which the document picker also offers. */
@@ -33,6 +35,16 @@ object Validators {
     fun validateEmail(email: String): Result<String> =
         if (email.trim().matches(EMAIL_REGEX)) Result.success(email.trim().lowercase())
         else Result.failure(DomainError.ValidationError.InvalidEmail(email))
+
+    /** The UPI ID trimmed, or null when blank, which clears it. */
+    fun validateUpiId(upiId: String): Result<String?> {
+        val trimmed = upiId.trim()
+        return when {
+            trimmed.isEmpty() -> Result.success(null)
+            UPI_ID_REGEX.matches(trimmed) -> Result.success(trimmed)
+            else -> Result.failure(DomainError.ValidationError.InvalidFormat("UPI ID", "like name@bank"))
+        }
+    }
 
     fun validateUUID(uuid: String, fieldName: String = "ID"): Result<String> =
         if (uuid.matches(UUID_REGEX)) Result.success(uuid)

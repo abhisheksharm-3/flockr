@@ -53,7 +53,9 @@ data class MemberWithProfile(
     @Serializable(with = BigDecimalSerializer::class)
     val defaultSplitWeight: BigDecimal = BigDecimal.ONE,
     @SerialName("avatar_url")
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    @SerialName("upi_id")
+    val upiId: String? = null,
 ) {
     val isActive: Boolean get() = leftAt == null
 

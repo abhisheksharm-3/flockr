@@ -11,11 +11,14 @@ create table public.currencies (
 insert into public.currencies (code, minor_digits) values
     ('USD', 2), ('EUR', 2), ('GBP', 2), ('JPY', 0), ('INR', 2), ('CAD', 2), ('AUD', 2), ('CNY', 2);
 
+-- A profile outlives its account: deleting the account blanks the profile but keeps its id, so the
+-- ledger rows that name it stay valid for the rest of the house.
 create table public.profiles (
-    id                       uuid primary key references auth.users (id) on delete cascade,
+    id                       uuid primary key,
     email                    text not null,
     full_name                text not null default '',
     avatar_url               text,
+    upi_id                   text check (upi_id ~ '^[A-Za-z0-9._-]{2,256}@[A-Za-z]{2,64}$'),
     has_completed_onboarding boolean not null default false,
     created_at               timestamptz not null default now(),
     updated_at               timestamptz not null default now()
@@ -151,6 +154,7 @@ create table public.expenses (
     split_method         text check (split_method in ('equal', 'exact', 'percent', 'shares')),
     date                 date not null,
     notes                text,
+    receipt_path         text,
     recurring_expense_id uuid references public.recurring_expenses (id) on delete set null,
     per_diem_month       date check (per_diem_month = date_trunc('month', per_diem_month)::date),
     created_by           uuid not null references public.profiles (id),

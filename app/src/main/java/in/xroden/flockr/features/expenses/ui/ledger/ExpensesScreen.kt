@@ -1,6 +1,29 @@
 /** The Money hub: where you stand, the payments that would settle you up, and the house's activity by month. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import `in`.xroden.flockr.ui.components.SkeletonRow
+import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.utils.rememberHaptics
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -59,6 +82,11 @@ import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.monthYearLabel
 import java.math.BigDecimal
 
+private const val CSV_MIME = "text/csv"
+
+/** How many rows from the end the next page starts loading, so scrolling rarely waits. */
+private const val LOAD_MORE_WITHIN = 8
+
 /** Where the hub leads. Each is a navigation, so none carries a haptic of its own. */
 data class ExpensesNavigation(
     val back: () -> Unit,
@@ -76,17 +104,40 @@ fun ExpensesScreen(houseId: String, navigation: ExpensesNavigation, viewModel: E
     val state by viewModel.state.collectAsStateWithLifecycle()
     val config by rememberHouseConfig(houseId)
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+    val haptics = rememberHaptics()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(CSV_MIME)) { uri ->
+        uri?.let { viewModel.export(houseId, it, context.contentResolver) }
+    }
+    val isNearEnd by remember {
+        derivedStateOf { listState.layoutInfo.run { (visibleItemsInfo.lastOrNull()?.index ?: 0) >= totalItemsCount - LOAD_MORE_WITHIN } }
+    }
 
     LaunchedEffect(houseId) { viewModel.load(houseId) }
+    LaunchedEffect(isNearEnd, state) { if (isNearEnd) viewModel.loadMore() }
+    LaunchedEffect(Unit) {
+        viewModel.notices.collect { notice ->
+            if (notice.isError) haptics.error() else haptics.success()
+            snackbarHostState.showSnackbar(notice.message)
+        }
+    }
 
-    Scaffold { padding ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Box(Modifier.fillMaxSize()) {
             when (val current = state) {
                 ExpensesUiState.Loading -> SkeletonHeroScreen()
                 is ExpensesUiState.Error -> Box(Modifier.fillMaxSize().padding(padding)) {
                     ErrorState(message = current.message, onRetry = { viewModel.load(houseId) })
                 }
-                is ExpensesUiState.Ready -> ExpensesContent(current, config.currency(), navigation, listState)
+                is ExpensesUiState.Ready -> ExpensesContent(
+                    state = current,
+                    currencyCode = config.currency(),
+                    navigation = navigation,
+                    listState = listState,
+                    onSearch = viewModel::search,
+                    onExport = { exporter.launch("Flockr expenses ${Clock.System.todayIn(TimeZone.currentSystemDefault())}.csv") },
+                )
             }
             FlockrFabMenu(
                 actions = listOf(
@@ -102,9 +153,18 @@ fun ExpensesScreen(houseId: String, navigation: ExpensesNavigation, viewModel: E
 }
 
 @Composable
-private fun ExpensesContent(state: ExpensesUiState.Ready, currencyCode: String, navigation: ExpensesNavigation, listState: LazyListState) {
+private fun ExpensesContent(
+    state: ExpensesUiState.Ready,
+    currencyCode: String,
+    navigation: ExpensesNavigation,
+    listState: LazyListState,
+    onSearch: (String) -> Unit,
+    onExport: () -> Unit,
+) {
     val byMonth = state.expenses.groupBy { it.date.year to it.date.month }
     val payments = state.standing.paymentsOf(state.viewerId)
+    var isSearching by rememberSaveable { mutableStateOf(state.search.isNotEmpty()) }
+    var query by rememberSaveable { mutableStateOf(state.search) }
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = Spacing.xxxxl * 2)) {
         item(key = "hero") {
             StandingHero(
@@ -122,17 +182,44 @@ private fun ExpensesContent(state: ExpensesUiState.Ready, currencyCode: String, 
                     Shortcut("Usage", Icons.Rounded.WaterDrop, navigation.perDiem),
                     Shortcut("Reports", Icons.Rounded.BarChart, navigation.reports),
                     Shortcut("Balances", Icons.Rounded.Groups, navigation.balances),
+                    Shortcut("Search", Icons.Rounded.Search, { isSearching = true }),
+                    Shortcut("Export", Icons.Rounded.Download, onExport),
                 ),
                 modifier = Modifier.padding(top = Spacing.md),
             )
         }
-        if (payments.isNotEmpty()) {
+        if (isSearching) {
+            item(key = "search") {
+                FlockrTextField(
+                    value = query,
+                    onValueChange = { query = it; onSearch(it) },
+                    placeholder = "Search names and notes",
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { query = ""; onSearch(""); isSearching = false }) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Close search")
+                        }
+                    },
+                    imeAction = ImeAction.Search,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                )
+            }
+        }
+        if (payments.isNotEmpty() && state.search.isEmpty()) {
             item(key = "settle_title") { SectionTitle("To settle up") }
             items(payments, key = { "pay_${it.fromUserId}_${it.toUserId}" }) { payment ->
                 PaymentRow(payment, state, currencyCode, onSettle = { navigation.settleUp(payment.fromUserId, payment.toUserId, payment.amount) })
             }
         }
-        if (state.expenses.isEmpty()) {
+        if (state.expenses.isEmpty() && state.search.isNotEmpty()) {
+            item(key = "no_match") {
+                ListRow(
+                    headline = "Nothing matches \"${state.search}\"",
+                    supporting = "Search looks in each expense's name and notes.",
+                    leading = { IconBadge(Icons.Rounded.Search, BadgeTone.SLATE) },
+                )
+            }
+        } else if (state.expenses.isEmpty()) {
             item(key = "empty_title") { SectionTitle("Activity") }
             item(key = "empty") {
                 ListRow(
@@ -156,6 +243,7 @@ private fun ExpensesContent(state: ExpensesUiState.Ready, currencyCode: String, 
                 )
             }
         }
+        if (state.hasMore) item(key = "more") { SkeletonRow() }
         item(key = "inset") { Spacer(Modifier.navigationBarsPadding()) }
     }
 }

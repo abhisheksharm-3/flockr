@@ -1,6 +1,11 @@
 /** The app's settings: your profile, how Flockr looks and feels, security, notifications and signing out. */
 package `in`.xroden.flockr.features.settings.ui
 
+import `in`.xroden.flockr.features.auth.presentation.AccountDeletionState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +107,9 @@ fun SettingsScreen(
     onNavigateToNotificationPreferences: () -> Unit,
     onNavigateToSecurity: () -> Unit,
     onSignOut: () -> Unit,
+    accountDeletion: AccountDeletionState,
+    onDeleteAccount: () -> Unit,
+    onAccountDeletionErrorShown: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -112,14 +120,24 @@ fun SettingsScreen(
     val lockEnabled by viewModel.appLockEnabled.collectAsStateWithLifecycle()
     val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
     var isConfirmingSignOut by remember { mutableStateOf(false) }
+    var isConfirmingDelete by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val isDeleting = accountDeletion == AccountDeletionState.Deleting
+
+    LaunchedEffect(accountDeletion) {
+        val failure = accountDeletion as? AccountDeletionState.Failed ?: return@LaunchedEffect
+        haptics.error()
+        snackbarHostState.showSnackbar(failure.message)
+        onAccountDeletionErrorShown()
+    }
 
     LifecycleResumeEffect(Unit) {
         profileViewModel.loadProfile()
         onPauseOrDispose {}
     }
 
-    Scaffold { padding ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 Modifier.fillMaxSize(),
@@ -200,6 +218,15 @@ fun SettingsScreen(
                         modifier = Modifier.padding(top = Spacing.xxl),
                     )
                 }
+                item(key = "delete_account") {
+                    ListRow(
+                        headline = if (isDeleting) "Deleting your account…" else "Delete account",
+                        supporting = "Removes your profile, photo and personal files for good",
+                        headlineColor = MaterialTheme.colorScheme.error,
+                        leading = { IconBadge(Icons.Rounded.DeleteForever, BadgeTone.ROSE) },
+                        onClick = if (isDeleting) null else ({ haptics.tap(); isConfirmingDelete = true }),
+                    )
+                }
             }
             HeroStatusBarScrim(isHeroGone = listState.isHeroScrolledAway)
         }
@@ -215,6 +242,20 @@ fun SettingsScreen(
                 onSignOut()
             },
             onDismiss = { isConfirmingSignOut = false },
+            isDestructive = true,
+        )
+    }
+    if (isConfirmingDelete) {
+        ConfirmDialog(
+            title = "Delete your account?",
+            message = "Your profile, photo and personal files are erased and you're signed out. Houses you're in keep what was spent, " +
+                "shown as \"Deleted account\", so their balances still add up. A house only you are in is deleted too. This can't be undone.",
+            confirmText = "Delete account",
+            onConfirm = {
+                isConfirmingDelete = false
+                onDeleteAccount()
+            },
+            onDismiss = { isConfirmingDelete = false },
             isDestructive = true,
         )
     }

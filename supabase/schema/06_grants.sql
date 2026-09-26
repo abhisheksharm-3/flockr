@@ -19,7 +19,7 @@ grant select on
     public.notifications, public.notification_preferences
 to authenticated;
 
-grant update (full_name, avatar_url, has_completed_onboarding) on public.profiles to authenticated;
+grant update (full_name, avatar_url, upi_id, has_completed_onboarding) on public.profiles to authenticated;
 grant update (name, address, latitude, longitude, header_image_url, max_members) on public.houses to authenticated;
 grant update (currency_code, date_format, first_day_of_week, timezone) on public.house_config to authenticated;
 grant update (role, default_split_weight) on public.house_members to authenticated;
@@ -72,6 +72,8 @@ grant execute on function
     public.leave_house(uuid),
     public.transfer_house_ownership(uuid, uuid),
     public.delete_house(uuid),
+    public.delete_my_account(),
+    public.set_expense_receipt(uuid, text),
     public.invite_to_house(uuid, text),
     public.get_my_pending_invitations(),
     public.respond_to_invitation(uuid, boolean),

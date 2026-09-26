@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.features.auth.data.AuthRepository
+import `in`.xroden.flockr.core.validation.Validators
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -60,16 +61,25 @@ class ProfileViewModel @Inject constructor(
         )
     }
 
-    fun updateProfile(fullName: String) {
+    /** Saves whichever of the name and UPI ID changed; a blank UPI ID removes it. */
+    fun updateProfile(fullName: String, upiId: String) {
         if (_updateState.value != UpdateProfileUiState.Idle) return
+        val current = (_uiState.value as? ProfileUiState.Success)?.profile ?: return
         val name = fullName.trim()
         if (name.isEmpty()) {
             _events.trySend(ProfileEvent.Failed("Enter your name."))
             return
         }
+        val upi = Validators.validateUpiId(upiId).getOrElse {
+            _events.trySend(ProfileEvent.Failed(it.userMessage()))
+            return
+        }
         _updateState.value = UpdateProfileUiState.Saving
         viewModelScope.launch {
-            authRepository.updateProfile(fullName = name, hasCompletedOnboarding = null).fold(
+            runCatching {
+                if (name != current.fullName) authRepository.updateProfile(fullName = name).getOrThrow()
+                if (upi != current.upiId) authRepository.updateUpiId(upi).getOrThrow()
+            }.fold(
                 onSuccess = {
                     refresh()
                     _events.send(ProfileEvent.Saved)

@@ -2,7 +2,9 @@ package `in`.xroden.flockr
 
 import android.app.Application
 import androidx.work.WorkManager
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
+import `in`.xroden.flockr.core.realtime.OfflineCache
 import `in`.xroden.flockr.features.notifications.system.NotificationPoster
 import javax.inject.Inject
 
@@ -20,6 +22,8 @@ class FlockrApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        OfflineCache.init(cacheDir)
+        FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !BuildConfig.DEBUG
         notificationPoster.createChannels()
         WorkManager.getInstance(this).cancelUniqueWork(RETIRED_NOTIFICATION_CHECK)
     }

@@ -1,5 +1,6 @@
 package `in`.xroden.flockr
 
+import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.notifications.system.PushTokens
 import `in`.xroden.flockr.features.notifications.system.EXTRA_NOTIFICATION_ID
 import android.os.Bundle
@@ -27,6 +28,8 @@ import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import `in`.xroden.flockr.ui.components.LockScreenOverlay
+import `in`.xroden.flockr.ui.components.OfflineBanner
+import androidx.compose.ui.Alignment
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +52,7 @@ class MainActivity : FragmentActivity() {
     lateinit var pushTokens: PushTokens
 
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val authViewModel: AuthViewModel by viewModels()
     private val askForNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     /** The latest intent, observable by Compose, so a link opened while the app is running is still read. */
@@ -60,6 +64,7 @@ class MainActivity : FragmentActivity() {
 
         if (savedInstanceState == null) {
             appLockManager.initializeColdStartLock()
+            authViewModel.openLink(intent)
         }
 
         intentState.value = intent
@@ -94,6 +99,8 @@ class MainActivity : FragmentActivity() {
                             onSignedIn = ::onSignedIn
                         )
 
+                        OfflineBanner(Modifier.align(Alignment.TopCenter))
+
                         AnimatedVisibility(
                             visible = isAppLocked,
                             enter = fadeIn(),
@@ -113,6 +120,7 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intentState.value = intent
+        authViewModel.openLink(intent)
     }
 
     override fun onStop() {

@@ -5,12 +5,14 @@
 -- house_headers/<house_id>/...          public read, the house's admins write
 -- house-documents/<house_id>/<user_id>/ members read and upload, the uploader or an admin deletes
 -- personal-documents/<user_id>/...      the user alone
+-- receipts/<house_id>/<user_id>/...     members read and upload, the uploader or an admin deletes
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
     ('avatars', 'avatars', true, 5242880, array['image/*']),
     ('house_headers', 'house_headers', true, 5242880, array['image/*']),
     ('house-documents', 'house-documents', false, 10485760, null),
-    ('personal-documents', 'personal-documents', false, 10485760, null)
+    ('personal-documents', 'personal-documents', false, 10485760, null),
+    ('receipts', 'receipts', false, 5242880, array['image/*'])
 on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit;
 
 do $$
@@ -58,3 +60,14 @@ create policy "users upload personal documents" on storage.objects for insert to
     with check (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "users delete personal documents" on storage.objects for delete to authenticated
     using (bucket_id = 'personal-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "members read receipts" on storage.objects for select to authenticated
+    using (bucket_id = 'receipts' and public.auth_is_house_member(((storage.foldername(name))[1])::uuid));
+create policy "members upload receipts as themselves" on storage.objects for insert to authenticated
+    with check (bucket_id = 'receipts'
+                and public.auth_is_house_member(((storage.foldername(name))[1])::uuid)
+                and (storage.foldername(name))[2] = (select auth.uid())::text);
+create policy "uploaders and admins delete receipts" on storage.objects for delete to authenticated
+    using (bucket_id = 'receipts'
+           and ((storage.foldername(name))[2] = (select auth.uid())::text
+                or public.auth_is_house_admin(((storage.foldername(name))[1])::uuid)));
