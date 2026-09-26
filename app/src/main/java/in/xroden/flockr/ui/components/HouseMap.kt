@@ -45,7 +45,7 @@ private val snapshots = LruCache<String, Bitmap>(SNAPSHOTS_KEPT)
 
 /** The OpenFreeMap style for the current theme: pale "positron" by day, deep blue "fiord" by night. */
 @Composable
-internal fun mapStyleUri(): String = if (MaterialTheme.colorScheme.background.luminance() < DARK_PAGE_LUMINANCE) DARK_STYLE else LIGHT_STYLE
+fun mapStyleUri(): String = if (MaterialTheme.colorScheme.background.luminance() < DARK_PAGE_LUMINANCE) DARK_STYLE else LIGHT_STYLE
 
 /**
  * The streets around [location] at street level, as a still picture in the app's theme. It ignores
@@ -87,7 +87,7 @@ private suspend fun snapshot(context: Context, location: LatLng, width: Int, hei
  * location picker. Every call gets its own view, destroyed when it leaves composition.
  */
 @Composable
-internal fun rememberLiveMapView(): MapView {
+fun rememberLiveMapView(): MapView {
     val context = LocalContext.current
     val view = remember { MapLibre.getInstance(context); MapView(context).apply { onCreate(null) } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle

@@ -4,6 +4,32 @@
  */
 package `in`.xroden.flockr.features.house.ui.details
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.ShareLocation
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.platform.LocalContext
+import `in`.xroden.flockr.features.location.data.SharingLength
+import `in`.xroden.flockr.features.location.system.LocationSharingService
+import `in`.xroden.flockr.features.location.system.LocationSharingStatus
+import `in`.xroden.flockr.features.location.ui.LiveMapSheet
+import `in`.xroden.flockr.features.location.ui.ManageSharingSheet
+import `in`.xroden.flockr.features.location.ui.SharedPerson
+import `in`.xroden.flockr.features.location.ui.StartSharingSheet
+import `in`.xroden.flockr.features.location.ui.openDirections
+import `in`.xroden.flockr.features.location.ui.updatedLabel
+import `in`.xroden.flockr.features.location.ui.whereLabel
+import kotlin.time.Clock
+import kotlin.time.Instant
+import org.maplibre.android.geometry.LatLng
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -120,6 +146,8 @@ import kotlinx.datetime.daysUntil
 private val PromptHeight = 176.dp
 private val FaceWidth = 88.dp
 private const val DRAWER_OPEN_THRESHOLD = 0.35f
+private const val SECONDS_PER_MINUTE = 60
+private const val MINUTES_PER_HOUR = 60
 private const val PARALLAX = 0.5f
 private val FaceRing = 3.dp
 private const val FACE_RING_ALPHA = 0.35f
@@ -155,47 +183,127 @@ fun HouseDetailsScreen(
     viewModel: HouseDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val locations by viewModel.locations.collectAsStateWithLifecycle()
+    val sharing by viewModel.sharing.collectAsStateWithLifecycle()
     val config by rememberHouseConfig(houseId)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var locationSheet by remember { mutableStateOf<LocationSheet?>(null) }
+    var pendingLength by remember { mutableStateOf<SharingLength?>(null) }
+    val houseName = (state as? HouseDetailUiState.Ready)?.house?.name.orEmpty()
+    val askForLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        val length = pendingLength ?: return@rememberLauncherForActivityResult
+        pendingLength = null
+        if (granted[Manifest.permission.ACCESS_FINE_LOCATION] == true || granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            LocationSharingService.start(context, houseId, houseName, length)
+        } else {
+            scope.launch { snackbar.showSnackbar("Flockr needs your location to share it. You can allow it in the phone's settings.") }
+        }
+    }
+    val share: (SharingLength) -> Unit = { length ->
+        pendingLength = length
+        askForLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.POST_NOTIFICATIONS))
+    }
 
     LaunchedEffect(houseId) { viewModel.load(houseId) }
-
-    when (val current = state) {
-        HouseDetailUiState.Loading -> SkeletonHubScreen()
-        is HouseDetailUiState.Error -> Scaffold { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) { ErrorState(current.message, onRetry = { viewModel.load(houseId) }) }
-        }
-        is HouseDetailUiState.Ready -> HouseHome(
-            state = current,
-            config = config,
-            prompts = prompts(
-                state = current,
-                currencyCode = config.currency(),
-                onSettleUp = onSettleUp,
-                onBalances = onNavigateToBalances,
-                onBills = onNavigateToBills,
-                onChores = onNavigateToChores,
-                onShopping = onNavigateToShopping,
-                onAddExpense = onAddExpense,
-            ),
-            places = listOf(
-                Shortcut("Expense", Icons.Rounded.Add, onAddExpense, isPrimary = true),
-                Shortcut("Money", Icons.Rounded.AccountBalanceWallet, onNavigateToExpenses),
-                Shortcut("Shopping", Icons.Rounded.ShoppingCart, onNavigateToShopping, current.digest.toBuy),
-                Shortcut("Chores", Icons.Rounded.CleaningServices, onNavigateToChores, current.myChores.size),
-                Shortcut("Chat", Icons.Rounded.Forum, onNavigateToChat),
-                Shortcut("Documents", Icons.Rounded.Description, onNavigateToDocuments),
-                Shortcut("Members", Icons.Rounded.Group, onNavigateToManageMembers),
-            ),
-            onNavigateBack = onNavigateBack,
-            onOpenSettings = onNavigateToHouseSettings,
-            onOpenExpense = onOpenExpense,
-            onSeeAll = onNavigateToExpenses,
-            onChat = onNavigateToChat,
-            onMembers = onNavigateToManageMembers,
-            onSettleUp = onSettleUp,
-            onBalances = onNavigateToBalances,
-        )
+    LaunchedEffect(sharing) {
+        val failure = sharing as? LocationSharingStatus.State.Failed ?: return@LaunchedEffect
+        viewModel.acknowledgeSharingError()
+        snackbar.showSnackbar(failure.message)
     }
+
+    Box(Modifier.fillMaxSize()) {
+        when (val current = state) {
+            HouseDetailUiState.Loading -> SkeletonHubScreen()
+            is HouseDetailUiState.Error -> Scaffold { padding ->
+                Box(Modifier.fillMaxSize().padding(padding)) { ErrorState(current.message, onRetry = { viewModel.load(houseId) }) }
+            }
+            is HouseDetailUiState.Ready -> {
+                val byId = current.members.associateBy { it.userId }
+                val people = locations.map { SharedPerson(it, byId[it.userId], isViewer = it.userId == current.viewerId) }
+                val mine = people.firstOrNull { it.isViewer }
+                val home = latLngOf(current.house.latitude, current.house.longitude)
+                val othersSharing = people.count { !it.isViewer }
+                val isStarting = (sharing as? LocationSharingStatus.State.Starting)?.houseId == houseId
+                HouseHome(
+                    state = current,
+                    config = config,
+                    people = people,
+                    home = home,
+                    onOpenMap = { locationSheet = LocationSheet.MAP },
+                    prompts = prompts(
+                        state = current,
+                        people = people,
+                        home = home,
+                        onOpenMap = { locationSheet = LocationSheet.MAP },
+                        currencyCode = config.currency(),
+                        onSettleUp = onSettleUp,
+                        onBalances = onNavigateToBalances,
+                        onBills = onNavigateToBills,
+                        onChores = onNavigateToChores,
+                        onShopping = onNavigateToShopping,
+                        onAddExpense = onAddExpense,
+                    ),
+                    places = listOf(
+                        Shortcut("Expense", Icons.Rounded.Add, onAddExpense, isPrimary = true),
+                        Shortcut(
+                            when {
+                                mine != null -> "Sharing · ${timeLeft(mine.location.expiresAt)}"
+                                isStarting -> "Finding you"
+                                else -> "Share location"
+                            },
+                            Icons.Rounded.ShareLocation,
+                            { locationSheet = if (mine != null) LocationSheet.MANAGE else LocationSheet.START },
+                            isPrimary = mine != null,
+                        ),
+                        *listOfNotNull(
+                            Shortcut("Live map", Icons.Rounded.Map, { locationSheet = LocationSheet.MAP }, count = othersSharing).takeIf { othersSharing > 0 || home != null },
+                        ).toTypedArray(),
+                        Shortcut("Money", Icons.Rounded.AccountBalanceWallet, onNavigateToExpenses),
+                        Shortcut("Shopping", Icons.Rounded.ShoppingCart, onNavigateToShopping, current.digest.toBuy),
+                        Shortcut("Chores", Icons.Rounded.CleaningServices, onNavigateToChores, current.myChores.size),
+                        Shortcut("Chat", Icons.Rounded.Forum, onNavigateToChat),
+                        Shortcut("Documents", Icons.Rounded.Description, onNavigateToDocuments),
+                        Shortcut("Members", Icons.Rounded.Group, onNavigateToManageMembers),
+                    ),
+                    onNavigateBack = onNavigateBack,
+                    onOpenSettings = onNavigateToHouseSettings,
+                    onOpenExpense = onOpenExpense,
+                    onSeeAll = onNavigateToExpenses,
+                    onChat = onNavigateToChat,
+                    onMembers = onNavigateToManageMembers,
+                    onSettleUp = onSettleUp,
+                    onBalances = onNavigateToBalances,
+                )
+                LaunchedEffect(mine == null) { if (mine == null && locationSheet == LocationSheet.MANAGE) locationSheet = null }
+                when (locationSheet) {
+                    LocationSheet.START -> StartSharingSheet(current.house.name, onPick = { locationSheet = null; share(it) }, onDismiss = { locationSheet = null })
+                    LocationSheet.MANAGE -> mine?.let { own ->
+                        ManageSharingSheet(
+                            houseName = current.house.name,
+                            expiresAt = own.location.expiresAt,
+                            onStop = { locationSheet = null; LocationSharingService.stop(context, houseId) },
+                            onExtend = { locationSheet = null; share(it) },
+                            onDismiss = { locationSheet = null },
+                        )
+                    }
+                    LocationSheet.MAP -> LiveMapSheet(current.house.name, home, people, onDismiss = { locationSheet = null })
+                    null -> Unit
+                }
+            }
+        }
+    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
+}
+
+/** The location sheet open over the hub, if any. */
+private enum class LocationSheet { START, MANAGE, MAP }
+
+/** "42 min left" or "3 h left", rounded up so a share never reads as over while it runs. */
+private fun timeLeft(expiresAt: Instant): String {
+    val minutes = ((expiresAt - Clock.System.now()).inWholeSeconds + SECONDS_PER_MINUTE - 1) / SECONDS_PER_MINUTE
+    return if (minutes < MINUTES_PER_HOUR) "${minutes.coerceAtLeast(1)} min left" else "${(minutes + MINUTES_PER_HOUR - 1) / MINUTES_PER_HOUR} h left"
 }
 
 /**
@@ -210,6 +318,9 @@ fun HouseDetailsScreen(
 private fun HouseHome(
     state: HouseDetailUiState.Ready,
     config: HouseConfig?,
+    people: List<SharedPerson>,
+    home: LatLng?,
+    onOpenMap: () -> Unit,
     prompts: List<Prompt>,
     places: List<Shortcut>,
     onNavigateBack: () -> Unit,
@@ -264,7 +375,7 @@ private fun HouseHome(
                 ) {
                     TopActions(onNavigateBack, onOpenSettings)
                     HouseTitle(state)
-                    Faces(state, config.currency(), onPick = { haptics.tap(); person = it }, onInvite = onMembers)
+                    Faces(state, people, config.currency(), onPick = { haptics.tap(); person = it }, onInvite = onMembers)
                     PromptStack(prompts)
                 }
             }
@@ -285,6 +396,9 @@ private fun HouseHome(
         PersonSheet(
             person = picked,
             state = state,
+            sharing = people.firstOrNull { it.location.userId == picked.userId },
+            home = home,
+            onOpenMap = onOpenMap,
             currencyCode = config.currency(),
             onDismiss = { person = null },
             onSettleUp = onSettleUp,
@@ -324,7 +438,8 @@ private fun HouseTitle(state: HouseDetailUiState.Ready) {
  * who matter right now are never scrolled out of view.
  */
 @Composable
-private fun Faces(state: HouseDetailUiState.Ready, currencyCode: String, onPick: (MemberWithProfile) -> Unit, onInvite: () -> Unit) {
+private fun Faces(state: HouseDetailUiState.Ready, people: List<SharedPerson>, currencyCode: String, onPick: (MemberWithProfile) -> Unit, onInvite: () -> Unit) {
+    val sharing = people.map { it.location.userId }.toSet()
     val colors = MaterialTheme.flockrColors
     val row = rememberLazyListState()
     val others = state.activeMembers.filter { it.userId != state.viewerId }.sortedBy { paymentWith(state, it) == null }
@@ -343,12 +458,22 @@ private fun Faces(state: HouseDetailUiState.Ready, currencyCode: String, onPick:
                 else -> "you owe ${payment.amount.formatMoney(currencyCode)}"
             }
             Face(member.shortName, line, if (payment != null) colors.sun else colors.onHeroVariant, onClick = { onPick(member) }) {
-                MemberAvatar(
-                    name = member.displayName,
-                    avatarUrl = member.avatarUrl,
-                    size = ComponentHeight.avatarLarge,
-                    modifier = Modifier.border(FaceRing, colors.onHero.copy(alpha = FACE_RING_ALPHA), CircleShape),
-                )
+                BadgedBox(
+                    badge = {
+                        if (member.userId in sharing) {
+                            Badge(containerColor = colors.sun, contentColor = colors.onSun) {
+                                Icon(Icons.Rounded.LocationOn, contentDescription = "Sharing their location", modifier = Modifier.size(IconSize.xs))
+                            }
+                        }
+                    },
+                ) {
+                    MemberAvatar(
+                        name = member.displayName,
+                        avatarUrl = member.avatarUrl,
+                        size = ComponentHeight.avatarLarge,
+                        modifier = Modifier.border(FaceRing, if (member.userId in sharing) colors.sun else colors.onHero.copy(alpha = FACE_RING_ALPHA), CircleShape),
+                    )
+                }
             }
         }
         item(key = "invite") {
@@ -452,11 +577,15 @@ private fun PromptPage(prompt: Prompt, index: Int, count: Int) {
 }
 
 /**
- * The prompts, most pressing first: money between the viewer and a housemate, then bills by how due
- * they are, then the viewer's chores, then the shopping list. With nothing pending, one calm page.
+ * The prompts, most pressing first: money between the viewer and a housemate, then housemates sharing
+ * where they are, then bills by how due they are, then the viewer's chores, then the shopping list.
+ * With nothing pending, one calm page.
  */
 private fun prompts(
     state: HouseDetailUiState.Ready,
+    people: List<SharedPerson>,
+    home: LatLng?,
+    onOpenMap: () -> Unit,
     currencyCode: String,
     onSettleUp: (SettleUpPayment) -> Unit,
     onBalances: () -> Unit,
@@ -474,6 +603,9 @@ private fun prompts(
             Prompt("Money", "You owe ${byId.nameOf(payment.toUserId, state.viewerId)} $amount", "Pay them however you like, then record it here.", "Settle up", { onSettleUp(payment) }, "All balances" to onBalances)
         }
     }
+    val sharers = people.filter { !it.isViewer }.map { person ->
+        Prompt("Location", "${person.name} is sharing their location", "${whereLabel(person.location, home).replaceFirstChar { it.uppercase() }} · ${updatedLabel(person.location)}.", "See on map", onOpenMap)
+    }
     val bills = state.upcomingBills.map { bill ->
         Prompt("Bills", "${bill.name} is ${dueLabel(bill.daysUntilDue).replaceFirstChar { it.lowercase() }}", "${bill.amount.formatMoney(currencyCode)} for the house.", "Open bills", onBills)
     }
@@ -483,7 +615,7 @@ private fun prompts(
     val shopping = state.digest.toBuy?.takeIf { it > 0 }?.let { count ->
         listOf(Prompt("Shopping", if (count == 1) "1 thing on the list" else "$count things on the list", "Heading out? Take the list with you.", "Open the list", onShopping))
     }.orEmpty()
-    return (money + bills + chores + shopping).ifEmpty {
+    return (money + sharers + bills + chores + shopping).ifEmpty {
         listOf(Prompt("All good", "Nothing needs you right now", "No bills due this week, and nobody owes anybody.", "Add expense", onAddExpense))
     }
 }
@@ -567,6 +699,9 @@ private fun HouseSheet(
 private fun PersonSheet(
     person: MemberWithProfile,
     state: HouseDetailUiState.Ready,
+    sharing: SharedPerson?,
+    home: LatLng?,
+    onOpenMap: () -> Unit,
     currencyCode: String,
     onDismiss: () -> Unit,
     onSettleUp: (SettleUpPayment) -> Unit,
@@ -594,13 +729,27 @@ private fun PersonSheet(
                 textAlign = TextAlign.Center,
             )
             payment?.let {
-                Button(onClick = { onDismiss(); onSettleUp(it) }, modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
-                    Text(if (isOwedToViewer) "Record their payment" else "Settle up with ${person.shortName}")
+                Button(onClick = { onDismiss(); onSettleUp(it) }, shapes = ButtonDefaults.shapes(), modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
+                    Text(if (isOwedToViewer) "Record payment" else "Settle up with ${person.shortName}")
+                }
+            }
+            sharing?.let { shared ->
+                val context = LocalContext.current
+                Text(
+                    "Sharing their location · ${whereLabel(shared.location, home)} · ${updatedLabel(shared.location)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    FilledTonalButton(onClick = { onDismiss(); onOpenMap() }, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) { Text("See on map") }
+                    FilledTonalButton(onClick = { openDirections(context, shared.location, person.shortName) }, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) { Text("Directions") }
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                OutlinedButton(onClick = { onDismiss(); onBalances() }, modifier = Modifier.weight(1f)) { Text("Shared history") }
-                OutlinedButton(onClick = { onDismiss(); onChat() }, modifier = Modifier.weight(1f)) { Text("Message") }
+                OutlinedButton(onClick = { onDismiss(); onBalances() }, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) { Text("Shared history") }
+                OutlinedButton(onClick = { onDismiss(); onChat() }, shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f)) { Text("Message") }
             }
         }
     }

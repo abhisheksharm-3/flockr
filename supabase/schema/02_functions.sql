@@ -469,6 +469,20 @@ begin
 end;
 $$;
 
+create function public.notify_location_shared() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+    v_zone  text;
+    v_house text;
+begin
+    select c.timezone, h.name into v_zone, v_house from houses h join house_config c on c.house_id = h.id where h.id = new.house_id;
+    perform notify_house(new.house_id, new.user_id, 'location_shared', display_name(new.user_id) || ' is sharing their location',
+                         'Until ' || to_char(new.expires_at at time zone coalesce(v_zone, 'UTC'), 'FMHH12:MI am') || ' in ' || v_house,
+                         jsonb_build_object('user_id', new.user_id));
+    return new;
+end;
+$$;
+
 create function public.notify_invitation() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare

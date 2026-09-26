@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -189,10 +190,17 @@ private fun NotificationRow(notification: Notification, onClick: () -> Unit) {
     }
 }
 
-/** The list is filed under chores for muting, but reads as shopping, so it gets the cart. */
-private fun kindBadge(kind: NotificationType?): Pair<ImageVector, BadgeTone> = if (kind == NotificationType.SHOPPING_ITEM_ADDED) {
-    Icons.Rounded.ShoppingCart to BadgeTone.SUN
-} else when (kind?.group) {
+/**
+ * The list is filed under chores for muting, but reads as shopping, so it gets the cart; a shared
+ * location is filed under the house, but reads as a place, so it gets the pin.
+ */
+private fun kindBadge(kind: NotificationType?): Pair<ImageVector, BadgeTone> = when (kind) {
+    NotificationType.SHOPPING_ITEM_ADDED -> Icons.Rounded.ShoppingCart to BadgeTone.SUN
+    NotificationType.LOCATION_SHARED -> Icons.Rounded.LocationOn to BadgeTone.COBALT
+    else -> groupBadge(kind?.group)
+}
+
+private fun groupBadge(group: NotificationGroup?): Pair<ImageVector, BadgeTone> = when (group) {
     NotificationGroup.MONEY -> Icons.Rounded.Payments to BadgeTone.JADE
     NotificationGroup.CHORES -> Icons.Rounded.CleaningServices to BadgeTone.SUN
     NotificationGroup.MESSAGES -> Icons.AutoMirrored.Rounded.Chat to BadgeTone.COBALT

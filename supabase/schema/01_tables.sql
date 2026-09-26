@@ -298,7 +298,8 @@ insert into public.notification_types (type, description) values
     ('message',             'A new message in the house chat'),
     ('shopping_item_added', 'Something was added to the shopping list'),
     ('document_uploaded',   'A document was added to the house'),
-    ('invitation',          'You were invited to a house');
+    ('invitation',          'You were invited to a house'),
+    ('location_shared',     'A housemate started sharing their location');
 
 create table public.notifications (
     id         uuid primary key default gen_random_uuid(),
@@ -339,3 +340,19 @@ create table public.device_tokens (
 );
 
 create index device_tokens_user on public.device_tokens (user_id);
+
+-- Where a member is, while they choose to share it with one house. One row per person per house,
+-- replaced on every fix and deleted when sharing stops or expires, so no history is ever kept.
+create table public.member_locations (
+    house_id   uuid not null references public.houses (id) on delete cascade,
+    user_id    uuid not null references public.profiles (id) on delete cascade,
+    latitude   double precision not null check (latitude between -90 and 90),
+    longitude  double precision not null check (longitude between -180 and 180),
+    accuracy_m real check (accuracy_m >= 0),
+    started_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    expires_at timestamptz not null,
+    primary key (house_id, user_id)
+);
+
+create index member_locations_expiry on public.member_locations (expires_at);

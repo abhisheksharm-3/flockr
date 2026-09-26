@@ -32,7 +32,8 @@ enum class NotificationType(val key: String, val label: String, val group: Notif
     MEMBER_JOINED("member_joined", "Someone joins", NotificationGroup.HOUSE),
     MEMBER_LEFT("member_left", "Someone leaves", NotificationGroup.HOUSE),
     DOCUMENT_UPLOADED("document_uploaded", "A document is added", NotificationGroup.HOUSE),
-    INVITATION("invitation", "You're invited to a house", NotificationGroup.HOUSE);
+    INVITATION("invitation", "You're invited to a house", NotificationGroup.HOUSE),
+    LOCATION_SHARED("location_shared", "Someone starts sharing their location", NotificationGroup.HOUSE);
 
     companion object {
         fun of(key: String): NotificationType? = entries.firstOrNull { it.key == key }

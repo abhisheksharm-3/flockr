@@ -12,5 +12,6 @@ create extension if not exists pg_net with schema extensions;
 
 select cron.unschedule(jobid) from cron.job where jobname = 'flockr-bill-reminders';
 select cron.schedule('flockr-bill-reminders', '0 * * * *', 'select public.send_bill_reminders()');
+select cron.schedule('flockr-expired-locations', '*/5 * * * *', 'select public.clear_expired_locations()');
 
 notify pgrst, 'reload schema';

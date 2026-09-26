@@ -44,6 +44,7 @@ create trigger notify_chore_change after insert or update of assigned_to, is_com
 
 create trigger notify_message after insert on public.messages for each row execute function public.notify_message();
 create trigger notify_shopping_item after insert on public.shopping_items for each row execute function public.notify_shopping_item();
+create trigger notify_location_shared after insert on public.member_locations for each row execute function public.notify_location_shared();
 create trigger notify_document after insert on public.documents for each row execute function public.notify_document();
 create trigger notify_invitation after insert on public.house_invitations for each row execute function public.notify_invitation();
 

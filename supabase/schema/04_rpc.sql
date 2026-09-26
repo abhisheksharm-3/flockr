@@ -610,3 +610,51 @@ create function public.unregister_device_token(p_token text) returns void
 language sql security definer set search_path = public as $$
     delete from device_tokens where token = p_token and user_id = auth.uid();
 $$;
+
+-- Starts, or restarts, sharing the caller's location with one house for 15, 60 or 480 minutes, and
+-- returns when it ends. The server sets the expiry, so a phone can't keep itself visible for longer
+-- than the member chose.
+create function public.start_location_sharing(
+    p_house_id uuid, p_minutes integer, p_latitude double precision, p_longitude double precision, p_accuracy real
+) returns timestamptz language plpgsql security definer set search_path = public as $$
+declare
+    v_expires timestamptz := now() + make_interval(mins => p_minutes);
+begin
+    if not is_active_house_member(p_house_id, auth.uid()) then
+        raise exception 'You''re not in this house.' using errcode = 'P0001';
+    end if;
+    if p_minutes not in (15, 60, 480) then
+        raise exception 'Share for 15 minutes, an hour or 8 hours.' using errcode = 'P0001';
+    end if;
+    insert into member_locations (house_id, user_id, latitude, longitude, accuracy_m, started_at, updated_at, expires_at)
+    values (p_house_id, auth.uid(), p_latitude, p_longitude, p_accuracy, now(), now(), v_expires)
+    on conflict (house_id, user_id) do update
+        set latitude = excluded.latitude, longitude = excluded.longitude, accuracy_m = excluded.accuracy_m,
+            started_at = now(), updated_at = now(), expires_at = excluded.expires_at;
+    return v_expires;
+end;
+$$;
+
+-- Moves the caller's shared point. False once sharing has stopped or expired, which tells the phone to stop.
+create function public.update_my_location(
+    p_house_id uuid, p_latitude double precision, p_longitude double precision, p_accuracy real
+) returns boolean language plpgsql security definer set search_path = public as $$
+begin
+    update member_locations
+    set latitude = p_latitude, longitude = p_longitude, accuracy_m = p_accuracy, updated_at = now()
+    where house_id = p_house_id and user_id = auth.uid() and expires_at > now();
+    return found;
+end;
+$$;
+
+-- Stops the caller sharing with one house, removing the point at once.
+create function public.stop_location_sharing(p_house_id uuid) returns void
+language sql security definer set search_path = public as $$
+    delete from member_locations where house_id = p_house_id and user_id = auth.uid();
+$$;
+
+-- Removes every point whose sharing has run out; run every few minutes by pg_cron.
+create function public.clear_expired_locations() returns void
+language sql security definer set search_path = public as $$
+    delete from member_locations where expires_at <= now();
+$$;

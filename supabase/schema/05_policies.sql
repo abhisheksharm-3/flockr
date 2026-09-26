@@ -23,6 +23,7 @@ alter table public.documents enable row level security;
 alter table public.notifications enable row level security;
 alter table public.notification_preferences enable row level security;
 alter table public.device_tokens enable row level security;
+alter table public.member_locations enable row level security;
 
 create policy "anyone signed in reads currencies" on public.currencies for select to authenticated using (true);
 create policy "anyone signed in reads notification types" on public.notification_types for select to authenticated using (true);
@@ -128,3 +129,11 @@ create policy "delete own notifications" on public.notifications for delete to a
 
 create policy "read own notification preferences" on public.notification_preferences for select to authenticated
     using (user_id = (select auth.uid()));
+
+-- A shared point is visible to the house while it's live and its sharer still lives there. Writes go
+-- only through the location functions, which check the caller themselves.
+create policy "members see live locations" on public.member_locations for select to authenticated
+    using (
+        auth_is_house_member(house_id) and expires_at > now()
+        and exists (select 1 from house_members m where m.house_id = member_locations.house_id and m.user_id = member_locations.user_id and m.left_at is null)
+    );

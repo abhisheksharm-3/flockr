@@ -20,7 +20,7 @@ fun Notification.destination(): Any {
         NotificationType.SHOPPING_ITEM_ADDED -> ShoppingListRoute(houseId)
         NotificationType.MESSAGE -> ChatRoute(houseId)
         NotificationType.DOCUMENT_UPLOADED -> DocumentsRoute(houseId)
-        NotificationType.MEMBER_JOINED, NotificationType.MEMBER_LEFT, null -> HouseDetailsRoute(houseId)
+        NotificationType.MEMBER_JOINED, NotificationType.MEMBER_LEFT, NotificationType.LOCATION_SHARED, null -> HouseDetailsRoute(houseId)
         NotificationType.INVITATION -> HomeRoute
     }
 }

@@ -13,7 +13,7 @@ grant all on all sequences in schema public to service_role;
 
 grant select on
     public.currencies, public.notification_types, public.profiles, public.houses, public.house_config,
-    public.house_members, public.house_invitations, public.house_audit_log, public.recurring_expenses,
+    public.house_members, public.house_invitations, public.house_audit_log, public.recurring_expenses, public.member_locations,
     public.recurring_expense_shares, public.expenses, public.expense_shares, public.per_diem_config,
     public.per_diem_entries, public.chores, public.shopping_items, public.messages, public.documents,
     public.notifications, public.notification_preferences
@@ -95,7 +95,10 @@ grant execute on function
     public.mark_notifications_read(uuid[]),
     public.set_notification_preference(uuid, text, boolean),
     public.register_device_token(text, text),
-    public.unregister_device_token(text)
+    public.unregister_device_token(text),
+    public.start_location_sharing(uuid, integer, double precision, double precision, real),
+    public.update_my_location(uuid, double precision, double precision, real),
+    public.stop_location_sharing(uuid)
 to authenticated;
 
 alter default privileges in schema public revoke all on tables from public, anon, authenticated;
