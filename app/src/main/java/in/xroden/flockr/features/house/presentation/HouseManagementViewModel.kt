@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.presentation.Notice
-import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.data.MAX_SPLIT_WEIGHT_DECIMALS

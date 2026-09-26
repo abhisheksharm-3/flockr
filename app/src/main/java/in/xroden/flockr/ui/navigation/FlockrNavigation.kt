@@ -18,7 +18,7 @@ import `in`.xroden.flockr.features.house.ui.home.HomeScreen
 import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
 import `in`.xroden.flockr.features.notifications.ui.NotificationScreen
 import `in`.xroden.flockr.ui.components.loading.FlockrSplashLoader
-import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
+import `in`.xroden.flockr.features.auth.presentation.AuthNavigationState
 import androidx.compose.runtime.key
 
 /**
@@ -26,6 +26,10 @@ import androidx.compose.runtime.key
  * and [pendingNotificationId] are deep links held until the user is signed in; each consumed
  * callback clears one once it has been followed. [onSignedIn] runs each time the user reaches the app
  * signed in, which is when asking for the notification permission makes sense.
+ *
+ * A notification or invite that arrives signed out waits until sign-in, then opens. The signed-in
+ * graph stays up through a brief Loading after the first sign-in, so a token refresh doesn't flash
+ * the splash.
  */
 @Composable
 fun FlockrNavigation(
@@ -39,8 +43,6 @@ fun FlockrNavigation(
     val navController = rememberNavController()
     val notificationViewModel: NotificationViewModel = hiltViewModel()
     val authUiState by authViewModel.authNavigationState.collectAsState(initial = AuthNavigationState.Loading)
-
-    // State to track if we have successfully loaded the authenticated graph at least once
     val hasAuthenticatedSession = remember { mutableStateOf(false) }
 
     LaunchedEffect(authUiState) {
@@ -54,17 +56,12 @@ fun FlockrNavigation(
     LaunchedEffect(authUiState is AuthNavigationState.Authenticated) {
         if (authUiState is AuthNavigationState.Authenticated) onSignedIn()
     }
-
-    // A tapped system notification: once signed in, mark it read and open what it is about.
     LaunchedEffect(authUiState, pendingNotificationId) {
         val id = pendingNotificationId ?: return@LaunchedEffect
         if (authUiState !is AuthNavigationState.Authenticated) return@LaunchedEffect
         notificationViewModel.openById(id)?.let { navController.navigate(it.destination()) }
         onNotificationConsumed()
     }
-
-    // Invite deep link: once authenticated, jump straight into the join preview with the code.
-    // If the link arrives while signed out, this waits until auth completes.
     LaunchedEffect(authUiState, initialInviteCode) {
         val code = initialInviteCode
         if (code != null && authUiState is AuthNavigationState.Authenticated) {

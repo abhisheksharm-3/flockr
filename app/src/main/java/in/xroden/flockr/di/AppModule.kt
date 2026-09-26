@@ -16,7 +16,6 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
-import `in`.xroden.flockr.core.network.NetworkMonitor
 import javax.inject.Singleton
 import `in`.xroden.flockr.BuildConfig
 
@@ -48,11 +47,4 @@ object AppModule {
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.dataStore
     }
-
-    @Provides
-    @Singleton
-    fun provideNetworkMonitor(@ApplicationContext context: Context): NetworkMonitor {
-        return NetworkMonitor(context)
-    }
-
 }

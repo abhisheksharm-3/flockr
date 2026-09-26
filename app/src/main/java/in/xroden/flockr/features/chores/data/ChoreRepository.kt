@@ -2,14 +2,13 @@
 package `in`.xroden.flockr.features.chores.data
 
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.enums.ChoreRecurrence
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
-import `in`.xroden.flockr.data.serialization.InstantSerializer
-import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import `in`.xroden.flockr.features.chores.model.ChoreRecurrence
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
+import `in`.xroden.flockr.core.serialization.InstantSerializer
+import `in`.xroden.flockr.core.serialization.LocalDateSerializer
 import `in`.xroden.flockr.features.chores.model.Chore
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -58,14 +57,13 @@ private data class ChoreCompletion(
 
 @Singleton
 class ChoreRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     /** Every chore in the house, open ones soonest due first, kept current. */
     fun getChoresFlow(houseId: String): Flow<Result<List<Chore>>> =
-        supabase.liveQuery(connectionManager, listOf(TableWatch("chores", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("chores", "house_id", houseId))) {
             supabase.from("chores").select {
                 filter { eq("house_id", houseId) }
                 order("is_completed", Order.ASCENDING)

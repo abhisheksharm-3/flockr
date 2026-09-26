@@ -7,6 +7,19 @@ what needs you, act, and get on with the day.
 
 Version 2.0.0 · Android 14 and newer · Kotlin, Jetpack Compose, Material 3 Expressive · Supabase
 
+<p>
+  <img src="docs/screenshots/welcome.webp" width="200" alt="Welcome screen">
+  <img src="docs/screenshots/home.webp" width="200" alt="Home, with what you're owed and each house">
+  <img src="docs/screenshots/hub.webp" width="200" alt="A house's hub over a map of its street">
+  <img src="docs/screenshots/hub-drawer.webp" width="200" alt="The hub's drawer pulled up">
+</p>
+<p>
+  <img src="docs/screenshots/share-location.webp" width="200" alt="Choosing how long to share your location">
+  <img src="docs/screenshots/usage.webp" width="200" alt="Usage items on a month calendar">
+  <img src="docs/screenshots/settings.webp" width="200" alt="Settings">
+  <img src="docs/screenshots/house-ready.webp" width="200" alt="A new house, ready with its invite code">
+</p>
+
 ## What it does
 
 **Money that adds up**
@@ -30,6 +43,16 @@ disagrees with.
   document vault for leases and receipts.
 - Several houses per person, each with its own currency, date layout, week start and time zone.
 - The house's photo, or a map of its street when there's no photo, behind its page.
+
+**Where everyone is**
+- Share your location with one house for 15 minutes, an hour or 8 hours. Housemates see you on a
+  live map with how far you are from home, and can open directions to you.
+- The server sets when each share ends and deletes it afterwards, so nothing is kept. A share needs
+  only foreground location permission, and a notification stays up with a Stop button while it runs.
+
+**Getting started**
+- A first run that asks your name, then walks you through creating a house or joining one with a
+  code, and ends on the code to send your housemates.
 
 **Notifications**
 - Push notifications through Firebase Cloud Messaging, sent by a Supabase Edge Function the moment
@@ -56,7 +79,8 @@ cat supabase/schema/0*.sql | psql "$DATABASE_URL" --single-transaction
 ```
 
 This creates the tables, row-level security, RPCs, storage buckets, realtime publication, the
-hourly bill-reminder job (`pg_cron`) and the push trigger (`pg_net`). `00_reset.sql` drops the
+hourly bill-reminder job and the five-minute sweep of ended location shares (`pg_cron`), and the
+push trigger (`pg_net`). `00_reset.sql` drops the
 `public` schema first, so only run it against a project whose data you can lose.
 
 ### 2. Push notifications
@@ -96,21 +120,22 @@ Maps need no configuration: they use MapLibre with OpenFreeMap's free tiles, wit
 ```
 app/src/main/java/in/xroden/flockr/
 ├── features/        one folder per part of the app, each with data, model, presentation and ui
-│   ├── auth  chat  chores  documents  expenses  house  notifications  settings  shopping
+│   ├── auth  chat  chores  documents  expenses  house  location  notifications  settings  shopping
 ├── ui/
 │   ├── components/  the shared components DESIGN.md describes
 │   ├── navigation/  type-safe routes, graphs and screen transitions
 │   └── theme/       colour, type, shape, spacing and motion tokens
-├── core/            networking, realtime, validation, security and other cross-cutting pieces
+├── core/            realtime queries, serializers, validation, app lock, storage, error messages
 ├── di/              Hilt modules
-└── utils/           money, dates, haptics
+└── utils/           money, dates, haptics, image shrinking
 supabase/
 ├── schema/          the database, numbered in the order it is applied
 └── functions/push/  the Edge Function that sends push notifications
 ```
 
+Each feature keeps its request bodies next to its repository in `data/` and its types in `model/`.
 The screens hold no business logic. ViewModels expose state as `StateFlow`, repositories talk to
-Supabase, and anything that must be exact or consistent (balances, splits, the settle-up plan,
+Supabase and stay current through one `liveQuery` helper on Supabase Realtime, and anything that must be exact or consistent (balances, splits, the settle-up plan,
 monthly summaries) is a database function.
 
 ## Testing
@@ -126,7 +151,7 @@ configuration and haptics. CI runs the build, unit tests and lint on every pull 
 
 Versions follow Conventional Commits through release-please. `version.properties` holds the version
 name, and the version code is derived from it. Publishing a GitHub release builds and attaches the
-signed APK and bundle. See [CHANGELOG.md](CHANGELOG.md).
+signed APK (arm64 and armv7) and bundle. See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

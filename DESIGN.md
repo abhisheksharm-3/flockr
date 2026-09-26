@@ -38,7 +38,7 @@ negative tracking; titles SemiBold/Bold; body Regular; labels SemiBold.
 - Hero figure: `displayMediumEmphasized` (via `HeroAmount`).
 - Screen title in the top bar: default `FlockrTopAppBar`.
 - Row headline: `titleSmall`; supporting line: `bodySmall` in `onSurfaceVariant`.
-- Section headings: `SectionTitle` (small caps-style uppercase label). Form groups: `FormSection` title.
+- Section headings: `SectionTitle` (small caps-style uppercase label).
 
 ## Shape and spacing
 
@@ -55,9 +55,8 @@ hero's bottom corners 32dp. Spacing tokens in `ui/theme/Dimensions.kt`; page gut
 2. Lists are `ListRow`s straight on the page, edge to edge, no dividers; rhythm separates them.
 3. A screen with one headline number or sentence opens with `HeroHeader` (in a `Scaffold` with no
    top bar, first item of the scrolling content). Every other screen uses `FlockrTopAppBar`.
-4. Forms: `FormSection` groups on the page, fields full width, the primary button pinned in the
-   bottom bar (`FlockrPrimaryButton`, `navigationBarsPadding`).
-5. Long pickers use `ChoiceField`, which opens a searchable lazy sheet past 12 options.
+4. Forms are sentences (below), with the primary action pinned in the bottom bar.
+5. Long pickers use `OptionSheet`, a searchable lazy sheet that opens at once however long the list.
 6. Empty states teach: say what goes here and offer the action. Errors say what failed and how to fix.
 
 ## Rules added from the phone reviews
@@ -78,7 +77,7 @@ These override anything above that disagrees.
    - Optional text is `SentenceNote`. Genuinely free-text inputs that can't be a token (an email,
      a password, an address) sit below the sentence as `FlockrTextField`s, full width.
    - The save action is `FormSubmitBar` in the `Scaffold` bottom bar, always full width.
-   - No `FormSection` stacks, no `ChoiceField` in forms (use tokens + `OptionSheet`).
+   - No stacks of labelled fields: use tokens and `OptionSheet`.
 4. **Shortcuts are pills.** A row of jumps to other screens is `ShortcutPills`, never icon tiles.
 5. **Tabs are `PillSelector`** (the Expressive connected button group), everywhere.
 6. **Expressive buttons.** Every `Button`, `FilledTonalButton`, `OutlinedButton`, `TextButton` and
@@ -110,8 +109,8 @@ These override anything above that disagrees.
   `SentenceWords`, `SentenceToken`, `SentenceNote`, `FormSubmitBar`. `inputs/OptionSheet`.
 - `ListRow`, `TrailingAmount`, `IconBadge` + `BadgeTone` (COBALT, JADE, SUN, SLATE, ROSE).
 - `MemberAvatar`, `balanceColor`, `balanceHeadline`.
-- `FlockrTopAppBar`, `FlockrPrimaryButton`, `FlockrSplitButton`, `FlockrExtendedFab`, `FlockrFabMenu`.
-- `forms/FormSection`, `forms/ToggleRow`, `inputs/*` (text, amount, choice, date, month, pills).
+- `FlockrTopAppBar`, `FlockrPrimaryButton`, `FlockrExtendedFab`, `FlockrFabMenu`.
+- `forms/ToggleRow`, `inputs/*` (text, amount, date dialog, option sheet, pills).
 - `states/EmptyState`, `states/ErrorState`, `dialogs/ConfirmDialog`.
 
 ## Motion

@@ -1,24 +1,17 @@
+/** Every screen's type-safe route, grouped auth, main, money, house, features, settings. */
 package `in`.xroden.flockr.ui.navigation
 
 import kotlinx.serialization.Serializable
 
-/**
- * Type-safe navigation routes using kotlinx.serialization.
- * These replace string-based routes in Screen.kt for compile-time type safety.
- */
-
-// Auth routes
 @Serializable object WelcomeRoute
 @Serializable object LoginRoute
 @Serializable object SignupRoute
 @Serializable object OnboardingRoute
 
-// Main routes
 @Serializable object HomeRoute
 @Serializable data class HouseDetailsRoute(val houseId: String)
 @Serializable object NotificationsRoute
 
-// Expense routes
 @Serializable data class ExpensesRoute(val houseId: String)
 @Serializable data class ExpenseDetailRoute(val houseId: String, val expenseId: String)
 @Serializable data class ExpenseFormRoute(
@@ -44,7 +37,6 @@ import kotlinx.serialization.Serializable
 @Serializable data class PerDiemItemFormRoute(val houseId: String, val configId: String? = null)
 @Serializable data class PerDiemEntryFormRoute(val houseId: String, val configId: String? = null)
 
-// House management routes
 @Serializable data class ManageMembersRoute(val houseId: String)
 @Serializable data class HouseSettingsRoute(val houseId: String)
 @Serializable data class HouseAuditLogRoute(val houseId: String)
@@ -52,14 +44,12 @@ import kotlinx.serialization.Serializable
 @Serializable object JoinHouseRoute
 @Serializable data class JoinHousePreviewRoute(val inviteCode: String)
 
-// Feature routes
 @Serializable data class ShoppingListRoute(val houseId: String)
 @Serializable data class ChoresRoute(val houseId: String)
 @Serializable data class ChoreFormRoute(val houseId: String, val choreId: String? = null)
 @Serializable data class ChatRoute(val houseId: String)
 @Serializable data class DocumentsRoute(val houseId: String)
 
-// Settings routes
 @Serializable object SettingsRoute
 @Serializable object EditProfileRoute
 @Serializable object NotificationPreferencesRoute

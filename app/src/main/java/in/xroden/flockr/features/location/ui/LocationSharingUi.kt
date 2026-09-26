@@ -1,6 +1,7 @@
 /** What sharing a location looks like in a house: the live map, starting and managing a share, and the words for where someone is. */
 package `in`.xroden.flockr.features.location.ui
 
+import androidx.core.net.toUri
 import android.content.Context
 import android.content.Intent
 import android.location.Location
@@ -110,7 +111,7 @@ fun untilLabel(expiresAt: Instant): String =
 
 /** Opens whichever maps app the phone uses, with directions to [location]. Does nothing without one. */
 fun openDirections(context: Context, location: MemberLocation, label: String) {
-    val uri = Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(${Uri.encode(label)})")
+    val uri = "geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(${Uri.encode(label)})".toUri()
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }
 

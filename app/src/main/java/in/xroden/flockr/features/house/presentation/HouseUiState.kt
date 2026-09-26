@@ -2,8 +2,7 @@ package `in`.xroden.flockr.features.house.presentation
 
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.validation.Validators
-import java.math.BigDecimal
-import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.features.chores.model.Chore
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
@@ -31,7 +30,6 @@ sealed interface HouseDetailUiState {
         val upcomingBills: List<RecurringExpense> get() = digest.upcomingBills
         val myChores: List<Chore> get() = digest.myChores
         val recent: List<Expense> get() = digest.recent
-        val viewerNet: BigDecimal? get() = digest.standing?.netOf(viewerId)
         val viewerPayments: List<SettleUpPayment> get() = digest.standing?.paymentsOf(viewerId).orEmpty()
         val canManageHouse: Boolean
             get() = members.firstOrNull { it.userId == viewerId }?.role.let { it == HouseMemberRole.OWNER || it == HouseMemberRole.ADMIN }

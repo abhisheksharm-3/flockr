@@ -1,9 +1,8 @@
 /** The signed-in member's notifications and which kinds they want, per house. */
 package `in`.xroden.flockr.features.notifications.data
 
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.notifications.model.Notification
 import `in`.xroden.flockr.features.notifications.model.NotificationType
 import io.github.jan.supabase.SupabaseClient
@@ -32,13 +31,12 @@ private data class PreferenceRow(val type: String, @SerialName("is_enabled") val
 
 @Singleton
 class NotificationRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     /** The newest notifications, kept current as the database writes more. */
     fun getNotificationsFlow(): Flow<Result<List<Notification>>> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return flowOf(Result.success(emptyList()))
-        return supabase.liveQuery(connectionManager, listOf(TableWatch("notifications", "user_id", userId))) {
+        return supabase.liveQuery(listOf(TableWatch("notifications", "user_id", userId))) {
             supabase.from("notifications").select {
                 order("created_at", Order.DESCENDING)
                 limit(INBOX_SIZE)

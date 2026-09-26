@@ -18,7 +18,7 @@ class BiometricAuthManager @Inject constructor(
 
     /** Returns true if biometric or device credential authentication is available. */
     fun canAuthenticate(): Boolean =
-        biometricManager.canAuthenticate(allowedAuthenticators()) == BiometricManager.BIOMETRIC_SUCCESS
+        biometricManager.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**
      * Shows biometric authentication prompt.
@@ -53,24 +53,15 @@ class BiometricAuthManager @Inject constructor(
             }
         }
 
-        val authenticators = allowedAuthenticators()
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(authenticators)
-            .apply {
-                // Below API 30 the STRONG|DEVICE_CREDENTIAL combination is unsupported and a
-                // device-credential prompt has no negative button, so build() would throw.
-                if (authenticators and BiometricManager.Authenticators.DEVICE_CREDENTIAL == 0) {
-                    setNegativeButtonText("Cancel")
-                }
-            }
+            .setAllowedAuthenticators(AUTHENTICATORS)
             .build()
 
         BiometricPrompt(activity, executor, callback).authenticate(promptInfo)
     }
-
-    private fun allowedAuthenticators(): Int =
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
 }
+
+/** A strong biometric, or the phone's PIN, pattern or password when there isn't one. */
+private const val AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL

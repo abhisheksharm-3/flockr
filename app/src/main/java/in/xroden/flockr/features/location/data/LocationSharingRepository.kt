@@ -1,9 +1,8 @@
 /** Sharing a live location with a house for a set time, and seeing who in it is sharing. */
 package `in`.xroden.flockr.features.location.data
 
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.location.model.MemberLocation
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -25,14 +24,13 @@ enum class SharingLength(val minutes: Int, val label: String) {
 
 @Singleton
 class LocationSharingRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     /** Everyone sharing with the house right now, the viewer included, kept current as points move, start and stop. */
     fun getLocationsFlow(houseId: String): Flow<Result<List<MemberLocation>>> =
-        supabase.liveQuery(connectionManager, listOf(TableWatch("member_locations", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("member_locations", "house_id", houseId))) {
             supabase.from("member_locations").select { filter { eq("house_id", houseId) } }.decodeList<MemberLocation>()
         }
 

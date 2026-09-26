@@ -2,7 +2,7 @@
 package `in`.xroden.flockr.features.notifications.system
 
 import com.google.firebase.messaging.FirebaseMessaging
-import `in`.xroden.flockr.core.logging.Logger
+import android.util.Log
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -26,7 +26,7 @@ class PushTokens @Inject constructor(private val supabase: SupabaseClient) {
                 put("p_token", current)
                 put("p_platform", "android")
             })
-        }.onFailure { Logger.w("PushTokens", "Could not register the push token", it) }
+        }.onFailure { Log.w("Flockr:PushTokens", "Could not register the push token", it) }
     }
 
     /** Stops pushes for the member who is signing out; must run while their session is still valid. */
@@ -34,6 +34,6 @@ class PushTokens @Inject constructor(private val supabase: SupabaseClient) {
         runCatching {
             val current = FirebaseMessaging.getInstance().token.await()
             supabase.postgrest.rpc("unregister_device_token", buildJsonObject { put("p_token", current) })
-        }.onFailure { Logger.w("PushTokens", "Could not unregister the push token", it) }
+        }.onFailure { Log.w("Flockr:PushTokens", "Could not unregister the push token", it) }
     }
 }

@@ -27,10 +27,6 @@ object Motion {
     val spatialFast: FiniteAnimationSpec<Float>
         @Composable @ReadOnlyComposable get() = MaterialTheme.motionScheme.fastSpatialSpec()
 
-    /** Springy and deliberate. Use for large surfaces and full-screen transitions. */
-    val spatialSlow: FiniteAnimationSpec<Float>
-        @Composable @ReadOnlyComposable get() = MaterialTheme.motionScheme.slowSpatialSpec()
-
     /** Monotonic. Use for colour, alpha, and elevation. */
     val effects: FiniteAnimationSpec<Float>
         @Composable @ReadOnlyComposable get() = MaterialTheme.motionScheme.defaultEffectsSpec()
@@ -38,10 +34,6 @@ object Motion {
     /** Monotonic and quick. Use for hover, focus, and press feedback. */
     val effectsFast: FiniteAnimationSpec<Float>
         @Composable @ReadOnlyComposable get() = MaterialTheme.motionScheme.fastEffectsSpec()
-
-    /** Monotonic and deliberate. Use for scrims and background washes. */
-    val effectsSlow: FiniteAnimationSpec<Float>
-        @Composable @ReadOnlyComposable get() = MaterialTheme.motionScheme.slowEffectsSpec()
 }
 
 /**

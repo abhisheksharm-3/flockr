@@ -2,6 +2,7 @@
 package `in`.xroden.flockr.features.settings.presentation
 
 import android.content.Context
+import `in`.xroden.flockr.utils.uploadJpegOf
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.features.auth.data.AuthRepository
-import `in`.xroden.flockr.utils.BitmapUtils
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -26,8 +26,7 @@ private const val AVATAR_BUCKET = "avatars"
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val storageRepository: StorageRepository,
-    private val bitmapUtils: BitmapUtils
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -106,7 +105,8 @@ class ProfileViewModel @Inject constructor(
         _updateState.value = UpdateProfileUiState.UploadingPhoto
         viewModelScope.launch {
             runCatching {
-                val compressed = withContext(Dispatchers.IO) { bitmapUtils.compressImage(readImage()) }
+                val compressed = withContext(Dispatchers.IO) { uploadJpegOf(readImage()) }
+                    ?: error("That image couldn't be read. Try another.")
                 val fileName = "$userId/avatar_${System.currentTimeMillis()}.jpg"
                 val publicUrl = storageRepository.uploadFile(AVATAR_BUCKET, fileName, compressed).getOrThrow()
                 authRepository.updateProfile(fullName = null, hasCompletedOnboarding = null, avatarUrl = publicUrl).getOrThrow()

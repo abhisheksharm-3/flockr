@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.presentation.SplitDraft
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.ui.components.forms.ToggleRow

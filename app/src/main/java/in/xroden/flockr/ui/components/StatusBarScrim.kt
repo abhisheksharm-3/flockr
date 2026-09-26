@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -76,6 +77,7 @@ fun HeroColumn(
             Box(Modifier.onSizeChanged { heroHeight = it.height }) { hero() }
             content()
         }
-        HeroStatusBarScrim(isHeroGone = heroHeight > 0 && scroll.value >= heroHeight - statusBar)
+        val isHeroGone by remember(statusBar) { derivedStateOf { heroHeight > 0 && scroll.value >= heroHeight - statusBar } }
+        HeroStatusBarScrim(isHeroGone = isHeroGone)
     }
 }

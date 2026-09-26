@@ -1,7 +1,7 @@
 /** A housemate's live shared point, as the house sees it while they share. */
 package `in`.xroden.flockr.features.location.model
 
-import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.core.serialization.InstantSerializer
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

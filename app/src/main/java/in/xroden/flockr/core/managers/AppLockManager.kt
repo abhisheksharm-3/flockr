@@ -4,8 +4,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.core.DataStore
 import androidx.fragment.app.FragmentActivity
-import `in`.xroden.flockr.core.constants.AppConstants
-import `in`.xroden.flockr.core.managers.BiometricAuthManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +12,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** How long Flockr can sit in the background before it asks to be unlocked again. */
+private const val LOCK_AFTER_MILLIS = 60_000L
 
 /**
  * Manages app lock state and biometric authentication.
@@ -51,7 +52,7 @@ class AppLockManager @Inject constructor(
         if (lastBackgroundTimestamp == 0L) return
 
         val diff = System.currentTimeMillis() - lastBackgroundTimestamp
-        if (diff < AppConstants.APP_LOCK_TIMEOUT_MS) return
+        if (diff < LOCK_AFTER_MILLIS) return
 
         val enabled = appLockEnabled.firstOrNull() ?: false
         if (enabled) {

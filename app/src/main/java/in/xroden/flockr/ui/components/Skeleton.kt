@@ -126,15 +126,6 @@ fun SkeletonHeroScreen(rows: Int = 6) {
     }
 }
 
-/** A screen with a plain title: the title, then rows. */
-@Composable
-fun SkeletonListScreen(rows: Int = 7) {
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().semantics { contentDescription = "Loading" }) {
-        Box(Modifier.padding(start = Spacing.lg, top = Spacing.xxl)) { Bar(180.dp, HeroFigureHeight - Spacing.md) }
-        SkeletonRows(rows)
-    }
-}
-
 /** A sentence form: the cobalt header with its big value, then a few tokens. */
 @Composable
 fun SkeletonFormScreen() {

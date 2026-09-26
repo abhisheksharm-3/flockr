@@ -32,7 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.features.expenses.model.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.model.ExpenseCategories
 import `in`.xroden.flockr.features.expenses.presentation.BillFormState
 import `in`.xroden.flockr.features.expenses.presentation.BillFormViewModel

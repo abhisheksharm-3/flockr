@@ -35,13 +35,9 @@ object IconSize {
  */
 object ComponentHeight {
     val button = 48.dp
-    val buttonSmall = 36.dp
     val inputField = 56.dp
-    val listItem = 72.dp
     val listItemCompact = 56.dp
-    val cardSmall = 120.dp
     val cardMedium = 160.dp
-    val cardLarge = 180.dp
     val chip = 32.dp
     val avatar = 40.dp
     val avatarLarge = 56.dp

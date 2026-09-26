@@ -41,8 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import `in`.xroden.flockr.data.enums.ExpenseDueStatus
-import `in`.xroden.flockr.data.enums.ExpenseFrequency
+import `in`.xroden.flockr.features.expenses.model.ExpenseDueStatus
+import `in`.xroden.flockr.features.expenses.model.ExpenseFrequency
 import `in`.xroden.flockr.features.expenses.data.recurringPaymentShares
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.presentation.BillsUiState

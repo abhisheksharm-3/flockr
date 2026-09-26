@@ -14,14 +14,16 @@ import `in`.xroden.flockr.features.settings.model.ThemeMode
 import `in`.xroden.flockr.ui.navigation.FlockrNavigation
 import `in`.xroden.flockr.ui.theme.FlockrTheme
 import `in`.xroden.flockr.features.settings.presentation.SettingsViewModel
-import `in`.xroden.flockr.utils.PermissionManager
 import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.fragment.app.FragmentActivity
 import `in`.xroden.flockr.core.managers.AppLockManager
-import `in`.xroden.flockr.core.managers.IntentHandler
+import `in`.xroden.flockr.core.validation.Validators
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import `in`.xroden.flockr.ui.components.LockScreenOverlay
@@ -46,19 +48,16 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var pushTokens: PushTokens
 
-    private lateinit var permissionManager: PermissionManager
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val askForNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    // Compose-observable so a deep link delivered to onNewIntent (app already open)
-    // re-triggers invite extraction; the Activity's own `intent` field is not observable.
+    /** The latest intent, observable by Compose, so a link opened while the app is running is still read. */
     private val intentState = mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        permissionManager = PermissionManager(this)
-        
+
         if (savedInstanceState == null) {
             appLockManager.initializeColdStartLock()
         }
@@ -83,7 +82,7 @@ class MainActivity : FragmentActivity() {
                         val (notificationId, setNotificationId) = remember { mutableStateOf<String?>(null) }
 
                         LaunchedEffect(intentState.value) {
-                            IntentHandler.extractInviteCode(intentState.value)?.let { setInviteCode(it) }
+                            intentState.value?.inviteCode()?.let { setInviteCode(it) }
                             intentState.value?.getStringExtra(EXTRA_NOTIFICATION_ID)?.let { setNotificationId(it) }
                         }
 
@@ -135,17 +134,15 @@ class MainActivity : FragmentActivity() {
     /** Runs once the user is signed in: links this phone for pushes and asks to show notifications. */
     private fun onSignedIn() {
         lifecycleScope.launch { pushTokens.register() }
-        requestNotificationPermissionIfNeeded()
-    }
-
-    private fun requestNotificationPermissionIfNeeded() {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            this,
-            android.Manifest.permission.POST_NOTIFICATIONS
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        if (!hasPermission) {
-            permissionManager.requestNotificationPermission { }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            askForNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
+}
+
+/** The invite code in a `flockr://invite?code=…` or `flockr://invite/…` link, when it is a valid one. */
+private fun Intent.inviteCode(): String? {
+    val link = data?.takeIf { it.scheme == "flockr" && it.host == "invite" } ?: return null
+    val code = link.getQueryParameter("code") ?: link.pathSegments.firstOrNull() ?: return null
+    return Validators.validateInviteCode(code).getOrNull()
 }

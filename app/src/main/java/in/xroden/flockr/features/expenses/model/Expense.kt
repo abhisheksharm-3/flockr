@@ -2,12 +2,12 @@
 package `in`.xroden.flockr.features.expenses.model
 
 import androidx.compose.runtime.Immutable
-import `in`.xroden.flockr.data.enums.ExpenseDueStatus
-import `in`.xroden.flockr.data.enums.ExpenseFrequency
-import `in`.xroden.flockr.data.enums.SplitMethod
-import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
-import `in`.xroden.flockr.data.serialization.InstantSerializer
-import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import `in`.xroden.flockr.features.expenses.model.ExpenseDueStatus
+import `in`.xroden.flockr.features.expenses.model.ExpenseFrequency
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
+import `in`.xroden.flockr.core.serialization.BigDecimalSerializer
+import `in`.xroden.flockr.core.serialization.InstantSerializer
+import `in`.xroden.flockr.core.serialization.LocalDateSerializer
 import java.math.BigDecimal
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate

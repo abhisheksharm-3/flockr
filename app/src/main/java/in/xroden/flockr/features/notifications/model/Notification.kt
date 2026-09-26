@@ -2,7 +2,7 @@
 package `in`.xroden.flockr.features.notifications.model
 
 import androidx.compose.runtime.Immutable
-import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.core.serialization.InstantSerializer
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

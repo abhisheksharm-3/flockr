@@ -1,21 +1,24 @@
+/** The documents vault: house and personal files in Supabase Storage, with a row each in `documents`. */
 package `in`.xroden.flockr.features.documents.data
 
 import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.logging.Logger
+import android.util.Log
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.dto.DocumentInsert
+import `in`.xroden.flockr.features.documents.data.DocumentInsert
 import `in`.xroden.flockr.features.documents.model.Document
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.hours
 
 @Singleton
 class DocumentRepository @Inject constructor(
@@ -36,7 +39,7 @@ class DocumentRepository @Inject constructor(
                     eq("user_id", currentUserId)
                     filter("house_id", FilterOperator.IS, null)
                 }
-                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                order("created_at", Order.DESCENDING)
                 limit(count = 200)
             }
             .decodeList<Document>()
@@ -48,46 +51,36 @@ class DocumentRepository @Inject constructor(
         supabase.from("documents")
             .select(Columns.ALL) {
                 filter { eq("house_id", houseId) }
-                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                order("created_at", Order.DESCENDING)
                 limit(count = 200)
             }
             .decodeList<Document>()
     }
 
-    suspend fun uploadDocument(
-        houseId: String?,
-        fileName: String,
-        fileData: ByteArray,
-        mimeType: String
-    ): Result<Document> = runCatching {
-            val currentUserId = requireAuthenticated(userId)
-            val sanitizedFileName = InputSanitizer.sanitizeFileName(fileName)
+    /**
+     * Stores [fileData] and records it, for [houseId] or as a personal document when it is null. Refuses
+     * an empty file, an unsupported type, one over the size limit, or one past the house's or the
+     * person's document count.
+     */
+    suspend fun uploadDocument(houseId: String?, fileName: String, fileData: ByteArray, mimeType: String): Result<Document> = runCatching {
+        val currentUserId = requireAuthenticated(userId)
+        val name = InputSanitizer.sanitizeFileName(fileName)
+        if (name.isBlank()) throw DomainError.ValidationError.EmptyField("File name")
+        if (fileData.isEmpty()) throw DomainError.ValidationError.Rule("That file is empty")
+        Validators.validateMimeType(mimeType).getOrThrow()
+        val maxSize = if (mimeType.startsWith("image/")) StorageRepository.MAX_IMAGE_SIZE_BYTES else StorageRepository.MAX_FILE_SIZE_BYTES
+        Validators.validateFileSize(fileData.size.toLong(), maxSize).getOrThrow()
+        if (houseId != null) {
+            if (getHouseDocuments(houseId).getOrThrow().size >= MAX_HOUSE_DOCUMENTS) throw DomainError.StorageError.LimitReached("House", MAX_HOUSE_DOCUMENTS)
+        } else if (getPersonalDocuments().getOrThrow().size >= MAX_PERSONAL_DOCUMENTS) {
+            throw DomainError.StorageError.LimitReached("Personal", MAX_PERSONAL_DOCUMENTS)
+        }
 
-            Validators.validateMimeType(mimeType).getOrThrow()
-            Validators.validateFileSize(fileData.size.toLong(), StorageRepository.MAX_FILE_SIZE_BYTES).getOrThrow()
-            if (houseId != null) Validators.validateUUID(houseId).getOrThrow()
-
-            val bucket = if (houseId != null) "house-documents" else "personal-documents"
-            val path = if (houseId != null) {
-                "$houseId/$currentUserId/${System.currentTimeMillis()}_$sanitizedFileName"
-            } else {
-                "$currentUserId/${System.currentTimeMillis()}_$sanitizedFileName"
-            }
-
-            supabase.storage.from(bucket).upload(path, fileData) { upsert = false }
-
-            val document = supabase.from("documents")
-                .insert(DocumentInsert(
-                    houseId = houseId,
-                    userId = currentUserId,
-                    storagePath = path,
-                    fileName = sanitizedFileName,
-                    fileSize = fileData.size.toLong(),
-                    mimeType = mimeType
-                )) { select() }
-                .decodeSingle<Document>()
-
-            document
+        val path = listOfNotNull(houseId, currentUserId, "${System.currentTimeMillis()}_$name").joinToString("/")
+        supabase.storage.from(bucketFor(houseId)).upload(path, fileData) { upsert = false }
+        supabase.from("documents")
+            .insert(DocumentInsert(houseId, currentUserId, path, name, fileData.size.toLong(), mimeType)) { select() }
+            .decodeSingle<Document>()
     }
 
     /**
@@ -100,18 +93,18 @@ class DocumentRepository @Inject constructor(
             select()
         }.decodeList<Document>()
         if (deleted.isEmpty()) throw DomainError.ValidationError.Rule("Only whoever added it, or an admin, can delete this document")
-        val bucket = if (houseId != null) "house-documents" else "personal-documents"
-        runCatching { supabase.storage.from(bucket).delete(storagePath) }
-            .onFailure { Logger.w("DocumentRepository", "Left the file in storage: $storagePath", it) }
+        runCatching { supabase.storage.from(bucketFor(houseId)).delete(storagePath) }
+            .onFailure { Log.w("Flockr:DocumentRepository", "Left the file in storage: $storagePath", it) }
     }
 
     suspend fun getDocumentUrl(storagePath: String, houseId: String?): Result<String> = runCatching {
-        val bucket = if (houseId != null) "house-documents" else "personal-documents"
-        supabase.storage.from(bucket).createSignedUrl(storagePath, kotlin.time.Duration.parse("PT1H"))
+        supabase.storage.from(bucketFor(houseId)).createSignedUrl(storagePath, 1.hours)
     }
 
-    suspend fun downloadDocument(storagePath: String, houseId: String?): Result<ByteArray> = runCatching {
-        val bucket = if (houseId != null) "house-documents" else "personal-documents"
-        supabase.storage.from(bucket).downloadAuthenticated(storagePath)
+    private fun bucketFor(houseId: String?) = if (houseId != null) "house-documents" else "personal-documents"
+
+    companion object {
+        const val MAX_HOUSE_DOCUMENTS = 3
+        const val MAX_PERSONAL_DOCUMENTS = 2
     }
 }

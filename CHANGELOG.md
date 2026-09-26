@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/abhisheksharm-3/flockr/compare/v1.11.1...v2.0.0) (2026-09-26)
+
+
+### ⚠ Breaking changes
+
+* The backend was rebuilt from `supabase/schema`. Versions 1.x cannot talk to it; everyone must update.
+
+
+### Features
+
+* **money:** expenses record who paid and what each person owes, split equally, by exact amounts, percentages or shares, with a live preview of each share and what is left to assign
+* **money:** balances with the fewest payments that settle the house, and a per-person history that adds up to the balance between two people
+* **money:** either person can record a payment; paying more than is owed carries forward
+* **bills:** each payment is split the bill's way, scaled to what was paid; deleting a payment moves the bill back; semi-annual bills
+* **usage:** bill a month of per-diem usage into the ledger, which locks that month's log
+* **chores:** rotation between members, effort points and a monthly leaderboard
+* **shopping:** one-line adding, grouped by aisle, and recording what was bought as an expense
+* **notifications:** written only by the database, with a live inbox, taps that open the exact item, per-house preferences, and system notifications
+* **houses:** settings that change what the app shows, a default weight per member for splitting by shares, and a readable activity feed
+* **ui:** every screen rebuilt on the Cobalt design system: a cobalt OKLCH palette that meets WCAG AA in light and dark, Figtree with tabular figures, forms written as sentences, Material 3 Expressive components and motion, skeleton loading and haptics
+* **home:** a greeting with what you owe or are owed across every house, what's due this week with its house, and a photo tile per house
+* **hub:** each house opens on its photo or a map of its street, with the housemates' faces, a swipeable stack of what needs you, and a drawer that pulls up into the rest of the house
+* **location:** share where you are with one house for 15 minutes, an hour or 8 hours, see who is sharing on a live map, and get directions; the server ends every share on time
+* **maps:** free MapLibre maps on OpenFreeMap tiles, themed for light and dark, with a pin you place when creating or editing a house
+* **onboarding:** a first run that names you, sets up a house and shows the code to invite housemates
+* **push:** notifications through Firebase Cloud Messaging, sent by a Supabase Edge Function
+
+
+### Bug Fixes
+
+* amounts with more decimals than the currency are refused instead of rounded
+* a malformed amount fails loudly instead of reading as zero
+* the currency is fixed once a house has recorded money
+* invite codes are eight characters from a cryptographic source, and the join screen accepts them
+* house settings could never be saved; date layouts now match what the database accepts
+* onboarding now hands over to the app
+* members who leave keep their place in the ledger
+* the app asks only for the notification and, when sharing, location permissions, and backups no longer carry the session
+* signing out from Settings no longer leaves a blank screen
+* uploaded photos keep their orientation
+
+
+### Known Issues
+
+The Android App Bundle is not produced. Supabase 3.8.0 publishes .kotlin_module entries whose
+names contain a colon, which AGP 9 rejects. The APK is unaffected.
+
 ## [1.11.1](https://github.com/abhisheksharm-3/flockr/compare/v1.11.0...v1.11.1) (2026-09-13)
 
 

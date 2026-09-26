@@ -1,7 +1,7 @@
 /** The expense form's state, shared by adding and editing so both follow the same split rules. */
 package `in`.xroden.flockr.features.expenses.presentation
 
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.data.expenseShares
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare

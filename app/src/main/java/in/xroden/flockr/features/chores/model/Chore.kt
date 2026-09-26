@@ -2,9 +2,9 @@
 package `in`.xroden.flockr.features.chores.model
 
 import androidx.compose.runtime.Immutable
-import `in`.xroden.flockr.data.enums.ChoreRecurrence
-import `in`.xroden.flockr.data.serialization.InstantSerializer
-import `in`.xroden.flockr.data.serialization.LocalDateSerializer
+import `in`.xroden.flockr.features.chores.model.ChoreRecurrence
+import `in`.xroden.flockr.core.serialization.InstantSerializer
+import `in`.xroden.flockr.core.serialization.LocalDateSerializer
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName

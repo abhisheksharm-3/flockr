@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.model.ExpenseCategories
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseFormState
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseFormUiState

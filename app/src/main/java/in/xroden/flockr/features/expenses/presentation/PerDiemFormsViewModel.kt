@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
-import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.features.expenses.data.PerDiemRepository
 import `in`.xroden.flockr.features.expenses.model.PerDiemConfig
 import `in`.xroden.flockr.features.expenses.model.PerDiemCategories

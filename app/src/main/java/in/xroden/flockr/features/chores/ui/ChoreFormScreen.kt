@@ -31,7 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import `in`.xroden.flockr.data.enums.ChoreRecurrence
+import `in`.xroden.flockr.features.chores.model.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.presentation.ChoreFormState
 import `in`.xroden.flockr.features.chores.presentation.ChoreFormViewModel
 import `in`.xroden.flockr.features.house.model.HouseConfig

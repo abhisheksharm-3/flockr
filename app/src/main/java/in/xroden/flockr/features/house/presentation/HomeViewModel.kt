@@ -2,13 +2,13 @@
 package `in`.xroden.flockr.features.house.presentation
 
 import androidx.lifecycle.ViewModel
+import `in`.xroden.flockr.utils.uploadJpegOf
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.features.house.data.HouseInvitationRepository
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import `in`.xroden.flockr.features.house.model.InvitationWithHouse
-import `in`.xroden.flockr.utils.BitmapUtils
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,8 +31,7 @@ sealed interface HouseEvent {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val houseRepository: HouseRepository,
-    private val houseInvitationRepository: HouseInvitationRepository,
-    private val bitmapUtils: BitmapUtils
+    private val houseInvitationRepository: HouseInvitationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HouseListUiState>(HouseListUiState.Loading)
@@ -115,7 +114,7 @@ class HomeViewModel @Inject constructor(
             ).fold(
                 onSuccess = { house ->
                     val photoUploaded = headerImageBytes == null || run {
-                        val compressed = withContext(Dispatchers.IO) { bitmapUtils.compressImage(headerImageBytes) }
+                        val compressed = withContext(Dispatchers.IO) { uploadJpegOf(headerImageBytes) } ?: return@run false
                         houseRepository.uploadHouseHeaderImage(house.id, compressed).isSuccess
                     }
                     _createState.value = CreateHouseUiState.Created(house, photoUploaded)

@@ -1,17 +1,15 @@
 /** Houses, their settings and their members, through the house RPCs and the columns members may edit. */
 package `in`.xroden.flockr.features.house.data
 
-import `in`.xroden.flockr.core.cache.CacheManager
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.dto.HouseConfigUpdate
-import `in`.xroden.flockr.data.dto.HouseUpdate
-import `in`.xroden.flockr.data.enums.HouseMemberRole
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.features.house.data.HouseConfigUpdate
+import `in`.xroden.flockr.features.house.data.HouseUpdate
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.house.model.House
 import `in`.xroden.flockr.features.house.model.HouseCardData
 import `in`.xroden.flockr.features.house.model.HouseConfig
@@ -28,32 +26,32 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.math.BigDecimal
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val CONFIG_CACHE_TTL_MS = 5 * 60 * 1000L
+private val CONFIG_KEPT_FOR = 5.minutes
 
 private const val HEADERS_BUCKET = "house_headers"
 
 const val MAX_SPLIT_WEIGHT_DECIMALS = 3
 
-private fun configCacheKey(houseId: String) = "house_config_$houseId"
-
 @Singleton
 class HouseRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val storageRepository: StorageRepository,
-    private val cacheManager: CacheManager,
-    private val realtimeConnectionManager: RealtimeConnectionManager
 ) {
+    /** Each house's settings with when they were read; a save or a delete here drops the house's entry. */
+    private val configs = ConcurrentHashMap<String, Pair<HouseConfig, TimeMark>>()
 
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     fun getHousesFlow(): Flow<Result<List<HouseCardData>>> {
         val userId = getCurrentUserId() ?: return flowOf(Result.success(emptyList()))
-        return supabase.liveQuery(
-            realtimeConnectionManager,
-            listOf(TableWatch("houses"), TableWatch("house_members", "user_id", userId), TableWatch("expenses"))
+        return supabase.liveQuery(listOf(TableWatch("houses"), TableWatch("house_members", "user_id", userId), TableWatch("expenses"))
         ) { fetchHouses() }
     }
 
@@ -113,7 +111,7 @@ class HouseRepository @Inject constructor(
 
     suspend fun deleteHouse(houseId: String): Result<Unit> = runCatching {
         supabase.postgrest.rpc("delete_house", buildJsonObject { put("p_house_id", houseId) })
-        cacheManager.invalidate(configCacheKey(houseId))
+        configs.remove(houseId)
     }
 
     suspend fun getHouseMembers(houseId: String): Result<List<MemberWithProfile>> = runCatching {
@@ -122,9 +120,9 @@ class HouseRepository @Inject constructor(
     }
 
     suspend fun getHouseConfig(houseId: String): Result<HouseConfig> = runCatching {
-        cacheManager.getOrPut(configCacheKey(houseId), CONFIG_CACHE_TTL_MS) {
-            supabase.from("house_config").select { filter { eq("house_id", houseId) } }.decodeSingle<HouseConfig>()
-        }
+        configs[houseId]?.takeIf { (_, readAt) -> readAt.elapsedNow() < CONFIG_KEPT_FOR }?.first
+            ?: supabase.from("house_config").select { filter { eq("house_id", houseId) } }.decodeSingle<HouseConfig>()
+                .also { configs[houseId] = it to TimeSource.Monotonic.markNow() }
     }
 
     suspend fun updateHouseConfig(
@@ -136,7 +134,7 @@ class HouseRepository @Inject constructor(
     ): Result<Unit> = runCatching {
         val update = HouseConfigUpdate(currencyCode, dateFormat, firstDayOfWeek, timezone)
         supabase.from("house_config").update(update) { filter { eq("house_id", houseId) } }
-        cacheManager.invalidate(configCacheKey(houseId))
+        configs.remove(houseId)
     }
 
     /** Whether the house has recorded any money, after which its currency is fixed. */

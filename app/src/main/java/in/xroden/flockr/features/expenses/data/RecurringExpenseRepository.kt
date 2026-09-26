@@ -3,12 +3,11 @@ package `in`.xroden.flockr.features.expenses.data
 
 import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
-import `in`.xroden.flockr.data.enums.ExpenseFrequency
-import `in`.xroden.flockr.data.enums.SplitMethod
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.features.expenses.model.ExpenseFrequency
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.model.RecurringShare
@@ -32,13 +31,11 @@ import kotlinx.serialization.json.put
 
 @Singleton
 class RecurringExpenseRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     /** The house's bills, soonest due first. Recording a payment moves a bill on, so payments refresh it too. */
     fun getRecurringExpensesFlow(houseId: String): Flow<Result<List<RecurringExpense>>> =
         supabase.liveQuery(
-            connectionManager,
             listOf(TableWatch("recurring_expenses", "house_id", houseId), TableWatch("expenses", "house_id", houseId))
         ) { fetchRecurringExpenses(houseId) }
 

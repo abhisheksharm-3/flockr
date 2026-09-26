@@ -11,7 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.features.auth.data.AuthRepository
 import `in`.xroden.flockr.features.auth.data.GoogleSignInHelper
 import `in`.xroden.flockr.features.auth.model.Profile
-import `in`.xroden.flockr.ui.navigation.state.AuthNavigationState
+import `in`.xroden.flockr.features.auth.presentation.AuthNavigationState
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

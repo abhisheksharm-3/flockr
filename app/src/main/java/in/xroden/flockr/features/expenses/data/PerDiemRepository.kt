@@ -3,14 +3,13 @@ package `in`.xroden.flockr.features.expenses.data
 
 import `in`.xroden.flockr.core.domain.DomainError
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
-import `in`.xroden.flockr.data.dto.PerDiemConfigInsert
-import `in`.xroden.flockr.data.dto.PerDiemConfigUpdate
-import `in`.xroden.flockr.data.dto.PerDiemEntryInsert
-import `in`.xroden.flockr.data.dto.PerDiemEntryUpdate
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.features.expenses.data.PerDiemConfigInsert
+import `in`.xroden.flockr.features.expenses.data.PerDiemConfigUpdate
+import `in`.xroden.flockr.features.expenses.data.PerDiemEntryInsert
+import `in`.xroden.flockr.features.expenses.data.PerDiemEntryUpdate
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillByMember
 import `in`.xroden.flockr.features.expenses.model.PerDiemBillItemized
@@ -37,8 +36,7 @@ import kotlinx.serialization.json.put
 /** The monthly reads take [month] as any day in the month. */
 @Singleton
 class PerDiemRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     /**
      * [month]'s items, usage and billing, kept current. Entries carry no house column to filter on,
@@ -46,7 +44,7 @@ class PerDiemRepository @Inject constructor(
      */
     fun getMonthFlow(houseId: String, month: LocalDate): Flow<Result<PerDiemMonth>> {
         val watches = listOf(TableWatch("per_diem_config", "house_id", houseId), TableWatch("per_diem_entries"), TableWatch("expenses", "house_id", houseId))
-        return supabase.liveQuery(connectionManager, watches) {
+        return supabase.liveQuery(watches) {
             coroutineScope {
                 val items = async { getPerDiemConfigs(houseId).getOrThrow() }
                 val entries = async { getPerDiemEntries(houseId, month).getOrThrow() }

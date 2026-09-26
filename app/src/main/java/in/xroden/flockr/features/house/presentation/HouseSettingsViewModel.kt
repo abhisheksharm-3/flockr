@@ -2,6 +2,7 @@
 package `in`.xroden.flockr.features.house.presentation
 
 import android.content.Context
+import `in`.xroden.flockr.utils.uploadJpegOf
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,9 +10,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.presentation.Notice
-import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.features.house.data.HouseRepository
-import `in`.xroden.flockr.utils.BitmapUtils
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 @HiltViewModel
 class HouseSettingsViewModel @Inject constructor(
     private val houseRepository: HouseRepository,
-    private val bitmapUtils: BitmapUtils,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -112,7 +111,7 @@ class HouseSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val bytes = withContext(Dispatchers.IO) {
                 runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-                    ?.let { bitmapUtils.compressImage(it) }
+                    ?.let(::uploadJpegOf)
             }
             val result = if (bytes == null) null else houseRepository.uploadHouseHeaderImage(houseId, bytes)
             update { it.copy(isUploadingImage = false) }

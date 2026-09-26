@@ -1,7 +1,7 @@
 /** A house as its home-screen card shows it, one row of `get_my_houses`. */
 package `in`.xroden.flockr.features.house.model
 
-import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
+import `in`.xroden.flockr.core.serialization.BigDecimalSerializer
 import `in`.xroden.flockr.utils.formatMoney
 import java.math.BigDecimal
 import kotlinx.serialization.SerialName

@@ -1,6 +1,6 @@
 package `in`.xroden.flockr.features.auth.data
 
-import `in`.xroden.flockr.data.dto.ProfileUpdate
+import `in`.xroden.flockr.features.auth.data.ProfileUpdate
 import `in`.xroden.flockr.features.auth.model.Profile
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -96,10 +96,6 @@ class AuthRepository @Inject constructor(
                 filter { eq("id", userId) }
             }
     }
-
-    suspend fun getCurrentProfile(): Result<Profile?> = getProfile()
-
-    suspend fun isUserAuthenticated(): Boolean = currentUser != null
 
     fun getCurrentUserId(): String? = currentUser?.id
 }

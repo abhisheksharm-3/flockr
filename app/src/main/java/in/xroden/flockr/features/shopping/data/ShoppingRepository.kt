@@ -2,12 +2,11 @@
 package `in`.xroden.flockr.features.shopping.data
 
 import `in`.xroden.flockr.core.domain.requireAuthenticated
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
-import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
+import `in`.xroden.flockr.core.serialization.InstantSerializer
 import `in`.xroden.flockr.features.shopping.model.ShoppingItem
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -46,13 +45,12 @@ private data class ShoppingItemPurchase(
 
 @Singleton
 class ShoppingRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     fun getShoppingItemsFlow(houseId: String): Flow<Result<List<ShoppingItem>>> =
-        supabase.liveQuery(connectionManager, listOf(TableWatch("shopping_items", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("shopping_items", "house_id", houseId))) {
             supabase.from("shopping_items").select {
                 filter { eq("house_id", houseId) }
                 order("created_at", Order.ASCENDING)

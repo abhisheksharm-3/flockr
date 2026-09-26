@@ -13,9 +13,8 @@ import `in`.xroden.flockr.core.network.userMessage
 import `in`.xroden.flockr.core.presentation.Notice
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.data.enums.HouseMemberRole
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
 import `in`.xroden.flockr.features.documents.data.DocumentRepository
-import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
 import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.house.data.HouseRepository
 import javax.inject.Inject
@@ -36,7 +35,6 @@ class DocumentViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val documentRepository: DocumentRepository,
     private val houseRepository: HouseRepository,
-    private val uploadDocument: UploadDocumentUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
@@ -78,7 +76,7 @@ class DocumentViewModel @Inject constructor(
         _state.value = ready.copy(isUploading = true)
         viewModelScope.launch {
             val uploaded = withContext(Dispatchers.IO) { runCatching { readPicked(uri) } }.fold(
-                onSuccess = { uploadDocument(if (toHouse) houseId else null, it.name, it.bytes, it.mimeType) },
+                onSuccess = { documentRepository.uploadDocument(if (toHouse) houseId else null, it.name, it.bytes, it.mimeType) },
                 onFailure = { Result.failure<Document>(it) },
             )
             uploaded.fold(

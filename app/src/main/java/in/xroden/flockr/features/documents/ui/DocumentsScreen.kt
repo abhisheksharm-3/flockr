@@ -1,10 +1,10 @@
 /** The house's shared documents and the viewer's personal ones, in two tabs, with upload, open, download and delete. */
 package `in`.xroden.flockr.features.documents.ui
 
+import androidx.core.net.toUri
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Environment
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -61,7 +61,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.core.storage.StorageRepository
 import `in`.xroden.flockr.core.validation.Validators
-import `in`.xroden.flockr.features.documents.domain.usecase.UploadDocumentUseCase
+import `in`.xroden.flockr.features.documents.data.DocumentRepository
 import `in`.xroden.flockr.features.documents.model.Document
 import `in`.xroden.flockr.features.documents.presentation.DocumentEvent
 import `in`.xroden.flockr.features.documents.presentation.DocumentUiState
@@ -116,7 +116,7 @@ private class Shelf(
 private fun DocumentUiState.Ready.shelf(tab: Int): Shelf = if (tab == HOUSE_TAB) {
     Shelf(
         documents = house,
-        limit = UploadDocumentUseCase.MAX_HOUSE_DOCUMENTS,
+        limit = DocumentRepository.MAX_HOUSE_DOCUMENTS,
         label = "Files shared with the house",
         icon = Icons.Rounded.FolderShared,
         emptyHeadline = "Add the lease or the house rules",
@@ -126,7 +126,7 @@ private fun DocumentUiState.Ready.shelf(tab: Int): Shelf = if (tab == HOUSE_TAB)
 } else {
     Shelf(
         documents = personal,
-        limit = UploadDocumentUseCase.MAX_PERSONAL_DOCUMENTS,
+        limit = DocumentRepository.MAX_PERSONAL_DOCUMENTS,
         label = "Files only you can see",
         icon = Icons.Rounded.Folder,
         emptyHeadline = "Keep your ID or rent receipts",
@@ -380,12 +380,12 @@ private fun typeTone(mimeType: String?): BadgeTone = when {
 
 /** Opens a signed link in whichever app handles it, false when none can. */
 private fun Context.openLink(url: String): Boolean =
-    runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+    runCatching { startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
 
 /** Hands the file to the system downloader, which saves it to Downloads with no storage permission. */
 private fun Context.enqueueDownload(download: DocumentEvent.Download): Boolean = runCatching {
     val fileName = download.fileName.substringAfterLast('/').ifBlank { "document" }
-    val request = DownloadManager.Request(Uri.parse(download.url))
+    val request = DownloadManager.Request(download.url.toUri())
         .setTitle(fileName)
         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
         .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)

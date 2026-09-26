@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
-import `in`.xroden.flockr.data.enums.ExpenseFrequency
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.ExpenseFrequency
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.data.RecurringExpenseRepository
 import `in`.xroden.flockr.features.expenses.data.expenseShares
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare

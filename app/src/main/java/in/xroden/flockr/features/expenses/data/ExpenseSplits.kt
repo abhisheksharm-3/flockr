@@ -1,7 +1,7 @@
 /** The rules for dividing an expense into what each person paid and what each person owes. */
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.utils.apportion

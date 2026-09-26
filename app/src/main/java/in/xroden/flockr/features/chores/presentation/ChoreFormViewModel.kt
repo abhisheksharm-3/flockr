@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.xroden.flockr.core.network.userMessage
-import `in`.xroden.flockr.data.enums.ChoreRecurrence
+import `in`.xroden.flockr.features.chores.model.ChoreRecurrence
 import `in`.xroden.flockr.features.chores.data.ChoreDraft
 import `in`.xroden.flockr.features.chores.data.ChoreRepository
 import `in`.xroden.flockr.features.chores.model.Chore

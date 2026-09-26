@@ -1,11 +1,10 @@
 /** The house ledger: expenses, payments between housemates, and the balances they add up to. */
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.core.network.RealtimeConnectionManager
 import `in`.xroden.flockr.core.security.InputSanitizer
-import `in`.xroden.flockr.data.enums.SplitMethod
-import `in`.xroden.flockr.data.realtime.TableWatch
-import `in`.xroden.flockr.data.realtime.liveQuery
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
+import `in`.xroden.flockr.core.realtime.TableWatch
+import `in`.xroden.flockr.core.realtime.liveQuery
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.HouseStanding
@@ -37,14 +36,13 @@ internal val EXPENSE_WITH_SHARES = Columns.raw("*, expense_shares(user_id, paid_
 
 @Singleton
 class ExpenseRepository @Inject constructor(
-    private val supabase: SupabaseClient,
-    private val connectionManager: RealtimeConnectionManager,
+    private val supabase: SupabaseClient
 ) {
     fun getCurrentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
     /** Every expense and payment in the house, newest first, kept current as housemates add them. */
     fun getExpensesFlow(houseId: String): Flow<Result<List<Expense>>> =
-        supabase.liveQuery(connectionManager, listOf(TableWatch("expenses", "house_id", houseId))) {
+        supabase.liveQuery(listOf(TableWatch("expenses", "house_id", houseId))) {
             supabase.from("expenses").select(EXPENSE_WITH_SHARES) {
                 filter { eq("house_id", houseId) }
                 order("date", Order.DESCENDING)

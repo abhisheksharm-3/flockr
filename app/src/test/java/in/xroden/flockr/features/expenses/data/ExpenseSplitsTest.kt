@@ -1,7 +1,7 @@
 package `in`.xroden.flockr.features.expenses.data
 
-import `in`.xroden.flockr.data.enums.ExpenseDueStatus
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.ExpenseDueStatus
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.model.RecurringExpense
 import `in`.xroden.flockr.features.expenses.model.RecurringShare

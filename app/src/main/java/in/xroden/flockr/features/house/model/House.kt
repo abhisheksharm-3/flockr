@@ -2,9 +2,9 @@
 package `in`.xroden.flockr.features.house.model
 
 import androidx.compose.runtime.Immutable
-import `in`.xroden.flockr.data.enums.HouseMemberRole
-import `in`.xroden.flockr.data.serialization.BigDecimalSerializer
-import `in`.xroden.flockr.data.serialization.InstantSerializer
+import `in`.xroden.flockr.features.house.model.HouseMemberRole
+import `in`.xroden.flockr.core.serialization.BigDecimalSerializer
+import `in`.xroden.flockr.core.serialization.InstantSerializer
 import java.math.BigDecimal
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName

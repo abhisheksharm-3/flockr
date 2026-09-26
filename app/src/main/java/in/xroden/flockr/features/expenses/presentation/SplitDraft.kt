@@ -1,7 +1,7 @@
 /** The split part of the expense and bill forms: whether it is split, how, between whom, and what was typed. */
 package `in`.xroden.flockr.features.expenses.presentation
 
-import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.SplitMethod
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.utils.parseDecimal
 import `in`.xroden.flockr.utils.parseMoney
