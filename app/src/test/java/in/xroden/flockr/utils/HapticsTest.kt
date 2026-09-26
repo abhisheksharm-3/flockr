@@ -1,36 +1,28 @@
 package `in`.xroden.flockr.utils
 
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * The preference gate is the part that was broken before: the setting existed, wrote to
- * DataStore, and nothing read it. These tests fail if that regresses.
+ * DataStore, and nothing read it. These tests fail if that regresses, or if an interaction starts
+ * playing the wrong feel.
  */
 class HapticsTest {
 
-    private class RecordingFeedback : HapticFeedback {
-        val performed = mutableListOf<HapticFeedbackType>()
-        override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
-            performed += hapticFeedbackType
-        }
-    }
+    private val played = mutableListOf<HapticEffect>()
 
     @Test
     fun `fires when the preference is on`() {
-        val feedback = RecordingFeedback()
-        Haptics(feedback, mutableStateOf(true)).tap()
-        assertEquals(listOf(HapticFeedbackType.ContextClick), feedback.performed)
+        Haptics(played::add, mutableStateOf(true)).tap()
+        assertEquals(listOf(HapticEffect.TAP), played)
     }
 
     @Test
     fun `stays silent when the preference is off`() {
-        val feedback = RecordingFeedback()
-        val haptics = Haptics(feedback, mutableStateOf(false))
+        val haptics = Haptics(played::add, mutableStateOf(false))
         haptics.tap()
         haptics.toggleOn()
         haptics.success()
@@ -38,14 +30,14 @@ class HapticsTest {
         haptics.select()
         haptics.longPress()
         haptics.gestureThreshold()
-        assertTrue("no haptic may fire while disabled", feedback.performed.isEmpty())
+        haptics.gestureEnd()
+        assertTrue("no haptic may fire while disabled", played.isEmpty())
     }
 
     @Test
     fun `preference is read at call time, not at construction`() {
-        val feedback = RecordingFeedback()
         val enabled = mutableStateOf(true)
-        val haptics = Haptics(feedback, enabled)
+        val haptics = Haptics(played::add, enabled)
 
         haptics.tap()
         enabled.value = false
@@ -53,18 +45,14 @@ class HapticsTest {
         enabled.value = true
         haptics.tap()
 
-        assertEquals(2, feedback.performed.size)
+        assertEquals(2, played.size)
     }
 
     @Test
     fun `toggle picks the direction-specific effect`() {
-        val feedback = RecordingFeedback()
-        val haptics = Haptics(feedback, mutableStateOf(true))
+        val haptics = Haptics(played::add, mutableStateOf(true))
         haptics.toggle(on = true)
         haptics.toggle(on = false)
-        assertEquals(
-            listOf(HapticFeedbackType.ToggleOn, HapticFeedbackType.ToggleOff),
-            feedback.performed
-        )
+        assertEquals(listOf(HapticEffect.TOGGLE_ON, HapticEffect.TOGGLE_OFF), played)
     }
 }

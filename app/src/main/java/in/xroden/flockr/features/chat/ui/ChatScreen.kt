@@ -1,4 +1,4 @@
-/** The house group chat: messages by day, grouped by sender, with an input that follows the keyboard. */
+/** The house group chat: a compact bar naming who is in it, messages by day grouped by sender, and an input that follows the keyboard. */
 package `in`.xroden.flockr.features.chat.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,7 +24,7 @@ import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -32,17 +32,23 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.features.chat.model.Message
@@ -54,7 +60,9 @@ import `in`.xroden.flockr.features.house.model.nameOf
 import `in`.xroden.flockr.features.house.model.timeZone
 import `in`.xroden.flockr.features.house.model.today
 import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.SkeletonRows
+import `in`.xroden.flockr.ui.components.AnimatedGlyph
+import `in`.xroden.flockr.ui.components.GlyphMotion
 import `in`.xroden.flockr.ui.components.MemberAvatar
 import `in`.xroden.flockr.ui.components.states.EmptyState
 import `in`.xroden.flockr.ui.components.states.ErrorState
@@ -87,6 +95,7 @@ fun ChatScreen(
     val config by rememberHouseConfig(houseId)
     val snackbarHostState = remember { SnackbarHostState() }
     var draft by rememberSaveable { mutableStateOf("") }
+    var sent by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(houseId) { viewModel.load(houseId) }
     LaunchedEffect(Unit) {
@@ -102,32 +111,59 @@ fun ChatScreen(
     }
 
     Scaffold(
-        topBar = { FlockrTopAppBar(title = "Chat", onNavigateBack = onNavigateBack) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when (val current = state) {
-                    ChatUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
-                    is ChatUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
-                    is ChatUiState.Ready -> if (current.messages.isEmpty()) {
-                        EmptyState(icon = Icons.Rounded.Forum, title = "No messages yet", subtitle = "Say hello. Everyone in the house sees what you send here.")
-                    } else {
-                        MessageList(current, config)
-                    }
-                }
-            }
+        topBar = { ChatTopBar(state) },
+        bottomBar = {
             Composer(
                 text = draft,
+                sent = sent,
                 onTextChange = { draft = it },
                 onSend = {
                     haptics.tap()
                     viewModel.send(houseId, draft)
                     draft = ""
+                    sent++
                 },
             )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (val current = state) {
+                ChatUiState.Loading -> SkeletonRows()
+                is ChatUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
+                is ChatUiState.Ready -> if (current.messages.isEmpty()) {
+                    EmptyState(icon = Icons.Rounded.Forum, title = "No messages yet", subtitle = "Say hello. Everyone in the house sees what you send here.")
+                } else {
+                    MessageList(current, config)
+                }
+            }
         }
     }
+}
+
+/**
+ * A single-line bar rather than the app's collapsing one, so the conversation keeps the height. It
+ * names who reads the chat, since that is who a message goes to.
+ */
+@Composable
+private fun ChatTopBar(state: ChatUiState) {
+    val people = (state as? ChatUiState.Ready)?.let { ready ->
+        val others = ready.members.values.filter { it.isActive && it.userId != ready.viewerId }.map { it.shortName }
+        when (others.size) {
+            0 -> "Just you so far"
+            1 -> "You and ${others.single()}"
+            else -> "You, ${others.dropLast(1).joinToString()} and ${others.last()}"
+        }
+    }
+    TopAppBar(
+        title = {
+            Column {
+                Text("House chat", style = MaterialTheme.typography.titleMediumEmphasized, maxLines = 1)
+                people?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }
 
 private sealed interface ChatRow {
@@ -192,16 +228,13 @@ private fun dayLabel(day: LocalDate, today: LocalDate, config: HouseConfig?): St
 
 @Composable
 private fun DaySeparator(label: String) {
-    Box(Modifier.fillMaxWidth().padding(vertical = Spacing.md), contentAlignment = Alignment.Center) {
-        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
-            )
-        }
-    }
+    Text(
+        label,
+        style = MaterialTheme.typography.labelMediumEmphasized,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg, bottom = Spacing.sm).semantics { heading() },
+    )
 }
 
 @Composable
@@ -212,7 +245,7 @@ private fun MessageRow(row: ChatRow.Bubble, state: ChatUiState.Ready, config: Ho
     if (isOwn) {
         Row(Modifier.fillMaxWidth().padding(top = topPadding), horizontalArrangement = Arrangement.End) {
             Spacer(Modifier.width(Spacing.xxxxl))
-            Bubble(message, config, isOwn = true, modifier = Modifier.weight(1f, fill = false))
+            Bubble(message, config, isOwn = true, startsRun = row.startsRun, modifier = Modifier.weight(1f, fill = false))
         }
         return
     }
@@ -233,21 +266,29 @@ private fun MessageRow(row: ChatRow.Bubble, state: ChatUiState.Ready, config: Ho
                     modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.xxs),
                 )
             }
-            Bubble(message, config, isOwn = false)
+            Bubble(message, config, isOwn = false, startsRun = row.startsRun)
         }
         Spacer(Modifier.width(Spacing.xxxl))
     }
 }
 
+/** Messages after the first in a run tuck their sender-side top corner in, so a run reads as one voice. */
 @Composable
-private fun Bubble(message: Message, config: HouseConfig?, isOwn: Boolean, modifier: Modifier = Modifier) {
+private fun Bubble(message: Message, config: HouseConfig?, isOwn: Boolean, startsRun: Boolean, modifier: Modifier = Modifier) {
     val time = remember(message.createdAt, config) {
         message.createdAt.toLocalDateTime(config.timeZone()).time.toJavaLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
     }
     val container = if (isOwn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
     val content = if (isOwn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val round = MaterialTheme.shapes.large
+    val tucked = MaterialTheme.shapes.extraSmall
+    val shape = when {
+        startsRun -> round
+        isOwn -> round.copy(topEnd = tucked.topEnd)
+        else -> round.copy(topStart = tucked.topStart)
+    }
     Surface(
-        shape = MaterialTheme.shapes.large,
+        shape = shape,
         color = container,
         contentColor = content,
         modifier = modifier.semantics(mergeDescendants = true) {},
@@ -268,11 +309,12 @@ private fun Bubble(message: Message, config: HouseConfig?, isOwn: Boolean, modif
     }
 }
 
+/** The message field and send button; the send glyph hops forward each time [sent] goes up. */
 @Composable
-private fun Composer(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit) {
+private fun Composer(text: String, sent: Int, onTextChange: (String) -> Unit, onSend: () -> Unit) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -285,8 +327,8 @@ private fun Composer(text: String, onTextChange: (String) -> Unit, onSend: () ->
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.weight(1f),
             )
-            FilledIconButton(onClick = onSend, enabled = text.isNotBlank(), modifier = Modifier.size(ComponentHeight.inputField)) {
-                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Send")
+            FilledIconButton(onClick = onSend, enabled = text.isNotBlank(), shapes = IconButtonDefaults.shapes(), modifier = Modifier.size(ComponentHeight.inputField)) {
+                AnimatedGlyph(Icons.AutoMirrored.Rounded.Send, trigger = sent, motion = GlyphMotion.NUDGE, contentDescription = "Send")
             }
         }
     }

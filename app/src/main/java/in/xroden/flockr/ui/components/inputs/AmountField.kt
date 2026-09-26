@@ -23,7 +23,7 @@ fun AmountField(
     label: String? = "Amount",
     enabled: Boolean = true,
 ) {
-    val isInvalid = value.isNotBlank() && parseMoney(value, currencyCode) == null
+    val hint = amountHint(value, currencyCode)
     FlockrTextField(
         value = value,
         onValueChange = onValueChange,
@@ -32,10 +32,14 @@ fun AmountField(
         enabled = enabled,
         prefix = currencySymbol(currencyCode),
         keyboardType = KeyboardType.Decimal,
-        isError = isInvalid,
-        supportingText = if (isInvalid) invalidAmountHint(currencyCode) else null,
+        isError = hint != null,
+        supportingText = hint,
     )
 }
+
+/** Why [value] isn't an amount in [currencyCode], or null when it is one or is still blank. */
+fun amountHint(value: String, currencyCode: String): String? =
+    if (value.isBlank() || parseMoney(value, currencyCode) != null) null else invalidAmountHint(currencyCode)
 
 private fun invalidAmountHint(currencyCode: String): String = when (val digits = minorUnitDigits(currencyCode)) {
     0 -> "Enter a whole amount in $currencyCode"

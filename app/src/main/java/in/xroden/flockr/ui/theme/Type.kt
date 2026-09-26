@@ -1,165 +1,76 @@
+/** Flockr's type: Figtree throughout, bundled so it never falls back, with digits that line up. */
 package `in`.xroden.flockr.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import `in`.xroden.flockr.R
 
-private val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs
-)
+private fun figtree(weight: FontWeight) =
+    Font(R.font.figtree, weight = weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
 
-private val spaceGroteskFont = GoogleFont("Space Grotesk")
-val SpaceGroteskFontFamily = FontFamily(
-    Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = spaceGroteskFont, fontProvider = provider, weight = FontWeight.Bold)
-)
-
-private val plusJakartaSansFont = GoogleFont("Plus Jakarta Sans")
-val PlusJakartaSansFontFamily = FontFamily(
-    Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = plusJakartaSansFont, fontProvider = provider, weight = FontWeight.Bold)
-)
-
-private val base = Typography(
-    displayLarge = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 64.sp,
-        lineHeight = 72.sp,
-        letterSpacing = (-0.2).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 52.sp,
-        lineHeight = 60.sp,
-        letterSpacing = (-0.1).sp
-    ),
-    displaySmall = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 44.sp,
-        lineHeight = 52.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 40.sp,
-        lineHeight = 48.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 36.sp,
-        letterSpacing = 0.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.1.sp
-    ),
-    titleSmall = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 18.sp,
-        lineHeight = 26.sp,
-        letterSpacing = 0.15.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodySmall = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.2.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.1.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        lineHeight = 18.sp,
-        letterSpacing = 0.4.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
-    )
+/** One variable file carries every weight the scale uses. */
+val FigtreeFontFamily = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold, FontWeight.Black).map(::figtree),
 )
 
 /**
- * Material 3 Expressive pairs every type slot with an "emphasized" variant. The size and metrics
- * stay identical so a swap never reflows the layout; only the weight changes. Components reach
- * for these when something needs to carry more weight than its neighbours.
+ * Every style uses tabular figures, so amounts stacked in a list line up digit for digit and a
+ * number that changes never shifts its neighbours.
  */
-private fun TextStyle.emphasized(weight: FontWeight = FontWeight.ExtraBold) = copy(fontWeight = weight)
+private fun style(size: Int, line: Int, weight: FontWeight, tracking: TextUnit = 0.em) = TextStyle(
+    fontFamily = FigtreeFontFamily,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = line.sp,
+    letterSpacing = tracking,
+    fontFeatureSettings = "tnum",
+)
+
+private val base = Typography(
+    displayLarge = style(56, 60, FontWeight.ExtraBold, (-0.03).em),
+    displayMedium = style(46, 52, FontWeight.ExtraBold, (-0.03).em),
+    displaySmall = style(38, 44, FontWeight.ExtraBold, (-0.025).em),
+    headlineLarge = style(32, 38, FontWeight.ExtraBold, (-0.02).em),
+    headlineMedium = style(27, 32, FontWeight.ExtraBold, (-0.02).em),
+    headlineSmall = style(23, 28, FontWeight.Bold, (-0.015).em),
+    titleLarge = style(20, 26, FontWeight.Bold, (-0.01).em),
+    titleMedium = style(17, 24, FontWeight.SemiBold),
+    titleSmall = style(15, 20, FontWeight.SemiBold),
+    bodyLarge = style(16, 24, FontWeight.Normal),
+    bodyMedium = style(14, 20, FontWeight.Normal),
+    bodySmall = style(13, 18, FontWeight.Normal),
+    labelLarge = style(14, 20, FontWeight.SemiBold),
+    labelMedium = style(12, 16, FontWeight.SemiBold, 0.01.em),
+    labelSmall = style(11, 14, FontWeight.SemiBold, 0.04.em),
+)
+
+/**
+ * Material 3 Expressive pairs every slot with an "emphasized" variant at the same size and metrics,
+ * so a swap never reflows the layout; only the weight steps up.
+ */
+private fun TextStyle.emphasized(weight: FontWeight) = copy(fontWeight = weight)
 
 val AppTypography = base.copy(
-    displayLargeEmphasized = base.displayLarge.emphasized(),
-    displayMediumEmphasized = base.displayMedium.emphasized(),
-    displaySmallEmphasized = base.displaySmall.emphasized(),
-    headlineLargeEmphasized = base.headlineLarge.emphasized(),
-    headlineMediumEmphasized = base.headlineMedium.emphasized(),
-    headlineSmallEmphasized = base.headlineSmall.emphasized(),
-    titleLargeEmphasized = base.titleLarge.emphasized(),
-    titleMediumEmphasized = base.titleMedium.emphasized(),
-    titleSmallEmphasized = base.titleSmall.emphasized(),
+    displayLargeEmphasized = base.displayLarge.emphasized(FontWeight.Black),
+    displayMediumEmphasized = base.displayMedium.emphasized(FontWeight.Black),
+    displaySmallEmphasized = base.displaySmall.emphasized(FontWeight.Black),
+    headlineLargeEmphasized = base.headlineLarge.emphasized(FontWeight.Black),
+    headlineMediumEmphasized = base.headlineMedium.emphasized(FontWeight.Black),
+    headlineSmallEmphasized = base.headlineSmall.emphasized(FontWeight.ExtraBold),
+    titleLargeEmphasized = base.titleLarge.emphasized(FontWeight.ExtraBold),
+    titleMediumEmphasized = base.titleMedium.emphasized(FontWeight.Bold),
+    titleSmallEmphasized = base.titleSmall.emphasized(FontWeight.Bold),
     bodyLargeEmphasized = base.bodyLarge.emphasized(FontWeight.SemiBold),
     bodyMediumEmphasized = base.bodyMedium.emphasized(FontWeight.SemiBold),
     bodySmallEmphasized = base.bodySmall.emphasized(FontWeight.SemiBold),
-    labelLargeEmphasized = base.labelLarge.emphasized(),
-    labelMediumEmphasized = base.labelMedium.emphasized(),
+    labelLargeEmphasized = base.labelLarge.emphasized(FontWeight.Bold),
+    labelMediumEmphasized = base.labelMedium.emphasized(FontWeight.Bold),
     labelSmallEmphasized = base.labelSmall.emphasized(FontWeight.Bold),
 )

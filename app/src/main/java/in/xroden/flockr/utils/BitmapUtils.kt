@@ -3,7 +3,6 @@ package `in`.xroden.flockr.utils
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
-import kotlin.math.min
 import javax.inject.Inject
 
 class BitmapUtils @Inject constructor() {

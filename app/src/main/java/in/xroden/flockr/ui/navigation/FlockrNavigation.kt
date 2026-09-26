@@ -13,7 +13,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.house.ui.home.HomeScreen
 import `in`.xroden.flockr.features.notifications.presentation.NotificationViewModel
@@ -79,7 +78,11 @@ fun FlockrNavigation(
             key("authenticated") {
                 NavHost(
                     navController = navController,
-                    startDestination = HomeRoute
+                    startDestination = HomeRoute,
+                    enterTransition = SharedAxisEnter,
+                    exitTransition = SharedAxisExit,
+                    popEnterTransition = SharedAxisPopEnter,
+                    popExitTransition = SharedAxisPopExit,
                 ) {
                     composable<HomeRoute> {
                         HomeScreen(
@@ -98,9 +101,12 @@ fun FlockrNavigation(
                             onJoinHouseClick = {
                                 navController.navigate(JoinHouseRoute)
                             },
-                            onNavigateToJoinPreview = { inviteCode ->
-                                navController.navigate(JoinHousePreviewRoute(inviteCode))
-                            }
+                            onAddExpense = { houseId -> navController.navigate(ExpenseFormRoute(houseId)) },
+                            onSettleUp = { houseId, payment ->
+                                navController.navigate(SettleUpRoute(houseId, payment.fromUserId, payment.toUserId, payment.amount.toPlainString()))
+                            },
+                            onOpenBills = { houseId -> navController.navigate(BillsRoute(houseId)) },
+                            onOpenChores = { houseId -> navController.navigate(ChoresRoute(houseId)) },
                         )
                     }
 
@@ -122,7 +128,11 @@ fun FlockrNavigation(
             key("unauthenticated") {
                 NavHost(
                     navController = navController,
-                    startDestination = WelcomeRoute
+                    startDestination = WelcomeRoute,
+                    enterTransition = SharedAxisEnter,
+                    exitTransition = SharedAxisExit,
+                    popEnterTransition = SharedAxisPopEnter,
+                    popExitTransition = SharedAxisPopExit,
                 ) {
                     authGraph(navController)
                 }
@@ -133,7 +143,11 @@ fun FlockrNavigation(
             key("onboarding") {
                 NavHost(
                     navController = navController,
-                    startDestination = OnboardingRoute
+                    startDestination = OnboardingRoute,
+                    enterTransition = SharedAxisEnter,
+                    exitTransition = SharedAxisExit,
+                    popEnterTransition = SharedAxisPopEnter,
+                    popExitTransition = SharedAxisPopExit,
                 ) {
                     onboardingGraph(navController)
                 }

@@ -1,17 +1,14 @@
-/** Signing in with an email and password, or with Google. */
+/** Signing in with Google, or with an email and password. */
 package `in`.xroden.flockr.features.auth.ui
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,11 +28,15 @@ import `in`.xroden.flockr.features.auth.presentation.AuthUiState
 import `in`.xroden.flockr.features.auth.presentation.AuthValidation
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.auth.presentation.SignInUiState
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.HeroColumn
+import `in`.xroden.flockr.ui.components.SectionTitle
+import `in`.xroden.flockr.ui.components.forms.FormHero
+import `in`.xroden.flockr.ui.components.forms.FormSubmitBar
+import `in`.xroden.flockr.ui.components.forms.HeroNote
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
+/** A cobalt welcome, then Google because it is one tap, then the email fields under their own heading, with the sign-in button pinned where the thumb is. */
 @Composable
 fun LoginScreen(
     onNavigateToSignup: () -> Unit,
@@ -69,47 +70,62 @@ fun LoginScreen(
     }
 
     Scaffold(
-        topBar = { FlockrTopAppBar(title = "Sign in", subtitle = "Welcome back to Flockr", onNavigateBack = onNavigateBack) },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-        ) {
-            AuthTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Email",
-                leadingIcon = Icons.Rounded.Email,
-                autofill = ContentType.EmailAddress,
-                keyboardType = KeyboardType.Email,
-                error = emailError,
-                enabled = !isBusy,
-            )
-            PasswordField(
-                value = password,
-                onValueChange = { password = it },
-                label = "Password",
-                autofill = ContentType.Password,
-                error = passwordError,
-                enabled = !isBusy,
-                onDone = ::submit,
-            )
-            serverError?.let { AuthErrorMessage(it) }
-            FlockrPrimaryButton(
+        bottomBar = {
+            FormSubmitBar(
                 text = "Sign in",
                 onClick = ::submit,
                 enabled = !isBusy && email.isNotBlank() && password.isNotEmpty(),
                 isLoading = loading?.withGoogle == false,
-                modifier = Modifier.fillMaxWidth(),
             )
-            OrDivider()
+        },
+    ) { padding ->
+        HeroColumn(
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            hero = {
+                FormHero("Sign in") {
+                    Text("Welcome back", style = MaterialTheme.typography.displaySmallEmphasized)
+                    HeroNote("Your houses are right where you left them.")
+                }
+            },
+        ) {
             GoogleSignInButton(
                 onClick = { activity?.let(viewModel::signInWithGoogle) },
                 enabled = !isBusy && activity != null,
                 isLoading = loading?.withGoogle == true,
+                modifier = Modifier.padding(horizontal = Spacing.lg),
             )
-            TextButton(onClick = onNavigateToSignup, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("New to Flockr? Create an account")
+            Column {
+                SectionTitle("Or use your email")
+                Column(Modifier.padding(horizontal = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    AuthTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "Email",
+                        leadingIcon = Icons.Rounded.Email,
+                        autofill = ContentType.EmailAddress,
+                        keyboardType = KeyboardType.Email,
+                        error = emailError,
+                        enabled = !isBusy,
+                    )
+                    PasswordField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Password",
+                        autofill = ContentType.Password,
+                        error = passwordError,
+                        enabled = !isBusy,
+                        onDone = ::submit,
+                    )
+                    serverError?.let { AuthErrorMessage(it) }
+                }
+            }
+            TextButton(
+                onClick = onNavigateToSignup,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = Spacing.lg),
+            ) {
+                Text("New to Flockr? Create an account", style = MaterialTheme.typography.titleSmallEmphasized)
             }
         }
     }

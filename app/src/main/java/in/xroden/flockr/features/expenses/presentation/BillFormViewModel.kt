@@ -125,7 +125,7 @@ class BillFormViewModel @Inject constructor(
             val members = houseRepository.getHouseMembers(houseId).getOrElse { emptyList() }
             val base = BillFormState(
                 firstDueDate = config.await().today(),
-                split = SplitDraft.everyone(members).copy(isEnabled = true),
+                split = SplitDraft.everyone(members),
                 members = members,
                 viewerId = houseRepository.getCurrentUserId().orEmpty(),
                 currencyCode = config.await().currency(),

@@ -1,17 +1,13 @@
 /** The house an invite link opens, shown before the user joins it. */
 package `in`.xroden.flockr.features.house.ui.home
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,10 +26,13 @@ import `in`.xroden.flockr.features.house.model.HousePreview
 import `in`.xroden.flockr.features.house.presentation.HomeViewModel
 import `in`.xroden.flockr.features.house.presentation.HouseEvent
 import `in`.xroden.flockr.features.house.presentation.HousePreviewUiState
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.HeroActions
+import `in`.xroden.flockr.ui.components.HeroButton
+import `in`.xroden.flockr.ui.components.HeroCaption
+import `in`.xroden.flockr.ui.components.HeroHeader
+import `in`.xroden.flockr.ui.components.HeroLabel
+import `in`.xroden.flockr.ui.components.HeroSecondaryButton
 import `in`.xroden.flockr.ui.components.states.ErrorState
-import `in`.xroden.flockr.ui.theme.ComponentHeight
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
@@ -65,72 +64,56 @@ fun JoinHousePreviewScreen(
         }
     }
 
-    Scaffold(
-        topBar = { FlockrTopAppBar(title = "Join a house", onNavigateBack = onNavigateBack) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (val current = previewState) {
-                HousePreviewUiState.Idle, HousePreviewUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
-                is HousePreviewUiState.Error -> ErrorState(current.message, onRetry = { viewModel.validateInviteCode(inviteCode) })
-                is HousePreviewUiState.Success -> Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-                ) {
-                    HousePreviewCard(
-                        preview = current.preview,
-                        isJoining = isJoining,
-                        onJoin = { viewModel.joinHouseByInviteCode(inviteCode) },
-                    )
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+        val current = previewState
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding())) {
+            if (current is HousePreviewUiState.Success) {
+                InvitationHero(
+                    preview = current.preview,
+                    isJoining = isJoining,
+                    onNavigateBack = onNavigateBack,
+                    onJoin = { viewModel.joinHouseByInviteCode(inviteCode) },
+                )
+            } else {
+                HeroHeader(title = "Join a house") {
+                    HeroCaption(if (current is HousePreviewUiState.Error) "That invite didn't open." else "Opening the invite…")
                 }
+            }
+            when (current) {
+                HousePreviewUiState.Idle, HousePreviewUiState.Loading -> Box(Modifier.fillMaxWidth().padding(Spacing.xxxl), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
+                }
+                is HousePreviewUiState.Error -> ErrorState(current.message, onRetry = { viewModel.validateInviteCode(inviteCode) })
+                is HousePreviewUiState.Success -> Text(
+                    "Once you're in, you'll see the house's balances, bills, chores and lists, and your housemates will see you in Members.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xl),
+                )
             }
         }
     }
 }
 
 /**
- * The house behind an invite code and the button that joins it. A full house keeps the button
- * disabled and says why, rather than letting the join fail on the server.
+ * The house the invite opens, its photo washed in cobalt behind it, with the button that joins it
+ * and one that declines. A full house gets no join button and says why, rather than letting the join
+ * fail on the server.
  */
 @Composable
-internal fun HousePreviewCard(
-    preview: HousePreview,
-    isJoining: Boolean,
-    onJoin: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        HouseImage(
-            imageUrl = preview.headerImageUrl,
-            seed = preview.id,
-            modifier = Modifier.fillMaxWidth().height(ComponentHeight.cardMedium),
-        )
-        Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(preview.name, style = MaterialTheme.typography.headlineSmallEmphasized)
-                Text(
-                    "Run by ${preview.ownerName} · ${if (preview.memberCount == 1) "1 member" else "${preview.memberCount} members"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+private fun InvitationHero(preview: HousePreview, isJoining: Boolean, onNavigateBack: () -> Unit, onJoin: () -> Unit) {
+    HeroHeader(title = "Join a house", imageUrl = preview.headerImageUrl) {
+        HeroLabel("You're invited to")
+        Text(preview.name, style = MaterialTheme.typography.displaySmallEmphasized)
+        HeroCaption("Run by ${preview.ownerName} · ${if (preview.memberCount == 1) "1 member" else "${preview.memberCount} members"}")
+        if (preview.isFull) {
+            HeroCaption("This house is full. Ask ${preview.ownerName} to make room, then try the invite again.")
+            HeroActions { HeroSecondaryButton(text = "Not now", onClick = onNavigateBack) }
+        } else {
+            HeroActions {
+                HeroButton(text = if (isJoining) "Joining…" else "Join ${preview.name}", onClick = onJoin, enabled = !isJoining)
+                HeroSecondaryButton(text = "Not now", onClick = onNavigateBack)
             }
-            if (preview.isFull) {
-                Text(
-                    "This house is full. Ask ${preview.ownerName} to make room, then try the code again.",
-                    style = MaterialTheme.typography.bodyMediumEmphasized,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            FlockrPrimaryButton(
-                text = if (isJoining) "Joining…" else "Join house",
-                onClick = onJoin,
-                enabled = !preview.isFull,
-                isLoading = isJoining,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
     }
 }

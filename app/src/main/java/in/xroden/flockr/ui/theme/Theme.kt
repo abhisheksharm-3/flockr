@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -15,7 +16,7 @@ import androidx.core.view.WindowCompat
  * Built on [MaterialExpressiveTheme] rather than `MaterialTheme`: it is what enables the
  * Expressive component variants and publishes a [MotionScheme] for them to animate against.
  * The scheme is [MotionScheme.expressive], so spatial animation is springy rather than following
- * the flatter standard curves.
+ * the flatter standard curves. [FlockrColors] ride alongside for the colours Material has no slot for.
  */
 @Composable
 fun FlockrTheme(
@@ -23,6 +24,7 @@ fun FlockrTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val flockrColors = if (darkTheme) DarkFlockrColors else LightFlockrColors
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -33,11 +35,13 @@ fun FlockrTheme(
         }
     }
 
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
-        shapes = Shapes,
-        typography = AppTypography,
-        content = content
-    )
+    CompositionLocalProvider(LocalFlockrColors provides flockrColors) {
+        MaterialExpressiveTheme(
+            colorScheme = colorScheme,
+            motionScheme = MotionScheme.expressive(),
+            shapes = Shapes,
+            typography = AppTypography,
+            content = content
+        )
+    }
 }

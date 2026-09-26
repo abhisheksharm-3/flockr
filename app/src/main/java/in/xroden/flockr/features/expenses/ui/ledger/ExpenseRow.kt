@@ -1,39 +1,28 @@
 /** One expense or payment in a list, worded from the viewer's side as Splitwise does. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
-import `in`.xroden.flockr.ui.components.balanceColor
-import `in`.xroden.flockr.features.house.model.nameInSentence
-import `in`.xroden.flockr.features.house.model.nameOf
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.ExpenseKind
 import `in`.xroden.flockr.features.expenses.ui.categoryIcon
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
-import `in`.xroden.flockr.ui.theme.ComponentHeight
-import `in`.xroden.flockr.ui.theme.IconSize
-import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.house.model.nameOf
+import `in`.xroden.flockr.ui.components.BadgeTone
+import `in`.xroden.flockr.ui.components.IconBadge
+import `in`.xroden.flockr.ui.components.ListRow
+import `in`.xroden.flockr.ui.components.TrailingAmount
+import `in`.xroden.flockr.ui.components.balanceColor
 import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.shortMonthLabel
-import java.math.BigDecimal
 
+/**
+ * The shared expense row: the category in a circle, what it was with the day and who paid under it,
+ * and at the end what it did to the viewer's balance, in words as well as colour.
+ */
 @Composable
 fun ExpenseRow(
     expense: Expense,
@@ -43,48 +32,18 @@ fun ExpenseRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        DateBlock(expense)
-        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
-            Box(Modifier.size(ComponentHeight.avatar), contentAlignment = Alignment.Center) {
-                Icon(categoryIcon(expense.category), contentDescription = null, modifier = Modifier.size(IconSize.md))
-            }
-        }
-        Column(Modifier.weight(1f)) {
-            val payer = members.nameOf(expense.payerId, viewerId)
-            val isSettlement = expense.kind == ExpenseKind.SETTLEMENT
-            val receiver = expense.shares.firstOrNull { it.owedShare.signum() > 0 }?.userId
-            Text(
-                text = if (isSettlement) "$payer paid ${members.nameInSentence(receiver, viewerId)}" else expense.name,
-                style = MaterialTheme.typography.bodyLargeEmphasized,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = if (isSettlement) "Payment" else "$payer paid ${expense.amount.formatMoney(currencyCode)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        ViewerImpact(expense, viewerId, currencyCode)
-    }
-}
-
-@Composable
-private fun DateBlock(expense: Expense) {
-    Column(Modifier.width(Spacing.xxxl), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(expense.date.shortMonthLabel(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(expense.date.day.toString(), style = MaterialTheme.typography.titleMediumEmphasized)
-    }
+    val payer = members.nameOf(expense.payerId, viewerId)
+    val isSettlement = expense.kind == ExpenseKind.SETTLEMENT
+    val receiver = expense.shares.firstOrNull { it.owedShare.signum() > 0 }?.userId
+    val day = "${expense.date.day} ${expense.date.shortMonthLabel()}"
+    ListRow(
+        headline = if (isSettlement) "$payer paid ${members.nameInSentence(receiver, viewerId)}" else expense.name,
+        supporting = if (isSettlement) "$day · Payment" else "$day · $payer paid ${expense.amount.formatMoney(currencyCode)}",
+        leading = { IconBadge(categoryIcon(expense.category), if (isSettlement) BadgeTone.JADE else BadgeTone.SLATE) },
+        trailing = { ViewerImpact(expense, viewerId, currencyCode) },
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 /** What the expense did to the viewer's balance: lent, borrowed, or nothing at all. */
@@ -100,8 +59,9 @@ private fun ViewerImpact(expense: Expense, viewerId: String, currencyCode: Strin
         share.net.signum() < 0 -> Triple("you borrowed", share.net.negate(), balanceColor(share.net))
         else -> Triple("no balance", null, muted)
     }
-    Column(horizontalAlignment = Alignment.End) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = color, textAlign = TextAlign.End)
-        amount?.let { Text(it.formatMoney(currencyCode), style = MaterialTheme.typography.bodyMediumEmphasized, color = color) }
+    if (amount == null) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = color)
+    } else {
+        TrailingAmount(amount.formatMoney(currencyCode), label, color)
     }
 }

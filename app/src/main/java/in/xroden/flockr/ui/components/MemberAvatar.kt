@@ -15,10 +15,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.flockrColors
 
 /**
  * The avatar is decorative: the name beside it is what a screen reader announces. Its colour comes
- * from the name, so the same person always looks the same and housemates look different.
+ * from the first name, so a person looks the same whether a screen passes their full or short name.
  */
 @Composable
 fun MemberAvatar(
@@ -28,10 +29,12 @@ fun MemberAvatar(
     size: Dp = ComponentHeight.avatar,
 ) {
     val colors = MaterialTheme.colorScheme
-    val (container, content) = when (name.hashCode().mod(3)) {
+    val (container, content) = when (name.trim().substringBefore(' ').lowercase().hashCode().mod(5)) {
         0 -> colors.primaryContainer to colors.onPrimaryContainer
-        1 -> colors.secondaryContainer to colors.onSecondaryContainer
-        else -> colors.tertiaryContainer to colors.onTertiaryContainer
+        1 -> MaterialTheme.flockrColors.sun to MaterialTheme.flockrColors.onSun
+        2 -> colors.tertiaryContainer to colors.onTertiaryContainer
+        3 -> colors.errorContainer to colors.onErrorContainer
+        else -> colors.secondaryContainer to colors.onSecondaryContainer
     }
     Surface(modifier = modifier.size(size), shape = CircleShape, color = container) {
         Box(contentAlignment = Alignment.Center) {

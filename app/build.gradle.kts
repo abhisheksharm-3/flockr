@@ -166,15 +166,12 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
 
-    // Google Maps
-    implementation(libs.play.services.maps)
-    implementation(libs.maps.compose)
+    implementation(libs.maplibre)
 
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
 
-    implementation(libs.androidx.ui.text.google.fonts)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

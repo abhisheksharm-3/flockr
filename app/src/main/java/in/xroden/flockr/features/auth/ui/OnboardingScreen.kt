@@ -3,17 +3,7 @@ package `in`.xroden.flockr.features.auth.ui
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -28,17 +18,27 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.features.auth.presentation.AuthValidation
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.HeroColumn
+import `in`.xroden.flockr.ui.components.ListRow
+import `in`.xroden.flockr.ui.components.MemberAvatar
+import `in`.xroden.flockr.ui.components.SectionTitle
+import `in`.xroden.flockr.ui.components.forms.FormHero
+import `in`.xroden.flockr.ui.components.forms.FormSubmitBar
+import `in`.xroden.flockr.ui.components.forms.HeroNote
+import `in`.xroden.flockr.ui.components.forms.HeroTextInput
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
 /**
+ * The question and its answer sit on the cobalt, the name typed large, with a row below showing how
+ * it will read to housemates as it is typed.
+ *
  * Finishing marks onboarding complete on the profile, and the app moves on when the auth state
  * sees it, so [onComplete] is not needed to leave this screen. [viewModel] defaults to the
  * activity's instance, the one the app's navigation reads, so the finished profile reaches it.
@@ -75,37 +75,39 @@ fun OnboardingScreen(
     }
 
     Scaffold(
-        topBar = { FlockrTopAppBar(title = "Welcome to Flockr", subtitle = "One thing before you start", onNavigateBack = null) },
         bottomBar = {
-            FlockrPrimaryButton(
-                text = "Continue",
+            FormSubmitBar(
+                text = "Start using Flockr",
                 onClick = ::finish,
                 enabled = draftName.isNotBlank(),
                 isLoading = isSaving,
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = Spacing.xl, vertical = Spacing.lg),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+        HeroColumn(
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            hero = {
+                FormHero("Welcome to Flockr") {
+                    Text("What should your housemates call you?", style = MaterialTheme.typography.titleLargeEmphasized)
+                    HeroTextInput(
+                        value = draftName,
+                        onValueChange = { name = it },
+                        placeholder = "Your name",
+                        enabled = !isSaving,
+                        autoFocus = draftName.isEmpty(),
+                        style = MaterialTheme.typography.displaySmallEmphasized,
+                        modifier = Modifier.padding(top = Spacing.sm).semantics { contentType = ContentType.PersonFullName },
+                    )
+                    HeroNote(nameError ?: "It's how you show up on expenses, chores and chat. Change it any time in Settings.", isError = nameError != null)
+                }
+            },
         ) {
-            Text(
-                "What should your housemates call you? You can change it later in settings.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            AuthTextField(
-                value = draftName,
-                onValueChange = { name = it },
-                label = "Name",
-                leadingIcon = Icons.Rounded.Person,
-                autofill = ContentType.PersonFullName,
-                capitalization = KeyboardCapitalization.Words,
-                error = nameError,
-                enabled = !isSaving,
-                onDone = ::finish,
+            SectionTitle("How housemates see you")
+            ListRow(
+                headline = draftName.trim().ifEmpty { "Your name" },
+                supporting = "This is how you appear to the house",
+                leading = { MemberAvatar(name = draftName, avatarUrl = profile?.avatarUrl) },
             )
         }
     }

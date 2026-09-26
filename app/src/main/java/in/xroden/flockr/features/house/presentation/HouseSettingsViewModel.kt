@@ -67,6 +67,8 @@ class HouseSettingsViewModel @Inject constructor(
                 canEdit = role == HouseMemberRole.OWNER || role == HouseMemberRole.ADMIN,
                 name = house.name,
                 address = house.address.orEmpty(),
+                latitude = house.latitude,
+                longitude = house.longitude,
                 currencyCode = loadedConfig.currencyCode,
                 dateFormat = loadedConfig.dateFormat,
                 firstDayOfWeek = loadedConfig.firstDayOfWeek,
@@ -86,7 +88,7 @@ class HouseSettingsViewModel @Inject constructor(
         if (!form.canSave) return
         update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            val result = houseRepository.updateHouse(houseId, form.name.trim(), form.address.trim(), form.house.latitude, form.house.longitude)
+            val result = houseRepository.updateHouse(houseId, form.name.trim(), form.address.trim(), form.latitude, form.longitude)
                 .mapCatching {
                     houseRepository.updateHouseConfig(houseId, form.currencyCode, form.dateFormat, form.firstDayOfWeek, form.timezone).getOrThrow()
                 }
@@ -94,7 +96,7 @@ class HouseSettingsViewModel @Inject constructor(
             _events.send(
                 result.fold(
                     onSuccess = {
-                        update { it.copy(house = it.house.copy(name = form.name.trim(), address = form.address.trim()), saved = form.values) }
+                        update { it.copy(house = it.house.copy(name = form.name.trim(), address = form.address.trim(), latitude = form.latitude, longitude = form.longitude), saved = form.values) }
                         Notice("Settings saved", isError = false)
                     },
                     onFailure = { Notice(it.userMessage(), isError = true) },

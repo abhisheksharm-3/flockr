@@ -1,8 +1,6 @@
 /** The first screen a signed-out visitor sees: what Flockr is for, and the way in. */
 package `in`.xroden.flockr.features.auth.ui
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.CleaningServices
@@ -21,99 +20,68 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import `in`.xroden.flockr.R
+import `in`.xroden.flockr.ui.components.HeroBackdrop
+import `in`.xroden.flockr.ui.components.LightStatusBarIcons
+import `in`.xroden.flockr.ui.components.loading.FlockrLockup
+import `in`.xroden.flockr.ui.theme.ComponentHeight
+import `in`.xroden.flockr.ui.theme.IconSize
 import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.theme.flockrColors
 
-private val LogoSize = 72.dp
 private val ButtonHeight = ButtonDefaults.MediumContainerHeight
-private const val DARK_LUMINANCE = 0.5f
-private const val ICON_CONTAINER_ALPHA = 0.12f
+private const val GLYPH_FILL_ALPHA = 0.16f
 
 /**
- * Full-bleed over the house photo, faded into the theme's background so the copy stays readable in
- * both themes. [backgroundImageUrl] replaces the bundled photo when given. Both buttons only
- * navigate, so neither fires a haptic.
+ * The whole screen is the hero cobalt with the flock, with the one sun-yellow button as the way in.
+ * Both buttons only navigate, so neither fires a haptic.
  */
 @Composable
 fun WelcomeScreen(
     onGetStarted: () -> Unit,
     onSignIn: () -> Unit,
-    backgroundImageUrl: String? = null
 ) {
-    val background = MaterialTheme.colorScheme.background
-    val isDark = background.luminance() < DARK_LUMINANCE
-
-    Box(Modifier.fillMaxSize().background(background)) {
-        if (backgroundImageUrl != null) {
-            AsyncImage(model = backgroundImageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        } else {
-            Image(
-                painter = painterResource(if (isDark) R.drawable.welcome_bg_dark else R.drawable.welcome_bg_light),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0f to background.copy(alpha = 0.3f),
-                    0.5f to background.copy(alpha = 0.85f),
-                    1f to background,
-                )
-            )
-        )
-        Column(
-            modifier = Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = Spacing.xxl, vertical = Spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-        ) {
+    val colors = MaterialTheme.flockrColors
+    LightStatusBarIcons()
+    Box(Modifier.fillMaxSize()) {
+        HeroBackdrop(imageUrl = null, modifier = Modifier.matchParentSize())
+        Column(Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = Spacing.xxl, vertical = Spacing.xl)) {
+            FlockrLockup(markSize = IconSize.lg, style = MaterialTheme.typography.titleLargeEmphasized)
             Spacer(Modifier.weight(1f))
-            Image(painter = painterResource(R.drawable.logo), contentDescription = null, modifier = Modifier.size(LogoSize))
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Text("Flockr", style = MaterialTheme.typography.displayMediumEmphasized, color = MaterialTheme.colorScheme.onBackground)
-                Text(
-                    "Split bills, share chores and keep everyone at home on the same page.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Text("Your home, sorted.", style = MaterialTheme.typography.displayMediumEmphasized, color = colors.onHero)
+            Text(
+                "Split the bills, share the chores, stay friends.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = colors.onHeroVariant,
+                modifier = Modifier.padding(top = Spacing.md),
+            )
+            Column(Modifier.padding(top = Spacing.xxxl), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                ValueLine(Icons.AutoMirrored.Rounded.ReceiptLong, "Who owes whom, right to the paisa")
+                ValueLine(Icons.Rounded.CleaningServices, "Chores that take turns on their own")
+                ValueLine(Icons.Rounded.Groups, "Lists, documents and chat for the house")
             }
-            Column(
-                modifier = Modifier.padding(vertical = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                FeatureRow(Icons.AutoMirrored.Rounded.ReceiptLong, "Shared costs", "See who owes whom and settle up in a tap")
-                FeatureRow(Icons.Rounded.CleaningServices, "Chores that rotate", "Everyone takes their turn, and the app remembers")
-                FeatureRow(Icons.Rounded.Groups, "One place for the house", "Lists, documents and chat for everyone who lives there")
-            }
+            Spacer(Modifier.weight(1f))
             Button(
                 onClick = onGetStarted,
                 shapes = ButtonDefaults.shapesFor(ButtonHeight),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.sun, contentColor = colors.onSun),
                 modifier = Modifier.fillMaxWidth().heightIn(min = ButtonHeight),
                 contentPadding = ButtonDefaults.contentPaddingFor(ButtonHeight),
             ) {
                 Text("Get started", style = MaterialTheme.typography.titleMediumEmphasized)
             }
-            OutlinedButton(
+            TextButton(
                 onClick = onSignIn,
                 shapes = ButtonDefaults.shapesFor(ButtonHeight),
-                modifier = Modifier.fillMaxWidth().heightIn(min = ButtonHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(ButtonHeight),
+                colors = ButtonDefaults.textButtonColors(contentColor = colors.onHero),
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm).heightIn(min = ButtonHeight),
             ) {
                 Text("I already have an account", style = MaterialTheme.typography.titleMediumEmphasized)
             }
@@ -121,19 +89,14 @@ fun WelcomeScreen(
     }
 }
 
+/** One thing Flockr does, after its glyph in a faint full circle on the cobalt. */
 @Composable
-private fun FeatureRow(icon: ImageVector, title: String, description: String) {
+private fun ValueLine(icon: ImageVector, text: String) {
+    val colors = MaterialTheme.flockrColors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        Surface(
-            shape = MaterialShapes.Cookie4Sided.toShape(),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = ICON_CONTAINER_ALPHA),
-            contentColor = MaterialTheme.colorScheme.primary,
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.padding(Spacing.sm))
+        Surface(shape = CircleShape, color = colors.onHero.copy(alpha = GLYPH_FILL_ALPHA), contentColor = colors.onHero, modifier = Modifier.size(ComponentHeight.avatar)) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.sm + Spacing.xxs)) }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-            Text(title, style = MaterialTheme.typography.titleSmallEmphasized, color = MaterialTheme.colorScheme.onBackground)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text(text, style = MaterialTheme.typography.titleMedium, color = colors.onHero)
     }
 }

@@ -1,18 +1,15 @@
-/** Creating an account with a name, email and password, or with Google. */
+/** Creating an account with Google, or with a name, email and password. */
 package `in`.xroden.flockr.features.auth.ui
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,11 +30,15 @@ import `in`.xroden.flockr.features.auth.presentation.AuthValidation
 import `in`.xroden.flockr.features.auth.presentation.AuthViewModel
 import `in`.xroden.flockr.features.auth.presentation.SignInUiState
 import `in`.xroden.flockr.features.auth.presentation.SignUpUiState
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
+import `in`.xroden.flockr.ui.components.HeroColumn
+import `in`.xroden.flockr.ui.components.SectionTitle
+import `in`.xroden.flockr.ui.components.forms.FormHero
+import `in`.xroden.flockr.ui.components.forms.FormSubmitBar
+import `in`.xroden.flockr.ui.components.forms.HeroNote
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
+/** A cobalt promise, then Google because it is one tap, then who you are and the password you pick, under their own heading. */
 @Composable
 fun SignupScreen(
     onNavigateToLogin: () -> Unit,
@@ -82,67 +83,82 @@ fun SignupScreen(
     }
 
     Scaffold(
-        topBar = { FlockrTopAppBar(title = "Create account", subtitle = "Share a house without the spreadsheets", onNavigateBack = onNavigateToLogin) },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-        ) {
-            AuthTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = "Name",
-                leadingIcon = Icons.Rounded.Person,
-                autofill = ContentType.PersonFullName,
-                capitalization = KeyboardCapitalization.Words,
-                error = nameError,
-                supportingText = "How your housemates see you",
-                enabled = !isBusy,
-            )
-            AuthTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Email",
-                leadingIcon = Icons.Rounded.Email,
-                autofill = ContentType.EmailAddress,
-                keyboardType = KeyboardType.Email,
-                error = emailError,
-                enabled = !isBusy,
-            )
-            PasswordField(
-                value = password,
-                onValueChange = { password = it },
-                label = "Password",
-                autofill = ContentType.NewPassword,
-                error = passwordError,
-                supportingText = "At least ${AuthValidation.MIN_PASSWORD_LENGTH} characters",
-                enabled = !isBusy,
-            )
-            PasswordField(
-                value = confirmation,
-                onValueChange = { confirmation = it },
-                label = "Confirm password",
-                autofill = ContentType.NewPassword,
-                error = confirmationError,
-                enabled = !isBusy,
-                onDone = ::submit,
-            )
-            serverError?.let { AuthErrorMessage(it) }
-            FlockrPrimaryButton(
+        bottomBar = {
+            FormSubmitBar(
                 text = "Create account",
                 onClick = ::submit,
                 enabled = !isBusy && fullName.isNotBlank() && email.isNotBlank() && password.isNotEmpty() && confirmation.isNotEmpty(),
                 isLoading = isSigningUp,
-                modifier = Modifier.fillMaxWidth(),
             )
-            OrDivider()
+        },
+    ) { padding ->
+        HeroColumn(
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            hero = {
+                FormHero("Create account") {
+                    Text("Make yourself at home", style = MaterialTheme.typography.displaySmallEmphasized)
+                    HeroNote("One account for every house you live in.")
+                }
+            },
+        ) {
             GoogleSignInButton(
                 onClick = { activity?.let(viewModel::signInWithGoogle) },
                 enabled = !isBusy && activity != null,
                 isLoading = isSigningInWithGoogle,
+                modifier = Modifier.padding(horizontal = Spacing.lg),
             )
-            TextButton(onClick = onNavigateToLogin, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("Already have an account? Sign in")
+            Column {
+                SectionTitle("Or use your email")
+                Column(Modifier.padding(horizontal = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    AuthTextField(
+                        value = fullName,
+                        onValueChange = { fullName = it },
+                        label = "Name",
+                        leadingIcon = Icons.Rounded.Person,
+                        autofill = ContentType.PersonFullName,
+                        capitalization = KeyboardCapitalization.Words,
+                        error = nameError,
+                        supportingText = "How your housemates see you",
+                        enabled = !isBusy,
+                    )
+                    AuthTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "Email",
+                        leadingIcon = Icons.Rounded.Email,
+                        autofill = ContentType.EmailAddress,
+                        keyboardType = KeyboardType.Email,
+                        error = emailError,
+                        enabled = !isBusy,
+                    )
+                    PasswordField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Password",
+                        autofill = ContentType.NewPassword,
+                        error = passwordError,
+                        supportingText = "At least ${AuthValidation.MIN_PASSWORD_LENGTH} characters",
+                        enabled = !isBusy,
+                    )
+                    PasswordField(
+                        value = confirmation,
+                        onValueChange = { confirmation = it },
+                        label = "Confirm password",
+                        autofill = ContentType.NewPassword,
+                        error = confirmationError,
+                        enabled = !isBusy,
+                        onDone = ::submit,
+                    )
+                    serverError?.let { AuthErrorMessage(it) }
+                }
+            }
+            TextButton(
+                onClick = onNavigateToLogin,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = Spacing.lg),
+            ) {
+                Text("Already have an account? Sign in", style = MaterialTheme.typography.titleSmallEmphasized)
             }
         }
     }

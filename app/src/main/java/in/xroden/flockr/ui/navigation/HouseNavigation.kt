@@ -69,7 +69,14 @@ fun NavGraphBuilder.houseGraph(navController: NavController) {
             },
             onNavigateToHouseSettings = {
                 navController.navigate(HouseSettingsRoute(route.houseId))
-            }
+            },
+            onNavigateToBills = { navController.navigate(BillsRoute(route.houseId)) },
+            onNavigateToBalances = { navController.navigate(BalancesRoute(route.houseId)) },
+            onAddExpense = { navController.navigate(ExpenseFormRoute(route.houseId)) },
+            onOpenExpense = { expenseId -> navController.navigate(ExpenseDetailRoute(route.houseId, expenseId)) },
+            onSettleUp = { payment ->
+                navController.navigate(SettleUpRoute(route.houseId, payment.fromUserId, payment.toUserId, payment.amount.toPlainString()))
+            },
         )
     }
 

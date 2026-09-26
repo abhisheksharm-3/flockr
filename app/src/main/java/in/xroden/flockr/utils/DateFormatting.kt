@@ -4,6 +4,9 @@ package `in`.xroden.flockr.utils
 import `in`.xroden.flockr.features.house.model.DateLayout
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.dateLayout
+import `in`.xroden.flockr.features.house.model.today
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.minus
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toJavaLocalDate
 import java.time.format.DateTimeFormatter
@@ -24,3 +27,22 @@ fun LocalDate.shortMonthLabel(): String =
 /** How [layout] shows 30 December 2025, which is what a setting's choices are labelled with. */
 fun DateLayout.example(): String =
     java.time.LocalDate.of(2025, 12, 30).format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+
+/** When something falls due, relative to today, such as "Due tomorrow" or "Overdue by 3 days". */
+fun dueLabel(daysUntil: Int): String = when {
+    daysUntil < -1 -> "Overdue by ${-daysUntil} days"
+    daysUntil == -1 -> "Overdue by a day"
+    daysUntil == 0 -> "Due today"
+    daysUntil == 1 -> "Due tomorrow"
+    else -> "Due in $daysUntil days"
+}
+
+/** "today", "yesterday", or this date in the house's layout, as a form reads it back to the user. */
+fun LocalDate.relativeDayLabel(config: HouseConfig?): String {
+    val today = config.today()
+    return when (this) {
+        today -> "today"
+        today.minus(DatePeriod(days = 1)) -> "yesterday"
+        else -> formatWithHouseConfig(config)
+    }
+}

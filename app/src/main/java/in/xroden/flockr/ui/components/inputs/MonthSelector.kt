@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -20,8 +19,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -64,60 +62,50 @@ fun MonthSelector(
     }
     val hasReachedCurrentMonth = selectedMonth.plus(1, DateTimeUnit.MONTH) > currentMonthStart
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.largeIncreased
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(
+                onClick = {
+                    haptics.select()
+                    onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH))
+                }
             ) {
-                FilledTonalIconButton(
-                    onClick = {
-                        haptics.select()
-                        onMonthChange(selectedMonth.minus(1, DateTimeUnit.MONTH))
-                    }
-                ) {
-                    Icon(Icons.Default.ChevronLeft, "Previous month")
-                }
-
-                MonthLabel(month = selectedMonth, subtitle = subtitle)
-
-                FilledTonalIconButton(
-                    onClick = {
-                        haptics.select()
-                        onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH))
-                    },
-                    enabled = !hasReachedCurrentMonth
-                ) {
-                    Icon(Icons.Default.ChevronRight, "Next month")
-                }
+                Icon(Icons.Default.ChevronLeft, "Previous month")
             }
 
-            onClearFilter?.let { clearFilter ->
-                AnimatedVisibility(
-                    visible = showClearButton,
-                    enter = fadeIn(Motion.effects) + expandVertically(spatialSpec()),
-                    exit = fadeOut(Motion.effects) + shrinkVertically(spatialSpec())
+            MonthLabel(month = selectedMonth, subtitle = subtitle)
+
+            IconButton(
+                onClick = {
+                    haptics.select()
+                    onMonthChange(selectedMonth.plus(1, DateTimeUnit.MONTH))
+                },
+                enabled = !hasReachedCurrentMonth
+            ) {
+                Icon(Icons.Default.ChevronRight, "Next month")
+            }
+        }
+
+        onClearFilter?.let { clearFilter ->
+            AnimatedVisibility(
+                visible = showClearButton,
+                enter = fadeIn(Motion.effects) + expandVertically(spatialSpec()),
+                exit = fadeOut(Motion.effects) + shrinkVertically(spatialSpec())
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        haptics.select()
+                        clearFilter()
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            haptics.select()
-                            clearFilter()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Close, null, Modifier.size(ButtonDefaults.IconSize))
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Show All", style = MaterialTheme.typography.labelLargeEmphasized)
-                    }
+                    Icon(Icons.Default.Close, null, Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text("Show all months", style = MaterialTheme.typography.labelLargeEmphasized)
                 }
             }
         }
@@ -145,7 +133,7 @@ private fun MonthLabel(month: LocalDate, subtitle: String?) {
             Text(
                 text = animatedLabel,
                 style = MaterialTheme.typography.titleMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
         subtitle?.let {

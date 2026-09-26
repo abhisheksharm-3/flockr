@@ -14,7 +14,6 @@ import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.Serializable
@@ -49,18 +48,6 @@ class NotificationRepository @Inject constructor(
 
     suspend fun getNotification(id: String): Result<Notification?> = runCatching {
         supabase.from("notifications").select { filter { eq("id", id) } }.decodeSingleOrNull<Notification>()
-    }
-
-    /** Unread notifications created after [after], oldest first, which is the order to post them in. */
-    suspend fun getUnreadAfter(after: Instant): Result<List<Notification>> = runCatching {
-        supabase.from("notifications").select {
-            filter {
-                eq("is_read", false)
-                gt("created_at", after.toString())
-            }
-            order("created_at", Order.ASCENDING)
-            limit(INBOX_SIZE)
-        }.decodeList<Notification>()
     }
 
     /** Marks [ids] as read, or every notification when [ids] is null. */

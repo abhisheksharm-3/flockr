@@ -1,29 +1,21 @@
-/** One expense or payment in full: the amount, who paid, what each person owes, and deleting it. */
+/** One expense or payment in full: the amount and what it means for you, each person's part, and deleting it. */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
-import `in`.xroden.flockr.features.house.model.nameInSentence
-import `in`.xroden.flockr.features.house.model.nameOf
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,24 +24,36 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.features.expenses.model.Expense
 import `in`.xroden.flockr.features.expenses.model.ExpenseKind
 import `in`.xroden.flockr.features.expenses.model.ExpenseShare
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseDetailUiState
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseDetailViewModel
-import `in`.xroden.flockr.features.expenses.ui.categoryIcon
 import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.currency
+import `in`.xroden.flockr.features.house.model.nameInSentence
+import `in`.xroden.flockr.features.house.model.nameOf
 import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.SkeletonHeroScreen
+import `in`.xroden.flockr.ui.components.BadgeTone
+import `in`.xroden.flockr.ui.components.HeroActions
+import `in`.xroden.flockr.ui.components.HeroAmount
+import `in`.xroden.flockr.ui.components.HeroCaption
+import `in`.xroden.flockr.ui.components.HeroHeader
+import `in`.xroden.flockr.ui.components.HeroLabel
+import `in`.xroden.flockr.ui.components.HeroSecondaryButton
+import `in`.xroden.flockr.ui.components.HeroStatusBarScrim
+import `in`.xroden.flockr.ui.components.IconBadge
+import `in`.xroden.flockr.ui.components.ListRow
 import `in`.xroden.flockr.ui.components.MemberAvatar
-import `in`.xroden.flockr.ui.components.cards.SectionCard
+import `in`.xroden.flockr.ui.components.SectionTitle
 import `in`.xroden.flockr.ui.components.dialogs.ConfirmDialog
+import `in`.xroden.flockr.ui.components.isHeroScrolledAway
 import `in`.xroden.flockr.ui.components.states.ErrorState
-import `in`.xroden.flockr.ui.theme.IconSize
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.formatMoney
 import `in`.xroden.flockr.utils.formatWithHouseConfig
@@ -84,31 +88,18 @@ fun ExpenseDetailScreen(
         viewModel.dismissDeleteError()
     }
 
-    Scaffold(
-        topBar = {
-            FlockrTopAppBar(
-                title = if (ready?.expense?.kind == ExpenseKind.SETTLEMENT) "Payment" else "Expense",
-                onNavigateBack = onNavigateBack,
-                actions = {
-                    if (ready != null && ready.expense.kind == ExpenseKind.EXPENSE && ready.expense.perDiemMonth == null) {
-                        IconButton(onClick = { onEdit(ready.expense.id) }) { Icon(Icons.Rounded.Edit, contentDescription = "Edit") }
-                    }
-                    if (ready?.canDelete == true) {
-                        IconButton(onClick = { isConfirmingDelete = true }, enabled = !ready.isDeleting) {
-                            Icon(Icons.Rounded.Delete, contentDescription = "Delete")
-                        }
-                    }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (val current = state) {
-                ExpenseDetailUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
-                is ExpenseDetailUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId, expenseId) })
-                is ExpenseDetailUiState.Ready -> DetailContent(current, config)
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+        when (val current = state) {
+            ExpenseDetailUiState.Loading -> SkeletonHeroScreen()
+            is ExpenseDetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding)) {
+                ErrorState(current.message, onRetry = { viewModel.load(houseId, expenseId) })
             }
+            is ExpenseDetailUiState.Ready -> DetailContent(
+                state = current,
+                config = config,
+                onEdit = { onEdit(current.expense.id) },
+                onDelete = { isConfirmingDelete = true },
+            )
         }
     }
 
@@ -129,65 +120,123 @@ fun ExpenseDetailScreen(
 }
 
 @Composable
-private fun DetailContent(state: ExpenseDetailUiState.Ready, config: HouseConfig?) {
+private fun DetailContent(
+    state: ExpenseDetailUiState.Ready,
+    config: HouseConfig?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val expense = state.expense
     val currencyCode = config.currency()
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer) {
-                Box(Modifier.size(IconSize.xxl), contentAlignment = Alignment.Center) {
-                    Icon(categoryIcon(expense.category), contentDescription = null, modifier = Modifier.size(IconSize.lg))
+    val isSettlement = expense.kind == ExpenseKind.SETTLEMENT
+    val listState = rememberLazyListState()
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+            item(key = "hero") {
+                HeroHeader(
+                    title = if (isSettlement) "Payment" else expense.name,
+                    subtitle = listOfNotNull(expense.category?.takeIf { it != expense.name }, expense.date.formatWithHouseConfig(config)).joinToString(" · "),
+                ) {
+                    HeroLabel(whoPaid(expense, state))
+                    HeroAmount(expense.amount.formatMoney(currencyCode))
+                    HeroCaption(viewerSentence(expense, state.viewerId, currencyCode))
+                    if (expense.kind == ExpenseKind.EXPENSE && expense.perDiemMonth == null) {
+                        HeroActions { HeroSecondaryButton("Edit expense", onClick = onEdit) }
+                    }
                 }
             }
-            Column {
-                Text(expense.name, style = MaterialTheme.typography.headlineSmallEmphasized)
-                Text(expense.amount.formatMoney(currencyCode), style = MaterialTheme.typography.displaySmallEmphasized)
+            item(key = "shares_title") {
+                SectionTitle(if (isSettlement) "Between" else expense.splitMethod?.let { "Split ${it.phrase}" } ?: "Not split")
             }
+            items(expense.shares.sortedByDescending { it.paidShare }, key = { it.userId }) { share -> ShareRow(share, state, currencyCode) }
+            expense.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                item(key = "notes_title") { SectionTitle("Notes") }
+                item(key = "notes") { QuietLine(notes, MaterialTheme.colorScheme.onSurface) }
+            }
+            item(key = "origin") {
+                val origin = when {
+                    expense.recurringExpenseId != null -> "Recorded as a payment of a recurring bill."
+                    expense.perDiemMonth != null -> "Worked out from the month's usage log. Delete it to change that month's usage."
+                    else -> null
+                }
+                QuietLine(
+                    listOfNotNull("Added by ${state.members.nameInSentence(expense.createdBy, state.viewerId)}.", origin).joinToString(" "),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Modifier.padding(top = Spacing.lg),
+                )
+            }
+            if (state.canDelete) {
+                item(key = "delete") {
+                    ListRow(
+                        headline = if (isSettlement) "Delete this payment" else "Delete this expense",
+                        leading = { IconBadge(Icons.Rounded.Delete, BadgeTone.ROSE) },
+                        onClick = if (state.isDeleting) null else onDelete,
+                        headlineColor = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = Spacing.sm),
+                    )
+                }
+            }
+            item(key = "inset") { Spacer(Modifier.navigationBarsPadding()) }
         }
-        Text(
-            buildString {
-                append(expense.date.formatWithHouseConfig(config))
-                append(" · added by ")
-                append(state.members.nameInSentence(expense.createdBy, state.viewerId))
-                expense.category?.takeIf { it != expense.name }?.let { append(" · $it") }
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        SectionCard(title = if (expense.kind == ExpenseKind.SETTLEMENT) "Between" else "Split ${expense.splitMethod?.phrase ?: "— one person bears it"}") {
-            expense.shares.sortedByDescending { it.paidShare }.forEach { share -> ShareLine(share, state, currencyCode) }
-        }
-        expense.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-            SectionCard(title = "Notes") { Text(notes, style = MaterialTheme.typography.bodyLarge) }
-        }
-        val origin = when {
-            expense.recurringExpenseId != null -> "Recorded as a payment of a recurring bill."
-            expense.perDiemMonth != null -> "Worked out from the month's usage log. Delete it to change that month's usage."
-            else -> null
-        }
-        origin?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        HeroStatusBarScrim(isHeroGone = listState.isHeroScrolledAway)
     }
 }
 
-/** One person's part: "Riya paid ₹90 and owes ₹30", or just what they owe or received. */
+/** "Riya paid" above an expense's amount, or "Karan paid you" above a payment's. */
+private fun whoPaid(expense: Expense, state: ExpenseDetailUiState.Ready): String {
+    val payer = state.members.nameOf(expense.payerId, state.viewerId)
+    if (expense.kind != ExpenseKind.SETTLEMENT) return "$payer paid"
+    val receiver = expense.shares.firstOrNull { it.owedShare.signum() > 0 }?.userId
+    return "$payer paid ${state.members.nameInSentence(receiver, state.viewerId)}"
+}
+
+/** What this expense or payment did to the viewer's balance, in words. */
+private fun viewerSentence(expense: Expense, viewerId: String, currencyCode: String): String {
+    val share = expense.shareOf(viewerId)
+    if (expense.kind == ExpenseKind.SETTLEMENT) {
+        return when {
+            share == null -> "It doesn't change your balance."
+            share.paidShare.signum() > 0 -> "It comes off what you owed."
+            else -> "It comes off what you're owed."
+        }
+    }
+    return when {
+        share == null -> "You're not part of this one."
+        share.net.signum() > 0 && share.owedShare.signum() > 0 ->
+            "You lent ${share.net.formatMoney(currencyCode)}. Your share is ${share.owedShare.formatMoney(currencyCode)}."
+        share.net.signum() > 0 -> "You lent ${share.net.formatMoney(currencyCode)}."
+        share.net.signum() < 0 -> "You owe ${share.net.abs().formatMoney(currencyCode)} for this."
+        else -> "You're square on this one."
+    }
+}
+
+/** One person's part: "Paid ₹90 and owes ₹30", or just what they owe or received. */
 @Composable
-private fun ShareLine(share: ExpenseShare, state: ExpenseDetailUiState.Ready, currencyCode: String) {
+private fun ShareRow(share: ExpenseShare, state: ExpenseDetailUiState.Ready, currencyCode: String) {
     val member = state.members[share.userId]
     val name = state.members.nameOf(share.userId, state.viewerId)
-    val isSettlement = state.expense.kind == ExpenseKind.SETTLEMENT
+    val owe = if (share.userId == state.viewerId) "owe" else "owes"
     val description = when {
-        isSettlement && share.paidShare.signum() > 0 -> "paid ${share.paidShare.formatMoney(currencyCode)}"
-        isSettlement -> "received ${share.owedShare.formatMoney(currencyCode)}"
+        state.expense.kind == ExpenseKind.SETTLEMENT && share.paidShare.signum() > 0 -> "Paid ${share.paidShare.formatMoney(currencyCode)}"
+        state.expense.kind == ExpenseKind.SETTLEMENT -> "Received ${share.owedShare.formatMoney(currencyCode)}"
         share.paidShare.signum() > 0 && share.owedShare.signum() > 0 ->
-            "paid ${share.paidShare.formatMoney(currencyCode)} and owe${if (share.userId == state.viewerId) "" else "s"} ${share.owedShare.formatMoney(currencyCode)}"
-        share.paidShare.signum() > 0 -> "paid ${share.paidShare.formatMoney(currencyCode)}"
-        else -> "owe${if (share.userId == state.viewerId) "" else "s"} ${share.owedShare.formatMoney(currencyCode)}"
+            "Paid ${share.paidShare.formatMoney(currencyCode)} and $owe ${share.owedShare.formatMoney(currencyCode)}"
+        share.paidShare.signum() > 0 -> "Paid ${share.paidShare.formatMoney(currencyCode)}"
+        else -> "${owe.replaceFirstChar { it.uppercase() }} ${share.owedShare.formatMoney(currencyCode)}"
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
-        MemberAvatar(name = member?.displayName ?: name, avatarUrl = member?.avatarUrl)
-        Text("$name $description", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-    }
+    ListRow(
+        headline = name,
+        supporting = description,
+        leading = { MemberAvatar(name = member?.displayName ?: name, avatarUrl = member?.avatarUrl) },
+    )
+}
+
+@Composable
+private fun QuietLine(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = color,
+        modifier = modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+    )
 }

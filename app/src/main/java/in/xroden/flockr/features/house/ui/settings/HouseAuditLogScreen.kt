@@ -2,104 +2,114 @@
 package `in`.xroden.flockr.features.house.ui.settings
 
 import android.text.format.DateUtils
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.CleaningServices
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Handshake
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.PersonRemove
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.flockr.features.house.model.HouseAuditLog
+import `in`.xroden.flockr.features.house.model.HouseConfig
 import `in`.xroden.flockr.features.house.model.MemberWithProfile
 import `in`.xroden.flockr.features.house.model.currency
 import `in`.xroden.flockr.features.house.model.nameInSentence
 import `in`.xroden.flockr.features.house.model.nameOf
+import `in`.xroden.flockr.features.house.model.timeZone
 import `in`.xroden.flockr.features.house.presentation.ActivityUiState
 import `in`.xroden.flockr.features.house.presentation.ActivityViewModel
 import `in`.xroden.flockr.features.house.presentation.rememberHouseConfig
+import `in`.xroden.flockr.ui.components.SkeletonRows
+import `in`.xroden.flockr.ui.components.BadgeTone
 import `in`.xroden.flockr.ui.components.FlockrTopAppBar
+import `in`.xroden.flockr.ui.components.IconBadge
+import `in`.xroden.flockr.ui.components.ListRow
+import `in`.xroden.flockr.ui.components.SectionTitle
 import `in`.xroden.flockr.ui.components.states.EmptyState
 import `in`.xroden.flockr.ui.components.states.ErrorState
-import `in`.xroden.flockr.ui.theme.ComponentHeight
-import `in`.xroden.flockr.ui.theme.IconSize
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.utils.relativeDayLabel
 import kotlin.time.Clock
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonPrimitive
 
 @Composable
 fun HouseAuditLogScreen(houseId: String, onNavigateBack: () -> Unit, viewModel: ActivityViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val config by rememberHouseConfig(houseId)
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(houseId) { viewModel.load(houseId) }
 
-    Scaffold(topBar = { FlockrTopAppBar(title = "Activity", onNavigateBack = onNavigateBack) }) { padding ->
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { FlockrTopAppBar(title = "Activity", scrollBehavior = scrollBehavior) },
+    ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (val current = state) {
-                ActivityUiState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
+                ActivityUiState.Loading -> SkeletonRows()
                 is ActivityUiState.Error -> ErrorState(current.message, onRetry = { viewModel.load(houseId) })
                 is ActivityUiState.Ready -> if (current.events.isEmpty()) {
                     EmptyState(icon = Icons.Rounded.History, title = "Nothing yet", subtitle = "Expenses, payments, chores and members coming and going show up here.")
                 } else {
-                    LazyColumn {
-                        items(current.events, key = { it.id }) { event ->
-                            EventRow(event, current, config.currency())
-                        }
-                    }
+                    EventList(current, config)
                 }
             }
         }
     }
 }
 
+/** Events under a heading for the day they happened on, in the house's time zone, newest first. */
 @Composable
-private fun EventRow(event: HouseAuditLog, state: ActivityUiState.Ready, currencyCode: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-            Box(Modifier.size(ComponentHeight.avatar), contentAlignment = Alignment.Center) {
-                Icon(eventIcon(event.action), contentDescription = null, modifier = Modifier.size(IconSize.md))
+private fun EventList(state: ActivityUiState.Ready, config: HouseConfig?) {
+    val days = remember(state.events, config) {
+        val zone = config.timeZone()
+        state.events.groupBy { it.createdAt.toLocalDateTime(zone).date }
+    }
+    val now = Clock.System.now().toEpochMilliseconds()
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+        days.forEach { (day, events) ->
+            item(key = "day_$day") { SectionTitle(day.relativeDayLabel(config)) }
+            items(events, key = { it.id }) { event ->
+                ListRow(
+                    headline = describe(event, state.members, state.viewerId, config.currency()),
+                    supporting = DateUtils.getRelativeTimeSpanString(event.createdAt.toEpochMilliseconds(), now, DateUtils.MINUTE_IN_MILLIS).toString(),
+                    leading = { IconBadge(eventIcon(event.action), eventTone(event.action)) },
+                    modifier = Modifier.animateItem(),
+                )
             }
         }
-        Column(Modifier.weight(1f)) {
-            Text(describe(event, state.members, state.viewerId, currencyCode), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                DateUtils.getRelativeTimeSpanString(event.createdAt.toEpochMilliseconds(), Clock.System.now().toEpochMilliseconds(), DateUtils.MINUTE_IN_MILLIS).toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        item(key = "inset") { Spacer(Modifier.navigationBarsPadding()) }
     }
+}
+
+private fun eventTone(action: String): BadgeTone = when (action) {
+    "member_joined", "role_changed" -> BadgeTone.SUN
+    "member_left", "member_removed", "expense_deleted", "payment_deleted", "chore_deleted" -> BadgeTone.ROSE
+    "payment_recorded" -> BadgeTone.SLATE
+    "chore_added", "chore_completed" -> BadgeTone.JADE
+    else -> BadgeTone.COBALT
 }
 
 private fun eventIcon(action: String): ImageVector = when (action) {

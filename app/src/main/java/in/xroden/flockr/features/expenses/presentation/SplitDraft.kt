@@ -61,7 +61,7 @@ data class SplitDraft(
         if (method == SplitMethod.EXACT) parseMoney(text, currencyCode) else parseDecimal(text)
 
     companion object {
-        /** A new split across everyone currently in the house, the default Splitwise uses. */
-        fun everyone(members: List<MemberWithProfile>) = SplitDraft(participantIds = members.filter { it.isActive }.map { it.userId }.toSet())
+        /** A new split, on and equal across everyone currently in the house, the default Splitwise uses. */
+        fun everyone(members: List<MemberWithProfile>) = SplitDraft(isEnabled = true, participantIds = members.filter { it.isActive }.map { it.userId }.toSet())
     }
 }

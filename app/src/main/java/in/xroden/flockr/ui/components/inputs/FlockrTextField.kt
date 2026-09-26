@@ -1,11 +1,13 @@
 package `in`.xroden.flockr.ui.components.inputs
 
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 
@@ -36,6 +38,8 @@ fun FlockrTextField(
     suffix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
+    imeAction: ImeAction = ImeAction.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     OutlinedTextField(
         value = value,
@@ -53,9 +57,10 @@ fun FlockrTextField(
         supportingText = supportingText?.let { { Text(it) } },
         prefix = prefix?.let { { Text(it) } },
         suffix = suffix?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = capitalization),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = capitalization, imeAction = imeAction),
+        keyboardActions = keyboardActions,
         singleLine = singleLine,
         maxLines = maxLines,
-        shape = MaterialTheme.shapes.large
+        shape = MaterialTheme.shapes.medium
     )
 }

@@ -11,12 +11,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +50,7 @@ fun EmptyState(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmallEmphasized,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
@@ -66,7 +64,7 @@ fun EmptyState(
 
         if (actionText != null && onActionClick != null) {
             Button(onClick = { haptics.tap(); onActionClick() }) {
-                Text(actionText)
+                Text(actionText, style = MaterialTheme.typography.labelLargeEmphasized)
             }
         }
     }
@@ -119,14 +117,14 @@ private fun StateLayout(modifier: Modifier, content: @Composable ColumnScope.() 
 }
 
 /**
- * The icon on an Expressive [MaterialShapes] silhouette. One shape across every state, so the
- * colour is what tells an empty screen apart from a broken one.
+ * The icon on a softly rounded tile. One shape across every state, so the colour is what tells an
+ * empty screen apart from a broken one.
  */
 @Composable
 private fun StateSilhouette(icon: ImageVector, containerColor: Color) {
     Surface(
         modifier = Modifier.size(IconSize.display),
-        shape = MaterialShapes.Cookie9Sided.toShape(),
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         color = containerColor
     ) {
         Box(contentAlignment = Alignment.Center) {

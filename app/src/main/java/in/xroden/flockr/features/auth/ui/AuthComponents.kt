@@ -1,4 +1,4 @@
-/** The fields, buttons and messages the sign-in, sign-up and onboarding screens share. */
+/** The fields, buttons and messages the sign-in and sign-up screens share. */
 package `in`.xroden.flockr.features.auth.ui
 
 import androidx.compose.foundation.Image
@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
@@ -18,22 +17,20 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,6 +45,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import `in`.xroden.flockr.R
+import `in`.xroden.flockr.ui.components.AnimatedGlyph
+import `in`.xroden.flockr.ui.components.GlyphMotion
+import `in`.xroden.flockr.ui.theme.IconSize
 import `in`.xroden.flockr.ui.theme.Spacing
 import `in`.xroden.flockr.utils.rememberHaptics
 
@@ -93,7 +93,7 @@ internal fun AuthTextField(
         ),
         keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
         singleLine = true,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
@@ -126,9 +126,11 @@ internal fun PasswordField(
         onDone = onDone,
         visualTransformation = if (isVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
-            IconButton(onClick = { isVisible = !isVisible; haptics.toggle(isVisible) }) {
-                Icon(
-                    imageVector = if (isVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+            IconButton(onClick = { isVisible = !isVisible; haptics.toggle(isVisible) }, shapes = IconButtonDefaults.shapes()) {
+                AnimatedGlyph(
+                    icon = if (isVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    trigger = isVisible,
+                    motion = GlyphMotion.POP,
                     contentDescription = if (isVisible) "Hide password" else "Show password",
                 )
             }
@@ -158,35 +160,17 @@ internal fun GoogleSignInButton(onClick: () -> Unit, enabled: Boolean, isLoading
     }
 }
 
-@Composable
-internal fun OrDivider(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
-    ) {
-        HorizontalDivider(Modifier.weight(1f))
-        Text("or", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        HorizontalDivider(Modifier.weight(1f))
-    }
-}
-
-/** A failure from the auth server, announced to screen readers as soon as it appears. */
+/**
+ * A failure from the auth server, in the error colour straight on the page, announced to screen
+ * readers as soon as it appears.
+ */
 @Composable
 internal fun AuthErrorMessage(message: String, modifier: Modifier = Modifier) {
-    Surface(
+    Row(
         modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        Row(
-            modifier = Modifier.padding(Spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            Icon(Icons.Rounded.ErrorOutline, contentDescription = null)
-            Text(message, style = MaterialTheme.typography.bodyMedium)
-        }
+        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(IconSize.sm))
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
     }
 }

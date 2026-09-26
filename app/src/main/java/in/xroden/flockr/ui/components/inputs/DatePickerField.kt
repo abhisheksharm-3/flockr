@@ -56,7 +56,7 @@ fun DatePickerField(
         modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) { isPickerOpen = true },
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         color = Color.Transparent,
         border = BorderStroke(Dp.Hairline, MaterialTheme.colorScheme.outline),
     ) {

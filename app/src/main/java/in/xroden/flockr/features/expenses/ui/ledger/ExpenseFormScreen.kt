@@ -1,52 +1,65 @@
-/** Adding or editing an expense, with a live preview of exactly what each person will owe. */
+/**
+ * Adding or editing an expense: the amount typed large on cobalt, then the rest as a sentence of
+ * tappable words, with a live line of exactly what each person will owe.
+ */
 package `in`.xroden.flockr.features.expenses.ui.ledger
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CallSplit
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.xroden.flockr.data.enums.SplitMethod
+import `in`.xroden.flockr.features.expenses.model.ExpenseCategories
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseFormState
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseFormUiState
 import `in`.xroden.flockr.features.expenses.presentation.ExpenseFormViewModel
-import `in`.xroden.flockr.features.expenses.model.ExpenseCategories
 import `in`.xroden.flockr.features.expenses.ui.SplitEditor
+import `in`.xroden.flockr.features.expenses.ui.categoryIcon
 import `in`.xroden.flockr.features.house.model.HouseConfig
-import `in`.xroden.flockr.ui.components.FlockrTopAppBar
-import `in`.xroden.flockr.ui.components.buttons.FlockrPrimaryButton
-import `in`.xroden.flockr.ui.components.buttons.FlockrSplitButton
-import `in`.xroden.flockr.ui.components.forms.FormSectionCard
-import `in`.xroden.flockr.ui.components.inputs.AmountField
-import `in`.xroden.flockr.ui.components.inputs.ChoiceField
-import `in`.xroden.flockr.ui.components.inputs.DatePickerField
-import `in`.xroden.flockr.ui.components.inputs.FlockrTextField
+import `in`.xroden.flockr.features.house.model.MemberWithProfile
+import `in`.xroden.flockr.ui.components.SkeletonFormScreen
+import `in`.xroden.flockr.ui.components.HeroColumn
+import `in`.xroden.flockr.ui.components.ListRow
+import `in`.xroden.flockr.ui.components.MemberAvatar
+import `in`.xroden.flockr.ui.components.SectionTitle
+import `in`.xroden.flockr.ui.components.TrailingAmount
+import `in`.xroden.flockr.ui.components.forms.FormHero
+import `in`.xroden.flockr.ui.components.forms.FormSubmitBar
+import `in`.xroden.flockr.ui.components.forms.HeroAmountInput
+import `in`.xroden.flockr.ui.components.forms.HeroNote
+import `in`.xroden.flockr.ui.components.forms.HeroTextInput
+import `in`.xroden.flockr.ui.components.forms.Sentence
+import `in`.xroden.flockr.ui.components.forms.SentenceNote
+import `in`.xroden.flockr.ui.components.forms.SentenceToken
+import `in`.xroden.flockr.ui.components.forms.SentenceWords
+import `in`.xroden.flockr.ui.components.inputs.FlockrDatePickerDialog
+import `in`.xroden.flockr.ui.components.inputs.OptionSheet
+import `in`.xroden.flockr.ui.components.inputs.amountHint
 import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.utils.formatMoney
+import `in`.xroden.flockr.utils.relativeDayLabel
 import `in`.xroden.flockr.utils.rememberHaptics
 
+/** The pickers a sentence token can open; one at a time. */
+private enum class Picker { PAYER, DATE, CATEGORY, SPLIT }
 
 /**
  * The expense form. With [expenseId] it edits that expense; without, it adds a new one, optionally
@@ -68,8 +81,8 @@ fun ExpenseFormScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val houseConfig by viewModel.houseConfig.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val isSaving = uiState is ExpenseFormUiState.Saving
+    var picker by remember { mutableStateOf<Picker?>(null) }
 
     LaunchedEffect(houseId, expenseId) { viewModel.initialize(houseId, expenseId, initialName, initialQuantity) }
     LaunchedEffect(Unit) {
@@ -92,129 +105,155 @@ fun ExpenseFormScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            FlockrTopAppBar(
-                title = if (form.isEditing) "Edit expense" else "Add expense",
-                onNavigateBack = onNavigateBack,
-                scrollBehavior = scrollBehavior,
-            )
-        },
         bottomBar = {
-            val barModifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
-            if (form.isEditing) {
-                FlockrPrimaryButton(
-                    text = "Save changes",
+            if (form.isLoaded) {
+                FormSubmitBar(
+                    text = if (form.isEditing) "Save changes" else "Add expense",
                     onClick = { viewModel.save(houseId) },
                     enabled = form.canSave,
                     isLoading = isSaving,
-                    modifier = barModifier,
+                    secondary = if (form.isEditing) null else "Add another" to { viewModel.save(houseId, startAnother = true) },
                 )
-            } else {
-                FlockrSplitButton(
-                    text = "Add expense",
-                    onClick = { viewModel.save(houseId) },
-                    enabled = form.canSave && !isSaving,
-                    modifier = barModifier,
-                ) { dismiss ->
-                    DropdownMenuItem(
-                        text = { Text("Add and start another") },
-                        onClick = {
-                            dismiss()
-                            viewModel.save(houseId, startAnother = true)
-                        },
-                    )
-                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (!form.isLoaded) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            SkeletonFormScreen()
             return@Scaffold
         }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.xl, vertical = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+        HeroColumn(
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl),
+            hero = { FormHero(if (form.isEditing) "Edit expense" else "New expense") {
+                HeroAmountInput(form.amount, viewModel::onAmountChange, form.currencyCode, enabled = !isSaving, autoFocus = !form.isEditing)
+                val hint = amountHint(form.amount, form.currencyCode)
+                HeroNote(hint ?: shareNote(form), isError = hint != null)
+                HeroTextInput(
+                    value = form.name,
+                    onValueChange = viewModel::onNameChange,
+                    placeholder = "What was it for?",
+                    enabled = !isSaving,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+            } },
         ) {
-            DetailsSection(form, houseConfig, isSaving, viewModel)
-            SplitSection(form, isSaving, viewModel)
+            ExpenseSentence(form, houseConfig, isSaving, onPick = { picker = it })
+            SentenceNote(form.notes, viewModel::onNotesChange, placeholder = "A receipt number, or what was in the bag", enabled = !isSaving)
+            WhoOwesWhat(form)
         }
     }
-}
 
-@Composable
-private fun DetailsSection(form: ExpenseFormState, houseConfig: HouseConfig?, isSaving: Boolean, viewModel: ExpenseFormViewModel) {
-    FormSectionCard(icon = Icons.Filled.Receipt, title = "Details") {
-        FlockrTextField(
-            value = form.name,
-            onValueChange = viewModel::onNameChange,
-            label = "What was it for?",
-            placeholder = "Groceries, electricity bill…",
-            enabled = !isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        AmountField(
-            value = form.amount,
-            onValueChange = viewModel::onAmountChange,
-            currencyCode = form.currencyCode,
-            enabled = !isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        form.date?.let { date ->
-            DatePickerField(label = "Date", date = date, houseConfig = houseConfig, onDateChange = viewModel::onDateChange, enabled = !isSaving)
-        }
-        ChoiceField(
-            label = "Category",
-            selected = form.category,
-            options = ExpenseCategories.DEFAULT,
-            onSelect = viewModel::onCategoryChange,
-            enabled = !isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        FlockrTextField(
-            value = form.notes,
-            onValueChange = viewModel::onNotesChange,
-            label = "Notes",
-            singleLine = false,
-            enabled = !isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun SplitSection(form: ExpenseFormState, isSaving: Boolean, viewModel: ExpenseFormViewModel) {
-    FormSectionCard(icon = Icons.Filled.Group, title = "Split") {
-        ChoiceField(
-            label = "Paid by",
-            selected = form.houseMembers.firstOrNull { it.userId == form.payerId },
+    when (picker) {
+        Picker.PAYER -> OptionSheet(
             options = form.houseMembers.filter { it.isActive || it.userId == form.payerId },
-            onSelect = { member -> member?.let { viewModel.onPayerChange(it.userId) } },
-            optionLabel = { member -> member?.let { if (it.userId == form.viewerId) "You" else it.displayName }.orEmpty() },
-            enabled = !isSaving,
-            modifier = Modifier.fillMaxWidth(),
+            selected = form.houseMembers.firstOrNull { it.userId == form.payerId },
+            onSelect = { viewModel.onPayerChange(it.userId) },
+            onDismiss = { picker = null },
+            title = "Who paid?",
+            optionLabel = { if (it.userId == form.viewerId) "You" else it.displayName },
         )
-        SplitEditor(
-            draft = form.split,
-            members = form.houseMembers,
-            viewerId = form.viewerId,
-            currencyCode = form.currencyCode,
-            unassigned = form.unassigned,
-            owedByUser = form.shares.orEmpty().associate { it.userId to it.owedShare },
-            enabled = !isSaving,
-            offSubtitle = "Only the payer bears it",
-            onEnabledChange = viewModel::onSplitEnabledChange,
-            onMethodChange = viewModel::onSplitMethodChange,
-            onParticipantChange = viewModel::onParticipantChange,
-            onValueChange = viewModel::onSplitValueChange,
+        Picker.CATEGORY -> OptionSheet(
+            options = ExpenseCategories.DEFAULT,
+            selected = form.category,
+            onSelect = viewModel::onCategoryChange,
+            onDismiss = { picker = null },
+            title = "What kind of spending?",
+            icon = ::categoryIcon,
         )
+        Picker.DATE -> form.date?.let { date ->
+            FlockrDatePickerDialog(
+                initialDate = date,
+                firstDayOfWeek = houseConfig?.firstDayOfWeek,
+                onDateSelected = { viewModel.onDateChange(it); picker = null },
+                onDismiss = { picker = null },
+            )
+        }
+        Picker.SPLIT -> ModalBottomSheet(onDismissRequest = { picker = null }) {
+            Column(Modifier.navigationBarsPadding().padding(horizontal = Spacing.lg, vertical = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                Text("How is it shared?", style = MaterialTheme.typography.titleLargeEmphasized)
+                SplitEditor(
+                    draft = form.split,
+                    members = form.houseMembers,
+                    viewerId = form.viewerId,
+                    currencyCode = form.currencyCode,
+                    unassigned = form.unassigned,
+                    owedByUser = form.shares.orEmpty().associate { it.userId to it.owedShare },
+                    enabled = !isSaving,
+                    offSubtitle = "Only the payer bears it",
+                    onEnabledChange = viewModel::onSplitEnabledChange,
+                    onMethodChange = viewModel::onSplitMethodChange,
+                    onParticipantChange = viewModel::onParticipantChange,
+                    onValueChange = viewModel::onSplitValueChange,
+                )
+            }
+        }
+        null -> Unit
+    }
+}
+
+/** "Paid by **you** on **today**, for **Groceries**, split **equally** between **everyone**." */
+@Composable
+private fun ExpenseSentence(form: ExpenseFormState, config: HouseConfig?, isSaving: Boolean, onPick: (Picker) -> Unit) {
+    val enabled = !isSaving
+    Sentence {
+        SentenceWords("Paid by")
+        SentenceToken(nameFor(form.payerId, form).lowercaseIfYou(), onClick = { onPick(Picker.PAYER) }, enabled = enabled)
+        SentenceWords("on")
+        form.date?.let { SentenceToken(it.relativeDayLabel(config), onClick = { onPick(Picker.DATE) }, enabled = enabled, icon = Icons.Rounded.CalendarMonth) }
+        SentenceWords("for")
+        SentenceToken(form.category, onClick = { onPick(Picker.CATEGORY) }, enabled = enabled, icon = categoryIcon(form.category))
+        if (form.split.isEnabled) {
+            SentenceWords("split")
+            SentenceToken(splitLabel(form), onClick = { onPick(Picker.SPLIT) }, enabled = enabled, icon = Icons.Rounded.CallSplit)
+        } else {
+            SentenceWords("and")
+            SentenceToken("not split", onClick = { onPick(Picker.SPLIT) }, enabled = enabled, icon = Icons.Rounded.CallSplit, isUnset = true)
+        }
+    }
+}
+
+/** "equally between everyone", "by shares between Riya and you", and so on. */
+private fun splitLabel(form: ExpenseFormState): String {
+    val active = form.houseMembers.filter { it.isActive }.map { it.userId }.toSet()
+    val ids = form.split.participantIds
+    val who = when {
+        ids.isNotEmpty() && ids == active -> "everyone"
+        ids.size == 1 -> "just ${nameFor(ids.single(), form).lowercaseIfYou()}"
+        ids.size == 2 -> ids.joinToString(" and ") { nameFor(it, form).lowercaseIfYou() }
+        else -> "${ids.size} people"
+    }
+    return "${form.split.method.phrase} between $who"
+}
+
+private fun String.lowercaseIfYou() = if (this == "You") "you" else this
+
+private fun nameFor(userId: String, form: ExpenseFormState): String =
+    if (userId == form.viewerId) "You" else form.houseMembers.firstOrNull { it.userId == userId }?.shortName ?: "Someone"
+
+/** What the amount means for the viewer under the current split, or a nudge while it's blank. */
+private fun shareNote(form: ExpenseFormState): String {
+    val total = form.parsedAmount ?: return "Type what you spent"
+    if (!form.split.isEnabled) return "${nameFor(form.payerId, form)} ${if (form.payerId == form.viewerId) "pay" else "pays"} all of it"
+    val mine = form.shares?.firstOrNull { it.userId == form.viewerId }?.owedShare ?: return "The split doesn't add up to ${total.formatMoney(form.currencyCode)} yet"
+    return if (mine.signum() == 0) "You're not in this split" else "Your share is ${mine.formatMoney(form.currencyCode)}"
+}
+
+/** Each person's share, exactly as it will be saved, once the amount and split add up. */
+@Composable
+private fun WhoOwesWhat(form: ExpenseFormState) {
+    val shares = form.shares?.takeIf { form.split.isEnabled && it.isNotEmpty() } ?: return
+    val byId = form.houseMembers.associateBy { it.userId }
+    Column {
+        SectionTitle("Who owes what")
+        shares.sortedByDescending { it.owedShare }.forEach { share ->
+            val member: MemberWithProfile? = byId[share.userId]
+            ListRow(
+                headline = nameFor(share.userId, form),
+                supporting = if (share.userId == form.payerId) "paid ${share.paidShare.formatMoney(form.currencyCode)}" else null,
+                leading = { MemberAvatar(name = member?.displayName ?: "?", avatarUrl = member?.avatarUrl) },
+                trailing = { TrailingAmount(share.owedShare.formatMoney(form.currencyCode), if (form.split.method == SplitMethod.EQUAL) "equal share" else null) },
+            )
+        }
     }
 }

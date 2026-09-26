@@ -1,6 +1,6 @@
 /**
- * Expense charts for the monthly report. AndroidX ships no charting library, so the category ring
- * is drawn on a Canvas; the per-member bars are Material's own linear progress indicator.
+ * The monthly report's category chart. AndroidX ships no charting library, so the ring is drawn
+ * on a Canvas.
  */
 package `in`.xroden.flockr.ui.components.charts
 
@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import `in`.xroden.flockr.ui.theme.Motion
 import `in`.xroden.flockr.ui.theme.Spacing
+import `in`.xroden.flockr.ui.theme.flockrColors
 import `in`.xroden.flockr.utils.apportion
 import `in`.xroden.flockr.utils.formatMoney
 import java.math.BigDecimal
@@ -38,11 +39,10 @@ private const val MinSegmentDegrees = 2f
 private const val RingThicknessFraction = 0.16f
 private const val PercentScale = 100
 
-/** One bar or segment. [key] identifies it for [onItemClick]; [label] is what the chart shows. */
+/** One segment of the ring. [key] identifies it for [onItemClick]; [label] is what the chart shows. */
 data class ChartEntry(val key: String, val label: String, val value: BigDecimal)
 
 private val RingSize = 200.dp
-private val BarHeight = 12.dp
 private val LegendSwatchSize = 12.dp
 
 /**
@@ -78,61 +78,6 @@ fun SimplePieChart(
             currencyCode = currencyCode,
             onItemClick = onItemClick
         )
-    }
-}
-
-/**
- * Spend per member, each bar scaled against the largest value in [data].
- *
- * [onItemClick] receives the [ChartEntry.key] of the row tapped.
- */
-@Composable
-fun SimpleBarChart(
-    data: List<ChartEntry>,
-    modifier: Modifier = Modifier,
-    currencyCode: String,
-    onItemClick: ((String) -> Unit)? = null
-) {
-    val maxValue = data.maxOfOrNull { it.value }?.takeIf { it.signum() > 0 } ?: BigDecimal.ONE
-    val growth = rememberGrowth(data)
-
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        data.forEach { entry ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable(enabled = onItemClick != null) { onItemClick?.invoke(entry.key) }
-                    .padding(vertical = Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = entry.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = entry.value.formatMoney(currencyCode),
-                        style = MaterialTheme.typography.bodyMediumEmphasized
-                    )
-                }
-                LinearProgressIndicator(
-                    progress = { entry.value.toFloat() / maxValue.toFloat() * growth },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(BarHeight),
-                    drawStopIndicator = {}
-                )
-            }
-        }
     }
 }
 
@@ -246,7 +191,7 @@ private fun CategoryLegend(
 @Composable
 @ReadOnlyComposable
 private fun chartPalette(): List<Color> = with(MaterialTheme.colorScheme) {
-    listOf(primary, tertiary, secondary, primaryContainer, tertiaryContainer, secondaryContainer)
+    listOf(primary, MaterialTheme.flockrColors.sun, tertiary, error, secondary, primaryContainer, tertiaryContainer)
 }
 
 /**
